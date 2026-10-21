@@ -8,9 +8,10 @@ import {
   claimableCount,
   claimAchievement,
   monthsSince,
+  nextLevelReward,
   unlockedRewards,
 } from './achievements.ts';
-import { addDays, emptyState, totalXp, type Completion, type GameState } from './game.ts';
+import { addDays, emptyState, levelInfo, totalXp, xpToNext, type Completion, type GameState } from './game.ts';
 
 const TODAY = '2026-10-21';
 
@@ -78,4 +79,35 @@ test('claiming achievement XP never unlocks a level achievement by itself', () =
   }
   const level = achievementStatuses(s, TODAY).find((a) => a.def.id === 'level')!;
   assert.equal(level.reached, 0);
+});
+
+test('next level reward counts from the start of the current level', () => {
+  // Level 1: 25 XP to level 2. 10 XP in.
+  const r = nextLevelReward(10)!;
+  assert.equal(r.milestone.level, 5);
+  assert.deepEqual(r.levels.map((l) => l.level), [2, 3, 4, 5]);
+  assert.equal(r.levels.filter((l) => l.milestone).length, 1);
+  assert.equal(r.xpInto, 10);
+  assert.equal(r.xpNeeded, xpToNext(1) + xpToNext(2) + xpToNext(3) + xpToNext(4));
+});
+
+test('next level reward skips to the next milestone once one is reached', () => {
+  let xp = 0;
+  for (let l = 1; l < 10; l++) xp += xpToNext(l);
+  const atTen = nextLevelReward(xp)!;
+  assert.equal(levelInfo(xp).level, 10);
+  assert.equal(atTen.milestone.level, 25);
+  assert.equal(atTen.xpInto, 0);
+  assert.equal(atTen.levels.length, 15);
+  const nine = nextLevelReward(xp - 1)!;
+  assert.equal(nine.milestone.level, 10);
+  assert.equal(nine.milestone.reward?.label, 'Midnight theme');
+  assert.equal(nine.xpNeeded - nine.xpInto, 1);
+});
+
+test('no next level reward at the top', () => {
+  let xp = 0;
+  for (let l = 1; l < 100; l++) xp += xpToNext(l);
+  assert.equal(nextLevelReward(xp), undefined);
+  assert.equal(nextLevelReward(xp - 1)!.milestone.level, 100);
 });

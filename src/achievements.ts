@@ -3,8 +3,10 @@ import { APP_NAME } from './brand.ts';
 import {
   levelInfo,
   longestStreak,
+  MAX_LEVEL,
   totalXp,
   weekStart,
+  xpToNext,
   type GameState,
 } from './game.ts';
 
@@ -252,4 +254,45 @@ export function unlockedRewards(state: GameState): Reward[] {
     const reward = ACHIEVEMENTS.find((a) => a.id === c.achievementId)?.tiers[c.tier]?.reward;
     return reward ? [reward] : [];
   });
+}
+
+/** A level that pays out: the Climber tier for it (bonus XP, maybe a reward). */
+export interface LevelMilestone {
+  level: number;
+  bonusXp: number;
+  reward?: Reward;
+}
+
+export const LEVEL_MILESTONES: LevelMilestone[] = ACHIEVEMENTS.find((a) => a.id === 'level')!.tiers.map((t) => ({
+  level: t.goal,
+  bonusXp: t.xp,
+  reward: t.reward,
+}));
+
+export interface NextLevelReward {
+  /** The levels after the current one up to and including the milestone; empty ones have no milestone. */
+  levels: { level: number; milestone?: LevelMilestone }[];
+  milestone: LevelMilestone;
+  /** XP since the start of the current level, and the XP from that point to the milestone level. */
+  xpInto: number;
+  xpNeeded: number;
+}
+
+/**
+ * What the player is working towards: the next level with a reward and how
+ * far away it is, counted from the start of the current level (so at 500/600
+ * on the way to level 7 it reads 500/1000 when level 10 is the next reward).
+ * Undefined once no milestone is left.
+ */
+export function nextLevelReward(xp: number): NextLevelReward | undefined {
+  const info = levelInfo(xp);
+  const milestone = LEVEL_MILESTONES.find((m) => m.level > info.level);
+  if (!milestone || info.maxed) return undefined;
+  let xpNeeded = 0;
+  for (let l = info.level; l < milestone.level && l < MAX_LEVEL; l++) xpNeeded += xpToNext(l);
+  const levels: NextLevelReward['levels'] = [];
+  for (let l = info.level + 1; l <= milestone.level; l++) {
+    levels.push({ level: l, milestone: LEVEL_MILESTONES.find((m) => m.level === l) });
+  }
+  return { levels, milestone, xpInto: info.xpIntoLevel, xpNeeded };
 }
