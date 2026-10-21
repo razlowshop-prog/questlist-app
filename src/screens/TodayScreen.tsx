@@ -4,6 +4,7 @@ import { FlatList, Pressable, ScrollView, Text, TextInput, View } from 'react-na
 import { Chip } from '../components/Chip';
 import { LibraryRow, perWeekLabel } from '../components/LibraryRow';
 import { defaultSchedule, SchedulePicker, scheduleSummary, scheduleToTask, type Schedule } from '../components/SchedulePicker';
+import { StreakCard } from '../components/StreakCard';
 import { TaskRow } from '../components/TaskRow';
 import {
   dayLabel,
@@ -14,6 +15,7 @@ import {
   xpFor,
   type GameState,
   type Repeat,
+  type StreakStatus,
   type Task,
   type TaskPlan,
 } from '../game';
@@ -32,6 +34,8 @@ export function TodayScreen({
   state,
   tasks,
   upcoming,
+  streak,
+  onOpenStreak,
   today,
   loaded,
   addedTitles,
@@ -44,6 +48,8 @@ export function TodayScreen({
   state: GameState;
   tasks: Task[];
   upcoming: Task[];
+  streak: StreakStatus;
+  onOpenStreak: () => void;
   today: string;
   loaded: boolean;
   addedTitles: Set<string>;
@@ -116,6 +122,8 @@ export function TodayScreen({
           <Text style={s.greeting}>
             Good <Text style={s.greetingEm}>{partOfDay(new Date().getHours())}</Text>, {state.profile.name}.
           </Text>
+
+          <StreakCard streak={streak} onPress={onOpenStreak} />
 
           <View style={s.quote}>
             <Text style={s.quoteText}>“{quote.text}”</Text>

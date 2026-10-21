@@ -6,7 +6,7 @@ import { XpHeader } from './src/components/XpHeader';
 import {
   addTask,
   claimChallenge,
-  currentStreak,
+  streakStatus,
   dayKey,
   deleteTask,
   emptyState,
@@ -37,6 +37,7 @@ import {
   type LevelMilestone,
 } from './src/achievements';
 import { Celebration, type CelebrationEvent } from './src/components/Celebration';
+import { LevelDetails } from './src/components/LevelDetails';
 import { AchievementsScreen } from './src/screens/AchievementsScreen';
 import { ChallengesScreen } from './src/screens/ChallengesScreen';
 import { LibraryModal } from './src/screens/LibraryModal';
@@ -69,6 +70,7 @@ export default function App() {
   const [redoSetup, setRedoSetup] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const toastAnim = useRef(new Animated.Value(0)).current;
+  const [levelOpen, setLevelOpen] = useState(false);
   const [celebration, setCelebration] = useState<CelebrationEvent | null>(null);
   const bestLevel = useRef<number | null>(null);
   // Theme whose fonts are loaded and which is on screen; a newly picked theme
@@ -96,7 +98,8 @@ export default function App() {
   }, [state.tasks, state.completions, loaded, today]);
 
   const xp = totalXp(state);
-  const streak = currentStreak(state.completions, today);
+  const streakInfo = useMemo(() => streakStatus(state.completions, today), [state.completions, today]);
+  const streak = streakInfo.days;
   const tasks = useMemo(() => visibleTasks(state, today), [state, today]);
   const upcoming = useMemo(() => upcomingTasks(state, today), [state.tasks, today]);
   const challenges = useMemo(() => weeklyChallenges(state, today), [state, today]);
@@ -240,7 +243,7 @@ export default function App() {
     <ThemeProvider palette={c}>
       <SafeAreaView style={styles.safe}>
         <StatusBar style={statusBar} />
-        <XpHeader totalXp={xp} streak={streak} bonus={streakBonus(streak)} />
+        <XpHeader totalXp={xp} bonus={streakBonus(streak)} onPressLevel={() => setLevelOpen(true)} />
 
         <View style={{ flex: 1 }}>
           {tab === 'today' && (
@@ -248,6 +251,8 @@ export default function App() {
               state={state}
               tasks={tasks}
               upcoming={upcoming}
+              streak={streakInfo}
+              onOpenStreak={() => setLevelOpen(true)}
               today={today}
               loaded={loaded}
               addedTitles={addedTitles}
@@ -320,6 +325,8 @@ export default function App() {
             <Text style={styles.toastText}>{toast}</Text>
           </Animated.View>
         )}
+
+        <LevelDetails visible={levelOpen} totalXp={xp} streak={streakInfo} onClose={() => setLevelOpen(false)} />
 
         {celebration && (
           <Celebration
