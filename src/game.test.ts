@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import {
   addDays,
   addTask,
-  badges,
   challengesForWeek,
   claimChallenge,
   currentStreak,
@@ -22,6 +21,7 @@ import {
   visibleTasks,
   weekStart,
   weekStats,
+  withDefaults,
   xpFor,
   xpToNext,
   type Completion,
@@ -168,12 +168,16 @@ test('last week does not count towards this week', () => {
   assert.equal(weekStats(s, TODAY).tasksDone, 0);
 });
 
-test('longest streak and badges', () => {
+test('longest streak', () => {
   const completions = [...streakOf(7, '2026-09-10'), ...streakOf(2)];
   assert.equal(longestStreak(completions), 7);
-  const s = { ...emptyState, completions };
-  const earned = badges(s, TODAY).filter((b) => b.earned).map((b) => b.id);
-  assert.deepEqual(earned, ['first', 'streak3', 'streak7']);
+});
+
+test('join date defaults to the first completion, or today', () => {
+  assert.equal(withDefaults(emptyState, TODAY).joinedAt, TODAY);
+  const s = { ...emptyState, completions: streakOf(3) };
+  assert.equal(withDefaults(s, TODAY).joinedAt, addDays(TODAY, -2));
+  assert.equal(withDefaults({ ...s, joinedAt: '2026-01-01' }, TODAY).joinedAt, '2026-01-01');
 });
 
 test('tasks repeating N times a week hide once the weekly target is met', () => {

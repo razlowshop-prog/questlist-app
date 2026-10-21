@@ -4,7 +4,6 @@ import { Animated, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react
 import { XpHeader } from './src/components/XpHeader';
 import {
   addTask,
-  badges,
   claimChallenge,
   currentStreak,
   dayKey,
@@ -20,10 +19,13 @@ import {
   totalXp,
   updateSettings,
   visibleTasks,
+  withDefaults,
   weeklyChallenges,
   type GameState,
   type Task,
 } from './src/game';
+import { achievementStatuses, claimableCount, claimAchievement, TIER_NAMES, unlockedRewards } from './src/achievements';
+import { AchievementsScreen } from './src/screens/AchievementsScreen';
 import { ChallengesScreen } from './src/screens/ChallengesScreen';
 import { LibraryModal } from './src/screens/LibraryModal';
 import { SetupScreen, type SetupPick } from './src/screens/SetupScreen';
@@ -33,11 +35,12 @@ import type { LibraryTask } from './src/library';
 import { loadState, saveState } from './src/storage';
 import { C, nativeDriver } from './src/theme';
 
-type Tab = 'today' | 'challenges' | 'profile';
+type Tab = 'today' | 'challenges' | 'awards' | 'profile';
 
 const TABS: { key: Tab; icon: string; label: string }[] = [
   { key: 'today', icon: '📝', label: 'Today' },
   { key: 'challenges', icon: '🎯', label: 'Challenges' },
+  { key: 'awards', icon: '🏆', label: 'Awards' },
   { key: 'profile', icon: '👤', label: 'Profile' },
 ];
 
@@ -55,7 +58,7 @@ export default function App() {
 
   useEffect(() => {
     loadState().then((s) => {
-      setState(s);
+      setState(withDefaults(s, dayKey()));
       setLoaded(true);
     });
   }, []);
@@ -69,6 +72,8 @@ export default function App() {
   const tasks = useMemo(() => visibleTasks(state, today), [state, today]);
   const challenges = useMemo(() => weeklyChallenges(state, today), [state, today]);
   const readyToClaim = challenges.filter((c) => c.complete && !c.claimed).length;
+  const achievements = useMemo(() => achievementStatuses(state, today), [state, today]);
+  const awardsToClaim = claimableCount(state, today);
   const addedTitles = useMemo(() => new Set(state.tasks.map((t) => t.title)), [state.tasks]);
 
   function addFromLibrary(s: GameState, t: LibraryTask, perWeek = t.perWeek): GameState {
@@ -119,6 +124,14 @@ export default function App() {
     if (gained > 0) showToast(`🎯 Challenge complete! +${gained} XP`);
   }
 
+  function onClaimAchievement(id: string) {
+    const { state: next, tier } = claimAchievement(state, id, today);
+    if (!tier) return;
+    const tierName = TIER_NAMES[next.achievementClaims[next.achievementClaims.length - 1].tier];
+    apply(next);
+    showToast(`🏆 ${tierName} trophy! +${tier.xp} XP${tier.reward ? ` · ${tier.reward.label} unlocked` : ''}`);
+  }
+
   const toastStyle = {
     opacity: toastAnim,
     transform: [{ translateY: toastAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
@@ -164,11 +177,19 @@ export default function App() {
           />
         )}
         {tab === 'challenges' && <ChallengesScreen challenges={challenges} today={today} onClaim={onClaim} />}
+        {tab === 'awards' && (
+          <AchievementsScreen
+            achievements={achievements}
+            rewards={unlockedRewards(state)}
+            onClaim={onClaimAchievement}
+          />
+        )}
         {tab === 'profile' && (
           <ProfileScreen
             name={state.profile.name}
             stats={profileStats(state, today)}
-            badges={badges(state, today)}
+            achievements={achievements}
+            joinedAt={state.joinedAt}
             settings={state.settings}
             onRename={(name) => setState(setName(state, name))}
             onSettings={(changes) => setState(updateSettings(state, changes))}
@@ -188,9 +209,9 @@ export default function App() {
           >
             <Text style={styles.tabIcon}>{t.icon}</Text>
             <Text style={[styles.tabLabel, tab === t.key && { color: C.text }]}>{t.label}</Text>
-            {t.key === 'challenges' && readyToClaim > 0 && (
+            {(t.key === 'challenges' ? readyToClaim : t.key === 'awards' ? awardsToClaim : 0) > 0 && (
               <View style={styles.dot}>
-                <Text style={styles.dotText}>{readyToClaim}</Text>
+                <Text style={styles.dotText}>{t.key === 'challenges' ? readyToClaim : awardsToClaim}</Text>
               </View>
             )}
           </Pressable>
@@ -244,7 +265,8 @@ const styles = StyleSheet.create({
     backgroundColor: C.accent,
     paddingHorizontal: 20,
     paddingVertical: 12,
-    borderRadius: 999,
+    borderRadius: 24,
+    maxWidth: '90%',
   },
-  toastText: { color: '#fff', fontWeight: '800', fontSize: 16 },
+  toastText: { color: '#fff', fontWeight: '800', fontSize: 16, textAlign: 'center' },
 });
