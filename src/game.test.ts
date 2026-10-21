@@ -9,15 +9,21 @@ import {
   currentStreak,
   deleteTask,
   emptyState,
+  finishSetup,
   levelInfo,
   longestStreak,
+  MAX_LEVEL,
   rankFor,
+  repeatLabel,
   streakBonus,
+  taskXp,
   toggleTask,
   totalXp,
   visibleTasks,
   weekStart,
   weekStats,
+  xpFor,
+  xpToNext,
   type Completion,
 } from './game.ts';
 
@@ -37,21 +43,33 @@ test('addDays crosses month and year boundaries', () => {
   assert.equal(addDays('2028-02-28', 1), '2028-02-29');
 });
 
-test('levels: 0 XP is level 1, 100 XP is level 2, 250 XP is level 3', () => {
+test('levels: first ones are quick, later ones much slower', () => {
+  assert.equal(xpToNext(1), 25);
   assert.equal(levelInfo(0).level, 1);
-  assert.equal(levelInfo(99).level, 1);
-  assert.equal(levelInfo(100).level, 2);
-  assert.equal(levelInfo(249).level, 2);
-  assert.equal(levelInfo(250).level, 3);
-  assert.equal(levelInfo(130).xpIntoLevel, 30);
-  assert.equal(levelInfo(130).xpForLevel, 150);
+  assert.equal(levelInfo(24).level, 1);
+  assert.equal(levelInfo(25).level, 2);
+  assert.equal(levelInfo(30).xpIntoLevel, 5);
+  for (let l = 1; l < 99; l++) assert.ok(xpToNext(l + 1) > xpToNext(l), `level ${l} curve`);
+  assert.ok(xpToNext(99) > 150 * xpToNext(1));
 });
 
-test('ranks change every 5 levels and cap at Legend', () => {
+test('level 100 is the cap', () => {
+  let total = 0;
+  for (let l = 1; l < MAX_LEVEL; l++) total += xpToNext(l);
+  assert.ok(total > 150_000 && total < 250_000, `total ${total}`);
+  assert.equal(levelInfo(total - 1).level, 99);
+  const top = levelInfo(total + 1_000_000);
+  assert.equal(top.level, 100);
+  assert.equal(top.maxed, true);
+  assert.equal(top.rank, 'Immortal');
+});
+
+test('ranks change every 10 levels', () => {
   assert.equal(rankFor(1), 'Rookie');
-  assert.equal(rankFor(5), 'Rookie');
-  assert.equal(rankFor(6), 'Apprentice');
-  assert.equal(rankFor(999), 'Legend');
+  assert.equal(rankFor(9), 'Rookie');
+  assert.equal(rankFor(10), 'Apprentice');
+  assert.equal(rankFor(95), 'Mythic');
+  assert.equal(rankFor(100), 'Immortal');
 });
 
 test('streak counts consecutive days ending today', () => {
@@ -156,4 +174,45 @@ test('longest streak and badges', () => {
   const s = { ...emptyState, completions };
   const earned = badges(s, TODAY).filter((b) => b.earned).map((b) => b.id);
   assert.deepEqual(earned, ['first', 'streak3', 'streak7']);
+});
+
+test('tasks repeating N times a week hide once the weekly target is met', () => {
+  const monday = weekStart(TODAY);
+  let s = addTask(emptyState, 'Gym', 'hard', 3, 'g');
+  assert.equal(s.tasks[0].perWeek, 3);
+  assert.equal(repeatLabel(s.tasks[0]), '3× a week');
+  s = toggleTask(s, 'g', monday);
+  s = toggleTask(s, 'g', addDays(monday, 1));
+  assert.equal(visibleTasks(s, addDays(monday, 2)).length, 1);
+  s = toggleTask(s, 'g', addDays(monday, 2));
+  // Still shown (ticked) on the day it hit the target, gone the day after
+  assert.equal(visibleTasks(s, addDays(monday, 2)).length, 1);
+  assert.equal(visibleTasks(s, addDays(monday, 3)).length, 0);
+  // Back next week
+  assert.equal(visibleTasks(s, addDays(monday, 7)).length, 1);
+});
+
+test('repeat labels', () => {
+  assert.equal(repeatLabel(addTask(emptyState, 'a', 'easy', false).tasks[0]), 'One-time');
+  assert.equal(repeatLabel(addTask(emptyState, 'a', 'easy', true).tasks[0]), 'Every day');
+  assert.equal(repeatLabel(addTask(emptyState, 'a', 'easy', 7).tasks[0]), 'Every day');
+});
+
+test('finishing setup stores goals and name', () => {
+  const s = finishSetup(emptyState, ' Fabian ', ['home', 'fitness']);
+  assert.equal(s.onboarded, true);
+  assert.equal(s.profile.name, 'Fabian');
+  assert.deepEqual(s.goals, ['home', 'fitness']);
+});
+
+test('XP grows with time and effort', () => {
+  assert.equal(xpFor(5, 'easy'), 5);
+  assert.equal(xpFor(15, 'easy'), 10);
+  assert.ok(xpFor(60, 'easy') > xpFor(15, 'easy'));
+  assert.ok(xpFor(60, 'hard') > xpFor(60, 'easy'));
+  // Walking 5 km (~60 min) beats doing the dishes (~15 min) by a lot
+  assert.ok(xpFor(60, 'medium') >= 3 * xpFor(15, 'easy'));
+  const s = addTask(emptyState, 'Walk 5 km', 'medium', false, 'w', 60);
+  assert.equal(taskXp(s.tasks[0]), xpFor(60, 'medium'));
+  assert.equal(toggleTask(s, 'w', TODAY).completions[0].xp, xpFor(60, 'medium'));
 });
