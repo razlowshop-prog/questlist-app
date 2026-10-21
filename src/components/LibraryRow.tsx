@@ -1,7 +1,8 @@
 import { Pressable, Text, View } from 'react-native';
 import { durationLabel, xpFor } from '../game';
 import { categoryOf, type LibraryTask } from '../library';
-import { card, useStyles, type Palette } from '../theme';
+import { card, useStyles, useTheme, type Palette } from '../theme';
+import { AppIcon } from './AppIcon';
 
 export function perWeekLabel(n: number): string {
   if (n === 0) return 'One-time';
@@ -12,10 +13,12 @@ export function perWeekLabel(n: number): string {
 /** A library task with a one-tap add button. */
 export function LibraryRow({ task, added, onAdd }: { task: LibraryTask; added: boolean; onAdd: () => void }) {
   const s = useStyles(makeStyles);
+  const c = useTheme();
+  const cat = categoryOf(task.category);
   return (
     <Pressable onPress={added ? undefined : onAdd} style={s.row} accessibilityRole="button">
       <View style={s.iconWrap}>
-        <Text style={s.icon}>{categoryOf(task.category)?.icon}</Text>
+        {cat && <AppIcon name={cat.icon} color={added ? c.accent : c.muted} />}
       </View>
       <View style={{ flex: 1 }}>
         <Text style={s.title}>{task.title}</Text>
@@ -49,7 +52,6 @@ const makeStyles = (c: Palette) => ({
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
   },
-  icon: { fontSize: 18 },
   title: { color: c.text, fontSize: 15, fontWeight: '600' as const },
   meta: { color: c.muted, fontSize: 12, marginTop: 2 },
   xp: { color: c.xp, fontSize: 12, fontWeight: '700' as const },

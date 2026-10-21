@@ -1,3 +1,5 @@
+import type { IconName } from './icons.ts';
+
 // Pure game rules: XP, levels, ranks and streaks. No React or storage here,
 // so everything in this file can be unit tested.
 
@@ -13,7 +15,20 @@ export interface Task {
   perWeek?: number;
   /** Roughly how long the task takes. XP is based on this. */
   minutes?: number;
+  /** Repeating tasks on fixed weekdays only (0 = Monday … 6 = Sunday). */
+  days?: number[];
+  /** One-off tasks planned for a later day (YYYY-MM-DD); hidden until then. */
+  date?: string;
+  /** Daily reminder time, "HH:MM", sent as a phone notification. */
+  reminder?: string;
   createdAt: string;
+}
+
+/** Extra scheduling for a new task. */
+export interface TaskPlan {
+  days?: number[];
+  date?: string;
+  reminder?: string;
 }
 
 /** false = one-time, true = every day, a number = that many times per week. */
@@ -260,7 +275,29 @@ export function isDoneToday(state: GameState, task: Task, today: string): boolea
 }
 
 export function timesPerWeek(task: Task): number {
-  return task.daily ? Math.min(Math.max(task.perWeek ?? 7, 1), 7) : 0;
+  if (!task.daily) return 0;
+  if (task.days?.length) return task.days.length;
+  return Math.min(Math.max(task.perWeek ?? 7, 1), 7);
+}
+
+/** 0 = Monday … 6 = Sunday. */
+export function weekdayOf(day: string): number {
+  const [y, m, d] = day.split('-').map(Number);
+  return (new Date(y, m - 1, d, 12).getDay() + 6) % 7;
+}
+
+/**
+ * Most times per week a task may repeat. Tasks for the whole week, like
+ * "Meal prep for the week" or a "Weekly review", only make sense once.
+ */
+export function maxPerWeek(title: string): number {
+  return /\b(week|weekly|weekend)\b/i.test(title) ? 1 : 7;
+}
+
+/** Whether a task is planned for this day at all (before checking what is done). */
+export function isScheduledOn(task: Task, day: string): boolean {
+  if (task.daily) return !task.days?.length || task.days.includes(weekdayOf(day));
+  return !task.date || task.date <= day;
 }
 
 /** How often a repeating task has been done this week (Monday to Sunday). */
@@ -270,17 +307,23 @@ export function doneThisWeek(state: GameState, task: Task, today: string): numbe
 }
 
 /**
- * Tasks to show today: repeating tasks until their weekly target is reached
- * (or that were done today), plus one-offs not finished on an earlier day.
+ * Tasks to show today: anything done today, repeating tasks planned for today
+ * until their weekly target is reached, and one-offs that are due and not done.
  */
 export function visibleTasks(state: GameState, today: string): Task[] {
   return state.tasks.filter((t) => {
-    if (t.daily) {
-      return isDoneToday(state, t, today) || doneThisWeek(state, t, today) < timesPerWeek(t);
-    }
-    const done = state.completions.find((c) => c.taskId === t.id);
-    return !done || done.date === today;
+    if (state.completions.some((c) => c.taskId === t.id && c.date === today)) return true;
+    if (!isScheduledOn(t, today)) return false;
+    if (t.daily) return doneThisWeek(state, t, today) < timesPerWeek(t);
+    return !state.completions.some((c) => c.taskId === t.id);
   });
+}
+
+/** One-off tasks planned for a later day, soonest first. */
+export function upcomingTasks(state: GameState, today: string): Task[] {
+  return state.tasks
+    .filter((t) => !t.daily && t.date && t.date > today)
+    .sort((a, b) => (a.date! < b.date! ? -1 : a.date! > b.date! ? 1 : 0));
 }
 
 export function addTask(
@@ -290,12 +333,24 @@ export function addTask(
   repeat: Repeat,
   id: string = Math.random().toString(36).slice(2),
   minutes?: number,
+  plan: TaskPlan = {},
 ): GameState {
   const trimmed = title.trim();
   if (!trimmed) return state;
   const task: Task = { id, title: trimmed, difficulty, daily: repeat !== false, createdAt: new Date().toISOString() };
   if (minutes) task.minutes = minutes;
-  if (typeof repeat === 'number' && repeat < 7) task.perWeek = Math.max(1, Math.round(repeat));
+  const max = maxPerWeek(trimmed);
+  if (task.daily) {
+    const days = [...new Set(plan.days ?? [])].filter((d) => Number.isInteger(d) && d >= 0 && d <= 6).sort();
+    if (days.length) task.days = days.slice(0, max);
+    else {
+      const n = typeof repeat === 'number' ? Math.max(1, Math.round(repeat)) : 7;
+      if (Math.min(n, max) < 7) task.perWeek = Math.min(n, max);
+    }
+  } else if (plan.date && /^\d{4}-\d{2}-\d{2}$/.test(plan.date)) {
+    task.date = plan.date;
+  }
+  if (plan.reminder && /^([01]\d|2[0-3]):[0-5]\d$/.test(plan.reminder)) task.reminder = plan.reminder;
   return { ...state, tasks: [...state.tasks, task] };
 }
 
@@ -424,7 +479,7 @@ export function weekStats(state: GameState, today: string): WeekStats {
 export interface ChallengeDef {
   id: string;
   title: string;
-  icon: string;
+  icon: IconName;
   rewardXp: number;
   target: number;
   unit: string;
@@ -433,19 +488,19 @@ export interface ChallengeDef {
 }
 
 export const CHALLENGE_POOL: ChallengeDef[] = [
-  { id: 'tasks15', title: 'Finish 15 tasks this week', icon: '✅', rewardXp: 100, target: 15, unit: 'tasks', metric: 'tasksDone' },
-  { id: 'tasks25', title: 'Finish 25 tasks this week', icon: '🏆', rewardXp: 180, target: 25, unit: 'tasks', metric: 'tasksDone' },
-  { id: 'hard3', title: 'Complete 3 hard tasks', icon: '💪', rewardXp: 90, target: 3, unit: 'hard tasks', metric: 'hardDone' },
-  { id: 'hard5', title: 'Complete 5 hard tasks', icon: '🔥', rewardXp: 150, target: 5, unit: 'hard tasks', metric: 'hardDone' },
-  { id: 'days5', title: 'Be active on 5 days', icon: '📅', rewardXp: 120, target: 5, unit: 'days', metric: 'activeDays' },
-  { id: 'days7', title: 'Be active every day this week', icon: '⭐', rewardXp: 200, target: 7, unit: 'days', metric: 'activeDays' },
-  { id: 'xp300', title: 'Earn 300 XP from tasks', icon: '⚡', rewardXp: 100, target: 300, unit: 'XP', metric: 'xpEarned' },
+  { id: 'tasks15', title: 'Finish 15 tasks this week', icon: 'ListChecks', rewardXp: 100, target: 15, unit: 'tasks', metric: 'tasksDone' },
+  { id: 'tasks25', title: 'Finish 25 tasks this week', icon: 'Trophy', rewardXp: 180, target: 25, unit: 'tasks', metric: 'tasksDone' },
+  { id: 'hard3', title: 'Complete 3 hard tasks', icon: 'Mountain', rewardXp: 90, target: 3, unit: 'hard tasks', metric: 'hardDone' },
+  { id: 'hard5', title: 'Complete 5 hard tasks', icon: 'MountainSnow', rewardXp: 150, target: 5, unit: 'hard tasks', metric: 'hardDone' },
+  { id: 'days5', title: 'Be active on 5 days', icon: 'CalendarDays', rewardXp: 120, target: 5, unit: 'days', metric: 'activeDays' },
+  { id: 'days7', title: 'Be active every day this week', icon: 'CalendarCheck', rewardXp: 200, target: 7, unit: 'days', metric: 'activeDays' },
+  { id: 'xp300', title: 'Earn 300 XP from tasks', icon: 'Zap', rewardXp: 100, target: 300, unit: 'XP', metric: 'xpEarned' },
 ];
 
 /** Need phone sensors or health data, so they arrive with the phone app builds. */
 export const SENSOR_CHALLENGES: ChallengeDef[] = [
-  { id: 'sleep8', title: 'Sleep 8 hours with your phone down', icon: '😴', rewardXp: 150, target: 5, unit: 'nights' },
-  { id: 'walk10', title: 'Walk 10 km this week', icon: '🚶', rewardXp: 150, target: 10, unit: 'km' },
+  { id: 'sleep8', title: 'Sleep 8 hours with your phone down', icon: 'Moon', rewardXp: 150, target: 5, unit: 'nights' },
+  { id: 'walk10', title: 'Walk 10 km this week', icon: 'Footprints', rewardXp: 150, target: 10, unit: 'km' },
 ];
 
 /** Three challenges per week, the same for everyone, rotating weekly. */
@@ -506,11 +561,59 @@ export function profileStats(state: GameState, today: string) {
   };
 }
 
+export const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
 export function repeatLabel(task: Task): string {
   const n = timesPerWeek(task);
-  if (n === 0) return 'One-time';
+  if (n === 0) return task.date ? `One-time · ${dayLabel(task.date)}` : 'One-time';
   if (n === 7) return 'Every day';
+  if (task.days?.length) {
+    if (task.days.join() === '0,1,2,3,4') return 'Weekdays';
+    if (task.days.join() === '5,6') return 'Weekends';
+    return task.days.map((d) => WEEKDAYS[d]).join(', ');
+  }
   return `${n}× a week`;
+}
+
+/** "Wed 23", in English like the rest of the app. */
+export function dayLabel(day: string): string {
+  return `${WEEKDAYS[weekdayOf(day)]} ${Number(day.slice(8, 10))}`;
+}
+
+export interface PlannedReminder {
+  taskId: string;
+  title: string;
+  /** Local time the notification should appear. */
+  at: Date;
+}
+
+/**
+ * Reminders for the next `days` days, soonest first and at most `limit`
+ * (iOS keeps only 64 scheduled notifications). Skips tasks already done, days
+ * a task is not planned for, and repeating tasks whose weekly target is met.
+ * Rebuilt after every change, so ticking a task cancels today's reminder.
+ */
+export function reminderPlan(state: GameState, now: Date, days = 7, limit = 60): PlannedReminder[] {
+  const today = dayKey(now);
+  const out: PlannedReminder[] = [];
+  for (const task of state.tasks) {
+    if (!task.reminder) continue;
+    const [h, m] = task.reminder.split(':').map(Number);
+    if (!task.daily && state.completions.some((c) => c.taskId === task.id)) continue;
+    for (let i = 0; i < days; i++) {
+      const day = addDays(today, i);
+      if (!isScheduledOn(task, day)) continue;
+      if (task.daily) {
+        if (state.completions.some((c) => c.taskId === task.id && c.date === day)) continue;
+        // Weekly target already met this week (only known for the current week).
+        if (weekStart(day) === weekStart(today) && doneThisWeek(state, task, today) >= timesPerWeek(task)) continue;
+      }
+      const [y, mo, d] = day.split('-').map(Number);
+      const at = new Date(y, mo - 1, d, h, m);
+      if (at.getTime() > now.getTime()) out.push({ taskId: task.id, title: task.title, at });
+    }
+  }
+  return out.sort((a, b) => a.at.getTime() - b.at.getTime()).slice(0, limit);
 }
 
 export function finishSetup(state: GameState, name: string, goals: string[]): GameState {

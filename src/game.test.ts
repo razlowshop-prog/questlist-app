@@ -3,6 +3,10 @@ import assert from 'node:assert/strict';
 import {
   addDays,
   addTask,
+  maxPerWeek,
+  reminderPlan,
+  upcomingTasks,
+  weekdayOf,
   challengesForWeek,
   claimChallenge,
   currentStreak,
@@ -271,4 +275,80 @@ test('long tasks are allowed and keep earning more, up to 16 hours', () => {
   assert.ok(xpFor(240, 'easy') > xpFor(120, 'easy'));
   assert.ok(xpFor(600, 'easy') > xpFor(240, 'easy'));
   assert.equal(xpFor(2000, 'easy'), xpFor(16 * 60, 'easy'));
+});
+
+test('tasks on fixed weekdays only show on those days', () => {
+  const monday = weekStart(TODAY);
+  let s = addTask(emptyState, 'Gym', 'hard', true, 'g', 60, { days: [4, 0, 2, 2, 9] });
+  assert.deepEqual(s.tasks[0].days, [0, 2, 4]);
+  assert.equal(repeatLabel(s.tasks[0]), 'Mon, Wed, Fri');
+  assert.equal(visibleTasks(s, monday).length, 1);
+  assert.equal(visibleTasks(s, addDays(monday, 1)).length, 0);
+  assert.equal(visibleTasks(s, addDays(monday, 4)).length, 1);
+  s = toggleTask(s, 'g', monday);
+  assert.equal(visibleTasks(s, monday).length, 1); // ticked stays visible today
+  assert.equal(repeatLabel(addTask(emptyState, 'a', 'easy', true, 'a', 5, { days: [0, 1, 2, 3, 4] }).tasks[0]), 'Weekdays');
+});
+
+test('weekday of a date, Monday first', () => {
+  const monday = weekStart(TODAY);
+  assert.equal(weekdayOf(monday), 0);
+  assert.equal(weekdayOf(addDays(monday, 6)), 6);
+});
+
+test('week-long tasks can only repeat once a week', () => {
+  assert.equal(maxPerWeek('Meal prep for the week'), 1);
+  assert.equal(maxPerWeek('Weekly review'), 1);
+  assert.equal(maxPerWeek('Clean the bathroom'), 7);
+  let s = addTask(emptyState, 'Meal prep for the week', 'hard', 5, 'm');
+  assert.equal(s.tasks[0].perWeek, 1);
+  s = addTask(emptyState, 'Meal prep for the week', 'hard', true, 'm', 90, { days: [6, 2] });
+  assert.deepEqual(s.tasks[0].days, [2]);
+});
+
+test('one-off tasks planned for a later day wait until then', () => {
+  const later = addDays(TODAY, 3);
+  const s = addTask(emptyState, 'Dentist', 'easy', false, 'd', 60, { date: later });
+  assert.equal(visibleTasks(s, TODAY).length, 0);
+  assert.deepEqual(upcomingTasks(s, TODAY).map((t) => t.id), ['d']);
+  assert.equal(visibleTasks(s, later).length, 1);
+  assert.equal(visibleTasks(s, addDays(later, 2)).length, 1); // overdue stays
+  assert.equal(upcomingTasks(s, later).length, 0);
+  // A date on a repeating task is ignored
+  assert.equal(addTask(emptyState, 'x', 'easy', true, 'x', 5, { date: later }).tasks[0].date, undefined);
+});
+
+test('reminders: valid times only, skipped once done, not in the past', () => {
+  assert.equal(addTask(emptyState, 'a', 'easy', true, 'a', 5, { reminder: '25:00' }).tasks[0].reminder, undefined);
+  const [y, m, d] = TODAY.split('-').map(Number);
+  const morning = new Date(y, m - 1, d, 9, 0);
+  let s = addTask(emptyState, 'Stretch', 'easy', true, 's', 10, { reminder: '18:30' });
+  let plan = reminderPlan(s, morning);
+  assert.equal(plan.length, 7);
+  assert.equal(plan[0].at.getHours(), 18);
+  assert.equal(plan[0].at.getMinutes(), 30);
+  // Ticked today: today's reminder goes
+  s = toggleTask(s, 's', TODAY);
+  plan = reminderPlan(s, morning);
+  assert.equal(plan.length, 6);
+  assert.notEqual(plan[0].at.getDate(), d);
+  // After 18:30 today's is in the past
+  const evening = new Date(y, m - 1, d, 20, 0);
+  assert.equal(reminderPlan(addTask(emptyState, 'b', 'easy', true, 'b', 5, { reminder: '18:30' }), evening).length, 6);
+  // One-off: reminders until done, from its date on
+  const o = addTask(emptyState, 'Call', 'easy', false, 'o', 5, { reminder: '10:00', date: addDays(TODAY, 2) });
+  assert.equal(reminderPlan(o, morning).length, 5);
+  assert.equal(reminderPlan(toggleTask(o, 'o', addDays(TODAY, 2)), morning).length, 0);
+  // The limit holds
+  assert.equal(reminderPlan(s, morning, 7, 3).length, 3);
+});
+
+test('reminders skip the rest of the week once the weekly target is met', () => {
+  const monday = weekStart(TODAY);
+  const [y, m, d] = monday.split('-').map(Number);
+  let s = addTask(emptyState, 'Run', 'hard', 1, 'r', 30, { reminder: '07:00' });
+  s = toggleTask(s, 'r', monday);
+  const plan = reminderPlan(s, new Date(y, m - 1, d, 6, 0));
+  assert.ok(plan.every((p) => p.at >= new Date(y, m - 1, d + 7)));
+  assert.equal(plan.length, 0); // 7-day window ends Sunday
 });

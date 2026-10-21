@@ -1,4 +1,5 @@
 import { Pressable, ScrollView, Text, View } from 'react-native';
+import { AchievementBadge } from '../components/AppIcon';
 import { tierColor, TIER_NAMES, type AchievementStatus, type Reward } from '../achievements';
 import { card, themed, useStyles, FONTS, headingCase, useTheme } from '../theme';
 
@@ -37,9 +38,7 @@ export function AchievementsScreen({
         return (
           <View key={a.def.id} style={[s.card, claimable && s.cardClaimable]}>
             <View style={s.row}>
-              <View style={s.iconWrap}>
-                <Text style={s.icon}>{a.def.icon}</Text>
-              </View>
+              <AchievementBadge name={a.def.icon} state={a.claimed > 0 ? 'earned' : 'normal'} />
               <View style={{ flex: 1 }}>
                 <Text style={s.title}>{a.def.title}</Text>
                 <Text style={s.desc}>
@@ -116,15 +115,6 @@ const makeStyles = themed((c) => ({
   card: { ...card(c), padding: 14, marginBottom: 10, gap: 10 },
   cardClaimable: { borderWidth: 1, borderColor: c.gold },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  iconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: c.radius,
-    backgroundColor: c.surfaceAlt,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  icon: { fontSize: 22 },
   title: { color: c.text, fontSize: 16, fontWeight: '700' },
   desc: { color: c.muted, fontSize: 13, marginTop: 2 },
   reward: { color: c.gold, fontWeight: '700', fontSize: 13 },

@@ -1,7 +1,9 @@
+import { Ban, Crown, Gem, Zap } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Text, View } from 'react-native';
+import { nextLevelReward, type LevelMilestone } from '../achievements';
 import { levelInfo } from '../game';
-import { eyebrow, FONTS, themed, useStyles, useTheme, type BarStyle } from '../theme';
+import { eyebrow, FONTS, THEMES, themed, useStyles, useTheme, type BarStyle } from '../theme';
 import { LogoMark } from './LogoMark';
 
 /**
@@ -81,9 +83,78 @@ export function XpHeader({ totalXp, streak, bonus }: { totalXp: number; streak: 
         ) : (
           <StepBar style={c.bar} progress={info.progress} />
         )}
+        <NextReward totalXp={totalXp} />
       </View>
     </View>
   );
+}
+
+/**
+ * The coming levels as small slots, empty unless the level pays out, then the
+ * next reward level and the XP still to go to reach it.
+ */
+function NextReward({ totalXp }: { totalXp: number }) {
+  const s = useStyles(makeStyles);
+  const next = nextLevelReward(totalXp);
+  if (!next) return null;
+  const { milestone, levels } = next;
+  // Long gaps: the first few levels, a gap mark, then the reward level.
+  const shown = levels.length > 5 ? [...levels.slice(0, 3), null, levels[levels.length - 1]] : levels;
+  const label = milestone.reward?.label ?? `+${milestone.bonusXp} XP bonus`;
+  return (
+    <View
+      style={s.next}
+      accessible
+      accessibilityLabel={`Next reward at level ${milestone.level}: ${label}. ${next.xpInto} of ${next.xpNeeded} XP.`}
+    >
+      <View style={s.slots}>
+        {shown.map((l, i) =>
+          l === null ? (
+            <Text key="gap" style={s.gap}>···</Text>
+          ) : l.milestone ? (
+            <View key={l.level} style={[s.slot, s.slotReward]}>
+              <RewardIcon milestone={l.milestone} />
+            </View>
+          ) : (
+            <View key={l.level} style={[s.slot, i === 0 && s.slotNext]} />
+          ),
+        )}
+      </View>
+      <Text style={s.nextLabel} numberOfLines={1}>
+        Lvl {milestone.level} · {label}
+      </Text>
+      <Text style={s.nextXp}>
+        {next.xpInto.toLocaleString()} / {next.xpNeeded.toLocaleString()} XP
+      </Text>
+    </View>
+  );
+}
+
+/** A tiny picture of the reward: the theme's own colours, or an icon. */
+function RewardIcon({ milestone }: { milestone: LevelMilestone }) {
+  const c = useTheme();
+  const reward = milestone.reward;
+  const theme = reward?.kind === 'theme' ? THEMES.find((t) => t.reward === reward.label) : undefined;
+  if (theme) {
+    return (
+      <View
+        style={{
+          width: 14,
+          height: 14,
+          borderRadius: 7,
+          backgroundColor: theme.palette.bg,
+          borderWidth: 1,
+          borderColor: theme.palette.border,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: theme.palette.accent }} />
+      </View>
+    );
+  }
+  const Icon = reward?.kind === 'title' ? Crown : reward?.kind === 'adfree' ? Ban : reward?.kind === 'premium' ? Gem : Zap;
+  return <Icon size={12} color={c.accent} strokeWidth={1.5} aria-hidden />;
 }
 
 /** XP bar made of segments or dots; they light up one by one. */
@@ -144,5 +215,13 @@ const makeStyles = themed((c) => ({
   xpText: { color: c.muted, fontSize: 13, fontVariant: ['tabular-nums'] },
   track: { height: c.lineWeight, borderRadius: c.tip ? 0 : c.lineWeight / 2, backgroundColor: c.border, justifyContent: 'center' },
   fill: { position: 'absolute', left: 0, top: 0, bottom: 0, borderRadius: c.tip ? 0 : c.lineWeight / 2 },
+  next: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: -2 },
+  slots: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  slot: { width: 10, height: 10, borderRadius: 5, borderWidth: 1, borderColor: c.outline },
+  slotNext: { borderColor: c.muted },
+  slotReward: { width: 22, height: 22, borderRadius: 11, borderColor: c.accent, alignItems: 'center', justifyContent: 'center' },
+  gap: { color: c.faint, fontSize: 11, letterSpacing: 1 },
+  nextLabel: { flex: 1, color: c.muted, fontSize: 12 },
+  nextXp: { color: c.muted, fontSize: 12, fontVariant: ['tabular-nums'] },
   tip: { position: 'absolute', width: 8, height: 8, marginLeft: -4, transform: [{ rotate: '45deg' }] },
 }));

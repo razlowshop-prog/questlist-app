@@ -1,6 +1,7 @@
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { addDays, SENSOR_CHALLENGES, weekStart, type ChallengeDef, type ChallengeStatus } from '../game';
-import { card, themed, useStyles, FONTS, headingCase } from '../theme';
+import { AppIcon } from '../components/AppIcon';
+import { card, themed, useStyles, useTheme, FONTS, headingCase } from '../theme';
 
 export function ChallengesScreen({
   challenges,
@@ -62,11 +63,12 @@ function ChallengeCard({
   children: React.ReactNode;
 }) {
   const s = useStyles(makeStyles);
+  const c = useTheme();
   const pct = Math.round((progress / def.target) * 100);
   return (
     <View style={[s.card, locked && { opacity: 0.55 }, highlight && s.cardHighlight]}>
       <View style={s.iconWrap}>
-        <Text style={s.icon}>{def.icon}</Text>
+        <AppIcon name={def.icon} color={locked ? c.faint : highlight ? c.accent : c.muted} />
       </View>
       <View style={{ flex: 1, gap: 6 }}>
         <Text style={s.title}>{def.title}</Text>
@@ -95,7 +97,6 @@ const makeStyles = themed((c) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  icon: { fontSize: 22 },
   title: { color: c.text, fontSize: 15, fontWeight: '700' },
   track: { height: c.lineWeight, borderRadius: c.lineWeight / 2, backgroundColor: c.border, overflow: 'hidden' },
   fill: { height: '100%', backgroundColor: c.gold },

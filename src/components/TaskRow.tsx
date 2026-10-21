@@ -1,3 +1,4 @@
+import { Bell } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, Text, View } from 'react-native';
 import {
@@ -116,11 +117,19 @@ export function TaskRow({
               Wait {waitLeft} more {waitLeft === 1 ? 'second' : 'seconds'}
             </Text>
           ) : (
-            <Text style={s.meta}>
-              {task.minutes ? `${durationLabel(task.minutes)} · ` : ''}
-              {repeatLabel(task)}
-              {weekly}
-            </Text>
+            <View style={s.metaRow}>
+              <Text style={s.meta}>
+                {task.minutes ? `${durationLabel(task.minutes)} · ` : ''}
+                {repeatLabel(task)}
+                {weekly}
+              </Text>
+              {task.reminder && (
+                <View style={s.reminder} accessibilityLabel={`Reminder at ${task.reminder}`}>
+                  <Bell size={12} color={c.faint} strokeWidth={1.5} aria-hidden />
+                  <Text style={[s.meta, { marginTop: 0 }]}>{task.reminder}</Text>
+                </View>
+              )}
+            </View>
           )}
         </View>
         <Text style={s.xp}>{taskXp(task)} XP</Text>
@@ -153,6 +162,8 @@ const makeStyles = themed((c) => ({
   title: { color: c.text, fontSize: 16, fontWeight: '600' },
   titleDone: { color: c.faint, textDecorationLine: 'line-through', textDecorationColor: c.accent },
   meta: { color: c.faint, fontSize: 13, marginTop: 2 },
+  metaRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 8 },
+  reminder: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
   wait: { color: c.flame, fontWeight: '600' },
   xp: { color: c.muted, fontSize: 13, fontVariant: ['tabular-nums'] },
   checkWrap: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
