@@ -16,6 +16,7 @@ export async function loadState(): Promise<GameState> {
       profile: { ...emptyState.profile, ...saved.profile },
       settings: { ...emptyState.settings, ...saved.settings },
     };
+
   } catch {
     return emptyState;
   }

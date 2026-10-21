@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
-import { type Badge, type profileStats, type Settings } from '../game';
+import { TIER_COLORS, TIER_NAMES, type AchievementStatus } from '../achievements';
+import { type profileStats, type Settings } from '../game';
 import { C } from '../theme';
 
 export function ProfileScreen({
   name,
   stats,
-  badges,
+  achievements,
+  joinedAt,
   settings,
   onRename,
   onSettings,
@@ -14,7 +16,8 @@ export function ProfileScreen({
 }: {
   name: string;
   stats: ReturnType<typeof profileStats>;
-  badges: Badge[];
+  achievements: AchievementStatus[];
+  joinedAt: string;
   settings: Settings;
   onRename: (name: string) => void;
   onSettings: (s: Partial<Settings>) => void;
@@ -23,7 +26,11 @@ export function ProfileScreen({
   const emailValid = /^\S+@\S+\.\S+$/.test(settings.email);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(name);
-  const earned = badges.filter((b) => b.earned).length;
+  const trophies = achievements.reduce((n, a) => n + a.claimed, 0);
+  const totalTiers = achievements.reduce((n, a) => n + a.def.tiers.length, 0);
+  const memberSince = joinedAt
+    ? new Date(`${joinedAt}T12:00:00`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+    : '';
   const initials = name.trim().slice(0, 2).toUpperCase() || '?';
 
   function save() {
@@ -55,6 +62,7 @@ export function ProfileScreen({
         <Text style={styles.rank}>
           Level {stats.level} · {stats.rank}
         </Text>
+        {memberSince ? <Text style={styles.badgeDesc}>Member since {memberSince}</Text> : null}
       </View>
 
       <View style={styles.grid}>
@@ -63,18 +71,23 @@ export function ProfileScreen({
         <Stat label="Current streak" value={`🔥 ${stats.currentStreak}`} color={C.flame} />
         <Stat label="Best streak" value={String(stats.bestStreak)} />
         <Stat label="Challenges won" value={String(stats.challengesWon)} />
-        <Stat label="Badges" value={`${earned}/${badges.length}`} />
+        <Stat label="Trophies" value={`${trophies}/${totalTiers}`} />
       </View>
 
-      <Text style={styles.section}>Badges</Text>
+      <Text style={styles.section}>Trophies</Text>
       <View style={styles.badges}>
-        {badges.map((b) => (
-          <View key={b.id} style={[styles.badge, !b.earned && styles.badgeLocked]}>
-            <Text style={[styles.badgeIcon, !b.earned && { opacity: 0.25 }]}>{b.earned ? b.icon : '🔒'}</Text>
-            <Text style={styles.badgeTitle}>{b.title}</Text>
-            <Text style={styles.badgeDesc}>{b.description}</Text>
-          </View>
-        ))}
+        {achievements.map((a) => {
+          const tier = a.claimed - 1;
+          return (
+            <View key={a.def.id} style={[styles.badge, tier < 0 && styles.badgeLocked]}>
+              <Text style={[styles.badgeIcon, tier < 0 && { opacity: 0.25 }]}>{a.def.icon}</Text>
+              <Text style={styles.badgeTitle}>{a.def.title}</Text>
+              <Text style={[styles.badgeDesc, tier >= 0 && { color: TIER_COLORS[tier], fontWeight: '700' }]}>
+                {tier >= 0 ? TIER_NAMES[tier] : 'Not started'}
+              </Text>
+            </View>
+          );
+        })}
       </View>
 
       <Text style={styles.section}>Settings</Text>

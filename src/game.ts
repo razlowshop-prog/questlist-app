@@ -50,6 +50,16 @@ export interface GameState {
   /** Life areas picked during setup, used to suggest tasks. */
   goals: string[];
   settings: Settings;
+  /** Day the player started, YYYY-MM-DD. Used for "member since" achievements. */
+  joinedAt: string;
+  achievementClaims: AchievementClaim[];
+}
+
+export interface AchievementClaim {
+  achievementId: string;
+  /** 0-based tier index. */
+  tier: number;
+  xp: number;
 }
 
 export interface Settings {
@@ -66,7 +76,16 @@ export const emptyState: GameState = {
   onboarded: false,
   goals: [],
   settings: { quoteEmails: false, email: '' },
+  joinedAt: '',
+  achievementClaims: [],
 };
+
+/** Fills in fields that older saved data doesn't have yet. */
+export function withDefaults(state: GameState, today: string): GameState {
+  if (state.joinedAt) return state;
+  const first = state.completions.reduce<string | null>((min, c) => (!min || c.date < min ? c.date : min), null);
+  return { ...state, joinedAt: first ?? today };
+}
 
 /** Fixed XP for tasks saved before XP was based on time. */
 export const BASE_XP: Record<Difficulty, number> = {
@@ -178,7 +197,8 @@ export function rankFor(level: number): string {
 export function totalXp(state: GameState): number {
   return (
     state.completions.reduce((sum, c) => sum + c.xp, 0) +
-    state.claims.reduce((sum, c) => sum + c.xp, 0)
+    state.claims.reduce((sum, c) => sum + c.xp, 0) +
+    state.achievementClaims.reduce((sum, c) => sum + c.xp, 0)
   );
 }
 
@@ -404,15 +424,7 @@ export function claimChallenge(state: GameState, challengeId: string, today: str
   };
 }
 
-// ---------- profile & badges ----------
-
-export interface Badge {
-  id: string;
-  icon: string;
-  title: string;
-  description: string;
-  earned: boolean;
-}
+// ---------- profile ----------
 
 export function profileStats(state: GameState, today: string) {
   const xp = totalXp(state);
@@ -424,28 +436,6 @@ export function profileStats(state: GameState, today: string) {
     bestStreak: longestStreak(state.completions),
     challengesWon: state.claims.length,
   };
-}
-
-export function badges(state: GameState, today: string): Badge[] {
-  const s = profileStats(state, today);
-  const b = (id: string, icon: string, title: string, description: string, earned: boolean): Badge => ({
-    id, icon, title, description, earned,
-  });
-  return [
-    b('first', '🌱', 'First Step', 'Finish your first task', s.tasksDone >= 1),
-    b('tasks10', '✅', 'Getting Things Done', 'Finish 10 tasks', s.tasksDone >= 10),
-    b('tasks100', '💯', 'Centurion', 'Finish 100 tasks', s.tasksDone >= 100),
-    b('streak3', '🔥', 'On Fire', 'Reach a 3-day streak', s.bestStreak >= 3),
-    b('streak7', '📆', 'Full Week', 'Reach a 7-day streak', s.bestStreak >= 7),
-    b('streak30', '👑', 'Unstoppable', 'Reach a 30-day streak', s.bestStreak >= 30),
-    b('level5', '⭐', 'Rising Star', 'Reach level 5', s.level >= 5),
-    b('level10', '🚀', 'High Flyer', 'Reach level 10', s.level >= 10),
-    b('level25', '💎', 'Diamond', 'Reach level 25', s.level >= 25),
-    b('level50', '🌟', 'Halfway Hero', 'Reach level 50', s.level >= 50),
-    b('level100', '🏛️', 'Immortal', 'Reach level 100', s.level >= 100),
-    b('challenge1', '🎯', 'Challenger', 'Win a weekly challenge', s.challengesWon >= 1),
-    b('challenge10', '🏅', 'Champion', 'Win 10 weekly challenges', s.challengesWon >= 10),
-  ];
 }
 
 export function repeatLabel(task: Task): string {
