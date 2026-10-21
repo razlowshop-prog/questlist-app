@@ -27,7 +27,16 @@ import {
   type GameState,
   type Task,
 } from './src/game';
-import { achievementStatuses, claimableCount, claimAchievement, TIER_NAMES, unlockedRewards } from './src/achievements';
+import {
+  achievementStatuses,
+  claimableCount,
+  claimAchievement,
+  LEVEL_MILESTONES,
+  TIER_NAMES,
+  unlockedRewards,
+  type LevelMilestone,
+} from './src/achievements';
+import { Celebration, type CelebrationEvent } from './src/components/Celebration';
 import { AchievementsScreen } from './src/screens/AchievementsScreen';
 import { ChallengesScreen } from './src/screens/ChallengesScreen';
 import { LibraryModal } from './src/screens/LibraryModal';
@@ -60,6 +69,8 @@ export default function App() {
   const [redoSetup, setRedoSetup] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const toastAnim = useRef(new Animated.Value(0)).current;
+  const [celebration, setCelebration] = useState<CelebrationEvent | null>(null);
+  const bestLevel = useRef<number | null>(null);
   // Theme whose fonts are loaded and which is on screen; a newly picked theme
   // shows once its fonts are ready, so text never flashes in a missing font.
   const [shownThemeId, setShownThemeId] = useState<string | null>(null);
@@ -147,10 +158,34 @@ export default function App() {
     const before = levelInfo(xp);
     const after = levelInfo(totalXp(next));
     setState(next);
-    if (after.level > before.level) {
-      setTimeout(() => showToast(`Level ${after.level}.${after.rank !== before.rank ? ` You are now ${after.rank}.` : ''}`), 500);
+    // Each level is celebrated once, even if a task is unticked and ticked again.
+    bestLevel.current = Math.max(bestLevel.current ?? before.level, before.level);
+    if (after.level > bestLevel.current) {
+      const from = bestLevel.current;
+      bestLevel.current = after.level;
+      const claimed = new Set(next.achievementClaims.filter((a) => a.achievementId === 'level').map((a) => a.tier));
+      const milestone = LEVEL_MILESTONES.filter((m, i) => m.level > from && m.level <= after.level && !claimed.has(i)).at(-1);
+      // After the XP bar has run to the end.
+      setTimeout(
+        () => setCelebration({ level: after.level, rank: after.rank, newRank: after.rank !== before.rank, milestone }),
+        900,
+      );
     }
     return gained;
+  }
+
+  /** Collect on the reward pop-up: claims the level achievement up to that level. */
+  function collectLevelReward(milestone: LevelMilestone) {
+    let next = state;
+    const tier = LEVEL_MILESTONES.indexOf(milestone);
+    for (let i = 0; i <= tier; i++) {
+      const done = next.achievementClaims.some((a) => a.achievementId === 'level' && a.tier === tier);
+      if (done) break;
+      const result = claimAchievement(next, 'level', today);
+      if (!result.tier) break;
+      next = result.state;
+    }
+    if (next !== state) apply(next);
   }
 
   function onToggle(task: Task): { xp: number; note?: string } {
@@ -284,6 +319,19 @@ export default function App() {
           <Animated.View style={[styles.toast, toastStyle]} pointerEvents="none">
             <Text style={styles.toastText}>{toast}</Text>
           </Animated.View>
+        )}
+
+        {celebration && (
+          <Celebration
+            key={celebration.level}
+            event={celebration}
+            onClose={() => setCelebration(null)}
+            onCollect={() => {
+              const m = celebration.milestone;
+              setCelebration(null);
+              if (m) collectLevelReward(m);
+            }}
+          />
         )}
       </SafeAreaView>
     </ThemeProvider>

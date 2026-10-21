@@ -1,60 +1,71 @@
-import { Ban, Crown, Gem, Zap } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Text, View } from 'react-native';
-import { nextLevelReward, type LevelMilestone } from '../achievements';
+import { nextLevelReward } from '../achievements';
 import { levelInfo } from '../game';
-import { eyebrow, FONTS, THEMES, themed, useStyles, useTheme, type BarStyle } from '../theme';
+import { eyebrow, FONTS, themed, useStyles, useTheme, type BarStyle } from '../theme';
 import { LogoMark } from './LogoMark';
+import { RewardPicture } from './RewardPicture';
 
 /**
- * Always-visible header: wordmark, streak, level and a fine XP line with a
- * diamond tip that glides forward when XP is gained. On a level-up it runs
- * to the end, glows softly, then continues from zero on the new level.
+ * Always-visible header: wordmark, streak, level and the XP bar. Gained XP
+ * counts up: a light "ghost" bar jumps ahead to the new total, the solid bar
+ * fills after it, the numbers tick up and the bar glows. A level-up runs the
+ * bar to the end and continues from zero on the new level.
  */
 export function XpHeader({ totalXp, streak, bonus }: { totalXp: number; streak: number; bonus: number }) {
   const s = useStyles(makeStyles);
   const c = useTheme();
-  const info = levelInfo(totalXp);
-  const fill = useRef(new Animated.Value(info.progress)).current;
+  const real = levelInfo(totalXp);
+  // On first show the bar fills up from the start of the current level.
+  const [shownXp, setShownXp] = useState(totalXp - real.xpIntoLevel);
+  const anim = useRef(new Animated.Value(totalXp - real.xpIntoLevel)).current;
   const glow = useRef(new Animated.Value(0)).current;
-  const prev = useRef({ xp: totalXp, level: info.level });
-  // The level shown lags behind during the level-up animation.
-  const [shownLevel, setShownLevel] = useState(info.level);
+  const gainAnim = useRef(new Animated.Value(0)).current;
+  const [gain, setGain] = useState(0);
+  const prevXp = useRef<number | null>(null);
 
   useEffect(() => {
-    const before = prev.current;
-    prev.current = { xp: totalXp, level: info.level };
-    if (totalXp === before.xp) return;
-    // An interrupted glow would otherwise stay half-lit.
+    const id = anim.addListener(({ value }) => setShownXp(Math.round(value)));
+    return () => anim.removeListener(id);
+  }, []);
+
+  useEffect(() => {
+    const before = prevXp.current;
+    prevXp.current = totalXp;
+    const diff = before === null ? 0 : totalXp - before;
+    anim.stopAnimation();
     glow.stopAnimation();
     glow.setValue(0);
-
-    const pulse = Animated.sequence([
-      Animated.timing(glow, { toValue: 0.5, duration: 300, useNativeDriver: false }),
-      Animated.timing(glow, { toValue: 0, duration: 700, useNativeDriver: false }),
-    ]);
-
-    if (info.level > before.level) {
-      Animated.sequence([
-        Animated.timing(fill, { toValue: 1, duration: 700, easing: Easing.inOut(Easing.cubic), useNativeDriver: false }),
-        pulse,
-      ]).start(() => {
-        setShownLevel(info.level);
-        fill.setValue(0);
-        Animated.timing(fill, { toValue: info.progress, duration: 800, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
-      });
-    } else {
-      setShownLevel(info.level);
+    const levels = Math.max(0, real.level - levelInfo(before ?? totalXp).level);
+    Animated.timing(anim, {
+      toValue: totalXp,
+      // Longer when a level-up runs the bar to the end first.
+      duration: before === null ? 1200 : 1100 + Math.min(levels, 3) * 500,
+      delay: before === null ? 350 : 200,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+    if (diff > 0) {
+      setGain(diff);
+      gainAnim.setValue(0);
       Animated.parallel([
-        Animated.timing(fill, { toValue: info.progress, duration: 800, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
-        totalXp > before.xp ? pulse : Animated.delay(0),
-      ]).start();
+        Animated.sequence([
+          Animated.timing(glow, { toValue: 1, duration: 250, useNativeDriver: false }),
+          Animated.timing(glow, { toValue: 0, duration: 1100, useNativeDriver: false }),
+        ]),
+        Animated.timing(gainAnim, { toValue: 1, duration: 1800, easing: Easing.out(Easing.quad), useNativeDriver: false }),
+      ]).start(({ finished }) => finished && setGain(0));
     }
   }, [totalXp]);
 
-  const width = fill.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
+  const shown = levelInfo(shownXp);
+  // Where the bar is heading: the new total, or the end while a level-up is still running.
+  const ghost = shown.level === real.level ? real.progress : 1;
   const glowColor = glow.interpolate({ inputRange: [0, 1], outputRange: [c.xp, c.text] });
-
+  const gainStyle = {
+    opacity: gainAnim.interpolate({ inputRange: [0, 0.1, 0.7, 1], outputRange: [0, 1, 1, 0] }),
+    transform: [{ translateY: gainAnim.interpolate({ inputRange: [0, 1], outputRange: [4, -8] }) }],
+  };
 
   return (
     <View style={s.wrap}>
@@ -71,17 +82,21 @@ export function XpHeader({ totalXp, streak, bonus }: { totalXp: number; streak: 
         </View>
         <View style={s.labels}>
           <Text style={s.eyebrow}>
-            Level {shownLevel} · {info.rank}
+            Level {shown.level} · {shown.rank}
           </Text>
-          <Text style={s.xpText}>{info.maxed ? 'Max level' : `${info.xpIntoLevel} / ${info.xpForLevel} XP`}</Text>
+          <View style={s.xpWrap}>
+            {gain > 0 && <Animated.Text style={[s.gain, gainStyle]}>+{gain}</Animated.Text>}
+            <Text style={s.xpText}>{shown.maxed ? 'Max level' : `${shown.xpIntoLevel} / ${shown.xpForLevel} XP`}</Text>
+          </View>
         </View>
         {c.bar.kind === 'line' ? (
-          <View style={s.track}>
-            <Animated.View style={[s.fill, { width, backgroundColor: glowColor }]} />
-            {c.tip && <Animated.View style={[s.tip, { left: width, backgroundColor: glowColor }]} />}
+          <View style={s.track} accessibilityRole="progressbar">
+            <View style={[s.ghost, { width: `${ghost * 100}%` }]} />
+            <Animated.View style={[s.fill, { width: `${shown.progress * 100}%`, backgroundColor: glowColor }]} />
+            {c.tip && <Animated.View style={[s.tip, { left: `${shown.progress * 100}%`, backgroundColor: glowColor }]} />}
           </View>
         ) : (
-          <StepBar style={c.bar} progress={info.progress} />
+          <StepBar style={c.bar} progress={shown.progress} ghost={ghost} />
         )}
         <NextReward totalXp={totalXp} />
       </View>
@@ -113,7 +128,7 @@ function NextReward({ totalXp }: { totalXp: number }) {
             <Text key="gap" style={s.gap}>···</Text>
           ) : l.milestone ? (
             <View key={l.level} style={[s.slot, s.slotReward]}>
-              <RewardIcon milestone={l.milestone} />
+              <RewardPicture milestone={l.milestone} size={l.milestone.reward?.kind === 'theme' ? 14 : 12} />
             </View>
           ) : (
             <View key={l.level} style={[s.slot, i === 0 && s.slotNext]} />
@@ -130,61 +145,32 @@ function NextReward({ totalXp }: { totalXp: number }) {
   );
 }
 
-/** A tiny picture of the reward: the theme's own colours, or an icon. */
-function RewardIcon({ milestone }: { milestone: LevelMilestone }) {
-  const c = useTheme();
-  const reward = milestone.reward;
-  const theme = reward?.kind === 'theme' ? THEMES.find((t) => t.reward === reward.label) : undefined;
-  if (theme) {
-    return (
-      <View
-        style={{
-          width: 14,
-          height: 14,
-          borderRadius: 7,
-          backgroundColor: theme.palette.bg,
-          borderWidth: 1,
-          borderColor: theme.palette.border,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: theme.palette.accent }} />
-      </View>
-    );
-  }
-  const Icon = reward?.kind === 'title' ? Crown : reward?.kind === 'adfree' ? Ban : reward?.kind === 'premium' ? Gem : Zap;
-  return <Icon size={12} color={c.accent} strokeWidth={1.5} aria-hidden />;
-}
-
-/** XP bar made of segments or dots; they light up one by one. */
-function StepBar({ style, progress }: { style: Exclude<BarStyle, { kind: 'line' }>; progress: number }) {
+/** XP bar made of segments or dots; they light up one by one, the ones about to fill shown faintly. */
+function StepBar({ style, progress, ghost }: { style: Exclude<BarStyle, { kind: 'line' }>; progress: number; ghost: number }) {
   const c = useTheme();
   const filled = Math.round(progress * style.count);
-  const items = Array.from({ length: style.count }, (_, i) => i < filled);
+  const coming = Math.round(ghost * style.count);
+  const color = (i: number) => (i < filled ? c.accent : i < coming ? c.accentSoft : c.border);
   if (style.kind === 'segments') {
     return (
       <View style={{ flexDirection: 'row', gap: style.gap }} accessibilityRole="progressbar">
-        {items.map((on, i) => (
-          <View
-            key={i}
-            style={{ flex: 1, height: c.lineWeight, borderRadius: style.radius, backgroundColor: on ? c.accent : c.border }}
-          />
+        {Array.from({ length: style.count }, (_, i) => (
+          <View key={i} style={{ flex: 1, height: c.lineWeight, borderRadius: style.radius, backgroundColor: color(i) }} />
         ))}
       </View>
     );
   }
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }} accessibilityRole="progressbar">
-      {items.map((on, i) => (
+      {Array.from({ length: style.count }, (_, i) => (
         <View
           key={i}
           style={{
             width: style.size,
             height: style.size,
             borderRadius: style.size / 2,
-            backgroundColor: on ? c.accent : c.border,
-            ...(on && style.glow ? { boxShadow: `0px 0px 6px ${c.accent}` } : {}),
+            backgroundColor: color(i),
+            ...(i < filled && style.glow ? { boxShadow: `0px 0px 6px ${c.accent}` } : {}),
           }}
         />
       ))}
@@ -213,6 +199,9 @@ const makeStyles = themed((c) => ({
   labels: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
   eyebrow: { ...eyebrow(c), color: c.muted },
   xpText: { color: c.muted, fontSize: 13, fontVariant: ['tabular-nums'] },
+  xpWrap: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
+  gain: { fontFamily: FONTS.serif, fontStyle: 'italic', color: c.accent, fontSize: 15 },
+  ghost: { position: 'absolute', left: 0, top: 0, bottom: 0, backgroundColor: c.accent, opacity: 0.3, borderRadius: c.tip ? 0 : c.lineWeight / 2 },
   track: { height: c.lineWeight, borderRadius: c.tip ? 0 : c.lineWeight / 2, backgroundColor: c.border, justifyContent: 'center' },
   fill: { position: 'absolute', left: 0, top: 0, bottom: 0, borderRadius: c.tip ? 0 : c.lineWeight / 2 },
   next: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: -2 },
