@@ -304,10 +304,13 @@ export function deleteTask(state: GameState, taskId: string): GameState {
   return { ...state, tasks: state.tasks.filter((t) => t.id !== taskId) };
 }
 
-/** Whole seconds left before a freshly added task may be ticked (0 when it already can). */
+/**
+ * Whole seconds left before a freshly added task may be ticked (0 when it already can).
+ * A creation time in the future (the phone clock was turned back) doesn't lock the task.
+ */
 export function secondsUntilTickable(task: Task, now: number): number {
   const left = Date.parse(task.createdAt) + QUICK_TICK_MS - now;
-  return left > 0 ? Math.ceil(left / 1000) : 0;
+  return left > 0 && left <= QUICK_TICK_MS ? Math.ceil(left / 1000) : 0;
 }
 
 /**
