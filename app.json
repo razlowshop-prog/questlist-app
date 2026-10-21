@@ -32,7 +32,8 @@
           "backgroundColor": "#1C1815",
           "resizeMode": "contain"
         }
-      ]
+      ],
+      "expo-notifications"
     ]
   }
 }

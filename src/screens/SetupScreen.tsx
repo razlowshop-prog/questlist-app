@@ -2,8 +2,8 @@ import { useMemo, useState } from 'react';
 import { Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from 'react-native';
 import { AppIcon } from '../components/AppIcon';
 import { LogoMark } from '../components/LogoMark';
-import { Chip } from '../components/Chip';
-import { durationLabel, xpFor } from '../game';
+import { Stepper } from '../components/Stepper';
+import { durationLabel, maxPerWeek, xpFor } from '../game';
 import { CATEGORIES, categoryOf, suggestionsFor, type LibraryTask } from '../library';
 import { eyebrow, themed, useStyles, useTheme, FONTS, headingCase } from '../theme';
 
@@ -12,7 +12,6 @@ export interface SetupPick {
   perWeek: number;
 }
 
-const FREQUENCIES = [1, 2, 3, 5, 7];
 
 /**
  * First-launch questions: name, which areas of life to improve, then
@@ -175,14 +174,16 @@ export function SetupScreen({
                         </Pressable>
                         {on && (
                           <View style={styles.freq}>
-                            {FREQUENCIES.map((f) => (
-                              <Chip
-                                key={f}
-                                label={f === 7 ? 'Daily' : `${f}×/wk`}
-                                active={picks[t.title] === f}
-                                onPress={() => setPicks((p) => ({ ...p, [t.title]: f }))}
-                              />
-                            ))}
+                            <Stepper
+                              value={Math.min(picks[t.title], maxPerWeek(t.title))}
+                              min={1}
+                              max={maxPerWeek(t.title)}
+                              onChange={(n) => setPicks((p) => ({ ...p, [t.title]: n }))}
+                              label="days a week"
+                            />
+                            <Text style={styles.freqLabel}>
+                              {maxPerWeek(t.title) === 1 ? 'once a week' : picks[t.title] >= 7 ? 'every day' : 'days a week'}
+                            </Text>
                           </View>
                         )}
                       </View>
@@ -272,7 +273,8 @@ const makeStyles = themed((c) => ({
   checkMark: { color: c.onAccent, fontWeight: '700', fontSize: 14 },
   taskTitle: { color: c.text, fontSize: 15, fontWeight: '600' },
   taskMeta: { color: c.muted, fontSize: 12, marginTop: 1 },
-  freq: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 12, paddingBottom: 12 },
+  freq: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12, paddingBottom: 12 },
+  freqLabel: { color: c.muted, fontSize: 14 },
   hint: { color: c.muted, fontSize: 13, textAlign: 'center', marginTop: 4 },
   footer: { flexDirection: 'row', gap: 10, padding: 16, borderTopWidth: 1, borderTopColor: c.border },
   back: { paddingHorizontal: 20, minHeight: 48, justifyContent: 'center', borderRadius: c.radius, borderWidth: 1, borderColor: c.outline },

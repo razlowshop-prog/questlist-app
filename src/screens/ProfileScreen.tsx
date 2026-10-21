@@ -148,6 +148,9 @@ export function ProfileScreen({
             value={settings.quoteEmails}
             onValueChange={(v) => onSettings({ quoteEmails: v })}
             trackColor={{ true: c.accent, false: c.border }}
+            thumbColor={c.surface}
+            // react-native-web paints the 'on' thumb teal unless told otherwise
+            {...({ activeThumbColor: c.surface } as object)}
           />
         </View>
         {settings.quoteEmails && (

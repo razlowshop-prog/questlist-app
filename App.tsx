@@ -20,6 +20,7 @@ import {
   toggleTask,
   totalXp,
   updateSettings,
+  upcomingTasks,
   visibleTasks,
   withDefaults,
   weeklyChallenges,
@@ -35,6 +36,7 @@ import { ProfileScreen } from './src/screens/ProfileScreen';
 import { TodayScreen } from './src/screens/TodayScreen';
 import type { LibraryTask } from './src/library';
 import { fontFilesFor } from './src/fonts';
+import { askReminderPermission, REMINDERS_SUPPORTED, syncReminders } from './src/reminders';
 import { loadState, saveState } from './src/storage';
 import { eyebrow, nativeDriver, themeById, themed, ThemeProvider, THEMES, withFonts } from './src/theme';
 
@@ -76,9 +78,16 @@ export default function App() {
     if (loaded) saveState(state);
   }, [state, loaded]);
 
+  // Phone reminders follow the tasks: rebuilt after every change and each new day.
+  useEffect(() => {
+    if (!loaded || !REMINDERS_SUPPORTED) return;
+    syncReminders(state).catch((e) => console.warn('Reminders failed to update', e));
+  }, [state.tasks, state.completions, loaded, today]);
+
   const xp = totalXp(state);
   const streak = currentStreak(state.completions, today);
   const tasks = useMemo(() => visibleTasks(state, today), [state, today]);
+  const upcoming = useMemo(() => upcomingTasks(state, today), [state.tasks, today]);
   const challenges = useMemo(() => weeklyChallenges(state, today), [state, today]);
   const readyToClaim = challenges.filter((c) => c.complete && !c.claimed).length;
   const achievements = useMemo(() => achievementStatuses(state, today), [state, today]);
@@ -203,12 +212,18 @@ export default function App() {
             <TodayScreen
               state={state}
               tasks={tasks}
+              upcoming={upcoming}
               today={today}
               loaded={loaded}
               addedTitles={addedTitles}
-              onAdd={(title, difficulty, repeat, minutes) =>
-                setState(addTask(state, title, difficulty, repeat, undefined, minutes))
-              }
+              onAdd={(title, difficulty, repeat, minutes, plan) => {
+                setState(addTask(state, title, difficulty, repeat, undefined, minutes, plan));
+                if (plan.reminder && REMINDERS_SUPPORTED) {
+                  askReminderPermission().then((ok) => {
+                    if (!ok) showToast('Notifications are off. Allow them in your phone settings to get reminders.');
+                  });
+                }
+              }}
               onAddFromLibrary={(t) => setState(addFromLibrary(state, t))}
               onOpenLibrary={() => setLibraryOpen(true)}
               onToggle={onToggle}
