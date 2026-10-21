@@ -64,7 +64,7 @@ export function XpHeader({ totalXp, streak, bonus }: { totalXp: number; streak: 
           <View style={styles.labels}>
             <Text style={styles.rank}>{info.rank}</Text>
             <Text style={styles.xpText}>
-              {info.xpIntoLevel} / {info.xpForLevel} XP
+              {info.maxed ? 'MAX LEVEL' : `${info.xpIntoLevel} / ${info.xpForLevel} XP`}
             </Text>
           </View>
           <View style={styles.track}>

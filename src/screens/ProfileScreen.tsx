@@ -1,19 +1,26 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { type Badge, type profileStats } from '../game';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { type Badge, type profileStats, type Settings } from '../game';
 import { C } from '../theme';
 
 export function ProfileScreen({
   name,
   stats,
   badges,
+  settings,
   onRename,
+  onSettings,
+  onRedoSetup,
 }: {
   name: string;
   stats: ReturnType<typeof profileStats>;
   badges: Badge[];
+  settings: Settings;
   onRename: (name: string) => void;
+  onSettings: (s: Partial<Settings>) => void;
+  onRedoSetup: () => void;
 }) {
+  const emailValid = /^\S+@\S+\.\S+$/.test(settings.email);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(name);
   const earned = badges.filter((b) => b.earned).length;
@@ -70,6 +77,43 @@ export function ProfileScreen({
         ))}
       </View>
 
+      <Text style={styles.section}>Settings</Text>
+      <View style={styles.settingCard}>
+        <View style={styles.settingRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.settingTitle}>Daily motivation by email</Text>
+            <Text style={styles.badgeDesc}>A short motivational quote every morning. Unsubscribe anytime.</Text>
+          </View>
+          <Switch
+            value={settings.quoteEmails}
+            onValueChange={(v) => onSettings({ quoteEmails: v })}
+            trackColor={{ true: C.accent, false: C.border }}
+          />
+        </View>
+        {settings.quoteEmails && (
+          <>
+            <TextInput
+              value={settings.email}
+              onChangeText={(email) => onSettings({ email: email.trim() })}
+              placeholder="you@example.com"
+              placeholderTextColor={C.muted}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              style={styles.emailInput}
+            />
+            <Text style={styles.badgeDesc}>
+              {emailValid
+                ? '✓ Saved. Emails start once QuestList accounts are live.'
+                : 'Enter your email address to receive the quotes.'}
+            </Text>
+          </>
+        )}
+      </View>
+      <Pressable onPress={onRedoSetup} style={styles.redo} accessibilityRole="button">
+        <Text style={styles.redoText}>Redo setup questions</Text>
+      </Pressable>
+
       <Text style={styles.note}>
         Friends, public profiles and the global leaderboard arrive once accounts and cloud sync are added.
       </Text>
@@ -122,5 +166,19 @@ const styles = StyleSheet.create({
   badgeIcon: { fontSize: 26 },
   badgeTitle: { color: C.text, fontSize: 14, fontWeight: '700' },
   badgeDesc: { color: C.muted, fontSize: 12 },
+  settingCard: { backgroundColor: C.card, borderRadius: 14, padding: 14, gap: 10 },
+  settingRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  settingTitle: { color: C.text, fontSize: 15, fontWeight: '700' },
+  emailInput: {
+    color: C.text,
+    fontSize: 15,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  redo: { marginTop: 10, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: C.border, alignItems: 'center' },
+  redoText: { color: C.text, fontWeight: '700', fontSize: 14 },
   note: { color: C.muted, fontSize: 12, textAlign: 'center', marginTop: 22 },
 });
