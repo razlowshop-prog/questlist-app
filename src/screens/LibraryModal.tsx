@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { FlatList, Modal, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from 'react-native';
+import { APP_NAME } from '../brand';
 import { Chip } from '../components/Chip';
 import { LibraryRow } from '../components/LibraryRow';
 import { CATEGORIES, FEATURED, LIBRARY, searchLibrary, type LibraryTask } from '../library';
@@ -69,7 +70,7 @@ export function LibraryModal({
           ListHeaderComponent={
             <Text style={styles.sub}>
               {browsing
-                ? 'Recommended by the Succedo team'
+                ? `Recommended by the ${APP_NAME} team`
                 : `${results.length} ${results.length === 1 ? 'task' : 'tasks'}`}
             </Text>
           }

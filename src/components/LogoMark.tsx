@@ -1,17 +1,18 @@
 import { Text, View, type TextStyle } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
+import { APP_NAME } from '../brand';
 import { type Ornament, useTheme } from '../theme';
 import { BrassRule } from './BrassRule';
 
 /**
- * The SUCCEDO wordmark dressed for the current theme: the rule with diamond
+ * The wordmark dressed for the current theme: the rule with diamond
  * ends (or a double line), or a small drawing in front of it.
  * `ruleWidth` undefined = the rules stretch to fill the row.
  */
 export function LogoMark({ textStyle, ruleWidth }: { textStyle: TextStyle; ruleWidth?: number }) {
   const c = useTheme();
   const rule = ruleWidth ? { width: ruleWidth } : { flex: 1 };
-  const word = <Text style={textStyle}>SUCCEDO</Text>;
+  const word = <Text style={textStyle}>{APP_NAME.toUpperCase()}</Text>;
 
   if (c.logoRule && c.ornament === 'double') {
     return (

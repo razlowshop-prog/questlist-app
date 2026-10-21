@@ -1,3 +1,4 @@
+import { APP_NAME } from './brand.ts';
 import {
   levelInfo,
   longestStreak,
@@ -145,7 +146,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     id: 'member',
     icon: '🎂',
     title: 'Member Since',
-    description: (g) => `Stay with Succedo for ${g} ${g === 1 ? 'month' : 'months'}`,
+    description: (g) => `Stay with ${APP_NAME} for ${g} ${g === 1 ? 'month' : 'months'}`,
     unit: 'months',
     value: (s, today) => monthsSince(s.joinedAt, today),
     tiers: [

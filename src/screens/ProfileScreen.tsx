@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { APP_NAME } from '../brand';
 import { tierColor, TIER_NAMES, type AchievementStatus } from '../achievements';
 import { type profileStats, type Settings } from '../game';
 import { card, eyebrow, THEMES, themed, useStyles, useTheme, FONTS, headingCase } from '../theme';
@@ -161,7 +162,7 @@ export function ProfileScreen({
             />
             <Text style={s.small}>
               {emailValid
-                ? '✓ Saved. Emails start once Succedo accounts are live.'
+                ? `✓ Saved. Emails start once ${APP_NAME} accounts are live.`
                 : 'Enter your email address to receive the quotes.'}
             </Text>
           </>
