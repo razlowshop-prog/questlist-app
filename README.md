@@ -15,7 +15,8 @@ Built with [Expo](https://expo.dev) (React Native + TypeScript). One codebase ru
 - **Animated XP bar** pinned at the top and a **"+XP" pop** when a task is completed
 - **Streaks** with bonus XP (+10 % from 3 days up to +50 % from 30)
 - **Weekly challenges** (3 per week, rotating) with claimable bonus XP
-- **Profile** with points, streaks, challenges won and **13 badges**
+- **Achievements** (Awards tab): 8 achievements with up to 7 tiers each (total tasks, most tasks in a day and in a week, most XP from one task, member since 1/3/6/12 months, streaks, levels, challenges). Claim bonus XP per tier; some tiers unlock rewards (themes, titles, ad-free or Premium time)
+- **Profile** with points, streaks, member-since date and trophies
 - **Daily quote** on the Today screen, plus an opt-in for daily quote emails (sending starts once accounts are live)
 - Everything is saved on the device
 
