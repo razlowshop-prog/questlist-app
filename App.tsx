@@ -46,6 +46,7 @@ import { ProfileScreen } from './src/screens/ProfileScreen';
 import { TodayScreen } from './src/screens/TodayScreen';
 import type { LibraryTask } from './src/library';
 import { fontFilesFor } from './src/fonts';
+import { trophyStatuses } from './src/trophies';
 import { askReminderPermission, REMINDERS_SUPPORTED, syncReminders } from './src/reminders';
 import { loadState, saveState } from './src/storage';
 import { eyebrow, nativeDriver, themeById, themed, ThemeProvider, THEMES, withFonts } from './src/theme';
@@ -106,6 +107,7 @@ export default function App() {
   const challenges = useMemo(() => weeklyChallenges(state, today), [state, today]);
   const readyToClaim = challenges.filter((c) => c.complete && !c.claimed).length;
   const achievements = useMemo(() => achievementStatuses(state, today), [state, today]);
+  const trophies = useMemo(() => trophyStatuses(state, today), [state, today]);
   const awardsToClaim = claimableCount(state, today);
   const addedTitles = useMemo(() => new Set(state.tasks.map((t) => t.title)), [state.tasks]);
   const rewards = useMemo(() => unlockedRewards(state), [state.achievementClaims]);
@@ -194,8 +196,13 @@ export default function App() {
 
   function onToggle(task: Task): { xp: number; note?: string } {
     const wasDone = isDoneToday(state, task, today);
-    const next = toggleTask(state, task.id, today, Date.now());
+    let next = toggleTask(state, task.id, today, Date.now());
     if (next === state) return { xp: 0 };
+    // On the phone, the first finished task asks once whether streak reminders may notify.
+    if (!wasDone && REMINDERS_SUPPORTED && !next.settings.askedNotifications && next.settings.streakReminders !== false) {
+      next = updateSettings(next, { askedNotifications: true });
+      askReminderPermission().catch(() => {});
+    }
     const gained = apply(next);
     if (wasDone) return { xp: 0 };
     const limited = next.completions[next.completions.length - 1].limited;
@@ -284,7 +291,7 @@ export default function App() {
             <ProfileScreen
               name={state.profile.name}
               stats={profileStats(state, today)}
-              achievements={achievements}
+              trophies={trophies}
               joinedAt={state.joinedAt}
               settings={state.settings}
               unlockedThemes={unlockedThemes}

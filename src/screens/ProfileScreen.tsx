@@ -2,15 +2,15 @@ import { Lock } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { APP_NAME } from '../brand';
-import { AchievementBadge } from '../components/AppIcon';
-import { tierColor, TIER_NAMES, type AchievementStatus } from '../achievements';
-import { type profileStats, type Settings } from '../game';
+import { TrophyCabinet } from '../components/TrophyCabinet';
+import { STREAK_REMINDER_HOUR, type profileStats, type Settings } from '../game';
+import type { TrophyStatus } from '../trophies';
 import { card, eyebrow, THEMES, themed, useStyles, useTheme, FONTS, headingCase } from '../theme';
 
 export function ProfileScreen({
   name,
   stats,
-  achievements,
+  trophies,
   joinedAt,
   settings,
   unlockedThemes,
@@ -20,7 +20,7 @@ export function ProfileScreen({
 }: {
   name: string;
   stats: ReturnType<typeof profileStats>;
-  achievements: AchievementStatus[];
+  trophies: TrophyStatus[];
   joinedAt: string;
   settings: Settings;
   /** Ids of themes the player may use. */
@@ -34,8 +34,7 @@ export function ProfileScreen({
   const emailValid = /^\S+@\S+\.\S+$/.test(settings.email);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(name);
-  const trophies = achievements.reduce((n, a) => n + a.claimed, 0);
-  const totalTiers = achievements.reduce((n, a) => n + a.def.tiers.length, 0);
+  const earnedTrophies = trophies.filter((t) => t.earned).length;
   const initials = name.trim().slice(0, 2).toUpperCase() || '?';
   const memberSince = joinedAt
     ? new Date(`${joinedAt}T12:00:00`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
@@ -89,26 +88,16 @@ export function ProfileScreen({
         <Stat label="Streak" value={String(stats.currentStreak)} color={c.accent} />
         <Stat label="Best streak" value={String(stats.bestStreak)} />
         <Stat label="Challenges" value={String(stats.challengesWon)} />
-        <Stat label="Trophies" value={`${trophies}/${totalTiers}`} />
+        <Stat label="Trophies" value={`${earnedTrophies}/${trophies.length}`} />
       </View>
 
-      <Text style={s.section}>Trophies</Text>
-      <View style={s.trophies}>
-        {achievements.map((a) => {
-          const tier = a.claimed - 1;
-          return (
-            <View key={a.def.id} style={[s.trophy, tier < 0 && s.trophyLocked]}>
-              <AchievementBadge name={a.def.icon} state={tier >= 0 ? 'earned' : 'locked'} size={24} />
-              <Text style={s.trophyTitle} numberOfLines={1}>
-                {a.def.title}
-              </Text>
-              <Text style={[s.small, tier >= 0 && s.tierName, tier >= 0 && { color: tierColor(tier, c.dark) }]}>
-                {tier >= 0 ? TIER_NAMES[tier] : '—'}
-              </Text>
-            </View>
-          );
-        })}
+      <View style={s.sectionRow}>
+        <Text style={s.section}>Trophy cabinet</Text>
+        <Text style={s.small}>
+          {earnedTrophies} of {trophies.length} · tap one to see how
+        </Text>
       </View>
+      <TrophyCabinet trophies={trophies} />
 
       <Text style={s.section}>Theme</Text>
       <View style={s.themes}>
@@ -139,6 +128,21 @@ export function ProfileScreen({
 
       <Text style={s.section}>Settings</Text>
       <View style={s.settingCard}>
+        <View style={s.settingRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.settingTitle}>Streak reminders</Text>
+            <Text style={s.small}>A notification at {STREAK_REMINDER_HOUR}:00 when nothing is done yet and your streak is at risk.</Text>
+          </View>
+          <Switch
+            value={settings.streakReminders !== false}
+            onValueChange={(v) => onSettings({ streakReminders: v })}
+            trackColor={{ true: c.accent, false: c.border }}
+            thumbColor={c.surface}
+            // react-native-web paints the 'on' thumb teal unless told otherwise
+            {...({ activeThumbColor: c.surface } as object)}
+            accessibilityLabel="Streak reminders"
+          />
+        </View>
         <View style={s.settingRow}>
           <View style={{ flex: 1 }}>
             <Text style={s.settingTitle}>Daily motivation by email</Text>
@@ -224,16 +228,12 @@ const makeStyles = themed((c) => ({
   levelPill: { backgroundColor: c.accentSoft, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5 },
   levelPillText: { color: c.accent, fontSize: 13, fontWeight: '700' },
   small: { color: c.muted, fontSize: 12 },
-  tierName: { fontSize: 12, fontWeight: '700' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   stat: { ...card(c), borderRadius: c.radius, flexBasis: '30%', flexGrow: 1, padding: 14, alignItems: 'center' },
   statValue: { fontFamily: FONTS.serif, color: c.text, fontSize: 24, fontVariant: ['lining-nums'] },
   statLabel: { color: c.muted, fontSize: 12, marginTop: 2, textAlign: 'center' },
   section: { ...eyebrow(c), color: c.muted, marginTop: 30, marginBottom: 12 },
-  trophies: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  trophy: { ...card(c), borderRadius: c.radius, flexBasis: '22%', flexGrow: 1, padding: 10, alignItems: 'center', gap: 2 },
-  trophyLocked: { backgroundColor: c.surfaceAlt, boxShadow: 'none' },
-  trophyTitle: { color: c.text, fontSize: 11, fontWeight: '700' },
+  sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 },
   themes: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 8 },
   theme: {
     ...card(c),

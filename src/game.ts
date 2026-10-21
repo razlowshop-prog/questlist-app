@@ -273,6 +273,8 @@ export interface StreakStatus {
   weekTier: number;
   /** Nothing done yet today while a streak is running. */
   atRisk: boolean;
+  /** Most weeks in a row that started on Inferno. */
+  bestInfernoWeeks: number;
 }
 
 /**
@@ -298,9 +300,15 @@ export function streakStatus(completions: Completion[], today: string): StreakSt
   let days = 0;
   let tier = 0;
   let best = 0;
+  let infernoRun = 0;
+  let bestInfernoWeeks = 0;
   if (first) {
     for (let d = first; d <= today; d = addDays(d, 1)) {
-      if (d !== first && weekdayOf(d) === 0 && days > 0) tier = Math.max(tier, tierFor(weekXpOf(addDays(d, -7))));
+      if (d !== first && weekdayOf(d) === 0) {
+        if (days > 0) tier = Math.max(tier, tierFor(weekXpOf(addDays(d, -7))));
+        infernoRun = tier === 3 ? infernoRun + 1 : 0;
+        bestInfernoWeeks = Math.max(bestInfernoWeeks, infernoRun);
+      }
       if (xpByDay.has(d)) {
         days++;
         best = Math.max(best, days);
@@ -313,7 +321,7 @@ export function streakStatus(completions: Completion[], today: string): StreakSt
       }
     }
   }
-  return { days, tier, best, weekXp, weekTier: tierFor(weekXp), atRisk: days > 0 && !xpByDay.has(today) };
+  return { days, tier, best, weekXp, weekTier: tierFor(weekXp), atRisk: days > 0 && !xpByDay.has(today), bestInfernoWeeks };
 }
 
 export function currentStreak(completions: Completion[], today: string): number {

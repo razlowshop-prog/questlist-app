@@ -2,6 +2,6 @@
 // the game logic stays free of React; components/AppIcon.tsx draws them.
 export type IconName =
   | 'Award' | 'Bath' | 'BookOpen' | 'Brain' | 'Briefcase' | 'Cake' | 'CalendarCheck' | 'CalendarDays'
-  | 'ClipboardList' | 'Dumbbell' | 'Flame' | 'Footprints' | 'Gem' | 'HandHeart' | 'HeartPulse' | 'Hourglass' | 'House'
-  | 'ListChecks' | 'Moon' | 'Mountain' | 'Palette' | 'PawPrint' | 'Rocket' | 'Salad' | 'Shuffle' | 'Smartphone'
+  | 'ClipboardList' | 'Compass' | 'Crown' | 'Dumbbell' | 'Flame' | 'FlameKindling' | 'Footprints' | 'Gem' | 'HandHeart' | 'HeartPulse' | 'Hourglass' | 'House'
+  | 'ListChecks' | 'Moon' | 'Mountain' | 'Palette' | 'PawPrint' | 'Rocket' | 'Salad' | 'Shield' | 'Shuffle' | 'Smartphone' | 'Sun'
   | 'Target' | 'Timer' | 'TreePine' | 'Trophy' | 'Users' | 'Wallet' | 'Weight' | 'Zap';
