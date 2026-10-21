@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
-import { TIER_COLORS, TIER_NAMES, type AchievementStatus } from '../achievements';
+import { tierColor, TIER_NAMES, type AchievementStatus } from '../achievements';
 import { type profileStats, type Settings } from '../game';
-import { card, THEMES, themed, useStyles, useTheme } from '../theme';
+import { card, eyebrow, THEMES, themed, useStyles, useTheme, FONTS, headingCase } from '../theme';
 
 export function ProfileScreen({
   name,
@@ -83,7 +83,7 @@ export function ProfileScreen({
       <View style={s.grid}>
         <Stat label="Points" value={stats.totalXp.toLocaleString()} color={c.gold} />
         <Stat label="Tasks done" value={String(stats.tasksDone)} />
-        <Stat label="Streak" value={`🔥 ${stats.currentStreak}`} color={c.flame} />
+        <Stat label="Streak" value={String(stats.currentStreak)} color={c.accent} />
         <Stat label="Best streak" value={String(stats.bestStreak)} />
         <Stat label="Challenges" value={String(stats.challengesWon)} />
         <Stat label="Trophies" value={`${trophies}/${totalTiers}`} />
@@ -99,7 +99,7 @@ export function ProfileScreen({
               <Text style={s.trophyTitle} numberOfLines={1}>
                 {a.def.title}
               </Text>
-              <Text style={[s.small, tier >= 0 && { color: TIER_COLORS[tier], fontWeight: '800' }]}>
+              <Text style={[s.small, tier >= 0 && s.tierName, tier >= 0 && { color: tierColor(tier, c.dark) }]}>
                 {tier >= 0 ? TIER_NAMES[tier] : '—'}
               </Text>
             </View>
@@ -161,7 +161,7 @@ export function ProfileScreen({
             />
             <Text style={s.small}>
               {emailValid
-                ? '✓ Saved. Emails start once QuestList accounts are live.'
+                ? '✓ Saved. Emails start once Succedo accounts are live.'
                 : 'Enter your email address to receive the quotes.'}
             </Text>
           </>
@@ -202,8 +202,8 @@ const makeStyles = themed((c) => ({
     borderWidth: 4,
     borderColor: c.accentSoft,
   },
-  avatarText: { color: c.onAccent, fontSize: 30, fontWeight: '800' },
-  name: { color: c.text, fontSize: 24, fontWeight: '800', letterSpacing: -0.4 },
+  avatarText: { color: c.onAccent, fontSize: 30, fontWeight: '700' },
+  name: { fontFamily: FONTS.serif, color: c.text, fontSize: 28, ...headingCase(c) },
   edit: { color: c.muted, fontSize: 16 },
   nameInput: {
     color: c.text,
@@ -218,20 +218,21 @@ const makeStyles = themed((c) => ({
   levelPill: { backgroundColor: c.accentSoft, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5 },
   levelPillText: { color: c.accent, fontSize: 13, fontWeight: '700' },
   small: { color: c.muted, fontSize: 12 },
+  tierName: { fontSize: 12, fontWeight: '700' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  stat: { ...card(c), borderRadius: 16, flexBasis: '30%', flexGrow: 1, padding: 14, alignItems: 'center' },
-  statValue: { color: c.text, fontSize: 20, fontWeight: '800' },
+  stat: { ...card(c), borderRadius: c.radius, flexBasis: '30%', flexGrow: 1, padding: 14, alignItems: 'center' },
+  statValue: { fontFamily: FONTS.serif, color: c.text, fontSize: 24, fontVariant: ['lining-nums'] },
   statLabel: { color: c.muted, fontSize: 12, marginTop: 2, textAlign: 'center' },
-  section: { color: c.text, fontSize: 18, fontWeight: '800', marginTop: 26, marginBottom: 12, letterSpacing: -0.3 },
+  section: { ...eyebrow(c), color: c.muted, marginTop: 30, marginBottom: 12 },
   trophies: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  trophy: { ...card(c), borderRadius: 16, flexBasis: '22%', flexGrow: 1, padding: 10, alignItems: 'center', gap: 2 },
+  trophy: { ...card(c), borderRadius: c.radius, flexBasis: '22%', flexGrow: 1, padding: 10, alignItems: 'center', gap: 2 },
   trophyLocked: { backgroundColor: c.surfaceAlt, boxShadow: 'none' },
   trophyIcon: { fontSize: 24 },
   trophyTitle: { color: c.text, fontSize: 11, fontWeight: '700' },
   themes: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 8 },
   theme: {
     ...card(c),
-    borderRadius: 14,
+    borderRadius: c.radius,
     flexBasis: '30%',
     flexGrow: 1,
     padding: 8,
@@ -239,7 +240,7 @@ const makeStyles = themed((c) => ({
     borderWidth: 2,
     borderColor: 'transparent',
   },
-  swatch: { height: 44, borderRadius: 10, padding: 8, justifyContent: 'space-between', borderWidth: 1, borderColor: c.border },
+  swatch: { height: 44, borderRadius: c.radius, padding: 8, justifyContent: 'space-between', borderWidth: 1, borderColor: c.border },
   swatchDot: { width: 14, height: 14, borderRadius: 7 },
   swatchBar: { height: 5, borderRadius: 3, width: '70%' },
   themeName: { color: c.text, fontSize: 12, fontWeight: '700', textAlign: 'center' },
@@ -250,11 +251,11 @@ const makeStyles = themed((c) => ({
     color: c.text,
     fontSize: 15,
     backgroundColor: c.surfaceAlt,
-    borderRadius: 10,
+    borderRadius: c.radius,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
-  redo: { marginTop: 12, paddingVertical: 12, borderRadius: 14, backgroundColor: c.surfaceAlt, alignItems: 'center' },
+  redo: { marginTop: 12, paddingVertical: 12, borderRadius: c.radius, backgroundColor: c.surfaceAlt, alignItems: 'center' },
   redoText: { color: c.text, fontWeight: '700', fontSize: 14 },
   note: { color: c.muted, fontSize: 12, textAlign: 'center', marginTop: 22 },
 }));

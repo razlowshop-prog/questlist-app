@@ -1,8 +1,7 @@
 import { Pressable, ScrollView, Text, View } from 'react-native';
-import { TIER_COLORS, TIER_NAMES, type AchievementStatus, type Reward } from '../achievements';
-import { card, themed, useStyles } from '../theme';
+import { tierColor, TIER_NAMES, type AchievementStatus, type Reward } from '../achievements';
+import { card, themed, useStyles, FONTS, headingCase, useTheme } from '../theme';
 
-const REWARD_ICON: Record<Reward['kind'], string> = { theme: '🎨', title: '🏷️', adfree: '🚫', premium: '👑' };
 
 export function AchievementsScreen({
   achievements,
@@ -14,6 +13,7 @@ export function AchievementsScreen({
   onClaim: (id: string) => void;
 }) {
   const s = useStyles(makeStyles);
+  const c = useTheme();
   const earned = achievements.reduce((n, a) => n + a.claimed, 0);
   const total = achievements.reduce((n, a) => n + a.def.tiers.length, 0);
   // Claimable ones first.
@@ -53,7 +53,7 @@ export function AchievementsScreen({
               ) : shownTier ? (
                 <Text style={s.reward}>+{shownTier.xp} XP</Text>
               ) : (
-                <Text style={s.reward}>🏆</Text>
+                <Text style={s.reward}>COMPLETE</Text>
               )}
             </View>
 
@@ -63,8 +63,8 @@ export function AchievementsScreen({
                   key={t.goal}
                   style={[
                     s.tierDot,
-                    i < a.claimed && { backgroundColor: TIER_COLORS[i], borderColor: TIER_COLORS[i] },
-                    i >= a.claimed && i < a.reached && { borderColor: TIER_COLORS[i] },
+                    i < a.claimed && { backgroundColor: tierColor(i, c.dark), borderColor: tierColor(i, c.dark) },
+                    i >= a.claimed && i < a.reached && { borderColor: tierColor(i, c.dark) },
                   ]}
                 >
                   <Text style={[s.tierGoal, i < a.claimed && s.tierGoalDone]}>{t.goal}</Text>
@@ -75,7 +75,7 @@ export function AchievementsScreen({
             {a.next && (
               <>
                 <View style={s.track}>
-                  <View style={[s.fill, { width: `${Math.round(pct * 100)}%`, backgroundColor: TIER_COLORS[a.reached] }]} />
+                  <View style={[s.fill, { width: `${Math.round(pct * 100)}%`, backgroundColor: tierColor(a.reached, c.dark) }]} />
                 </View>
                 <Text style={s.progress}>
                   {a.value} / {a.next.goal} {a.def.unit} · next: {TIER_NAMES[a.reached]}
@@ -84,7 +84,7 @@ export function AchievementsScreen({
               </>
             )}
             {claimable && tierToClaim.reward && (
-              <Text style={s.unlock}>🎁 Claim to unlock {tierToClaim.reward.label}</Text>
+              <Text style={s.unlock}>Claim to unlock {tierToClaim.reward.label}</Text>
             )}
           </View>
         );
@@ -98,7 +98,7 @@ export function AchievementsScreen({
           {rewards.map((r, i) => (
             <View key={i} style={s.rewardChip}>
               <Text style={s.rewardChipText}>
-                {REWARD_ICON[r.kind]} {r.label}
+                {r.label}
               </Text>
             </View>
           ))}
@@ -110,41 +110,41 @@ export function AchievementsScreen({
 
 const makeStyles = themed((c) => ({
   content: { padding: 20, paddingBottom: 48, maxWidth: 640, width: '100%', alignSelf: 'center' },
-  heading: { color: c.text, fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
-  subHeading: { fontSize: 18, marginTop: 18 },
+  heading: { fontFamily: FONTS.serif, color: c.text, fontSize: 30, lineHeight: 36, ...headingCase(c) },
+  subHeading: { fontSize: 22, lineHeight: 28, marginTop: 22 },
   sub: { color: c.muted, fontSize: 14, marginTop: 4, marginBottom: 16 },
   card: { ...card(c), padding: 14, marginBottom: 10, gap: 10 },
-  cardClaimable: { borderWidth: 2, borderColor: c.gold },
+  cardClaimable: { borderWidth: 1, borderColor: c.gold },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   iconWrap: {
     width: 44,
     height: 44,
-    borderRadius: 12,
+    borderRadius: c.radius,
     backgroundColor: c.surfaceAlt,
     alignItems: 'center',
     justifyContent: 'center',
   },
   icon: { fontSize: 22 },
-  title: { color: c.text, fontSize: 16, fontWeight: '800' },
+  title: { color: c.text, fontSize: 16, fontWeight: '700' },
   desc: { color: c.muted, fontSize: 13, marginTop: 2 },
-  reward: { color: c.gold, fontWeight: '800', fontSize: 13 },
-  claim: { backgroundColor: c.gold, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999 },
-  claimText: { color: c.onGold, fontWeight: '800', fontSize: 13 },
+  reward: { color: c.gold, fontWeight: '700', fontSize: 13 },
+  claim: { backgroundColor: c.gold, paddingHorizontal: 14, minHeight: 36, justifyContent: 'center', borderRadius: c.radius },
+  claimText: { color: c.onGold, fontWeight: '700', fontSize: 13 },
   tiers: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
   tierDot: {
     minWidth: 34,
     height: 24,
     paddingHorizontal: 7,
-    borderRadius: 12,
+    borderRadius: c.radius,
     borderWidth: 1.5,
     borderColor: c.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tierGoal: { color: c.muted, fontSize: 11, fontWeight: '800' },
-  tierGoalDone: { color: '#1A1300' },
-  track: { height: 6, backgroundColor: c.surfaceAlt, borderRadius: 3, overflow: 'hidden' },
-  fill: { height: '100%', borderRadius: 3 },
+  tierGoal: { color: c.muted, fontSize: 11, fontWeight: '700' },
+  tierGoalDone: { color: c.onGold },
+  track: { height: c.lineWeight, borderRadius: c.lineWeight / 2, backgroundColor: c.border, overflow: 'hidden' },
+  fill: { height: '100%' },
   progress: { color: c.muted, fontSize: 12, marginTop: -4 },
   unlock: { color: c.gold, fontSize: 12, fontWeight: '700' },
   rewards: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },

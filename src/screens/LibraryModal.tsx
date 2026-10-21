@@ -3,7 +3,7 @@ import { FlatList, Modal, Pressable, SafeAreaView, ScrollView, Text, TextInput, 
 import { Chip } from '../components/Chip';
 import { LibraryRow } from '../components/LibraryRow';
 import { CATEGORIES, FEATURED, LIBRARY, searchLibrary, type LibraryTask } from '../library';
-import { themed, useStyles, useTheme } from '../theme';
+import { themed, useStyles, useTheme, FONTS, headingCase } from '../theme';
 
 /** Full-screen browser for the task library: search, categories, recommended. */
 export function LibraryModal({
@@ -69,7 +69,7 @@ export function LibraryModal({
           ListHeaderComponent={
             <Text style={styles.sub}>
               {browsing
-                ? 'Recommended by the QuestList team'
+                ? 'Recommended by the Succedo team'
                 : `${results.length} ${results.length === 1 ? 'task' : 'tasks'}`}
             </Text>
           }
@@ -94,8 +94,8 @@ const makeStyles = themed((c) => ({
     padding: 16,
     paddingBottom: 8,
   },
-  heading: { color: c.text, fontSize: 22, fontWeight: '800' },
-  done: { color: c.accent, fontSize: 16, fontWeight: '800' },
+  heading: { fontFamily: FONTS.serif, color: c.text, fontSize: 26, ...headingCase(c) },
+  done: { color: c.accent, fontSize: 16, fontWeight: '700' },
   searchWrap: { paddingHorizontal: 16 },
   search: {
     color: c.text,
@@ -103,7 +103,7 @@ const makeStyles = themed((c) => ({
     backgroundColor: c.surface,
     paddingHorizontal: 14,
     paddingVertical: 11,
-    borderRadius: 12,
+    borderRadius: c.radius,
   },
   cats: { gap: 8, paddingHorizontal: 16, paddingVertical: 12 },
   list: { paddingHorizontal: 16, paddingBottom: 40, maxWidth: 640, width: '100%', alignSelf: 'center' },

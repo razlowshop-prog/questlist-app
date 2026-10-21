@@ -11,14 +11,15 @@ import {
   type GameState,
   type Task,
 } from '../game';
-import { card, nativeDriver, useStyles, type Palette } from '../theme';
+import { card, FONTS, nativeDriver, themed, useStyles, useTheme } from '../theme';
 
 /**
- * One task. Completing it pops the checkbox and sends a "+XP" label
- * floating up from the row. When a limit cut the XP, a short note shows instead.
+ * One task, as a numbered line. Completing it fills the check with a soft
+ * ring and lets a "+XP" figure rise from the row. When a limit cut the XP, a short note shows instead.
  * A freshly added task counts down until it may be ticked.
  */
 export function TaskRow({
+  index,
   task,
   state,
   today,
@@ -26,6 +27,8 @@ export function TaskRow({
   onToggle,
   onDelete,
 }: {
+  /** Position in today's list, shown as 01, 02 … */
+  index: number;
   task: Task;
   state: GameState;
   today: string;
@@ -35,8 +38,10 @@ export function TaskRow({
   onDelete: () => void;
 }) {
   const s = useStyles(makeStyles);
+  const c = useTheme();
   const pop = useRef(new Animated.Value(1)).current;
   const float = useRef(new Animated.Value(0)).current;
+  const ring = useRef(new Animated.Value(1)).current;
   const [label, setLabel] = useState<{ text: string; warn: boolean } | null>(null);
   const [waitLeft, setWaitLeft] = useState(() => secondsUntilTickable(task, Date.now()));
   const waitSeconds = QUICK_TICK_MS / 1000;
@@ -62,7 +67,11 @@ export function TaskRow({
     const wasDone = done;
     const { xp, note } = onToggle();
     if (wasDone) return;
-    setLabel(xp > 0 ? { text: `+${xp} XP`, warn: false } : { text: note ?? '+0 XP', warn: true });
+    setLabel(xp > 0 ? { text: `+${xp}`, warn: false } : { text: note ?? '+0 XP', warn: true });
+    if (xp > 0) {
+      ring.setValue(0);
+      Animated.timing(ring, { toValue: 1, duration: 900, easing: Easing.out(Easing.quad), useNativeDriver: nativeDriver }).start();
+    }
     animate(xp > 0);
   }
 
@@ -70,12 +79,12 @@ export function TaskRow({
     float.setValue(0);
     Animated.parallel([
       Animated.sequence([
-        Animated.timing(pop, { toValue: 1.25, duration: 110, useNativeDriver: nativeDriver }),
-        Animated.spring(pop, { toValue: 1, friction: 3, useNativeDriver: nativeDriver }),
+        Animated.timing(pop, { toValue: 0.6, duration: 0, useNativeDriver: nativeDriver }),
+        Animated.timing(pop, { toValue: 1, duration: 260, easing: Easing.out(Easing.back(1.6)), useNativeDriver: nativeDriver }),
       ]),
       Animated.timing(float, {
         toValue: 1,
-        duration: quick ? 900 : 1800,
+        duration: quick ? 1200 : 1800,
         easing: Easing.out(Easing.quad),
         useNativeDriver: nativeDriver,
       }),
@@ -85,22 +94,26 @@ export function TaskRow({
   const floatStyle = {
     opacity: float.interpolate({ inputRange: [0, 0.15, 0.75, 1], outputRange: [0, 1, 1, 0] }),
     transform: [
-      { translateY: float.interpolate({ inputRange: [0, 1], outputRange: [0, -40] }) },
-      { scale: float.interpolate({ inputRange: [0, 0.2, 1], outputRange: [0.6, 1.1, 1] }) },
+      { translateY: float.interpolate({ inputRange: [0, 0.2, 1], outputRange: [6, -2, -22] }) },
     ],
   };
+  const rotate = c.check === 'diamond' ? [{ rotate: '45deg' }] : [];
+  const ringStyle = {
+    opacity: ring.interpolate({ inputRange: [0, 1], outputRange: [0.9, 0] }),
+    // Inline transforms replace the stylesheet's, so the diamond's rotation is repeated here.
+    transform: [{ scale: ring.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] }) }, ...rotate],
+  };
+  const locked = waitLeft > 0 && !done;
 
   return (
-    <View style={[s.row, done && s.rowDone]}>
+    <View style={s.row}>
       <Pressable onPress={press} style={s.main} accessibilityRole="checkbox" accessibilityState={{ checked: done }}>
-        <Animated.View style={[s.checkbox, done && s.checkboxDone, waitLeft > 0 && !done && s.checkboxLocked, { transform: [{ scale: pop }] }]}>
-          {done && <Text style={s.checkmark}>✓</Text>}
-        </Animated.View>
+        <Text style={s.num}>{String(index + 1).padStart(2, '0')}</Text>
         <View style={{ flex: 1 }}>
           <Text style={[s.title, done && s.titleDone]}>{task.title}</Text>
-          {waitLeft > 0 && !done ? (
+          {locked ? (
             <Text style={[s.meta, s.wait]}>
-              ⏳ Wait {waitLeft} more {waitLeft === 1 ? 'second' : 'seconds'}
+              Wait {waitLeft} more {waitLeft === 1 ? 'second' : 'seconds'}
             </Text>
           ) : (
             <Text style={s.meta}>
@@ -110,8 +123,12 @@ export function TaskRow({
             </Text>
           )}
         </View>
-        <View style={s.xpPill}>
-          <Text style={s.xpPillText}>{taskXp(task)} XP</Text>
+        <Text style={s.xp}>{taskXp(task)} XP</Text>
+        <View style={s.checkWrap}>
+          <Animated.View style={[s.ring, ringStyle]} pointerEvents="none" />
+          <Animated.View style={[s.checkbox, done && s.checkboxDone, locked && s.checkboxLocked, { transform: [{ scale: pop }, ...rotate] }]}>
+            {done && <Text style={[s.checkmark, c.check === 'diamond' && s.checkmarkDiamond]}>✓</Text>}
+          </Animated.View>
         </View>
       </Pressable>
       <Pressable onPress={onDelete} hitSlop={10} style={s.deleteWrap} accessibilityLabel={`Delete ${task.title}`}>
@@ -126,43 +143,51 @@ export function TaskRow({
   );
 }
 
-const makeStyles = (c: Palette) => ({
-  row: {
-    ...card(c),
-    borderRadius: 16,
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    marginBottom: 10,
+const makeStyles = themed((c) => ({
+  row:
+    c.listStyle === 'cards'
+      ? { ...card(c), flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, marginBottom: 10 }
+      : { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: c.border },
+  main: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 64, paddingVertical: 10 },
+  num: { fontFamily: FONTS.serif, fontStyle: 'italic', color: c.accent, fontSize: 16, width: 24, fontVariant: ['lining-nums'] },
+  title: { color: c.text, fontSize: 16, fontWeight: '600' },
+  titleDone: { color: c.faint, textDecorationLine: 'line-through', textDecorationColor: c.accent },
+  meta: { color: c.faint, fontSize: 13, marginTop: 2 },
+  wait: { color: c.flame, fontWeight: '600' },
+  xp: { color: c.muted, fontSize: 13, fontVariant: ['tabular-nums'] },
+  checkWrap: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
+  ring: {
+    position: 'absolute',
+    width: 48,
+    height: 48,
+    borderRadius: c.check === 'circle' ? 24 : c.check === 'square' ? Math.min(c.radius * 2, 12) : 4,
+    borderWidth: 1.5,
+    borderColor: c.accent,
   },
-  rowDone: { opacity: 0.7 },
-  main: { flex: 1, flexDirection: 'row' as const, alignItems: 'center' as const, gap: 12, padding: 14 },
   checkbox: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    borderWidth: 2,
-    borderColor: c.border,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
+    width: c.check === 'diamond' ? 20 : 24,
+    height: c.check === 'diamond' ? 20 : 24,
+    borderRadius: c.check === 'circle' ? 12 : c.check === 'square' ? Math.min(c.radius, 6) : 2,
+    borderWidth: 1,
+    borderColor: c.outline,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  checkboxDone: { backgroundColor: c.xp, borderColor: c.xp },
-  checkboxLocked: { borderStyle: 'dashed' as const, opacity: 0.5 },
-  checkmark: { color: '#FFFFFF', fontWeight: '900' as const, fontSize: 14 },
-  title: { color: c.text, fontSize: 16, fontWeight: '600' as const },
-  titleDone: { color: c.muted, textDecorationLine: 'line-through' as const },
-  meta: { color: c.muted, fontSize: 12, marginTop: 2 },
-  wait: { color: c.flame, fontWeight: '700' as const },
-  xpPill: { backgroundColor: c.xpSoft, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 },
-  xpPillText: { color: c.xp, fontSize: 12, fontWeight: '800' as const },
-  deleteWrap: { paddingRight: 14, paddingLeft: 2 },
-  delete: { color: c.muted, fontSize: 14, opacity: 0.6 },
+  checkboxDone: { backgroundColor: c.accent, borderColor: c.accent },
+  checkboxLocked: { borderStyle: 'dashed', opacity: 0.6 },
+  checkmark: { color: c.onAccent, fontWeight: '800', fontSize: 13 },
+  /** Turns the tick upright again inside the rotated diamond. */
+  checkmarkDiamond: { transform: [{ rotate: '-45deg' }] },
+  deleteWrap: { paddingLeft: 14, paddingVertical: 10 },
+  delete: { color: c.faint, fontSize: 13 },
   float: {
-    position: 'absolute' as const,
-    right: 56,
-    top: 10,
-    color: c.xp,
+    position: 'absolute',
+    right: 84,
+    top: 8,
+    fontFamily: FONTS.serif,
+    fontStyle: 'italic',
+    color: c.accent,
     fontSize: 20,
-    fontWeight: '900' as const,
   },
-  floatWarn: { color: c.flame, fontSize: 13, fontWeight: '700' as const, right: 16 },
-});
+  floatWarn: { fontFamily: FONTS.bodySemiBold, color: c.flame, fontSize: 13, right: 0 },
+}));

@@ -1,6 +1,7 @@
+import { loadAsync } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { XpHeader } from './src/components/XpHeader';
 import {
   addTask,
@@ -33,16 +34,17 @@ import { SetupScreen, type SetupPick } from './src/screens/SetupScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { TodayScreen } from './src/screens/TodayScreen';
 import type { LibraryTask } from './src/library';
+import { fontFilesFor } from './src/fonts';
 import { loadState, saveState } from './src/storage';
-import { nativeDriver, themeById, themed, ThemeProvider, THEMES } from './src/theme';
+import { eyebrow, nativeDriver, themeById, themed, ThemeProvider, THEMES, withFonts } from './src/theme';
 
 type Tab = 'today' | 'challenges' | 'awards' | 'profile';
 
-const TABS: { key: Tab; icon: string; label: string }[] = [
-  { key: 'today', icon: '📝', label: 'Today' },
-  { key: 'challenges', icon: '🎯', label: 'Challenges' },
-  { key: 'awards', icon: '🏆', label: 'Awards' },
-  { key: 'profile', icon: '👤', label: 'Profile' },
+const TABS: { key: Tab; label: string }[] = [
+  { key: 'today', label: 'Today' },
+  { key: 'challenges', label: 'Challenges' },
+  { key: 'awards', label: 'Awards' },
+  { key: 'profile', label: 'Profile' },
 ];
 
 export default function App() {
@@ -53,6 +55,9 @@ export default function App() {
   const [redoSetup, setRedoSetup] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const toastAnim = useRef(new Animated.Value(0)).current;
+  // Theme whose fonts are loaded and which is on screen; a newly picked theme
+  // shows once its fonts are ready, so text never flashes in a missing font.
+  const [shownThemeId, setShownThemeId] = useState<string | null>(null);
 
   // Recomputed on each render so the list rolls over after midnight.
   const today = dayKey();
@@ -81,9 +86,22 @@ export default function App() {
     const labels = new Set(rewards.map((r) => r.label));
     return new Set(THEMES.filter((t) => !t.reward || labels.has(t.reward)).map((t) => t.id));
   }, [rewards]);
-  const theme = themeById(unlockedThemes.has(state.settings.theme) ? state.settings.theme : 'classic');
+  const wantedTheme = themeById(unlockedThemes.has(state.settings.theme) ? state.settings.theme : 'classic');
+  const theme = themeById(shownThemeId ?? wantedTheme.id);
   const c = theme.palette;
-  const styles = useMemo(() => StyleSheet.create(makeStyles(c)), [c]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    let current = true;
+    // A font that fails to load falls back to the system font; the theme still applies.
+    loadAsync(fontFilesFor(wantedTheme.palette.fonts))
+      .catch((e) => console.warn('Fonts failed to load', e))
+      .finally(() => current && setShownThemeId(wantedTheme.id));
+    return () => {
+      current = false;
+    };
+  }, [loaded, wantedTheme.id]);
+  const styles = useMemo(() => StyleSheet.create(withFonts(makeStyles(c), c.fonts)), [c]);
   const statusBar = c.dark ? 'light' : 'dark';
 
   function addFromLibrary(s: GameState, t: LibraryTask, perWeek = t.perWeek): GameState {
@@ -98,16 +116,16 @@ export default function App() {
     setState(next);
     setRedoSetup(false);
     setTab('today');
-    if (picks.length) setTimeout(() => showToast(`⚔️ ${picks.length} quests added. Let's go!`), 300);
+    if (picks.length) setTimeout(() => showToast(`${picks.length} ${picks.length === 1 ? 'task' : 'tasks'} added. Let's begin.`), 300);
   }
 
   function showToast(message: string) {
     setToast(message);
     toastAnim.setValue(0);
     Animated.sequence([
-      Animated.spring(toastAnim, { toValue: 1, useNativeDriver: nativeDriver, friction: 6 }),
-      Animated.delay(1800),
-      Animated.timing(toastAnim, { toValue: 0, duration: 250, useNativeDriver: nativeDriver }),
+      Animated.timing(toastAnim, { toValue: 1, duration: 350, easing: Easing.out(Easing.cubic), useNativeDriver: nativeDriver }),
+      Animated.delay(2000),
+      Animated.timing(toastAnim, { toValue: 0, duration: 300, useNativeDriver: nativeDriver }),
     ]).start(() => setToast(null));
   }
 
@@ -118,7 +136,7 @@ export default function App() {
     const after = levelInfo(totalXp(next));
     setState(next);
     if (after.level > before.level) {
-      setTimeout(() => showToast(`🎉 Level ${after.level}!${after.rank !== before.rank ? ` You are now ${after.rank}` : ''}`), 500);
+      setTimeout(() => showToast(`Level ${after.level}.${after.rank !== before.rank ? ` You are now ${after.rank}.` : ''}`), 500);
     }
     return gained;
   }
@@ -135,7 +153,7 @@ export default function App() {
 
   function onClaim(id: string) {
     const gained = apply(claimChallenge(state, id, today));
-    if (gained > 0) showToast(`🎯 Challenge complete! +${gained} XP`);
+    if (gained > 0) showToast(`Challenge complete · +${gained} XP`);
   }
 
   function onClaimAchievement(id: string) {
@@ -143,13 +161,16 @@ export default function App() {
     if (!tier) return;
     const tierName = TIER_NAMES[next.achievementClaims[next.achievementClaims.length - 1].tier];
     apply(next);
-    showToast(`🏆 ${tierName} trophy! +${tier.xp} XP${tier.reward ? ` · ${tier.reward.label} unlocked` : ''}`);
+    showToast(`${tierName} trophy · +${tier.xp} XP${tier.reward ? ` · ${tier.reward.label} unlocked` : ''}`);
   }
 
   const toastStyle = {
     opacity: toastAnim,
     transform: [{ translateY: toastAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
   };
+
+  // Plain background until saved data and the theme's fonts are ready.
+  if (!shownThemeId) return <View style={styles.safe} />;
 
   if (loaded && (!state.onboarded || redoSetup)) {
     return (
@@ -223,10 +244,8 @@ export default function App() {
               accessibilityRole="tab"
               accessibilityState={{ selected: tab === t.key }}
             >
-              <View style={[styles.tabIconWrap, tab === t.key && styles.tabIconActive]}>
-                <Text style={styles.tabIcon}>{t.icon}</Text>
-              </View>
               <Text style={[styles.tabLabel, tab === t.key && styles.tabLabelActive]}>{t.label}</Text>
+              <View style={[styles.tabMark, tab === t.key && styles.tabMarkActive]} />
               {(t.key === 'challenges' ? readyToClaim : t.key === 'awards' ? awardsToClaim : 0) > 0 && (
                 <View style={styles.dot}>
                   <Text style={styles.dotText}>{t.key === 'challenges' ? readyToClaim : awardsToClaim}</Text>
@@ -257,22 +276,22 @@ const makeStyles = themed((c) => ({
   safe: { flex: 1, backgroundColor: c.bg },
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: c.surface,
-    paddingTop: 8,
-    paddingBottom: 10,
-    ...(c.shadow ? { boxShadow: '0px -1px 0px rgba(20,22,43,0.06)' } : { borderTopWidth: 1, borderTopColor: c.border }),
+    backgroundColor: c.bg,
+    paddingTop: 12,
+    paddingBottom: 14,
+    borderTopWidth: 1,
+    borderTopColor: c.border,
   },
-  tab: { flex: 1, alignItems: 'center' },
-  tabIconWrap: { paddingHorizontal: 16, paddingVertical: 4, borderRadius: 999 },
-  tabIconActive: { backgroundColor: c.accentSoft },
-  tabIcon: { fontSize: 19 },
-  tabLabel: { color: c.muted, fontSize: 11, fontWeight: '600', marginTop: 3 },
-  tabLabelActive: { color: c.accent, fontWeight: '800' },
+  tab: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 44, gap: 6 },
+  tabLabel: { ...eyebrow(c, 11), color: c.muted },
+  tabLabelActive: { color: c.dark ? c.accent : c.text },
+  tabMark: { width: 6, height: 6, transform: [{ rotate: '45deg' }], backgroundColor: 'transparent' },
+  tabMarkActive: { backgroundColor: c.accent },
   dot: {
     position: 'absolute',
     top: -2,
-    right: '22%',
-    backgroundColor: c.gold,
+    right: '14%',
+    backgroundColor: c.accent,
     borderRadius: 9,
     minWidth: 18,
     height: 18,
@@ -280,17 +299,18 @@ const makeStyles = themed((c) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dotText: { color: c.onGold, fontSize: 11, fontWeight: '800' },
+  dotText: { color: c.onAccent, fontSize: 11, fontWeight: '700' },
   toast: {
     position: 'absolute',
     bottom: 96,
     alignSelf: 'center',
-    backgroundColor: c.text,
+    backgroundColor: c.surface,
+    borderWidth: 1,
+    borderColor: c.accent,
     paddingHorizontal: 20,
     paddingVertical: 12,
-    borderRadius: 16,
+    borderRadius: c.radius,
     maxWidth: '90%',
-    boxShadow: '0px 8px 24px rgba(20,22,43,0.18)',
   },
-  toastText: { color: c.bg, fontWeight: '700', fontSize: 15, textAlign: 'center' },
+  toastText: { color: c.text, fontWeight: '600', fontSize: 15, textAlign: 'center' },
 }));
