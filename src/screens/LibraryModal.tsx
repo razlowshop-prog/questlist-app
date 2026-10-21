@@ -48,7 +48,7 @@ export function LibraryModal({
         </View>
         <View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cats}>
-            <Chip label={query.trim() ? "All" : "✨ Recommended"} active={!category} onPress={() => setCategory(undefined)} />
+            <Chip label={query.trim() ? 'All' : '✨ Recommended'} active={!category} onPress={() => setCategory(undefined)} />
             {CATEGORIES.map((c) => (
               <Chip
                 key={c.id}
