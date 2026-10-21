@@ -105,7 +105,14 @@ export interface Settings {
   email: string;
   /** Selected colour theme id. */
   theme: string;
+  /** Evening notification while the streak is at risk; on unless turned off. */
+  streakReminders?: boolean;
+  /** The phone has been asked once for notification permission. */
+  askedNotifications?: boolean;
 }
+
+/** Evening time of the "your streak is about to end" notification. */
+export const STREAK_REMINDER_HOUR = 20;
 
 export const emptyState: GameState = {
   tasks: [],
@@ -237,24 +244,96 @@ export function totalXp(state: GameState): number {
  * If nothing is done yet today, a streak that ran until yesterday still
  * counts: it only breaks once a whole day has been missed.
  */
-export function currentStreak(completions: Completion[], today: string): number {
-  const days = new Set(completions.map((c) => c.date));
-  let cursor = days.has(today) ? today : addDays(today, -1);
-  let streak = 0;
-  while (days.has(cursor)) {
-    streak++;
-    cursor = addDays(cursor, -1);
-  }
-  return streak;
+// ---------- streaks ----------
+
+/** Weekly task XP needed for each fire tier, reached at the end of a week. */
+export const STREAK_TIERS = [
+  { tier: 1, name: 'Flame', weekXp: 100 },
+  { tier: 2, name: 'Blaze', weekXp: 150 },
+  { tier: 3, name: 'Inferno', weekXp: 250 },
+] as const;
+
+export function streakTierName(tier: number): string {
+  return tier === 0 ? 'Spark' : STREAK_TIERS[tier - 1].name;
 }
 
-/** Streak bonus as a fraction of base XP, e.g. 0.25 = +25 %. */
+export interface StreakStatus {
+  /** Active days in the current streak. */
+  days: number;
+  /** 0 = Spark (no tier yet), 1 Flame, 2 Blaze, 3 Inferno. */
+  tier: number;
+  /** Longest streak ever, in days. */
+  best: number;
+  /** Task XP earned this week, counting towards next Monday's tier. */
+  weekXp: number;
+  /** The tier this week's XP reaches so far (0 = none). */
+  weekTier: number;
+  /** Nothing done yet today while a streak is running. */
+  atRisk: boolean;
+}
+
+/**
+ * Replays every day since the first completion. A day with at least one task
+ * done keeps the streak going. A missed day costs a tier (Blaze -> Flame,
+ * Inferno -> Blaze) and the days counted so far survive; on Flame or Spark a
+ * missed day ends the streak. Each Monday, last week's task XP raises the
+ * tier to whatever threshold it reached (never lowers it). Today only counts
+ * against the streak once it is over.
+ */
+export function streakStatus(completions: Completion[], today: string): StreakStatus {
+  const xpByDay = new Map<string, number>();
+  for (const c of completions) if (c.date <= today) xpByDay.set(c.date, (xpByDay.get(c.date) ?? 0) + c.xp);
+  const weekXpOf = (monday: string) => {
+    let sum = 0;
+    for (let i = 0; i < 7; i++) sum += xpByDay.get(addDays(monday, i)) ?? 0;
+    return sum;
+  };
+  const tierFor = (xp: number) => STREAK_TIERS.filter((t) => xp >= t.weekXp).length;
+  const thisWeek = weekStart(today);
+  const weekXp = weekXpOf(thisWeek);
+  const first = [...xpByDay.keys()].sort()[0];
+  let days = 0;
+  let tier = 0;
+  let best = 0;
+  if (first) {
+    for (let d = first; d <= today; d = addDays(d, 1)) {
+      if (d !== first && weekdayOf(d) === 0 && days > 0) tier = Math.max(tier, tierFor(weekXpOf(addDays(d, -7))));
+      if (xpByDay.has(d)) {
+        days++;
+        best = Math.max(best, days);
+      } else if (d !== today) {
+        if (tier >= 2) tier--;
+        else {
+          days = 0;
+          tier = 0;
+        }
+      }
+    }
+  }
+  return { days, tier, best, weekXp, weekTier: tierFor(weekXp), atRisk: days > 0 && !xpByDay.has(today) };
+}
+
+export function currentStreak(completions: Completion[], today: string): number {
+  return streakStatus(completions, today).days;
+}
+
+/** Daily-streak XP multiplier steps: from 5 days 1.2x, 10 days 1.4x, 30 days 1.5x, 150 days 1.6x. */
+export const STREAK_BONUSES = [
+  { days: 5, bonus: 0.2 },
+  { days: 10, bonus: 0.4 },
+  { days: 30, bonus: 0.5 },
+  { days: 150, bonus: 0.6 },
+] as const;
+
+/** Streak bonus as a fraction of base XP, e.g. 0.2 = 1.2x. */
 export function streakBonus(streak: number): number {
-  if (streak >= 30) return 0.5;
-  if (streak >= 14) return 0.35;
-  if (streak >= 7) return 0.25;
-  if (streak >= 3) return 0.1;
-  return 0;
+  return STREAK_BONUSES.filter((b) => streak >= b.days).at(-1)?.bonus ?? 0;
+}
+
+/** The next multiplier step and how many more days it takes, or undefined at the top. */
+export function nextStreakBonus(streak: number): { days: number; bonus: number; daysLeft: number } | undefined {
+  const next = STREAK_BONUSES.find((b) => streak < b.days);
+  return next ? { ...next, daysLeft: next.days - streak } : undefined;
 }
 
 // ---------- actions ----------
@@ -424,16 +503,8 @@ export function limitMessage(limit: Limit): string {
 }
 
 export function longestStreak(completions: Completion[]): number {
-  const days = [...new Set(completions.map((c) => c.date))].sort();
-  let best = 0;
-  let run = 0;
-  let prev: string | null = null;
-  for (const d of days) {
-    run = prev && addDays(prev, 1) === d ? run + 1 : 1;
-    best = Math.max(best, run);
-    prev = d;
-  }
-  return best;
+  const last = completions.reduce((max, c) => (c.date > max ? c.date : max), '');
+  return last ? streakStatus(completions, last).best : 0;
 }
 
 // ---------- weekly challenges ----------
@@ -590,8 +661,10 @@ export function dayLabel(day: string): string {
 }
 
 export interface PlannedReminder {
+  /** 'streak' for the streak warning. */
   taskId: string;
   title: string;
+  body?: string;
   /** Local time the notification should appear. */
   at: Date;
 }
@@ -620,6 +693,23 @@ export function reminderPlan(state: GameState, now: Date, days = 7, limit = 60):
       const [y, mo, d] = day.split('-').map(Number);
       const at = new Date(y, mo - 1, d, h, m);
       if (at.getTime() > now.getTime()) out.push({ taskId: task.id, title: task.title, at });
+    }
+  }
+  // Streak warning at 20:00 on days nothing is done yet, today and the next two.
+  const streak = streakStatus(state.completions, today);
+  if (streak.days > 0 && state.settings.streakReminders !== false) {
+    const doneToday = state.completions.some((c) => c.date === today);
+    const fire = streakTierName(streak.tier);
+    const ends = streak.tier >= 2 ? `drops from ${fire} to ${streakTierName(streak.tier - 1)}` : 'ends';
+    for (let i = doneToday ? 1 : 0; i < 3; i++) {
+      const [y, mo, d] = addDays(today, i).split('-').map(Number);
+      const at = new Date(y, mo - 1, d, STREAK_REMINDER_HOUR, 0);
+      if (at.getTime() <= now.getTime()) continue;
+      out.push(
+        i === 0
+          ? { taskId: 'streak', title: `Your ${streak.days}-day streak ${ends} at midnight`, body: 'One task today keeps it going.', at }
+          : { taskId: 'streak', title: 'Keep your streak alive', body: 'Nothing done yet today. One task is enough.', at },
+      );
     }
   }
   return out.sort((a, b) => a.at.getTime() - b.at.getTime()).slice(0, limit);

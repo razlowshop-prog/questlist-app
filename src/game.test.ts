@@ -21,10 +21,13 @@ import {
   rankFor,
   repeatLabel,
   secondsUntilTickable,
+  nextStreakBonus,
   streakBonus,
+  streakStatus,
   taskXp,
   toggleTask,
   totalXp,
+  updateSettings,
   visibleTasks,
   weekStart,
   weekStats,
@@ -92,10 +95,16 @@ test('streak breaks after a fully missed day', () => {
 });
 
 test('streak bonus tiers', () => {
-  assert.equal(streakBonus(2), 0);
-  assert.equal(streakBonus(3), 0.1);
-  assert.equal(streakBonus(7), 0.25);
+  assert.equal(streakBonus(4), 0);
+  assert.equal(streakBonus(5), 0.2);
+  assert.equal(streakBonus(9), 0.2);
+  assert.equal(streakBonus(10), 0.4);
   assert.equal(streakBonus(30), 0.5);
+  assert.equal(streakBonus(149), 0.5);
+  assert.equal(streakBonus(150), 0.6);
+  assert.equal(streakBonus(1000), 0.6);
+  assert.deepEqual(nextStreakBonus(3), { days: 5, bonus: 0.2, daysLeft: 2 });
+  assert.equal(nextStreakBonus(150), undefined);
 });
 
 test('completing a task awards XP and unticking removes it', () => {
@@ -108,10 +117,10 @@ test('completing a task awards XP and unticking removes it', () => {
 
 test('streak bonus is applied on completion', () => {
   let s = addTask(emptyState, 'Run', true, 't1');
-  // 6 earlier days done, so today makes 7 -> +25 %
+  // 6 earlier days done, so today makes 7 -> 1.2x
   s = { ...s, completions: streakOf(6, addDays(TODAY, -1)).map((c) => ({ ...c, xp: 0 })) };
   s = toggleTask(s, 't1', TODAY);
-  assert.equal(s.completions.at(-1)!.xp, Math.round(xpFor(DEFAULT_MINUTES) * 1.25));
+  assert.equal(s.completions.at(-1)!.xp, Math.round(xpFor(DEFAULT_MINUTES) * 1.2));
 });
 
 test('daily tasks reset each day, one-off tasks disappear after the day they were done', () => {
@@ -323,27 +332,30 @@ test('one-off tasks planned for a later day wait until then', () => {
   assert.equal(addTask(emptyState, 'x', true, 'x', 5, { date: later }).tasks[0].date, undefined);
 });
 
+/** Task reminders only, without the streak warning. */
+const taskReminders = (...args: Parameters<typeof reminderPlan>) => reminderPlan(...args).filter((r) => r.taskId !== 'streak');
+
 test('reminders: valid times only, skipped once done, not in the past', () => {
   assert.equal(addTask(emptyState, 'a', true, 'a', 5, { reminder: '25:00' }).tasks[0].reminder, undefined);
   const [y, m, d] = TODAY.split('-').map(Number);
   const morning = new Date(y, m - 1, d, 9, 0);
   let s = addTask(emptyState, 'Stretch', true, 's', 10, { reminder: '18:30' });
-  let plan = reminderPlan(s, morning);
+  let plan = taskReminders(s, morning);
   assert.equal(plan.length, 7);
   assert.equal(plan[0].at.getHours(), 18);
   assert.equal(plan[0].at.getMinutes(), 30);
   // Ticked today: today's reminder goes
   s = toggleTask(s, 's', TODAY);
-  plan = reminderPlan(s, morning);
+  plan = taskReminders(s, morning);
   assert.equal(plan.length, 6);
   assert.notEqual(plan[0].at.getDate(), d);
   // After 18:30 today's is in the past
   const evening = new Date(y, m - 1, d, 20, 0);
-  assert.equal(reminderPlan(addTask(emptyState, 'b', true, 'b', 5, { reminder: '18:30' }), evening).length, 6);
+  assert.equal(taskReminders(addTask(emptyState, 'b', true, 'b', 5, { reminder: '18:30' }), evening).length, 6);
   // One-off: reminders until done, from its date on
   const o = addTask(emptyState, 'Call', false, 'o', 5, { reminder: '10:00', date: addDays(TODAY, 2) });
-  assert.equal(reminderPlan(o, morning).length, 5);
-  assert.equal(reminderPlan(toggleTask(o, 'o', addDays(TODAY, 2)), morning).length, 0);
+  assert.equal(taskReminders(o, morning).length, 5);
+  assert.equal(taskReminders(toggleTask(o, 'o', addDays(TODAY, 2)), morning).length, 0);
   // The limit holds
   assert.equal(reminderPlan(s, morning, 7, 3).length, 3);
 });
@@ -353,7 +365,7 @@ test('reminders skip the rest of the week once the weekly target is met', () => 
   const [y, m, d] = monday.split('-').map(Number);
   let s = addTask(emptyState, 'Run', 1, 'r', 30, { reminder: '07:00' });
   s = toggleTask(s, 'r', monday);
-  const plan = reminderPlan(s, new Date(y, m - 1, d, 6, 0));
+  const plan = taskReminders(s, new Date(y, m - 1, d, 6, 0));
   assert.ok(plan.every((p) => p.at >= new Date(y, m - 1, d + 7)));
   assert.equal(plan.length, 0); // 7-day window ends Sunday
 });
@@ -392,4 +404,77 @@ test('every challenge comes up over the weeks, never two measuring the same thin
     picks.forEach((p) => seen.add(p.id));
   }
   assert.equal(seen.size, CHALLENGE_POOL.length);
+});
+
+// Days from Monday 2026-10-05 onward; each active day earns `xp`.
+function activeDays(from: string, count: number, xp: number): Completion[] {
+  return Array.from({ length: count }, (_, i) => ({ taskId: 'x', date: addDays(from, i), xp }));
+}
+const MON = '2026-10-05';
+
+test('streak tiers: weekly XP sets the fire tier on Monday', () => {
+  assert.equal(weekdayOf(MON), 0);
+  // Week 1: 7 × 20 = 140 XP -> Flame on Monday
+  let s = streakStatus(activeDays(MON, 8, 20), addDays(MON, 7));
+  assert.equal(s.tier, 1);
+  assert.equal(s.days, 8);
+  // 7 × 40 = 280 XP -> straight to Inferno
+  s = streakStatus(activeDays(MON, 8, 40), addDays(MON, 7));
+  assert.equal(s.tier, 3);
+  // 7 × 10 = 70 XP -> still Spark
+  s = streakStatus(activeDays(MON, 8, 10), addDays(MON, 7));
+  assert.equal(s.tier, 0);
+  // Not before the week is over
+  assert.equal(streakStatus(activeDays(MON, 7, 40), addDays(MON, 6)).tier, 0);
+  assert.equal(streakStatus(activeDays(MON, 7, 40), addDays(MON, 6)).weekTier, 3);
+});
+
+test('streak tiers: a missed day costs a tier, on the lowest tier the streak ends', () => {
+  const week1 = activeDays(MON, 8, 40); // Inferno from the second Monday
+  const tue = addDays(MON, 8);
+  // Miss Tuesday: Inferno -> Blaze, days kept
+  let s = streakStatus([...week1, ...activeDays(addDays(tue, 1), 1, 40)], addDays(tue, 1));
+  assert.equal(s.tier, 2);
+  assert.equal(s.days, 9);
+  // Miss three days in a row: Inferno -> Blaze -> Flame -> streak gone
+  s = streakStatus(week1, addDays(tue, 3));
+  assert.equal(s.tier, 0);
+  assert.equal(s.days, 0);
+  assert.equal(s.best, 8);
+  // Two missed days leave Flame and the days
+  s = streakStatus(week1, addDays(tue, 2));
+  assert.equal(s.tier, 1);
+  assert.equal(s.days, 8);
+  // Flame (from a 140 XP week) loses everything on a single missed day
+  s = streakStatus(activeDays(MON, 8, 20), addDays(MON, 9));
+  assert.equal(s.days, 0);
+  assert.equal(s.tier, 0);
+});
+
+test('streak is at risk until something is done today, and today never breaks it', () => {
+  const s = streakStatus(streakOf(3, addDays(TODAY, -1)), TODAY);
+  assert.equal(s.days, 3);
+  assert.equal(s.atRisk, true);
+  assert.equal(streakStatus(streakOf(3), TODAY).atRisk, false);
+  assert.equal(streakStatus([], TODAY).atRisk, false);
+  assert.equal(longestStreak([...streakOf(3, '2026-10-01'), ...streakOf(5, TODAY)]), 5);
+});
+
+test('streak warning at 20:00 while nothing is done today, unless turned off', () => {
+  const [y, m, d] = TODAY.split('-').map(Number);
+  const noon = new Date(y, m - 1, d, 12, 0);
+  let s = { ...emptyState, completions: streakOf(4, addDays(TODAY, -1)) };
+  let plan = reminderPlan(s, noon).filter((r) => r.taskId === 'streak');
+  assert.equal(plan.length, 3);
+  assert.equal(plan[0].at.getHours(), 20);
+  assert.equal(plan[0].at.getDate(), d);
+  assert.match(plan[0].title, /4-day streak ends at midnight/);
+  // Done today: tonight's warning goes, the next days stay
+  s = { ...s, completions: [...s.completions, { taskId: 'x', date: TODAY, xp: 10 }] };
+  plan = reminderPlan(s, noon).filter((r) => r.taskId === 'streak');
+  assert.equal(plan.length, 2);
+  assert.notEqual(plan[0].at.getDate(), d);
+  // Turned off, or no streak
+  assert.equal(reminderPlan(updateSettings(s, { streakReminders: false }), noon).length, 0);
+  assert.equal(reminderPlan(emptyState, noon).length, 0);
 });
