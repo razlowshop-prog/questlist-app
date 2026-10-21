@@ -242,7 +242,7 @@ export function claimAchievement(
   return {
     state: {
       ...state,
-      achievementClaims: [...state.achievementClaims, { achievementId, tier: status.claimed, xp: tier.xp }],
+      achievementClaims: [...state.achievementClaims, { achievementId, tier: status.claimed, xp: tier.xp, date: today }],
     },
     tier,
   };

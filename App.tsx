@@ -1,5 +1,6 @@
 import { loadAsync } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
+import { Activity, Award, Sun, Target, User, type LucideIcon } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { XpHeader } from './src/components/XpHeader';
@@ -39,6 +40,7 @@ import {
 import { Celebration, type CelebrationEvent } from './src/components/Celebration';
 import { LevelDetails } from './src/components/LevelDetails';
 import { AchievementsScreen } from './src/screens/AchievementsScreen';
+import { ActivityScreen } from './src/screens/ActivityScreen';
 import { ChallengesScreen } from './src/screens/ChallengesScreen';
 import { LibraryModal } from './src/screens/LibraryModal';
 import { SetupScreen, type SetupPick } from './src/screens/SetupScreen';
@@ -54,13 +56,14 @@ import { eyebrow, nativeDriver, themeById, themed, ThemeProvider, THEMES, withFo
 /** Browser previews are built with this on so every theme can be tried without unlocking it. */
 const PREVIEW_ALL_THEMES = process.env.EXPO_PUBLIC_UNLOCK_THEMES === '1';
 
-type Tab = 'today' | 'challenges' | 'awards' | 'profile';
+type Tab = 'today' | 'challenges' | 'activity' | 'awards' | 'profile';
 
-const TABS: { key: Tab; label: string }[] = [
-  { key: 'today', label: 'Today' },
-  { key: 'challenges', label: 'Challenges' },
-  { key: 'awards', label: 'Awards' },
-  { key: 'profile', label: 'Profile' },
+const TABS: { key: Tab; label: string; Icon: LucideIcon }[] = [
+  { key: 'today', label: 'Today', Icon: Sun },
+  { key: 'challenges', label: 'Challenges', Icon: Target },
+  { key: 'activity', label: 'Activity', Icon: Activity },
+  { key: 'awards', label: 'Awards', Icon: Award },
+  { key: 'profile', label: 'Profile', Icon: User },
 ];
 
 export default function App() {
@@ -280,6 +283,9 @@ export default function App() {
             />
           )}
           {tab === 'challenges' && <ChallengesScreen challenges={challenges} today={today} onClaim={onClaim} />}
+          {tab === 'activity' && (
+            <ActivityScreen state={state} today={today} onShareActivity={(share) => setState(updateSettings(state, { shareActivity: share }))} />
+          )}
           {tab === 'awards' && (
             <AchievementsScreen
               achievements={achievements}
@@ -311,7 +317,10 @@ export default function App() {
               accessibilityRole="tab"
               accessibilityState={{ selected: tab === t.key }}
             >
-              <Text style={[styles.tabLabel, tab === t.key && styles.tabLabelActive]}>{t.label}</Text>
+              <t.Icon size={20} color={tab === t.key ? c.accent : c.muted} strokeWidth={1.5} aria-hidden />
+              <Text style={[styles.tabLabel, tab === t.key && styles.tabLabelActive]} numberOfLines={1}>
+                {t.label}
+              </Text>
               <View style={[styles.tabMark, tab === t.key && styles.tabMarkActive]} />
               {(t.key === 'challenges' ? readyToClaim : t.key === 'awards' ? awardsToClaim : 0) > 0 && (
                 <View style={styles.dot}>
@@ -364,20 +373,21 @@ const makeStyles = themed((c) => ({
   tabBar: {
     flexDirection: 'row',
     backgroundColor: c.bg,
-    paddingTop: 12,
-    paddingBottom: 14,
+    paddingTop: 10,
+    paddingBottom: 10,
     borderTopWidth: 1,
     borderTopColor: c.border,
   },
-  tab: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 44, gap: 6 },
-  tabLabel: { ...eyebrow(c, 11), color: c.muted },
+  tab: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 44, gap: 4 },
+  // Five tabs share a phone's width, so the spaced capitals are tightened a little.
+  tabLabel: { ...eyebrow(c, 9), ...(c.eyebrowCaps && { letterSpacing: 1.1 }), color: c.muted },
   tabLabelActive: { color: c.dark ? c.accent : c.text },
-  tabMark: { width: 6, height: 6, transform: [{ rotate: '45deg' }], backgroundColor: 'transparent' },
+  tabMark: { width: 5, height: 5, transform: [{ rotate: '45deg' }], backgroundColor: 'transparent' },
   tabMarkActive: { backgroundColor: c.accent },
   dot: {
     position: 'absolute',
-    top: -2,
-    right: '14%',
+    top: -4,
+    right: '20%',
     backgroundColor: c.accent,
     borderRadius: 9,
     minWidth: 18,

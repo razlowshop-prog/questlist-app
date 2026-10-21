@@ -74,6 +74,8 @@ export interface ChallengeClaim {
   /** Monday of the week the challenge belonged to, YYYY-MM-DD. */
   week: string;
   xp: number;
+  /** Day it was claimed, YYYY-MM-DD. Missing on claims saved before the activity timeline. */
+  date?: string;
 }
 
 export interface Profile {
@@ -100,6 +102,8 @@ export interface AchievementClaim {
   /** 0-based tier index. */
   tier: number;
   xp: number;
+  /** Day it was claimed, YYYY-MM-DD. Missing on claims saved before the activity timeline. */
+  date?: string;
 }
 
 export interface Settings {
@@ -112,6 +116,8 @@ export interface Settings {
   streakReminders?: boolean;
   /** The phone has been asked once for notification permission. */
   askedNotifications?: boolean;
+  /** Opt-in: friends may see this player's activity once accounts exist. Off unless turned on. */
+  shareActivity?: boolean;
 }
 
 /** Evening time of the "your streak is about to end" notification. */
@@ -275,6 +281,20 @@ export interface StreakStatus {
   atRisk: boolean;
   /** Most weeks in a row that started on Inferno. */
   bestInfernoWeeks: number;
+  /** Every fire change, oldest first, for the activity timeline. */
+  history: StreakChange[];
+}
+
+/**
+ * A change to the streak fire: up = a Monday raised the tier, down = a missed
+ * day cost a tier, lost = a missed day ended the streak. date is the Monday or
+ * the missed day; days is the streak length right before the change.
+ */
+export interface StreakChange {
+  date: string;
+  change: 'up' | 'down' | 'lost';
+  tier: number;
+  days: number;
 }
 
 /**
@@ -302,10 +322,15 @@ export function streakStatus(completions: Completion[], today: string): StreakSt
   let best = 0;
   let infernoRun = 0;
   let bestInfernoWeeks = 0;
+  const history: StreakChange[] = [];
   if (first) {
     for (let d = first; d <= today; d = addDays(d, 1)) {
       if (d !== first && weekdayOf(d) === 0) {
-        if (days > 0) tier = Math.max(tier, tierFor(weekXpOf(addDays(d, -7))));
+        const reached = days > 0 ? tierFor(weekXpOf(addDays(d, -7))) : 0;
+        if (reached > tier) {
+          tier = reached;
+          history.push({ date: d, change: 'up', tier, days });
+        }
         infernoRun = tier === 3 ? infernoRun + 1 : 0;
         bestInfernoWeeks = Math.max(bestInfernoWeeks, infernoRun);
       }
@@ -313,15 +338,18 @@ export function streakStatus(completions: Completion[], today: string): StreakSt
         days++;
         best = Math.max(best, days);
       } else if (d !== today) {
-        if (tier >= 2) tier--;
-        else {
+        if (tier >= 2) {
+          tier--;
+          history.push({ date: d, change: 'down', tier, days });
+        } else {
+          if (days > 0) history.push({ date: d, change: 'lost', tier: 0, days });
           days = 0;
           tier = 0;
         }
       }
     }
   }
-  return { days, tier, best, weekXp, weekTier: tierFor(weekXp), atRisk: days > 0 && !xpByDay.has(today), bestInfernoWeeks };
+  return { days, tier, best, weekXp, weekTier: tierFor(weekXp), atRisk: days > 0 && !xpByDay.has(today), bestInfernoWeeks, history };
 }
 
 export function currentStreak(completions: Completion[], today: string): number {
@@ -635,7 +663,7 @@ export function claimChallenge(state: GameState, challengeId: string, today: str
   if (!status || !status.complete || status.claimed) return state;
   return {
     ...state,
-    claims: [...state.claims, { challengeId, week: weekStart(today), xp: status.def.rewardXp }],
+    claims: [...state.claims, { challengeId, week: weekStart(today), xp: status.def.rewardXp, date: today }],
   };
 }
 
