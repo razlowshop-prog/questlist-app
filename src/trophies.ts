@@ -47,7 +47,7 @@ export const TROPHIES: TrophyDef[] = [
   {
     id: 'infernoKeeper',
     name: 'Inferno Keeper',
-    description: 'Start 8 weeks in a row on the Inferno fire (250 XP a week, no missed days).',
+    description: 'Start 8 weeks in a row on the Inferno fire (300 XP a week, no missed days).',
     icon: 'FlameKindling',
     rarity: 'epic',
     target: 8,

@@ -418,22 +418,27 @@ test('streak tiers: weekly XP sets the fire tier on Monday', () => {
   let s = streakStatus(activeDays(MON, 8, 20), addDays(MON, 7));
   assert.equal(s.tier, 1);
   assert.equal(s.days, 8);
-  // 7 × 40 = 280 XP -> straight to Inferno
-  s = streakStatus(activeDays(MON, 8, 40), addDays(MON, 7));
+  // 7 × 50 = 350 XP -> straight to Inferno
+  s = streakStatus(activeDays(MON, 8, 50), addDays(MON, 7));
   assert.equal(s.tier, 3);
+  // Thresholds are inclusive: 200 XP is Blaze, 300 XP is Inferno, 195 XP only Flame
+  const week = (total: number) => [{ taskId: 'x', date: MON, xp: total - 6 * 5 }, ...activeDays(addDays(MON, 1), 7, 5)];
+  assert.equal(streakStatus(week(200), addDays(MON, 7)).tier, 2);
+  assert.equal(streakStatus(week(300), addDays(MON, 7)).tier, 3);
+  assert.equal(streakStatus(week(195), addDays(MON, 7)).tier, 1);
   // 7 × 10 = 70 XP -> still Spark
   s = streakStatus(activeDays(MON, 8, 10), addDays(MON, 7));
   assert.equal(s.tier, 0);
   // Not before the week is over
-  assert.equal(streakStatus(activeDays(MON, 7, 40), addDays(MON, 6)).tier, 0);
-  assert.equal(streakStatus(activeDays(MON, 7, 40), addDays(MON, 6)).weekTier, 3);
+  assert.equal(streakStatus(activeDays(MON, 7, 50), addDays(MON, 6)).tier, 0);
+  assert.equal(streakStatus(activeDays(MON, 7, 50), addDays(MON, 6)).weekTier, 3);
 });
 
 test('streak tiers: a missed day costs a tier, on the lowest tier the streak ends', () => {
-  const week1 = activeDays(MON, 8, 40); // Inferno from the second Monday
+  const week1 = activeDays(MON, 8, 50); // Inferno from the second Monday
   const tue = addDays(MON, 8);
   // Miss Tuesday: Inferno -> Blaze, days kept
-  let s = streakStatus([...week1, ...activeDays(addDays(tue, 1), 1, 40)], addDays(tue, 1));
+  let s = streakStatus([...week1, ...activeDays(addDays(tue, 1), 1, 50)], addDays(tue, 1));
   assert.equal(s.tier, 2);
   assert.equal(s.days, 9);
   // Miss three days in a row: Inferno -> Blaze -> Flame -> streak gone

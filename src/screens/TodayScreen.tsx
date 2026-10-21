@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronUp, Plus } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, Plus, Sparkles } from 'lucide-react-native';
 import { Pressable, ScrollView, SectionList, Text, TextInput, View } from 'react-native';
 import { Chip } from '../components/Chip';
 import { AppIcon } from '../components/AppIcon';
@@ -9,10 +9,8 @@ import { StreakCard } from '../components/StreakCard';
 import { TaskRow } from '../components/TaskRow';
 import {
   dayLabel,
-  DURATIONS,
   durationLabel,
   isDoneToday,
-  MAX_TASK_MINUTES,
   xpFor,
   type GameState,
   type Repeat,
@@ -21,6 +19,7 @@ import {
   type TaskPlan,
 } from '../game';
 import { CATEGORIES, categoryOf, FEATURED, guessCategory, OTHER_CATEGORY, searchLibrary, taskCategory, type LibraryTask } from '../library';
+import { estimateMinutes } from '../estimate';
 import { quoteOfTheDay } from '../quotes';
 import { card, eyebrow, FONTS, themed, useStyles, useTheme, headingCase } from '../theme';
 
@@ -66,10 +65,6 @@ export function TodayScreen({
   const s = useStyles(makeStyles);
   const c = useTheme();
   const [title, setTitle] = useState('');
-  const [minutes, setMinutes] = useState(15);
-  const [custom, setCustom] = useState(false);
-  const [customHours, setCustomHours] = useState('');
-  const [customMins, setCustomMins] = useState('');
   const [schedule, setSchedule] = useState<Schedule>(() => defaultSchedule(today));
   /** Chosen by the user; otherwise guessed from the title. */
   const [category, setCategory] = useState<string | undefined>();
@@ -86,25 +81,15 @@ export function TodayScreen({
   // The planned day can't be left behind after midnight.
   const shownSchedule = schedule.date < today ? { ...schedule, date: today } : schedule;
 
-  const customMinutes = Math.min(
-    (parseInt(customHours, 10) || 0) * 60 + (parseInt(customMins, 10) || 0),
-    MAX_TASK_MINUTES,
-  );
-  const chosenMinutes = custom ? customMinutes : minutes;
+  // Time is judged from the title, so it can't be inflated for XP.
+  const estimate = useMemo(() => estimateMinutes(typed), [typed]);
+  const chosenMinutes = estimate.minutes;
   const problem = typed ? scheduleProblem(shownSchedule, typed) : undefined;
   const canAdd = typed.length > 0 && chosenMinutes > 0 && !problem;
 
   /** Fills the form from a library task so its days and frequency can be picked before adding. */
   function prefill(t: LibraryTask) {
     setTitle(t.title);
-    if (DURATIONS.includes(t.minutes)) {
-      setCustom(false);
-      setMinutes(t.minutes);
-    } else {
-      setCustom(true);
-      setCustomHours(String(Math.floor(t.minutes / 60)));
-      setCustomMins(String(t.minutes % 60));
-    }
     setSchedule({ ...defaultSchedule(today), repeat: t.perWeek > 0, perWeek: t.perWeek > 0 ? t.perWeek : 3 });
     setCategory(t.category);
   }
@@ -119,8 +104,6 @@ export function TodayScreen({
     setTitle('');
     setSchedule(defaultSchedule(today));
     setCategory(undefined);
-    setCustom(false);
-    setMinutes(15);
   }
 
   function add() {
@@ -129,8 +112,6 @@ export function TodayScreen({
     onAdd(typed, repeat, chosenMinutes, { ...plan, category: chosenCategory });
     reset();
   }
-
-  const digits = (v: string) => v.replace(/[^0-9]/g, '').slice(0, 2);
 
   // Today's tasks grouped by category, in the library's order, "Other" last.
   const sections = useMemo(() => {
@@ -230,43 +211,13 @@ export function TodayScreen({
 
             {typed.length > 0 && (
               <>
-                <Text style={s.small}>How long does it take?</Text>
-                <View style={s.chipRow}>
-                  {DURATIONS.map((m) => (
-                    <Chip
-                      key={m}
-                      label={durationLabel(m)}
-                      active={!custom && minutes === m}
-                      onPress={() => {
-                        setCustom(false);
-                        setMinutes(m);
-                      }}
-                    />
-                  ))}
-                  <Chip label="Custom" active={custom} onPress={() => setCustom(true)} />
+                <View style={s.estimate} accessibilityLabel={`Takes about ${durationLabel(chosenMinutes)}, ${xpFor(chosenMinutes)} XP`}>
+                  <Sparkles size={16} color={c.accent} strokeWidth={1.5} aria-hidden />
+                  <Text style={s.estimateText}>
+                    About <Text style={s.estimateStrong}>{durationLabel(chosenMinutes)}</Text> · +{xpFor(chosenMinutes)} XP
+                  </Text>
+                  <Text style={s.estimateNote}>{estimate.source === 'default' ? 'standard time' : 'estimated from the title'}</Text>
                 </View>
-                {custom && (
-                  <View style={s.customRow}>
-                    <TextInput
-                      value={customHours}
-                      onChangeText={(v) => setCustomHours(digits(v))}
-                      placeholder="0"
-                      placeholderTextColor={c.muted}
-                      keyboardType="number-pad"
-                      style={s.customInput}
-                    />
-                    <Text style={s.customUnit}>h</Text>
-                    <TextInput
-                      value={customMins}
-                      onChangeText={(v) => setCustomMins(digits(v))}
-                      placeholder="0"
-                      placeholderTextColor={c.muted}
-                      keyboardType="number-pad"
-                      style={s.customInput}
-                    />
-                    <Text style={s.customUnit}>min</Text>
-                  </View>
-                )}
                 <SchedulePicker value={shownSchedule} onChange={setSchedule} title={typed} today={today} />
                 <Text style={s.small}>Category</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.quickRow}>
@@ -403,18 +354,10 @@ const makeStyles = themed((c) => ({
   },
   small: { ...eyebrow(c, 11), color: c.muted },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
-  customRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  customInput: {
-    width: 56,
-    textAlign: 'center',
-    color: c.text,
-    fontSize: 16,
-    fontWeight: '600',
-    paddingVertical: 8,
-    borderRadius: c.radius,
-    backgroundColor: c.surfaceAlt,
-  },
-  customUnit: { color: c.muted, fontSize: 14, fontWeight: '600', marginRight: 8 },
+  estimate: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: 8, rowGap: 2 },
+  estimateText: { color: c.text, fontSize: 14 },
+  estimateStrong: { fontWeight: '700' },
+  estimateNote: { color: c.faint, fontSize: 12 },
   addButton: { backgroundColor: c.accent, minHeight: 48, justifyContent: 'center', borderRadius: c.radius, alignItems: 'center' },
   addButtonText: { ...eyebrow(c, 13), fontWeight: '700', color: c.onAccent },
   libraryButton: {

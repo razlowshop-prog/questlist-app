@@ -60,7 +60,7 @@ test('claimed challenges and achievements appear on their day, older claims get 
 
 test('fire changes show: a Monday tier up, then a missed day costs a tier, then the streak is lost', () => {
   const lastWeek = ['2026-10-12', '2026-10-13', '2026-10-14', '2026-10-15', '2026-10-16', '2026-10-17', '2026-10-18'];
-  const t = activityTimeline(state({ completions: lastWeek.map((d) => done(d, 25)) }), TODAY);
+  const t = activityTimeline(state({ completions: lastWeek.map((d) => done(d, 30)) }), TODAY);
   const fire = t.flatMap((d) => d.events.filter((e) => e.kind === 'fire').map((e) => ({ date: d.date, ...e })));
   assert.deepEqual(
     fire.sort((a, b) => (a.date < b.date ? -1 : 1)),

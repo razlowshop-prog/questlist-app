@@ -17,7 +17,7 @@ test('streak, time and marathon trophies count real history', () => {
   const completions: Completion[] = Array.from({ length: 100 }, (_, i) => ({
     taskId: 'x',
     date: addDays(TODAY, -i),
-    xp: 40,
+    xp: 50,
     minutes: 60,
     title: 'Go for a run',
   }));
@@ -27,7 +27,7 @@ test('streak, time and marathon trophies count real history', () => {
   assert.equal(find(s, 'yearOfFire').value, 100);
   assert.equal(find(s, 'marathonDay').earned, true); // 1 h + 7 h today
   assert.equal(find(s, 'timeLord').value, 107);
-  assert.ok(find(s, 'infernoKeeper').value >= 8); // 280 XP weeks, no gaps
+  assert.ok(find(s, 'infernoKeeper').value >= 8); // 350 XP weeks, no gaps
   assert.equal(find(s, 'veteran').value, 3);
   // Values never pass the target
   assert.equal(find(s, 'ironWill').value, 100);

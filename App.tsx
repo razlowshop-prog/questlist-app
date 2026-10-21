@@ -49,6 +49,7 @@ import { TodayScreen } from './src/screens/TodayScreen';
 import type { LibraryTask } from './src/library';
 import { fontFilesFor } from './src/fonts';
 import { trophyStatuses } from './src/trophies';
+import { withEstimatedTimes } from './src/estimate';
 import { askReminderPermission, REMINDERS_SUPPORTED, syncReminders } from './src/reminders';
 import { loadState, saveState } from './src/storage';
 import { eyebrow, nativeDriver, themeById, themed, ThemeProvider, THEMES, withFonts } from './src/theme';
@@ -87,7 +88,7 @@ export default function App() {
 
   useEffect(() => {
     loadState().then((s) => {
-      setState(withDefaults(s, dayKey()));
+      setState(withEstimatedTimes(withDefaults(s, dayKey())));
       setLoaded(true);
     });
   }, []);

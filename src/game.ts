@@ -251,8 +251,8 @@ export function totalXp(state: GameState): number {
 /** Weekly task XP needed for each fire tier, reached at the end of a week. */
 export const STREAK_TIERS = [
   { tier: 1, name: 'Flame', weekXp: 100 },
-  { tier: 2, name: 'Blaze', weekXp: 150 },
-  { tier: 3, name: 'Inferno', weekXp: 250 },
+  { tier: 2, name: 'Blaze', weekXp: 200 },
+  { tier: 3, name: 'Inferno', weekXp: 300 },
 ] as const;
 
 export function streakTierName(tier: number): string {
