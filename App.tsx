@@ -32,6 +32,7 @@ import {
   achievementStatuses,
   claimableCount,
   claimAchievement,
+  grantLevelRewards,
   LEVEL_MILESTONES,
   TIER_NAMES,
   unlockedRewards,
@@ -50,6 +51,8 @@ import type { LibraryTask } from './src/library';
 import { fontFilesFor } from './src/fonts';
 import { trophyStatuses } from './src/trophies';
 import { withEstimatedTimes } from './src/estimate';
+import { spendDoubleXp, spendRestDay, swapChallenge, tokenCounts } from './src/tokens';
+import { TokenStrip } from './src/components/TokenStrip';
 import { askReminderPermission, REMINDERS_SUPPORTED, syncReminders } from './src/reminders';
 import { loadState, saveState } from './src/storage';
 import { eyebrow, nativeDriver, themeById, themed, ThemeProvider, THEMES, withFonts } from './src/theme';
@@ -88,7 +91,9 @@ export default function App() {
 
   useEffect(() => {
     loadState().then((s) => {
-      setState(withEstimatedTimes(withDefaults(s, dayKey())));
+      const loadedState = withEstimatedTimes(withDefaults(s, dayKey()));
+      // Level rewards for levels reached before the reward ladder existed.
+      setState(grantLevelRewards(loadedState, levelInfo(totalXp(loadedState)).level));
       setLoaded(true);
     });
   }, []);
@@ -104,7 +109,7 @@ export default function App() {
   }, [state.tasks, state.completions, loaded, today]);
 
   const xp = totalXp(state);
-  const streakInfo = useMemo(() => streakStatus(state.completions, today), [state.completions, today]);
+  const streakInfo = useMemo(() => streakStatus(state.completions, today, state.restDays), [state.completions, state.restDays, today]);
   const streak = streakInfo.days;
   const tasks = useMemo(() => visibleTasks(state, today), [state, today]);
   const upcoming = useMemo(() => upcomingTasks(state, today), [state.tasks, today]);
@@ -112,13 +117,18 @@ export default function App() {
   const readyToClaim = challenges.filter((c) => c.complete && !c.claimed).length;
   const achievements = useMemo(() => achievementStatuses(state, today), [state, today]);
   const trophies = useMemo(() => trophyStatuses(state, today), [state, today]);
+  const tokens = tokenCounts(state);
   const awardsToClaim = claimableCount(state, today);
   const addedTitles = useMemo(() => new Set(state.tasks.map((t) => t.title)), [state.tasks]);
-  const rewards = useMemo(() => unlockedRewards(state), [state.achievementClaims]);
+  const rewards = useMemo(() => unlockedRewards(state), [state.achievementClaims, state.levelRewards]);
   const unlockedThemes = useMemo(() => {
     const labels = new Set(rewards.map((r) => r.label));
     return new Set(THEMES.filter((t) => !t.reward || labels.has(t.reward) || PREVIEW_ALL_THEMES).map((t) => t.id));
   }, [rewards]);
+  const titles = useMemo(
+    () => rewards.flatMap((r) => (r.kind === 'title' ? [r.label.replace(/^"(.+)" title$/, '$1')] : [])),
+    [rewards],
+  );
   const wantedTheme = themeById(unlockedThemes.has(state.settings.theme) ? state.settings.theme : 'classic');
   const theme = themeById(shownThemeId ?? wantedTheme.id);
   const c = theme.palette;
@@ -163,18 +173,19 @@ export default function App() {
   }
 
   /** Applies a change and celebrates a level-up. Returns the XP gained. */
-  function apply(next: GameState): number {
-    const gained = totalXp(next) - xp;
+  function apply(change: GameState): number {
+    const gained = totalXp(change) - xp;
     const before = levelInfo(xp);
-    const after = levelInfo(totalXp(next));
+    const after = levelInfo(totalXp(change));
+    // Level rewards (tokens, titles) arrive the moment a level is reached.
+    const next = grantLevelRewards(change, after.level);
     setState(next);
     // Each level is celebrated once, even if a task is unticked and ticked again.
     bestLevel.current = Math.max(bestLevel.current ?? before.level, before.level);
     if (after.level > bestLevel.current) {
       const from = bestLevel.current;
       bestLevel.current = after.level;
-      const claimed = new Set(next.achievementClaims.filter((a) => a.achievementId === 'level').map((a) => a.tier));
-      const milestone = LEVEL_MILESTONES.filter((m, i) => m.level > from && m.level <= after.level && !claimed.has(i)).at(-1);
+      const milestone = LEVEL_MILESTONES.filter((m) => m.level > from && m.level <= after.level).at(-1);
       // After the XP bar has run to the end.
       setTimeout(
         () => setCelebration({ level: after.level, rank: after.rank, newRank: after.rank !== before.rank, milestone }),
@@ -184,10 +195,11 @@ export default function App() {
     return gained;
   }
 
-  /** Collect on the reward pop-up: claims the level achievement up to that level. */
+  /** Collect on the reward pop-up: claims the Climber bonus XP up to that level (other rewards are already given). */
   function collectLevelReward(milestone: LevelMilestone) {
+    const tier = milestone.climberTier;
+    if (tier === undefined) return;
     let next = state;
-    const tier = LEVEL_MILESTONES.indexOf(milestone);
     for (let i = 0; i <= tier; i++) {
       const done = next.achievementClaims.some((a) => a.achievementId === 'level' && a.tier === tier);
       if (done) break;
@@ -265,6 +277,21 @@ export default function App() {
               upcoming={upcoming}
               streak={streakInfo}
               onOpenStreak={() => setLevelOpen(true)}
+              tokenStrip={
+                <TokenStrip
+                  state={state}
+                  today={today}
+                  onRest={(day) => {
+                    setState(spendRestDay(state, day, today));
+                    showToast(day === today ? 'Rest day: your streak is safe today' : 'Streak saved with a rest day');
+                  }}
+                  onDouble={() => {
+                    setState(spendDoubleXp(state, today));
+                    showToast('Double XP is on for the rest of today');
+                  }}
+                  onOpenChallenges={() => setTab('challenges')}
+                />
+              }
               today={today}
               loaded={loaded}
               addedTitles={addedTitles}
@@ -283,7 +310,21 @@ export default function App() {
               onDelete={(task) => setState(deleteTask(state, task.id))}
             />
           )}
-          {tab === 'challenges' && <ChallengesScreen challenges={challenges} today={today} onClaim={onClaim} />}
+          {tab === 'challenges' && (
+            <ChallengesScreen
+              challenges={challenges}
+              today={today}
+              onClaim={onClaim}
+              swapsLeft={tokens.reroll}
+              onSwap={(id) => {
+                const next = swapChallenge(state, id, today);
+                if (next !== state) {
+                  setState(next);
+                  showToast('Challenge swapped');
+                }
+              }}
+            />
+          )}
           {tab === 'activity' && (
             <ActivityScreen state={state} today={today} onShareActivity={(share) => setState(updateSettings(state, { shareActivity: share }))} />
           )}
@@ -302,6 +343,7 @@ export default function App() {
               joinedAt={state.joinedAt}
               settings={state.settings}
               unlockedThemes={unlockedThemes}
+              titles={titles}
               onRename={(name) => setState(setName(state, name))}
               onSettings={(changes) => setState(updateSettings(state, changes))}
               onRedoSetup={() => setRedoSetup(true)}

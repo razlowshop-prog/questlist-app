@@ -95,6 +95,21 @@ export interface GameState {
   /** Day the player started, YYYY-MM-DD. Used for "member since" achievements. */
   joinedAt: string;
   achievementClaims: AchievementClaim[];
+  /** Levels whose level reward has been handed out (see achievements.ts). */
+  levelRewards?: number[];
+  /** Days covered by a rest token: the streak survives them without growing. */
+  restDays?: string[];
+  /** Days a double XP token was used. */
+  doubleDays?: string[];
+  /** Weekly challenges swapped with a reroll token. */
+  swaps?: ChallengeSwap[];
+}
+
+export interface ChallengeSwap {
+  /** Monday of the week. */
+  week: string;
+  from: string;
+  to: string;
 }
 
 export interface AchievementClaim {
@@ -118,6 +133,8 @@ export interface Settings {
   askedNotifications?: boolean;
   /** Opt-in: friends may see this player's activity once accounts exist. Off unless turned on. */
   shareActivity?: boolean;
+  /** Title shown under the name, one the player has won. */
+  title?: string;
 }
 
 /** Evening time of the "your streak is about to end" notification. */
@@ -298,7 +315,7 @@ export interface StreakChange {
  * tier to whatever threshold it reached (never lowers it). Today only counts
  * against the streak once it is over.
  */
-export function streakStatus(completions: Completion[], today: string): StreakStatus {
+export function streakStatus(completions: Completion[], today: string, restDays: string[] = []): StreakStatus {
   const xpByDay = new Map<string, number>();
   for (const c of completions) if (c.date <= today) xpByDay.set(c.date, (xpByDay.get(c.date) ?? 0) + c.xp);
   const weekXpOf = (monday: string) => {
@@ -309,6 +326,7 @@ export function streakStatus(completions: Completion[], today: string): StreakSt
   const tierFor = (xp: number) => STREAK_TIERS.filter((t) => xp >= t.weekXp).length;
   const thisWeek = weekStart(today);
   const weekXp = weekXpOf(thisWeek);
+  const rest = new Set(restDays);
   const first = [...xpByDay.keys()].sort()[0];
   let days = 0;
   let tier = 0;
@@ -330,6 +348,8 @@ export function streakStatus(completions: Completion[], today: string): StreakSt
       if (xpByDay.has(d)) {
         days++;
         best = Math.max(best, days);
+      } else if (rest.has(d)) {
+        // A rest day keeps everything as it is.
       } else if (d !== today) {
         if (tier >= 2) {
           tier--;
@@ -342,15 +362,15 @@ export function streakStatus(completions: Completion[], today: string): StreakSt
       }
     }
   }
-  return { days, tier, best, weekXp, weekTier: tierFor(weekXp), atRisk: days > 0 && !xpByDay.has(today), bestInfernoWeeks, history };
+  return { days, tier, best, weekXp, weekTier: tierFor(weekXp), atRisk: days > 0 && !xpByDay.has(today) && !rest.has(today), bestInfernoWeeks, history };
 }
 
 /**
  * Days in the current streak. If nothing is done yet today, a streak that ran
  * until yesterday still counts: it only breaks once a whole day has been missed.
  */
-export function currentStreak(completions: Completion[], today: string): number {
-  return streakStatus(completions, today).days;
+export function currentStreak(completions: Completion[], today: string, restDays: string[] = []): number {
+  return streakStatus(completions, today, restDays).days;
 }
 
 /** Daily-streak XP multiplier steps: from 5 days 1.2x, 10 days 1.4x, 30 days 1.5x, 150 days 1.6x. */
@@ -498,9 +518,11 @@ export function toggleTask(state: GameState, taskId: string, today: string, now?
   const streakWithToday = currentStreak(
     [...state.completions, { taskId, date: today, xp: 0 }],
     today,
+    state.restDays,
   );
   const base = taskXp(task);
-  let xp = base * (1 + streakBonus(streakWithToday));
+  const double = state.doubleDays?.includes(today) ? 2 : 1;
+  let xp = base * (1 + streakBonus(streakWithToday)) * double;
   let limited: Limit | undefined;
 
   const todays = state.completions.filter((c) => c.date === today);
@@ -539,9 +561,9 @@ export function limitMessage(limit: Limit): string {
   }
 }
 
-export function longestStreak(completions: Completion[]): number {
+export function longestStreak(completions: Completion[], restDays: string[] = []): number {
   const last = completions.reduce((max, c) => (c.date > max ? c.date : max), '');
-  return last ? streakStatus(completions, last).best : 0;
+  return last ? streakStatus(completions, last, restDays).best : 0;
 }
 
 // ---------- weekly challenges ----------
@@ -641,10 +663,39 @@ export interface ChallengeStatus {
   claimed: boolean;
 }
 
+/** This week's challenges with any swaps applied, in their original order. */
+export function challengesWithSwaps(week: string, swaps: ChallengeSwap[] = []): ChallengeDef[] {
+  let defs = challengesForWeek(week);
+  for (const sw of swaps) {
+    if (sw.week !== week) continue;
+    const to = CHALLENGE_POOL.find((c) => c.id === sw.to);
+    if (to) defs = defs.map((d) => (d.id === sw.from ? to : d));
+  }
+  return defs;
+}
+
+/**
+ * What a challenge would be swapped for: the next one in the pool that isn't
+ * on this week's list and measures something none of the others do.
+ */
+export function swapCandidate(week: string, swaps: ChallengeSwap[], challengeId: string): ChallengeDef | undefined {
+  const current = challengesWithSwaps(week, swaps);
+  const others = current.filter((c) => c.id !== challengeId);
+  const used = new Set(swaps.filter((s) => s.week === week).flatMap((s) => [s.from, s.to]));
+  const start = CHALLENGE_POOL.findIndex((c) => c.id === challengeId);
+  for (let i = 1; i < CHALLENGE_POOL.length; i++) {
+    const c = CHALLENGE_POOL[(start + i) % CHALLENGE_POOL.length];
+    if (current.some((d) => d.id === c.id) || used.has(c.id)) continue;
+    if (others.some((o) => o.metric === c.metric)) continue;
+    return c;
+  }
+  return undefined;
+}
+
 export function weeklyChallenges(state: GameState, today: string): ChallengeStatus[] {
   const week = weekStart(today);
   const stats = weekStats(state, today);
-  return challengesForWeek(week).map((def) => {
+  return challengesWithSwaps(week, state.swaps).map((def) => {
     const progress = Math.min(def.metric ? stats[def.metric] : 0, def.target);
     return {
       def,
@@ -672,8 +723,8 @@ export function profileStats(state: GameState, today: string) {
     ...levelInfo(xp),
     totalXp: xp,
     tasksDone: state.completions.length,
-    currentStreak: currentStreak(state.completions, today),
-    bestStreak: longestStreak(state.completions),
+    currentStreak: currentStreak(state.completions, today, state.restDays),
+    bestStreak: longestStreak(state.completions, state.restDays),
     challengesWon: state.claims.length,
   };
 }
@@ -733,9 +784,10 @@ export function reminderPlan(state: GameState, now: Date, days = 7, limit = 60):
     }
   }
   // Streak warning at 20:00 on days nothing is done yet, today and the next two.
-  const streak = streakStatus(state.completions, today);
+  const streak = streakStatus(state.completions, today, state.restDays);
   if (streak.days > 0 && state.settings.streakReminders !== false) {
-    const doneToday = state.completions.some((c) => c.date === today);
+    // A rest day already covers today.
+    const doneToday = state.completions.some((c) => c.date === today) || !!state.restDays?.includes(today);
     const fire = streakTierName(streak.tier);
     const ends = streak.tier >= 2 ? `drops from ${fire} to ${streakTierName(streak.tier - 1)}` : 'ends';
     for (let i = doneToday ? 1 : 0; i < 3; i++) {

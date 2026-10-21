@@ -18,7 +18,8 @@ export type ActivityEvent =
   | { kind: 'level'; level: number; from: number; rank?: string }
   | { kind: 'challenge'; title: string; icon: IconName; xp: number }
   | { kind: 'achievement'; title: string; tier: string; icon: IconName; xp: number }
-  | { kind: 'fire'; change: 'up' | 'down' | 'lost'; tier: number; days: number };
+  | { kind: 'fire'; change: 'up' | 'down' | 'lost'; tier: number; days: number }
+  | { kind: 'token'; token: 'rest' | 'double' };
 
 export interface ActivityTask {
   title: string;
@@ -118,7 +119,10 @@ export function activityTimeline(state: GameState, today: string): ActivityDay[]
     }
   }
 
-  for (const h of streakStatus(state.completions, today).history) {
+  for (const d of state.restDays ?? []) if (d <= today) dayOf(d).events.push({ kind: 'token', token: 'rest' });
+  for (const d of state.doubleDays ?? []) if (d <= today) dayOf(d).events.push({ kind: 'token', token: 'double' });
+
+  for (const h of streakStatus(state.completions, today, state.restDays).history) {
     dayOf(h.date).events.push({ kind: 'fire', change: h.change, tier: h.tier, days: h.days });
   }
 

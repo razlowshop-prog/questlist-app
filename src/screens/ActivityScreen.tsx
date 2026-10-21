@@ -4,6 +4,7 @@ import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { activityDayLabel, activitySummary, activityTimeline, type ActivityDay, type ActivityEvent, type WeekTotals } from '../activity';
 import { AppIcon } from '../components/AppIcon';
 import { Fire, fireColor } from '../components/Fire';
+import { TOKEN_ICONS } from '../components/RewardPicture';
 import { durationLabel, streakTierName, type GameState } from '../game';
 import { card, eyebrow, FONTS, headingCase, themed, useStyles, useTheme } from '../theme';
 
@@ -214,6 +215,11 @@ function EventRow({ event }: { event: ActivityEvent }) {
       title = `${event.title}${event.tier ? ` · ${event.tier}` : ''}`;
       sub = 'Achievement claimed';
       xp = event.xp;
+      break;
+    case 'token':
+      icon = event.token === 'rest' ? <TOKEN_ICONS.rest size={18} color={c.muted} strokeWidth={1.5} aria-hidden /> : <TOKEN_ICONS.double size={18} color={c.accent} strokeWidth={1.5} aria-hidden />;
+      title = event.token === 'rest' ? 'Rest day: streak kept' : 'Double XP day';
+      color = event.token === 'rest' ? c.muted : c.accent;
       break;
     case 'fire':
       icon = <Fire tier={event.tier} size={18} />;

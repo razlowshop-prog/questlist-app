@@ -1,9 +1,12 @@
-import { Ban, Crown, Gem, Zap } from 'lucide-react-native';
+import { Ban, Coffee, Crown, Gem, RefreshCw, Sparkles, Zap, type LucideIcon } from 'lucide-react-native';
 import { View } from 'react-native';
-import type { LevelMilestone } from '../achievements';
+import type { LevelMilestone, TokenKind } from '../achievements';
 import { THEMES, useTheme } from '../theme';
 
-/** A picture of a level reward: the theme's own colours, or an icon for a title, ad-free time, Premium or bonus XP. */
+/** Icon of each one-time token. */
+export const TOKEN_ICONS: Record<TokenKind, LucideIcon> = { rest: Coffee, double: Zap, reroll: RefreshCw };
+
+/** A picture of a level reward: the theme's own colours, or an icon for a title, token, ad-free time, Premium or bonus XP. */
 export function RewardPicture({ milestone, size }: { milestone: LevelMilestone; size: number }) {
   const c = useTheme();
   const reward = milestone.reward;
@@ -27,6 +30,14 @@ export function RewardPicture({ milestone, size }: { milestone: LevelMilestone; 
       </View>
     );
   }
-  const Icon = reward?.kind === 'title' ? Crown : reward?.kind === 'adfree' ? Ban : reward?.kind === 'premium' ? Gem : Zap;
+  const Icon = reward?.token
+    ? TOKEN_ICONS[reward.token]
+    : reward?.kind === 'title'
+      ? Crown
+      : reward?.kind === 'adfree'
+        ? Ban
+        : reward?.kind === 'premium'
+          ? Gem
+          : Sparkles;
   return <Icon size={size} color={c.accent} strokeWidth={1.5} aria-hidden />;
 }

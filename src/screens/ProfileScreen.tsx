@@ -2,6 +2,7 @@ import { Lock } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { APP_NAME } from '../brand';
+import { Chip } from '../components/Chip';
 import { TrophyCabinet } from '../components/TrophyCabinet';
 import { STREAK_REMINDER_HOUR, type profileStats, type Settings } from '../game';
 import type { TrophyStatus } from '../trophies';
@@ -14,6 +15,7 @@ export function ProfileScreen({
   joinedAt,
   settings,
   unlockedThemes,
+  titles,
   onRename,
   onSettings,
   onRedoSetup,
@@ -25,6 +27,8 @@ export function ProfileScreen({
   settings: Settings;
   /** Ids of themes the player may use. */
   unlockedThemes: Set<string>;
+  /** Titles won from levels and achievements, e.g. "Rising Star". */
+  titles: string[];
   onRename: (name: string) => void;
   onSettings: (s: Partial<Settings>) => void;
   onRedoSetup: () => void;
@@ -74,6 +78,7 @@ export function ProfileScreen({
             </Text>
           </Pressable>
         )}
+        {settings.title && titles.includes(settings.title) ? <Text style={s.title}>{settings.title}</Text> : null}
         <View style={s.levelPill}>
           <Text style={s.levelPillText}>
             Level {stats.level} · {stats.rank}
@@ -98,6 +103,21 @@ export function ProfileScreen({
         </Text>
       </View>
       <TrophyCabinet trophies={trophies} />
+
+      <View style={s.sectionRow}>
+        <Text style={s.section}>Title</Text>
+        <Text style={s.small}>Shown under your name</Text>
+      </View>
+      {titles.length ? (
+        <View style={s.titleRow}>
+          <Chip label="None" active={!settings.title || !titles.includes(settings.title)} onPress={() => onSettings({ title: undefined })} />
+          {titles.map((t) => (
+            <Chip key={t} label={t} active={settings.title === t} onPress={() => onSettings({ title: t })} />
+          ))}
+        </View>
+      ) : (
+        <Text style={s.small}>Reach level 5 for your first title.</Text>
+      )}
 
       <Text style={s.section}>Theme</Text>
       <View style={s.themes}>
@@ -214,6 +234,8 @@ const makeStyles = themed((c) => ({
   },
   avatarText: { color: c.onAccent, fontSize: 30, fontWeight: '700' },
   name: { fontFamily: FONTS.serif, color: c.text, fontSize: 28, ...headingCase(c) },
+  title: { fontFamily: FONTS.serifItalic, color: c.accent, fontSize: 17, marginTop: -2 },
+  titleRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   edit: { color: c.muted, fontSize: 16 },
   nameInput: {
     color: c.text,

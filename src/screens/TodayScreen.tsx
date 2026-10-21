@@ -36,6 +36,7 @@ export function TodayScreen({
   upcoming,
   streak,
   onOpenStreak,
+  tokenStrip,
   today,
   loaded,
   addedTitles,
@@ -51,6 +52,8 @@ export function TodayScreen({
   upcoming: Task[];
   streak: StreakStatus;
   onOpenStreak: () => void;
+  /** Tokens to use, shown under the streak. */
+  tokenStrip?: React.ReactNode;
   today: string;
   loaded: boolean;
   addedTitles: Set<string>;
@@ -150,6 +153,7 @@ export function TodayScreen({
           </Text>
 
           <StreakCard streak={streak} onPress={onOpenStreak} />
+          {tokenStrip}
 
           <View style={s.quote}>
             <Text style={s.quoteText}>“{quote.text}”</Text>

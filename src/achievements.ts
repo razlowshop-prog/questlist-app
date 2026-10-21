@@ -13,11 +13,17 @@ import {
 // Long-term achievements. Each has several tiers; reaching a tier lets the
 // player claim bonus XP, and some tiers also unlock a reward.
 
-export type RewardKind = 'theme' | 'title' | 'adfree' | 'premium';
+export type RewardKind = 'theme' | 'title' | 'adfree' | 'premium' | 'token';
+
+/** One-time boosts: rest = a day off that keeps the streak, double = 2x XP for a day, reroll = swap a weekly challenge. */
+export type TokenKind = 'rest' | 'double' | 'reroll';
 
 export interface Reward {
   kind: RewardKind;
   label: string;
+  /** For kind 'token'. */
+  token?: TokenKind;
+  count?: number;
 }
 
 export interface Tier {
@@ -49,6 +55,18 @@ export function tierColor(tier: number, dark: boolean): string {
 
 const theme = (label: string): Reward => ({ kind: 'theme', label: `${label} theme` });
 const title = (label: string): Reward => ({ kind: 'title', label: `"${label}" title` });
+const TOKEN_NAMES: Record<TokenKind, [string, string]> = {
+  rest: ['Rest day token', 'Rest day tokens'],
+  double: ['Double XP token', 'Double XP tokens'],
+  reroll: ['Challenge swap', 'Challenge swaps'],
+};
+const token = (kind: TokenKind, count = 1): Reward => ({
+  kind: 'token',
+  token: kind,
+  count,
+  label: count === 1 ? TOKEN_NAMES[kind][0] : `${count} ${TOKEN_NAMES[kind][1]}`,
+});
+const adfree = (label: string): Reward => ({ kind: 'adfree', label });
 
 /** Most completions on any single day. */
 export function bestDay(state: GameState): number {
@@ -165,7 +183,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     title: 'On Fire',
     description: (g) => `Reach a ${g}-day streak`,
     unit: 'days in a row',
-    value: (s) => longestStreak(s.completions),
+    value: (s) => longestStreak(s.completions, s.restDays),
     tiers: [
       { goal: 3, xp: 20 },
       { goal: 7, xp: 50 },
@@ -248,26 +266,85 @@ export function claimAchievement(
   };
 }
 
-/** All rewards unlocked by claimed tiers, newest last. */
+/**
+ * Rewards for reaching a level, on top of the Climber achievement (which pays
+ * bonus XP at 5, 10, 25, 50 and 100 and owns the rewards at 10, 50 and 100).
+ * Nearly every level up to 10, then every 2 to 3 levels, a title every 10.
+ * Nothing here costs real money.
+ */
+export const LEVEL_LADDER: { level: number; reward: Reward }[] = [
+  { level: 2, reward: token('rest') },
+  { level: 3, reward: token('double') },
+  { level: 4, reward: token('reroll') },
+  { level: 5, reward: title('Rising Star') },
+  { level: 6, reward: token('double') },
+  { level: 7, reward: token('rest') },
+  { level: 8, reward: token('reroll') },
+  { level: 9, reward: token('double') },
+  { level: 12, reward: token('rest') },
+  { level: 14, reward: token('double') },
+  { level: 16, reward: token('reroll') },
+  { level: 18, reward: adfree('3 days ad-free') },
+  { level: 20, reward: title('Trailblazer') },
+  { level: 22, reward: token('double') },
+  { level: 25, reward: token('rest', 2) },
+  { level: 27, reward: token('reroll', 2) },
+  { level: 30, reward: title('Relentless') },
+  { level: 33, reward: token('double', 2) },
+  { level: 36, reward: adfree('1 week ad-free') },
+  { level: 40, reward: title('Vanguard') },
+  { level: 43, reward: token('rest', 2) },
+  { level: 46, reward: token('reroll', 2) },
+  { level: 55, reward: token('double', 2) },
+  { level: 60, reward: title('Paragon') },
+  { level: 65, reward: token('rest', 2) },
+  { level: 70, reward: adfree('2 weeks ad-free') },
+  { level: 75, reward: token('double', 3) },
+  { level: 80, reward: title('Mythic') },
+  { level: 85, reward: token('reroll', 3) },
+  { level: 90, reward: token('rest', 3) },
+  { level: 95, reward: token('double', 3) },
+];
+
+/** All rewards unlocked by claimed tiers and reached levels. */
 export function unlockedRewards(state: GameState): Reward[] {
-  return state.achievementClaims.flatMap((c) => {
+  const fromAchievements = state.achievementClaims.flatMap((c) => {
     const reward = ACHIEVEMENTS.find((a) => a.id === c.achievementId)?.tiers[c.tier]?.reward;
     return reward ? [reward] : [];
   });
+  const reached = new Set(state.levelRewards ?? []);
+  return [...fromAchievements, ...LEVEL_LADDER.filter((l) => reached.has(l.level)).map((l) => l.reward)];
 }
 
-/** A level that pays out: the Climber tier for it (bonus XP, maybe a reward). */
+/** Hands out the ladder rewards for every level up to `level` not given yet. Levels lost by unticking keep theirs. */
+export function grantLevelRewards(state: GameState, level: number): GameState {
+  const given = new Set(state.levelRewards ?? []);
+  const due = LEVEL_LADDER.filter((l) => l.level <= level && !given.has(l.level)).map((l) => l.level);
+  return due.length ? { ...state, levelRewards: [...(state.levelRewards ?? []), ...due] } : state;
+}
+
+/** A level that pays out: a ladder reward, and at Climber levels bonus XP to claim. */
 export interface LevelMilestone {
   level: number;
+  /** Climber bonus XP, 0 on other levels. */
   bonusXp: number;
   reward?: Reward;
+  /** Index of the Climber tier for this level, if there is one. */
+  climberTier?: number;
 }
 
-export const LEVEL_MILESTONES: LevelMilestone[] = ACHIEVEMENTS.find((a) => a.id === 'level')!.tiers.map((t) => ({
-  level: t.goal,
-  bonusXp: t.xp,
-  reward: t.reward,
-}));
+const CLIMBER_TIERS = ACHIEVEMENTS.find((a) => a.id === 'level')!.tiers;
+
+export const LEVEL_MILESTONES: LevelMilestone[] = [
+  ...new Set([...CLIMBER_TIERS.map((t) => t.goal), ...LEVEL_LADDER.map((l) => l.level)]),
+]
+  .sort((a, b) => a - b)
+  .map((level) => {
+    const climberTier = CLIMBER_TIERS.findIndex((t) => t.goal === level);
+    const climber = CLIMBER_TIERS[climberTier];
+    const reward = climber?.reward ?? LEVEL_LADDER.find((l) => l.level === level)?.reward;
+    return { level, bonusXp: climber?.xp ?? 0, ...(reward && { reward }), ...(climber && { climberTier }) };
+  });
 
 export interface NextLevelReward {
   /** The levels after the current one up to and including the milestone; empty ones have no milestone. */

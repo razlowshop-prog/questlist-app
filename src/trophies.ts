@@ -32,7 +32,7 @@ export const TROPHIES: TrophyDef[] = [
     rarity: 'epic',
     target: 100,
     unit: 'days',
-    value: (s, today) => streakStatus(s.completions, today).best,
+    value: (s, today) => streakStatus(s.completions, today, s.restDays).best,
   },
   {
     id: 'yearOfFire',
@@ -42,7 +42,7 @@ export const TROPHIES: TrophyDef[] = [
     rarity: 'legendary',
     target: 365,
     unit: 'days',
-    value: (s, today) => streakStatus(s.completions, today).best,
+    value: (s, today) => streakStatus(s.completions, today, s.restDays).best,
   },
   {
     id: 'infernoKeeper',
@@ -52,7 +52,7 @@ export const TROPHIES: TrophyDef[] = [
     rarity: 'epic',
     target: 8,
     unit: 'weeks',
-    value: (s, today) => streakStatus(s.completions, today).bestInfernoWeeks,
+    value: (s, today) => streakStatus(s.completions, today, s.restDays).bestInfernoWeeks,
   },
   {
     id: 'centurion',
