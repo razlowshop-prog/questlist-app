@@ -1,6 +1,6 @@
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { addDays, SENSOR_CHALLENGES, weekStart, type ChallengeDef, type ChallengeStatus } from '../game';
-import { card, themed, useStyles } from '../theme';
+import { card, themed, useStyles, FONTS, headingCase } from '../theme';
 
 export function ChallengesScreen({
   challenges,
@@ -82,26 +82,26 @@ function ChallengeCard({
 
 const makeStyles = themed((c) => ({
   content: { padding: 20, paddingBottom: 48, maxWidth: 640, width: '100%', alignSelf: 'center' },
-  heading: { color: c.text, fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
-  subHeading: { fontSize: 18, marginTop: 20 },
+  heading: { fontFamily: FONTS.serif, color: c.text, fontSize: 30, lineHeight: 36, ...headingCase(c) },
+  subHeading: { fontSize: 22, lineHeight: 28, marginTop: 24 },
   sub: { color: c.muted, fontSize: 14, marginTop: 4, marginBottom: 16 },
   card: { ...card(c), flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, marginBottom: 10 },
-  cardHighlight: { borderWidth: 2, borderColor: c.gold },
+  cardHighlight: { borderWidth: 1, borderColor: c.gold },
   iconWrap: {
     width: 44,
     height: 44,
-    borderRadius: 12,
+    borderRadius: c.radius,
     backgroundColor: c.goldSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   icon: { fontSize: 22 },
   title: { color: c.text, fontSize: 15, fontWeight: '700' },
-  track: { height: 6, backgroundColor: c.surfaceAlt, borderRadius: 3, overflow: 'hidden' },
-  fill: { height: '100%', backgroundColor: c.gold, borderRadius: 3 },
+  track: { height: c.lineWeight, borderRadius: c.lineWeight / 2, backgroundColor: c.border, overflow: 'hidden' },
+  fill: { height: '100%', backgroundColor: c.gold },
   progress: { color: c.muted, fontSize: 12 },
-  reward: { color: c.gold, fontWeight: '800', fontSize: 13 },
-  claim: { backgroundColor: c.gold, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999 },
-  claimText: { color: c.onGold, fontWeight: '800', fontSize: 13 },
-  claimed: { color: c.xp, fontWeight: '800', fontSize: 13 },
+  reward: { color: c.gold, fontWeight: '700', fontSize: 13 },
+  claim: { backgroundColor: c.gold, paddingHorizontal: 14, minHeight: 36, justifyContent: 'center', borderRadius: c.radius },
+  claimText: { color: c.onGold, fontWeight: '700', fontSize: 13 },
+  claimed: { color: c.xp, fontWeight: '700', fontSize: 13 },
 }));

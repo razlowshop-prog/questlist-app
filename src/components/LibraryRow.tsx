@@ -34,7 +34,7 @@ export function LibraryRow({ task, added, onAdd }: { task: LibraryTask; added: b
 const makeStyles = (c: Palette) => ({
   row: {
     ...card(c),
-    borderRadius: 14,
+    borderRadius: c.radius,
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     gap: 12,
@@ -44,7 +44,7 @@ const makeStyles = (c: Palette) => ({
   iconWrap: {
     width: 36,
     height: 36,
-    borderRadius: 10,
+    borderRadius: c.radius,
     backgroundColor: c.surfaceAlt,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
@@ -52,7 +52,7 @@ const makeStyles = (c: Palette) => ({
   icon: { fontSize: 18 },
   title: { color: c.text, fontSize: 15, fontWeight: '600' as const },
   meta: { color: c.muted, fontSize: 12, marginTop: 2 },
-  xp: { color: c.xp, fontSize: 12, fontWeight: '800' as const },
+  xp: { color: c.xp, fontSize: 12, fontWeight: '700' as const },
   add: {
     width: 30,
     height: 30,

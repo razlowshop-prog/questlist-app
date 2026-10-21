@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { emptyState, type GameState } from './game';
 
 // Data lives on the device for now. Cloud sync (Supabase) comes later.
+// Kept from the app's old working name so saved progress isn't lost.
 const KEY = 'questlist/state/v1';
 
 export async function loadState(): Promise<GameState> {

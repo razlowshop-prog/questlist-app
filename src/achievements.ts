@@ -1,3 +1,4 @@
+import { APP_NAME } from './brand.ts';
 import {
   levelInfo,
   longestStreak,
@@ -34,7 +35,14 @@ export interface AchievementDef {
 }
 
 export const TIER_NAMES = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Master', 'Legend'];
-export const TIER_COLORS = ['#CD7F32', '#C0C0C0', '#FFC94D', '#7FE3D6', '#8FD3FF', '#C792FF', '#FF7AB6'];
+/** Muted metal tones that sit well on the dark brass look and stay distinct. */
+export const TIER_COLORS = ['#C08A5B', '#BDB7AE', '#D4B27A', '#D9D4CA', '#A9C6D0', '#B7A6D6', '#E0A08C'];
+/** Deeper versions of the same tones, readable on the light themes. */
+export const TIER_COLORS_LIGHT = ['#8A5A2E', '#6B6660', '#8A6A33', '#6E6A62', '#3F6E7D', '#6A5594', '#A0523A'];
+
+export function tierColor(tier: number, dark: boolean): string {
+  return (dark ? TIER_COLORS : TIER_COLORS_LIGHT)[tier];
+}
 
 const theme = (label: string): Reward => ({ kind: 'theme', label: `${label} theme` });
 const title = (label: string): Reward => ({ kind: 'title', label: `"${label}" title` });
@@ -138,7 +146,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     id: 'member',
     icon: '🎂',
     title: 'Member Since',
-    description: (g) => `Stay with QuestList for ${g} ${g === 1 ? 'month' : 'months'}`,
+    description: (g) => `Stay with ${APP_NAME} for ${g} ${g === 1 ? 'month' : 'months'}`,
     unit: 'months',
     value: (s, today) => monthsSince(s.joinedAt, today),
     tiers: [

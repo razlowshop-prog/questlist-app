@@ -19,7 +19,7 @@ export interface LibraryTask {
   perWeek: number;
   /** Extra search words. */
   tags: string[];
-  /** Picked by the QuestList team; shown under "Recommended". */
+  /** Picked by the team; shown under "Recommended". */
   featured: boolean;
 }
 

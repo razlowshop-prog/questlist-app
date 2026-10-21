@@ -16,13 +16,20 @@ import {
 } from '../game';
 import { searchLibrary, type LibraryTask } from '../library';
 import { quoteOfTheDay } from '../quotes';
-import { card, themed, useStyles, useTheme } from '../theme';
+import { card, eyebrow, FONTS, themed, useStyles, useTheme, headingCase } from '../theme';
 
 const EFFORTS: { key: Difficulty; label: string }[] = [
   { key: 'easy', label: 'Easy' },
   { key: 'medium', label: 'Medium' },
   { key: 'hard', label: 'Hard' },
 ];
+
+function partOfDay(hour: number): string {
+  if (hour < 5) return 'evening';
+  if (hour < 12) return 'morning';
+  if (hour < 18) return 'afternoon';
+  return 'evening';
+}
 
 const REPEATS: { value: Repeat; label: string }[] = [
   { value: false, label: 'Once' },
@@ -91,9 +98,11 @@ export function TodayScreen({
       keyboardShouldPersistTaps="handled"
       ListHeaderComponent={
         <>
-          <Text style={s.greeting}>Hi {state.profile.name} 👋</Text>
           <Text style={s.date}>
             {new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}
+          </Text>
+          <Text style={s.greeting}>
+            Good <Text style={s.greetingEm}>{partOfDay(new Date().getHours())}</Text>, {state.profile.name}.
           </Text>
 
           <View style={s.quote}>
@@ -196,23 +205,24 @@ export function TodayScreen({
             )}
 
             <Pressable onPress={onOpenLibrary} style={s.libraryButton} accessibilityRole="button">
-              <Text style={s.libraryText}>📚  Browse the task library</Text>
+              <Text style={s.libraryText}>Browse the task library</Text>
             </Pressable>
           </View>
 
           <View style={s.sectionRow}>
             <Text style={s.sectionTitle}>Today</Text>
             <Text style={s.sectionCount}>
-              {doneCount}/{tasks.length} done
+              {doneCount} of {tasks.length}
             </Text>
           </View>
         </>
       }
       ListEmptyComponent={
-        loaded ? <Text style={s.empty}>No tasks for today. Add one above or pick some from the library!</Text> : undefined
+        loaded ? <Text style={s.empty}>No tasks for today. Add one above or pick some from the library.</Text> : undefined
       }
-      renderItem={({ item }) => (
+      renderItem={({ item, index }) => (
         <TaskRow
+          index={index}
           task={item}
           state={state}
           today={today}
@@ -226,22 +236,23 @@ export function TodayScreen({
 }
 
 const makeStyles = themed((c) => ({
-  content: { padding: 20, paddingBottom: 48, maxWidth: 640, width: '100%', alignSelf: 'center' },
-  greeting: { color: c.text, fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
-  date: { color: c.muted, fontSize: 14, marginTop: 2, marginBottom: 16 },
-  quote: { backgroundColor: c.accentSoft, borderRadius: 16, padding: 14, marginBottom: 16 },
-  quoteText: { color: c.text, fontSize: 14, lineHeight: 20, fontStyle: 'italic' },
-  quoteAuthor: { color: c.accent, fontSize: 12, fontWeight: '700', marginTop: 6 },
-  addCard: { ...card(c), padding: 14, gap: 12, marginBottom: 24 },
+  content: { padding: 20, paddingTop: 12, paddingBottom: 48, maxWidth: 640, width: '100%', alignSelf: 'center' },
+  date: { ...eyebrow(c), color: c.label, marginBottom: 10 },
+  greeting: { fontFamily: FONTS.serif, color: c.text, fontSize: 34, lineHeight: 40, ...headingCase(c) },
+  greetingEm: c.italicAccent ? { fontFamily: FONTS.serifItalic, color: c.accent } : { fontFamily: FONTS.serif, color: c.text },
+  quote: { marginTop: 18, marginBottom: 22, gap: 8 },
+  quoteText: { fontFamily: FONTS.serif, fontStyle: 'italic', color: c.muted, fontSize: 16, lineHeight: 24 },
+  quoteAuthor: { ...eyebrow(c, 11), color: c.label },
+  addCard: { ...card(c), padding: 14, gap: 12, marginBottom: 28 },
   input: {
     color: c.text,
     fontSize: 16,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: c.radius,
     backgroundColor: c.surfaceAlt,
   },
-  small: { color: c.muted, fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  small: { ...eyebrow(c, 11), color: c.muted },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
   customRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   customInput: {
@@ -249,18 +260,33 @@ const makeStyles = themed((c) => ({
     textAlign: 'center',
     color: c.text,
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '600',
     paddingVertical: 8,
-    borderRadius: 10,
+    borderRadius: c.radius,
     backgroundColor: c.surfaceAlt,
   },
   customUnit: { color: c.muted, fontSize: 14, fontWeight: '600', marginRight: 8 },
-  addButton: { backgroundColor: c.accent, paddingVertical: 13, borderRadius: 14, alignItems: 'center' },
-  addButtonText: { color: c.onAccent, fontWeight: '800', fontSize: 15 },
-  libraryButton: { paddingVertical: 11, borderRadius: 14, backgroundColor: c.surfaceAlt, alignItems: 'center' },
-  libraryText: { color: c.text, fontWeight: '700', fontSize: 14 },
-  sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 },
-  sectionTitle: { color: c.text, fontSize: 20, fontWeight: '800', letterSpacing: -0.3 },
-  sectionCount: { color: c.muted, fontSize: 14, fontWeight: '600' },
+  addButton: { backgroundColor: c.accent, minHeight: 48, justifyContent: 'center', borderRadius: c.radius, alignItems: 'center' },
+  addButtonText: { ...eyebrow(c, 13), fontWeight: '700', color: c.onAccent },
+  libraryButton: {
+    minHeight: 44,
+    justifyContent: 'center',
+    borderRadius: c.radius,
+    borderWidth: 1,
+    borderColor: c.outline,
+    alignItems: 'center',
+  },
+  libraryText: { ...eyebrow(c, 12), fontWeight: '700', color: c.text },
+  sectionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    paddingBottom: 10,
+    marginBottom: c.listStyle === 'cards' ? 10 : 0,
+    borderBottomWidth: c.listStyle === 'lines' ? 1 : 0,
+    borderBottomColor: c.border,
+  },
+  sectionTitle: { ...eyebrow(c), color: c.muted },
+  sectionCount: { color: c.muted, fontSize: 13 },
   empty: { color: c.muted, fontSize: 14, textAlign: 'center', marginTop: 24 },
 }));

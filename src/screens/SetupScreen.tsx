@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from 'react-native';
+import { LogoMark } from '../components/LogoMark';
 import { Chip } from '../components/Chip';
 import { durationLabel, xpFor } from '../game';
 import { CATEGORIES, categoryOf, suggestionsFor, type LibraryTask } from '../library';
-import { themed, useStyles, useTheme } from '../theme';
+import { eyebrow, themed, useStyles, useTheme, FONTS, headingCase } from '../theme';
 
 export interface SetupPick {
   task: LibraryTask;
@@ -90,10 +91,14 @@ export function SetupScreen({
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {step === 0 && (
           <>
-            <Text style={styles.emoji}>⚔️</Text>
-            <Text style={styles.heading}>Welcome to QuestList</Text>
+            <View style={styles.mark}>
+              <LogoMark textStyle={styles.wordmark} />
+            </View>
+            <Text style={styles.heading}>
+              Small tasks. <Text style={styles.headingEm}>Steady</Text> rise.
+            </Text>
             <Text style={styles.sub}>
-              Turn your goals into daily quests. Finish tasks, earn XP, level up and keep your streak alive.
+              Turn your goals into daily tasks. Finish them, earn XP, level up and keep your streak going.
             </Text>
             <Text style={styles.label}>What should we call you?</Text>
             <TextInput
@@ -134,7 +139,7 @@ export function SetupScreen({
 
         {step === 2 && (
           <>
-            <Text style={styles.heading}>Pick your quests</Text>
+            <Text style={styles.heading}>Pick your tasks</Text>
             <Text style={styles.sub}>
               Tap to choose, then set how often per week. XP is based on how long each task takes.
             </Text>
@@ -205,7 +210,7 @@ export function SetupScreen({
           <Text style={styles.nextText}>
             {step === 2
               ? pickedCount > 0
-                ? `Add ${pickedCount} ${pickedCount === 1 ? 'quest' : 'quests'} · ~${weeklyXp} XP/week`
+                ? `Add ${pickedCount} ${pickedCount === 1 ? 'task' : 'tasks'} · ~${weeklyXp} XP/week`
                 : 'Start without tasks'
               : 'Continue'}
           </Text>
@@ -222,8 +227,10 @@ const makeStyles = themed((c) => ({
   dot: { width: 28, height: 6, borderRadius: 3, backgroundColor: c.border },
   skip: { color: c.muted, fontSize: 15, fontWeight: '700' },
   content: { padding: 16, paddingBottom: 32, maxWidth: 640, width: '100%', alignSelf: 'center' },
-  emoji: { fontSize: 56, textAlign: 'center', marginTop: 24 },
-  heading: { color: c.text, fontSize: 26, fontWeight: '800', marginTop: 8 },
+  mark: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 28, marginBottom: 28 },
+  wordmark: { fontFamily: FONTS.serif, color: c.text, fontSize: 24, letterSpacing: 4.8 },
+  headingEm: c.italicAccent ? { fontFamily: FONTS.serifItalic, color: c.accent } : { fontFamily: FONTS.serif, color: c.text },
+  heading: { fontFamily: FONTS.serif, color: c.text, fontSize: 30, lineHeight: 36, marginTop: 8, ...headingCase(c) },
   sub: { color: c.muted, fontSize: 15, marginTop: 8, marginBottom: 20, lineHeight: 21 },
   label: { color: c.text, fontSize: 15, fontWeight: '700', marginBottom: 8 },
   input: {
@@ -232,14 +239,14 @@ const makeStyles = themed((c) => ({
     backgroundColor: c.surface,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: c.radius,
   },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   goal: {
     flexBasis: '45%',
     flexGrow: 1,
     backgroundColor: c.surface,
-    borderRadius: 14,
+    borderRadius: c.radius,
     padding: 14,
     borderWidth: 2,
     borderColor: 'transparent',
@@ -248,8 +255,8 @@ const makeStyles = themed((c) => ({
   goalOn: { borderColor: c.accent, backgroundColor: c.accentSoft },
   goalIcon: { fontSize: 24 },
   goalLabel: { color: c.text, fontSize: 14, fontWeight: '700' },
-  section: { color: c.text, fontSize: 16, fontWeight: '800', marginBottom: 8 },
-  taskCard: { backgroundColor: c.surface, borderRadius: 12, marginBottom: 6, borderWidth: 1, borderColor: 'transparent' },
+  section: { ...eyebrow(c), color: c.muted, marginBottom: 10 },
+  taskCard: { backgroundColor: c.surface, borderRadius: c.radius, marginBottom: 6, borderWidth: 1, borderColor: 'transparent' },
   taskCardOn: { borderColor: c.accent },
   taskMain: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 },
   check: {
@@ -262,14 +269,14 @@ const makeStyles = themed((c) => ({
     justifyContent: 'center',
   },
   checkOn: { backgroundColor: c.accent },
-  checkMark: { color: c.onAccent, fontWeight: '900', fontSize: 14 },
+  checkMark: { color: c.onAccent, fontWeight: '700', fontSize: 14 },
   taskTitle: { color: c.text, fontSize: 15, fontWeight: '600' },
   taskMeta: { color: c.muted, fontSize: 12, marginTop: 1 },
   freq: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 12, paddingBottom: 12 },
   hint: { color: c.muted, fontSize: 13, textAlign: 'center', marginTop: 4 },
   footer: { flexDirection: 'row', gap: 10, padding: 16, borderTopWidth: 1, borderTopColor: c.border },
-  back: { paddingHorizontal: 20, paddingVertical: 14, borderRadius: 999, borderWidth: 1, borderColor: c.border },
+  back: { paddingHorizontal: 20, minHeight: 48, justifyContent: 'center', borderRadius: c.radius, borderWidth: 1, borderColor: c.outline },
   backText: { color: c.text, fontWeight: '700', fontSize: 15 },
-  next: { flex: 1, backgroundColor: c.xp, paddingVertical: 14, borderRadius: 999, alignItems: 'center' },
-  nextText: { color: c.onAccent, fontWeight: '800', fontSize: 15 },
+  next: { flex: 1, backgroundColor: c.accent, minHeight: 48, justifyContent: 'center', borderRadius: c.radius, alignItems: 'center' },
+  nextText: { color: c.onAccent, fontWeight: '700', fontSize: 15 },
 }));
