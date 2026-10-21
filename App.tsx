@@ -71,6 +71,7 @@ export default function App() {
   const [toast, setToast] = useState<string | null>(null);
   const toastAnim = useRef(new Animated.Value(0)).current;
   const [levelOpen, setLevelOpen] = useState(false);
+  const [draft, setDraft] = useState<LibraryTask | undefined>();
   const [celebration, setCelebration] = useState<CelebrationEvent | null>(null);
   const bestLevel = useRef<number | null>(null);
   // Theme whose fonts are loaded and which is on screen; a newly picked theme
@@ -264,7 +265,8 @@ export default function App() {
                   });
                 }
               }}
-              onAddFromLibrary={(t) => setState(addFromLibrary(state, t))}
+              draft={draft}
+              onDraftUsed={() => setDraft(undefined)}
               onOpenLibrary={() => setLibraryOpen(true)}
               onToggle={onToggle}
               onDelete={(task) => setState(deleteTask(state, task.id))}
@@ -316,7 +318,12 @@ export default function App() {
         <LibraryModal
           visible={libraryOpen}
           addedTitles={addedTitles}
-          onAdd={(t) => setState((s) => addFromLibrary(s, t))}
+          onAdd={(t) => {
+            // Picked tasks open in the add form, so days and frequency can be set first.
+            setDraft(t);
+            setLibraryOpen(false);
+            setTab('today');
+          }}
           onClose={() => setLibraryOpen(false)}
         />
 

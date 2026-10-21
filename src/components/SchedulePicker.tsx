@@ -22,17 +22,32 @@ export function defaultSchedule(today: string): Schedule {
   return { repeat: false, perWeek: 3, days: [], date: today, remind: false, hour: '18', minute: '00' };
 }
 
+/** Times per week as shown: the stepper value, never above what the task allows. */
+function timesOf(s: Schedule, title: string): number {
+  return Math.min(Math.max(s.perWeek, 1), maxPerWeek(title));
+}
+
+/** Why the task can't be added yet, e.g. 2 of 3 days picked. */
+export function scheduleProblem(s: Schedule, title: string): string | undefined {
+  if (!s.repeat) return undefined;
+  const n = timesOf(s, title);
+  const missing = n - s.days.length;
+  if (n < 7 && s.days.length > 0 && missing > 0) {
+    return `Pick ${missing} more ${missing === 1 ? 'day' : 'days'}, or none for any ${n} days a week.`;
+  }
+  return undefined;
+}
+
 /** Turns the picker's choices into what addTask takes. */
 export function scheduleToTask(s: Schedule, title: string, today: string): { repeat: Repeat; plan: TaskPlan } {
-  const max = maxPerWeek(title);
   const plan: TaskPlan = {};
   if (s.remind) plan.reminder = reminderTime(s);
   if (!s.repeat) {
     if (s.date > today) plan.date = s.date;
     return { repeat: false, plan };
   }
-  if (s.days.length) return { repeat: true, plan: { ...plan, days: s.days.slice(0, max) } };
-  const n = Math.min(s.perWeek, max);
+  const n = timesOf(s, title);
+  if (n < 7 && s.days.length === n) return { repeat: true, plan: { ...plan, days: s.days } };
   return { repeat: n >= 7 ? true : n, plan };
 }
 
@@ -46,10 +61,9 @@ function reminderTime(s: Schedule): string {
 export function scheduleSummary(s: Schedule, title: string, today: string): string {
   let when: string;
   if (!s.repeat) when = s.date === today ? 'Once, today' : s.date === addDays(today, 1) ? 'Once, tomorrow' : `Once, ${dayLabel(s.date)}`;
-  else if (s.days.length) when = s.days.slice(0, maxPerWeek(title)).map((d) => WEEKDAYS[d]).join(', ');
   else {
-    const n = Math.min(s.perWeek, maxPerWeek(title));
-    when = n >= 7 ? 'Every day' : `${n}× a week`;
+    const n = timesOf(s, title);
+    when = n >= 7 ? 'Every day' : s.days.length === n ? s.days.map((d) => WEEKDAYS[d]).join(', ') : `${n}× a week`;
   }
   return s.remind ? `${when} · ${reminderTime(s)}` : when;
 }
@@ -70,13 +84,22 @@ export function SchedulePicker({
   const c = useTheme();
   const max = maxPerWeek(title);
   const set = (patch: Partial<Schedule>) => onChange({ ...value, ...patch });
-  const days = value.days.slice(0, max);
+  const n = timesOf(value, title);
+  const days = value.days.slice(0, n);
   const digits = (v: string) => v.replace(/[^0-9]/g, '').slice(0, 2);
+  const problem = scheduleProblem({ ...value, days }, title);
 
   function toggleDay(d: number) {
     if (days.includes(d)) set({ days: days.filter((x) => x !== d) });
-    // A week-long task can only sit on one day: picking another moves it.
-    else set({ days: max === 1 ? [d] : [...days, d].sort() });
+    // Once a week: picking another day moves it.
+    else if (n === 1) set({ days: [d] });
+    // One day too many raises the count, so picking is never blocked.
+    else set({ days: [...days, d].sort(), perWeek: Math.max(n, days.length + 1) });
+  }
+
+  function setTimes(next: number) {
+    // Fewer times than picked days drops the last picked ones.
+    set({ perWeek: next, days: days.slice(0, next) });
   }
 
   return (
@@ -106,25 +129,24 @@ export function SchedulePicker({
       {value.repeat && (
         <>
           <View style={s.stepRow}>
-            <Stepper
-              value={days.length ? days.length : Math.min(value.perWeek, max)}
-              min={1}
-              max={max}
-              disabled={days.length > 0}
-              onChange={(n) => set({ perWeek: n })}
-              label="days a week"
-            />
-            <Text style={s.stepLabel}>
-              {days.length ? 'set by the days below' : Math.min(value.perWeek, max) >= 7 ? 'every day' : 'days a week'}
-            </Text>
+            <Stepper value={n} min={1} max={max} onChange={setTimes} label="times a week" />
+            <Text style={s.stepLabel}>{n >= 7 ? 'every day' : n === 1 ? 'time a week' : 'times a week'}</Text>
+            {max >= 7 && n < 7 && (
+              <Chip label="Every day" active={false} onPress={() => setTimes(7)} />
+            )}
           </View>
           {max === 1 && <Text style={s.hint}>A task for the whole week counts once a week.</Text>}
-          <Text style={s.small}>On set days (optional)</Text>
-          <View style={s.row}>
-            {WEEKDAYS.map((label, d) => (
-              <Chip key={label} label={label} active={days.includes(d)} onPress={() => toggleDay(d)} />
-            ))}
-          </View>
+          {n < 7 && (
+            <>
+              <Text style={s.small}>{n === 1 ? 'Which day? (optional)' : `Which ${n} days? (optional)`}</Text>
+              <View style={s.row}>
+                {WEEKDAYS.map((label, d) => (
+                  <Chip key={label} label={label} active={days.includes(d)} onPress={() => toggleDay(d)} />
+                ))}
+              </View>
+              <Text style={problem ? s.problem : s.hint}>{problem ?? (days.length ? 'Shows on these days only.' : `Shows every day until done ${n}× this week.`)}</Text>
+            </>
+          )}
         </>
       )}
 
@@ -179,6 +201,7 @@ const makeStyles = themed((c) => ({
   stepRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   stepLabel: { color: c.muted, fontSize: 14 },
   hint: { color: c.faint, fontSize: 12, marginTop: 2 },
+  problem: { color: c.flame, fontSize: 12, fontWeight: '600', marginTop: 2 },
   remindRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   remindTitle: { color: c.text, fontSize: 14, fontWeight: '600' },
   timeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CATEGORIES, LIBRARY, searchLibrary, suggestionsFor } from './library.ts';
+import { CATEGORIES, categoryForTitle, guessCategory, LIBRARY, searchLibrary, suggestionsFor, taskCategory } from './library.ts';
 
 test('library is big and every task has a known category', () => {
   assert.ok(LIBRARY.length >= 200, `only ${LIBRARY.length} tasks`);
@@ -24,4 +24,16 @@ test('setup suggestions only include repeating tasks from the chosen areas', () 
   const s = suggestionsFor(['home', 'fitness']);
   assert.ok(s.length > 0);
   assert.ok(s.every((t) => ['home', 'fitness'].includes(t.category) && t.perWeek > 0));
+});
+
+test('task categories: saved, exact library match, closest guess, or other', () => {
+  assert.equal(categoryForTitle('  do the DISHES '), 'home');
+  assert.equal(categoryForTitle('Feed the dragon'), undefined);
+  assert.equal(guessCategory('dishes'), 'home');
+  assert.equal(guessCategory('ab'), undefined);
+  assert.equal(taskCategory({ title: 'Do the dishes' }), 'home');
+  assert.equal(taskCategory({ title: 'Do the dishes', category: 'work' }), 'work');
+  assert.equal(guessCategory('Gym session'), 'fitness');
+  assert.equal(taskCategory({ title: 'Vacuum the car' }), 'home');
+  assert.equal(taskCategory({ title: 'Xyzzy qwrt' }), 'other');
 });

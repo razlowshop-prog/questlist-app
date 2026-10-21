@@ -23,6 +23,8 @@ export interface Task {
   date?: string;
   /** Daily reminder time, "HH:MM", sent as a phone notification. */
   reminder?: string;
+  /** Library category id, for grouping the day. */
+  category?: string;
   createdAt: string;
 }
 
@@ -31,6 +33,7 @@ export interface TaskPlan {
   days?: number[];
   date?: string;
   reminder?: string;
+  category?: string;
 }
 
 /** false = one-time, true = every day, a number = that many times per week. */
@@ -420,6 +423,7 @@ export function addTask(
     task.date = plan.date;
   }
   if (plan.reminder && /^([01]\d|2[0-3]):[0-5]\d$/.test(plan.reminder)) task.reminder = plan.reminder;
+  if (plan.category) task.category = plan.category;
   return { ...state, tasks: [...state.tasks, task] };
 }
 

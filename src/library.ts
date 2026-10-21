@@ -350,3 +350,31 @@ export function suggestionsFor(categories: string[], perCategory = 6): LibraryTa
 }
 
 export const FEATURED = LIBRARY.filter((t) => t.featured);
+
+/** Group for tasks that match no library category. */
+export const OTHER_CATEGORY = 'other';
+
+/** Category of a library task with exactly this title. */
+export function categoryForTitle(title: string): string | undefined {
+  const t = title.trim().toLowerCase();
+  return LIBRARY.find((l) => l.title.toLowerCase() === t)?.category;
+}
+
+/** A first guess for a new task's category from the closest library task (the user can change it). */
+export function guessCategory(title: string): string | undefined {
+  if (title.trim().length < 3) return undefined;
+  const whole = categoryForTitle(title) ?? searchLibrary(title, 1)[0]?.category;
+  if (whole) return whole;
+  // Otherwise the longest word that matches something ("Gym session" -> gym).
+  const words = title.toLowerCase().split(/\W+/).filter((w) => w.length >= 3).sort((a, b) => b.length - a.length);
+  for (const w of words) {
+    const hit = searchLibrary(w, 1)[0];
+    if (hit) return hit.category;
+  }
+  return undefined;
+}
+
+/** The group a task shows under on Today; tasks saved before categories use the closest library match. */
+export function taskCategory(task: { title: string; category?: string }): string {
+  return task.category ?? guessCategory(task.title) ?? OTHER_CATEGORY;
+}
