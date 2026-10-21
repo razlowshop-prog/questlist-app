@@ -27,7 +27,27 @@ export interface Completion {
   xp: number;
   /** Kept so challenges still count a task after it is deleted. */
   difficulty?: Difficulty;
+  /** Task time counted towards the daily limit. */
+  minutes?: number;
+  title?: string;
+  /** Set when an anti-cheat rule reduced the XP. */
+  limited?: Limit;
 }
+
+/**
+ * Why a completion earned less XP than usual:
+ * daily = over the 16 h of task time per day, repeat = same task title
+ * done more than 5 times today.
+ */
+export type Limit = 'daily' | 'repeat';
+
+export const DAILY_MINUTES_CAP = 16 * 60;
+/** XP share per completion of the same title on one day: 5x full, then 50 %, 25 %, 10 % from the 8th on. */
+export const REPEAT_FACTORS = [1, 1, 1, 1, 1, 0.5, 0.25, 0.1];
+/** A new task can't be ticked until this long after it was added. */
+export const QUICK_TICK_MS = 20_000;
+/** Longest task time that counts: one task can't exceed a full day's limit. */
+export const MAX_TASK_MINUTES = DAILY_MINUTES_CAP;
 
 export interface ChallengeClaim {
   challengeId: string;
@@ -66,6 +86,8 @@ export interface Settings {
   /** Opted in to a daily motivational quote by email. */
   quoteEmails: boolean;
   email: string;
+  /** Selected colour theme id. */
+  theme: string;
 }
 
 export const emptyState: GameState = {
@@ -75,7 +97,7 @@ export const emptyState: GameState = {
   profile: { name: 'Player' },
   onboarded: false,
   goals: [],
-  settings: { quoteEmails: false, email: '' },
+  settings: { quoteEmails: false, email: '', theme: 'classic' },
   joinedAt: '',
   achievementClaims: [],
 };
@@ -102,7 +124,7 @@ export const EFFORT_MULTIPLIER: Record<Difficulty, number> = {
 };
 
 /** Time options offered when adding a task, in minutes. */
-export const DURATIONS = [5, 15, 30, 60, 90, 120];
+export const DURATIONS = [5, 15, 30, 60, 90, 120, 180, 240, 480];
 
 /**
  * XP for a task, based on how long it takes and how demanding it is.
@@ -111,7 +133,7 @@ export const DURATIONS = [5, 15, 30, 60, 90, 120];
  * 30 min = 20, 60 min = 30, 2 h = 45. Hard effort gives 1.5x.
  */
 export function xpFor(minutes: number, difficulty: Difficulty): number {
-  const m = Math.min(Math.max(minutes, 1), 240);
+  const m = Math.min(Math.max(minutes, 1), MAX_TASK_MINUTES);
   const raw = 1.62 * Math.pow(m, 0.7) * EFFORT_MULTIPLIER[difficulty];
   return Math.max(5, Math.round(raw / 5) * 5);
 }
@@ -282,11 +304,19 @@ export function deleteTask(state: GameState, taskId: string): GameState {
   return { ...state, tasks: state.tasks.filter((t) => t.id !== taskId) };
 }
 
+/** Whole seconds left before a freshly added task may be ticked (0 when it already can). */
+export function secondsUntilTickable(task: Task, now: number): number {
+  const left = Date.parse(task.createdAt) + QUICK_TICK_MS - now;
+  return left > 0 ? Math.ceil(left / 1000) : 0;
+}
+
 /**
  * Tick or untick a task for today. Ticking awards base XP plus the streak
  * bonus (the streak includes today). Unticking removes exactly what was given.
+ * `now` (ms) enables the wait after adding: within QUICK_TICK_MS of creation
+ * the tick is refused and the state is returned unchanged.
  */
-export function toggleTask(state: GameState, taskId: string, today: string): GameState {
+export function toggleTask(state: GameState, taskId: string, today: string, now?: number): GameState {
   const task = state.tasks.find((t) => t.id === taskId);
   if (!task) return state;
 
@@ -299,16 +329,51 @@ export function toggleTask(state: GameState, taskId: string, today: string): Gam
     };
   }
 
+  if (now !== undefined && secondsUntilTickable(task, now) > 0) return state;
+
   const streakWithToday = currentStreak(
     [...state.completions, { taskId, date: today, xp: 0 }],
     today,
   );
   const base = taskXp(task);
-  const xp = Math.round(base * (1 + streakBonus(streakWithToday)));
-  return {
-    ...state,
-    completions: [...state.completions, { taskId, date: today, xp, difficulty: task.difficulty }],
+  let xp = base * (1 + streakBonus(streakWithToday));
+  let limited: Limit | undefined;
+
+  const todays = state.completions.filter((c) => c.date === today);
+  const sameTitle = todays.filter((c) => c.title?.toLowerCase() === task.title.toLowerCase()).length;
+  const repeatFactor = REPEAT_FACTORS[Math.min(sameTitle, REPEAT_FACTORS.length - 1)];
+  if (repeatFactor < 1) {
+    xp *= repeatFactor;
+    limited = 'repeat';
+  }
+
+  const minutes = Math.min(task.minutes ?? 15, MAX_TASK_MINUTES);
+  const usedMinutes = todays.reduce((sum, c) => sum + (c.minutes ?? 0), 0);
+  const allowed = Math.max(0, DAILY_MINUTES_CAP - usedMinutes);
+  if (allowed < minutes) {
+    xp *= allowed / minutes;
+    limited = 'daily';
+  }
+
+  const completion: Completion = {
+    taskId,
+    date: today,
+    xp: Math.round(xp),
+    difficulty: task.difficulty,
+    minutes,
+    title: task.title,
   };
+  if (limited) completion.limited = limited;
+  return { ...state, completions: [...state.completions, completion] };
+}
+
+export function limitMessage(limit: Limit): string {
+  switch (limit) {
+    case 'daily':
+      return 'Daily limit of 16 h of tasks reached';
+    case 'repeat':
+      return 'Done more than 5 times today: less XP';
+  }
 }
 
 export function longestStreak(completions: Completion[]): number {

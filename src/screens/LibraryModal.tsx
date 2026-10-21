@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
-import { FlatList, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, Modal, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from 'react-native';
 import { Chip } from '../components/Chip';
 import { LibraryRow } from '../components/LibraryRow';
 import { CATEGORIES, FEATURED, LIBRARY, searchLibrary, type LibraryTask } from '../library';
-import { C } from '../theme';
+import { themed, useStyles, useTheme } from '../theme';
 
 /** Full-screen browser for the task library: search, categories, recommended. */
 export function LibraryModal({
@@ -17,6 +17,8 @@ export function LibraryModal({
   onAdd: (task: LibraryTask) => void;
   onClose: () => void;
 }) {
+  const styles = useStyles(makeStyles);
+  const C = useTheme();
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<string | undefined>();
 
@@ -83,8 +85,8 @@ export function LibraryModal({
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.bg },
+const makeStyles = themed((c) => ({
+  safe: { flex: 1, backgroundColor: c.bg },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -92,19 +94,19 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 8,
   },
-  heading: { color: C.text, fontSize: 22, fontWeight: '800' },
-  done: { color: C.accent, fontSize: 16, fontWeight: '800' },
+  heading: { color: c.text, fontSize: 22, fontWeight: '800' },
+  done: { color: c.accent, fontSize: 16, fontWeight: '800' },
   searchWrap: { paddingHorizontal: 16 },
   search: {
-    color: C.text,
+    color: c.text,
     fontSize: 16,
-    backgroundColor: C.card,
+    backgroundColor: c.surface,
     paddingHorizontal: 14,
     paddingVertical: 11,
     borderRadius: 12,
   },
   cats: { gap: 8, paddingHorizontal: 16, paddingVertical: 12 },
   list: { paddingHorizontal: 16, paddingBottom: 40, maxWidth: 640, width: '100%', alignSelf: 'center' },
-  sub: { color: C.muted, fontSize: 13, marginBottom: 8 },
-  empty: { color: C.muted, fontSize: 14, textAlign: 'center', marginTop: 24 },
-});
+  sub: { color: c.muted, fontSize: 13, marginBottom: 8 },
+  empty: { color: c.muted, fontSize: 14, textAlign: 'center', marginTop: 24 },
+}));

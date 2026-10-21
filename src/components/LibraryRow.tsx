@@ -1,7 +1,7 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { durationLabel, xpFor } from '../game';
 import { categoryOf, type LibraryTask } from '../library';
-import { C } from '../theme';
+import { card, useStyles, type Palette } from '../theme';
 
 export function perWeekLabel(n: number): string {
   if (n === 0) return 'One-time';
@@ -11,45 +11,57 @@ export function perWeekLabel(n: number): string {
 
 /** A library task with a one-tap add button. */
 export function LibraryRow({ task, added, onAdd }: { task: LibraryTask; added: boolean; onAdd: () => void }) {
+  const s = useStyles(makeStyles);
   return (
-    <Pressable onPress={added ? undefined : onAdd} style={styles.row} accessibilityRole="button">
-      <Text style={styles.icon}>{categoryOf(task.category)?.icon}</Text>
+    <Pressable onPress={added ? undefined : onAdd} style={s.row} accessibilityRole="button">
+      <View style={s.iconWrap}>
+        <Text style={s.icon}>{categoryOf(task.category)?.icon}</Text>
+      </View>
       <View style={{ flex: 1 }}>
-        <Text style={styles.title}>{task.title}</Text>
-        <Text style={styles.meta}>
+        <Text style={s.title}>{task.title}</Text>
+        <Text style={s.meta}>
           {durationLabel(task.minutes)} · {perWeekLabel(task.perWeek)}
         </Text>
       </View>
-      <Text style={styles.xp}>+{xpFor(task.minutes, task.difficulty)} XP</Text>
-      <View style={[styles.add, added && styles.added]}>
-        <Text style={[styles.addText, added && { color: C.xp }]}>{added ? '✓' : '+'}</Text>
+      <Text style={s.xp}>+{xpFor(task.minutes, task.difficulty)} XP</Text>
+      <View style={[s.add, added && s.added]}>
+        <Text style={[s.addText, added && s.addedText]}>{added ? '✓' : '+'}</Text>
       </View>
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: Palette) => ({
   row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: C.card,
-    borderRadius: 12,
+    ...card(c),
+    borderRadius: 14,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 12,
     padding: 12,
-    marginBottom: 6,
+    marginBottom: 8,
   },
-  icon: { fontSize: 20 },
-  title: { color: C.text, fontSize: 15, fontWeight: '600' },
-  meta: { color: C.muted, fontSize: 12, marginTop: 1 },
-  xp: { color: C.xp, fontSize: 12, fontWeight: '800' },
+  iconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: c.surfaceAlt,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  icon: { fontSize: 18 },
+  title: { color: c.text, fontSize: 15, fontWeight: '600' as const },
+  meta: { color: c.muted, fontSize: 12, marginTop: 2 },
+  xp: { color: c.xp, fontSize: 12, fontWeight: '800' as const },
   add: {
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: C.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: c.accent,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
-  added: { backgroundColor: 'transparent', borderWidth: 1, borderColor: C.xp },
-  addText: { color: '#fff', fontSize: 18, fontWeight: '800', lineHeight: 20 },
+  added: { backgroundColor: c.xpSoft },
+  addText: { color: c.onAccent, fontSize: 18, fontWeight: '700' as const, lineHeight: 20 },
+  addedText: { color: c.xp },
 });

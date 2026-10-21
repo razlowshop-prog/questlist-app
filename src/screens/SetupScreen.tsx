@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from 'react-native';
 import { Chip } from '../components/Chip';
 import { durationLabel, xpFor } from '../game';
 import { CATEGORIES, categoryOf, suggestionsFor, type LibraryTask } from '../library';
-import { C } from '../theme';
+import { themed, useStyles, useTheme } from '../theme';
 
 export interface SetupPick {
   task: LibraryTask;
@@ -28,6 +28,8 @@ export function SetupScreen({
   onFinish: (name: string, goals: string[], picks: SetupPick[]) => void;
   onSkip: () => void;
 }) {
+  const styles = useStyles(makeStyles);
+  const C = useTheme();
   const [step, setStep] = useState(0);
   const [name, setName] = useState(initialName === 'Player' ? '' : initialName);
   const [goals, setGoals] = useState<string[]>(initialGoals);
@@ -213,21 +215,21 @@ export function SetupScreen({
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.bg },
+const makeStyles = themed((c) => ({
+  safe: { flex: 1, backgroundColor: c.bg },
   top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16 },
   dots: { flexDirection: 'row', gap: 6 },
-  dot: { width: 28, height: 6, borderRadius: 3, backgroundColor: C.border },
-  skip: { color: C.muted, fontSize: 15, fontWeight: '700' },
+  dot: { width: 28, height: 6, borderRadius: 3, backgroundColor: c.border },
+  skip: { color: c.muted, fontSize: 15, fontWeight: '700' },
   content: { padding: 16, paddingBottom: 32, maxWidth: 640, width: '100%', alignSelf: 'center' },
   emoji: { fontSize: 56, textAlign: 'center', marginTop: 24 },
-  heading: { color: C.text, fontSize: 26, fontWeight: '800', marginTop: 8 },
-  sub: { color: C.muted, fontSize: 15, marginTop: 8, marginBottom: 20, lineHeight: 21 },
-  label: { color: C.text, fontSize: 15, fontWeight: '700', marginBottom: 8 },
+  heading: { color: c.text, fontSize: 26, fontWeight: '800', marginTop: 8 },
+  sub: { color: c.muted, fontSize: 15, marginTop: 8, marginBottom: 20, lineHeight: 21 },
+  label: { color: c.text, fontSize: 15, fontWeight: '700', marginBottom: 8 },
   input: {
-    color: C.text,
+    color: c.text,
     fontSize: 18,
-    backgroundColor: C.card,
+    backgroundColor: c.surface,
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderRadius: 12,
@@ -236,38 +238,38 @@ const styles = StyleSheet.create({
   goal: {
     flexBasis: '45%',
     flexGrow: 1,
-    backgroundColor: C.card,
+    backgroundColor: c.surface,
     borderRadius: 14,
     padding: 14,
     borderWidth: 2,
     borderColor: 'transparent',
     gap: 4,
   },
-  goalOn: { borderColor: C.accent, backgroundColor: '#241F4A' },
+  goalOn: { borderColor: c.accent, backgroundColor: c.accentSoft },
   goalIcon: { fontSize: 24 },
-  goalLabel: { color: C.text, fontSize: 14, fontWeight: '700' },
-  section: { color: C.text, fontSize: 16, fontWeight: '800', marginBottom: 8 },
-  taskCard: { backgroundColor: C.card, borderRadius: 12, marginBottom: 6, borderWidth: 1, borderColor: 'transparent' },
-  taskCardOn: { borderColor: C.accent },
+  goalLabel: { color: c.text, fontSize: 14, fontWeight: '700' },
+  section: { color: c.text, fontSize: 16, fontWeight: '800', marginBottom: 8 },
+  taskCard: { backgroundColor: c.surface, borderRadius: 12, marginBottom: 6, borderWidth: 1, borderColor: 'transparent' },
+  taskCardOn: { borderColor: c.accent },
   taskMain: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 },
   check: {
     width: 24,
     height: 24,
     borderRadius: 7,
     borderWidth: 2,
-    borderColor: C.accent,
+    borderColor: c.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkOn: { backgroundColor: C.accent },
-  checkMark: { color: '#fff', fontWeight: '900', fontSize: 14 },
-  taskTitle: { color: C.text, fontSize: 15, fontWeight: '600' },
-  taskMeta: { color: C.muted, fontSize: 12, marginTop: 1 },
+  checkOn: { backgroundColor: c.accent },
+  checkMark: { color: c.onAccent, fontWeight: '900', fontSize: 14 },
+  taskTitle: { color: c.text, fontSize: 15, fontWeight: '600' },
+  taskMeta: { color: c.muted, fontSize: 12, marginTop: 1 },
   freq: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 12, paddingBottom: 12 },
-  hint: { color: C.muted, fontSize: 13, textAlign: 'center', marginTop: 4 },
-  footer: { flexDirection: 'row', gap: 10, padding: 16, borderTopWidth: 1, borderTopColor: C.border },
-  back: { paddingHorizontal: 20, paddingVertical: 14, borderRadius: 999, borderWidth: 1, borderColor: C.border },
-  backText: { color: C.text, fontWeight: '700', fontSize: 15 },
-  next: { flex: 1, backgroundColor: C.xp, paddingVertical: 14, borderRadius: 999, alignItems: 'center' },
-  nextText: { color: '#0B1A12', fontWeight: '800', fontSize: 15 },
-});
+  hint: { color: c.muted, fontSize: 13, textAlign: 'center', marginTop: 4 },
+  footer: { flexDirection: 'row', gap: 10, padding: 16, borderTopWidth: 1, borderTopColor: c.border },
+  back: { paddingHorizontal: 20, paddingVertical: 14, borderRadius: 999, borderWidth: 1, borderColor: c.border },
+  backText: { color: c.text, fontWeight: '700', fontSize: 15 },
+  next: { flex: 1, backgroundColor: c.xp, paddingVertical: 14, borderRadius: 999, alignItems: 'center' },
+  nextText: { color: c.onAccent, fontWeight: '800', fontSize: 15 },
+}));

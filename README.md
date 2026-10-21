@@ -4,7 +4,7 @@ A gamified todo app for iOS and Android: finish tasks, earn XP, level up and kee
 
 Built with [Expo](https://expo.dev) (React Native + TypeScript). One codebase runs on iOS, Android and the web.
 
-## What works today (v0.2)
+## What works today (v0.3)
 
 - **Setup on first launch**: your name, the areas you want to work on, then pick suggested tasks and how often per week. Picked tasks are added automatically.
 - **Task library** with 200+ ready-made tasks in 17 areas (chores, fitness, health, money, digital detox …), a search bar, categories and team-recommended picks
@@ -18,6 +18,9 @@ Built with [Expo](https://expo.dev) (React Native + TypeScript). One codebase ru
 - **Achievements** (Awards tab): 8 achievements with up to 7 tiers each (total tasks, most tasks in a day and in a week, most XP from one task, member since 1/3/6/12 months, streaks, levels, challenges). Claim bonus XP per tier; some tiers unlock rewards (themes, titles, ad-free or Premium time)
 - **Profile** with points, streaks, member-since date and trophies
 - **Daily quote** on the Today screen, plus an opt-in for daily quote emails (sending starts once accounts are live)
+- **Bright, clean design** with 9 colour themes (Classic plus 8 unlockable reward themes, including a dark "Midnight" theme), picked in the profile
+- **Fair-play limits**: only 16 h of task time per day earn XP, the same task gives full XP 5 times a day and then less (50 %, 25 %, 10 %), and a new task can only be ticked 20 seconds after it was added (a live countdown shows how long is left)
+- Own tasks can be any length (presets up to 8 h or a custom time)
 - Everything is saved on the device
 
 ## Planned
