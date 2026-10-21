@@ -15,7 +15,7 @@ export function AchievementsScreen({
 }) {
   const s = useStyles(makeStyles);
   const c = useTheme();
-  const earned = achievements.reduce((n, a) => n + a.claimed, 0);
+  const earned = achievements.reduce((n, a) => n + Math.min(a.claimed, a.def.tiers.length), 0);
   const total = achievements.reduce((n, a) => n + a.def.tiers.length, 0);
   // Claimable ones first.
   const sorted = [...achievements].sort(
@@ -26,7 +26,7 @@ export function AchievementsScreen({
     <ScrollView contentContainerStyle={s.content}>
       <Text style={s.heading}>Achievements</Text>
       <Text style={s.sub}>
-        {earned} of {total} trophies · reach a tier, then claim your XP and rewards
+        {earned} of {total} tiers claimed · reach a tier, then claim your XP and rewards
       </Text>
 
       {sorted.map((a) => {

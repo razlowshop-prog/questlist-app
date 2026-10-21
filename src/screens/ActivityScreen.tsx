@@ -238,7 +238,7 @@ function EventRow({ event }: { event: ActivityEvent }) {
         <Text style={[s.eventTitle, { color }]}>{title}</Text>
         {sub && <Text style={s.small}>{sub}</Text>}
       </View>
-      {xp !== undefined && <Text style={s.taskXp}>+{xp}</Text>}
+      {!!xp && <Text style={s.taskXp}>+{xp}</Text>}
     </View>
   );
 }

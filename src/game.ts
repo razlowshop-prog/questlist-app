@@ -248,13 +248,6 @@ export function totalXp(state: GameState): number {
 
 // ---------- streaks ----------
 
-/**
- * Days in a row with at least one completed task, ending today.
- * If nothing is done yet today, a streak that ran until yesterday still
- * counts: it only breaks once a whole day has been missed.
- */
-// ---------- streaks ----------
-
 /** Weekly task XP needed for each fire tier, reached at the end of a week. */
 export const STREAK_TIERS = [
   { tier: 1, name: 'Flame', weekXp: 100 },
@@ -352,6 +345,10 @@ export function streakStatus(completions: Completion[], today: string): StreakSt
   return { days, tier, best, weekXp, weekTier: tierFor(weekXp), atRisk: days > 0 && !xpByDay.has(today), bestInfernoWeeks, history };
 }
 
+/**
+ * Days in the current streak. If nothing is done yet today, a streak that ran
+ * until yesterday still counts: it only breaks once a whole day has been missed.
+ */
 export function currentStreak(completions: Completion[], today: string): number {
   return streakStatus(completions, today).days;
 }

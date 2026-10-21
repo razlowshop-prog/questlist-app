@@ -27,12 +27,18 @@ function timesOf(s: Schedule, title: string): number {
   return Math.min(Math.max(s.perWeek, 1), maxPerWeek(title));
 }
 
+/** Picked days that still fit, e.g. after typing "weekly" into the title cut the count to 1. */
+function daysOf(s: Schedule, title: string): number[] {
+  return s.days.slice(0, timesOf(s, title));
+}
+
 /** Why the task can't be added yet, e.g. 2 of 3 days picked. */
 export function scheduleProblem(s: Schedule, title: string): string | undefined {
   if (!s.repeat) return undefined;
   const n = timesOf(s, title);
-  const missing = n - s.days.length;
-  if (n < 7 && s.days.length > 0 && missing > 0) {
+  const days = daysOf(s, title);
+  const missing = n - days.length;
+  if (n < 7 && days.length > 0 && missing > 0) {
     return `Pick ${missing} more ${missing === 1 ? 'day' : 'days'}, or none for any ${n} days a week.`;
   }
   return undefined;
@@ -47,7 +53,8 @@ export function scheduleToTask(s: Schedule, title: string, today: string): { rep
     return { repeat: false, plan };
   }
   const n = timesOf(s, title);
-  if (n < 7 && s.days.length === n) return { repeat: true, plan: { ...plan, days: s.days } };
+  const days = daysOf(s, title);
+  if (n < 7 && days.length === n) return { repeat: true, plan: { ...plan, days } };
   return { repeat: n >= 7 ? true : n, plan };
 }
 
@@ -63,7 +70,8 @@ export function scheduleSummary(s: Schedule, title: string, today: string): stri
   if (!s.repeat) when = s.date === today ? 'Once, today' : s.date === addDays(today, 1) ? 'Once, tomorrow' : `Once, ${dayLabel(s.date)}`;
   else {
     const n = timesOf(s, title);
-    when = n >= 7 ? 'Every day' : s.days.length === n ? s.days.map((d) => WEEKDAYS[d]).join(', ') : `${n}× a week`;
+    const days = daysOf(s, title);
+    when = n >= 7 ? 'Every day' : days.length === n ? days.map((d) => WEEKDAYS[d]).join(', ') : `${n}× a week`;
   }
   return s.remind ? `${when} · ${reminderTime(s)}` : when;
 }
@@ -85,9 +93,9 @@ export function SchedulePicker({
   const max = maxPerWeek(title);
   const set = (patch: Partial<Schedule>) => onChange({ ...value, ...patch });
   const n = timesOf(value, title);
-  const days = value.days.slice(0, n);
+  const days = daysOf(value, title);
   const digits = (v: string) => v.replace(/[^0-9]/g, '').slice(0, 2);
-  const problem = scheduleProblem({ ...value, days }, title);
+  const problem = scheduleProblem(value, title);
 
   function toggleDay(d: number) {
     if (days.includes(d)) set({ days: days.filter((x) => x !== d) });
