@@ -257,6 +257,16 @@ test('anti-cheat: a task cannot be ticked within 20 seconds of adding', () => {
   assert.ok(toggleTask(s, 'r', TODAY, created + 20_000).completions[0].xp > 0);
 });
 
+test('anti-cheat: the wait after adding never locks a task longer than 20 seconds', () => {
+  const s = addTask(emptyState, 'Run', 'hard', false, 'r', 30);
+  const created = Date.parse(s.tasks[0].createdAt);
+  // phone clock turned back an hour after adding
+  assert.equal(secondsUntilTickable(s.tasks[0], created - 3_600_000), 0);
+  // unticking is never blocked
+  const done = toggleTask(s, 'r', TODAY, created + 30_000);
+  assert.equal(toggleTask(done, 'r', TODAY, created + 30_000).completions.length, 0);
+});
+
 test('long tasks are allowed and keep earning more, up to 16 hours', () => {
   assert.ok(xpFor(240, 'easy') > xpFor(120, 'easy'));
   assert.ok(xpFor(600, 'easy') > xpFor(240, 'easy'));
