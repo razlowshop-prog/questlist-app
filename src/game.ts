@@ -3,12 +3,14 @@ import type { IconName } from './icons.ts';
 // Pure game rules: XP, levels, ranks and streaks. No React or storage here,
 // so everything in this file can be unit tested.
 
+/** Old saved data only; XP no longer depends on it. */
 export type Difficulty = 'easy' | 'medium' | 'hard';
 
 export interface Task {
   id: string;
   title: string;
-  difficulty: Difficulty;
+  /** Saved by older versions; ignored now that XP comes from time alone. */
+  difficulty?: Difficulty;
   /** Repeating tasks come back every day; one-off tasks disappear once done. */
   daily: boolean;
   /** For repeating tasks: how many times per week (1-7). Missing = every day. */
@@ -124,37 +126,26 @@ export function withDefaults(state: GameState, today: string): GameState {
   return { ...state, joinedAt: first ?? today };
 }
 
-/** Fixed XP for tasks saved before XP was based on time. */
-export const BASE_XP: Record<Difficulty, number> = {
-  easy: 10,
-  medium: 20,
-  hard: 40,
-};
-
-/** A new rank every 10 levels; level 100 is the final rank. */
-export const EFFORT_MULTIPLIER: Record<Difficulty, number> = {
-  easy: 1,
-  medium: 1.25,
-  hard: 1.5,
-};
+/** Time assumed for tasks saved before tasks had a duration. */
+export const DEFAULT_MINUTES = 15;
 
 /** Time options offered when adding a task, in minutes. */
 export const DURATIONS = [5, 15, 30, 60, 90, 120, 180, 240, 480];
 
 /**
- * XP for a task, based on how long it takes and how demanding it is.
- * Grows a bit slower than time (minutes^0.7) so very long tasks
- * don't dwarf everything else: 5 min easy = 5 XP, 15 min = 10,
- * 30 min = 20, 60 min = 30, 2 h = 45. Hard effort gives 1.5x.
+ * XP for a task, from how long it takes alone (how hard something feels is
+ * personal and easy to game). Grows a bit slower than time (minutes^0.7) so
+ * very long tasks don't dwarf everything else: 5 min = 5 XP, 15 min = 15,
+ * 30 min = 20, 60 min = 35, 2 h = 55, 8 h = 150.
  */
-export function xpFor(minutes: number, difficulty: Difficulty): number {
+export function xpFor(minutes: number): number {
   const m = Math.min(Math.max(minutes, 1), MAX_TASK_MINUTES);
-  const raw = 1.62 * Math.pow(m, 0.7) * EFFORT_MULTIPLIER[difficulty];
+  const raw = 2 * Math.pow(m, 0.7);
   return Math.max(5, Math.round(raw / 5) * 5);
 }
 
 export function taskXp(task: Task): number {
-  return task.minutes ? xpFor(task.minutes, task.difficulty) : BASE_XP[task.difficulty];
+  return xpFor(task.minutes ?? DEFAULT_MINUTES);
 }
 
 export function durationLabel(minutes: number): string {
@@ -329,7 +320,6 @@ export function upcomingTasks(state: GameState, today: string): Task[] {
 export function addTask(
   state: GameState,
   title: string,
-  difficulty: Difficulty,
   repeat: Repeat,
   id: string = Math.random().toString(36).slice(2),
   minutes?: number,
@@ -337,7 +327,7 @@ export function addTask(
 ): GameState {
   const trimmed = title.trim();
   if (!trimmed) return state;
-  const task: Task = { id, title: trimmed, difficulty, daily: repeat !== false, createdAt: new Date().toISOString() };
+  const task: Task = { id, title: trimmed, daily: repeat !== false, createdAt: new Date().toISOString() };
   if (minutes) task.minutes = minutes;
   const max = maxPerWeek(trimmed);
   if (task.daily) {
@@ -405,7 +395,7 @@ export function toggleTask(state: GameState, taskId: string, today: string, now?
     limited = 'repeat';
   }
 
-  const minutes = Math.min(task.minutes ?? 15, MAX_TASK_MINUTES);
+  const minutes = Math.min(task.minutes ?? DEFAULT_MINUTES, MAX_TASK_MINUTES);
   const usedMinutes = todays.reduce((sum, c) => sum + (c.minutes ?? 0), 0);
   const allowed = Math.max(0, DAILY_MINUTES_CAP - usedMinutes);
   if (allowed < minutes) {
@@ -417,7 +407,6 @@ export function toggleTask(state: GameState, taskId: string, today: string, now?
     taskId,
     date: today,
     xp: Math.round(xp),
-    difficulty: task.difficulty,
     minutes,
     title: task.title,
   };
@@ -458,7 +447,14 @@ export function weekStart(day: string): string {
 
 export interface WeekStats {
   tasksDone: number;
-  hardDone: number;
+  /** Task time, in hours to one decimal. */
+  hoursDone: number;
+  /** Tasks of an hour or more. */
+  longDone: number;
+  /** Different task titles. */
+  variety: number;
+  /** Days with at least 3 tasks done. */
+  busyDays: number;
   activeDays: number;
   /** XP from tasks only; challenge rewards don't count towards challenges. */
   xpEarned: number;
@@ -470,10 +466,19 @@ export function weekStats(state: GameState, today: string): WeekStats {
   const inWeek = state.completions.filter((c) => c.date >= start && c.date <= end);
   return {
     tasksDone: inWeek.length,
-    hardDone: inWeek.filter((c) => c.difficulty === 'hard').length,
+    hoursDone: Math.floor(inWeek.reduce((sum, c) => sum + (c.minutes ?? DEFAULT_MINUTES), 0) / 6) / 10,
+    longDone: inWeek.filter((c) => (c.minutes ?? DEFAULT_MINUTES) >= 60).length,
+    variety: new Set(inWeek.map((c) => (c.title ?? c.taskId).trim().toLowerCase())).size,
+    busyDays: [...countBy(inWeek.map((c) => c.date)).values()].filter((n) => n >= 3).length,
     activeDays: new Set(inWeek.map((c) => c.date)).size,
     xpEarned: inWeek.reduce((sum, c) => sum + c.xp, 0),
   };
+}
+
+function countBy(keys: string[]): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const k of keys) m.set(k, (m.get(k) ?? 0) + 1);
+  return m;
 }
 
 export interface ChallengeDef {
@@ -490,11 +495,15 @@ export interface ChallengeDef {
 export const CHALLENGE_POOL: ChallengeDef[] = [
   { id: 'tasks15', title: 'Finish 15 tasks this week', icon: 'ListChecks', rewardXp: 100, target: 15, unit: 'tasks', metric: 'tasksDone' },
   { id: 'tasks25', title: 'Finish 25 tasks this week', icon: 'Trophy', rewardXp: 180, target: 25, unit: 'tasks', metric: 'tasksDone' },
-  { id: 'hard3', title: 'Complete 3 hard tasks', icon: 'Mountain', rewardXp: 90, target: 3, unit: 'hard tasks', metric: 'hardDone' },
-  { id: 'hard5', title: 'Complete 5 hard tasks', icon: 'MountainSnow', rewardXp: 150, target: 5, unit: 'hard tasks', metric: 'hardDone' },
+  { id: 'hours5', title: 'Spend 5 hours on your tasks', icon: 'Hourglass', rewardXp: 120, target: 5, unit: 'h', metric: 'hoursDone' },
+  { id: 'hours10', title: 'Spend 10 hours on your tasks', icon: 'Timer', rewardXp: 200, target: 10, unit: 'h', metric: 'hoursDone' },
+  { id: 'long3', title: 'Finish 3 tasks of an hour or more', icon: 'Mountain', rewardXp: 120, target: 3, unit: 'long tasks', metric: 'longDone' },
+  { id: 'variety8', title: 'Do 8 different tasks', icon: 'Shuffle', rewardXp: 110, target: 8, unit: 'tasks', metric: 'variety' },
+  { id: 'busy3', title: 'Finish 3 or more tasks on 3 days', icon: 'Rocket', rewardXp: 130, target: 3, unit: 'days', metric: 'busyDays' },
   { id: 'days5', title: 'Be active on 5 days', icon: 'CalendarDays', rewardXp: 120, target: 5, unit: 'days', metric: 'activeDays' },
   { id: 'days7', title: 'Be active every day this week', icon: 'CalendarCheck', rewardXp: 200, target: 7, unit: 'days', metric: 'activeDays' },
   { id: 'xp300', title: 'Earn 300 XP from tasks', icon: 'Zap', rewardXp: 100, target: 300, unit: 'XP', metric: 'xpEarned' },
+  { id: 'xp600', title: 'Earn 600 XP from tasks', icon: 'Gem', rewardXp: 180, target: 600, unit: 'XP', metric: 'xpEarned' },
 ];
 
 /** Need phone sensors or health data, so they arrive with the phone app builds. */

@@ -73,7 +73,7 @@ export function SetupScreen({
   const pickedCount = Object.keys(picks).length;
   const weeklyXp = suggestions
     .filter((t) => t.title in picks)
-    .reduce((sum, t) => sum + xpFor(t.minutes, t.difficulty) * picks[t.title], 0);
+    .reduce((sum, t) => sum + xpFor(t.minutes) * picks[t.title], 0);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -168,7 +168,7 @@ export function SetupScreen({
                           <View style={{ flex: 1 }}>
                             <Text style={styles.taskTitle}>{t.title}</Text>
                             <Text style={styles.taskMeta}>
-                              {durationLabel(t.minutes)} · +{xpFor(t.minutes, t.difficulty)} XP each time
+                              {durationLabel(t.minutes)} · +{xpFor(t.minutes)} XP each time
                             </Text>
                           </View>
                         </Pressable>

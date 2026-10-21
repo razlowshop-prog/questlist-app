@@ -26,7 +26,7 @@ export function LibraryRow({ task, added, onAdd }: { task: LibraryTask; added: b
           {durationLabel(task.minutes)} · {perWeekLabel(task.perWeek)}
         </Text>
       </View>
-      <Text style={s.xp}>+{xpFor(task.minutes, task.difficulty)} XP</Text>
+      <Text style={s.xp}>+{xpFor(task.minutes)} XP</Text>
       <View style={[s.add, added && s.added]}>
         <Text style={[s.addText, added && s.addedText]}>{added ? '✓' : '+'}</Text>
       </View>

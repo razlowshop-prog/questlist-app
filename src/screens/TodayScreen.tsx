@@ -12,7 +12,6 @@ import {
   isDoneToday,
   MAX_TASK_MINUTES,
   xpFor,
-  type Difficulty,
   type GameState,
   type Repeat,
   type Task,
@@ -21,12 +20,6 @@ import {
 import { FEATURED, searchLibrary, type LibraryTask } from '../library';
 import { quoteOfTheDay } from '../quotes';
 import { card, eyebrow, FONTS, themed, useStyles, useTheme, headingCase } from '../theme';
-
-const EFFORTS: { key: Difficulty; label: string }[] = [
-  { key: 'easy', label: 'Easy' },
-  { key: 'medium', label: 'Medium' },
-  { key: 'hard', label: 'Hard' },
-];
 
 function partOfDay(hour: number): string {
   if (hour < 5) return 'evening';
@@ -54,7 +47,7 @@ export function TodayScreen({
   today: string;
   loaded: boolean;
   addedTitles: Set<string>;
-  onAdd: (title: string, difficulty: Difficulty, repeat: Repeat, minutes: number, plan: TaskPlan) => void;
+  onAdd: (title: string, repeat: Repeat, minutes: number, plan: TaskPlan) => void;
   onAddFromLibrary: (task: LibraryTask) => void;
   onOpenLibrary: () => void;
   onToggle: (task: Task) => { xp: number; note?: string };
@@ -67,7 +60,6 @@ export function TodayScreen({
   const [custom, setCustom] = useState(false);
   const [customHours, setCustomHours] = useState('');
   const [customMins, setCustomMins] = useState('');
-  const [difficulty, setDifficulty] = useState<Difficulty>('easy');
   const [schedule, setSchedule] = useState<Schedule>(() => defaultSchedule(today));
   const [options, setOptions] = useState(false);
   const doneCount = tasks.filter((t) => isDoneToday(state, t, today)).length;
@@ -75,7 +67,7 @@ export function TodayScreen({
   const suggestions = useMemo(() => (title.trim().length >= 2 ? searchLibrary(title, 4) : []), [title]);
   // Common tasks for one-tap adding while the field is empty.
   const quick = useMemo(() => FEATURED.filter((t) => !addedTitles.has(t.title)).slice(0, 10), [addedTitles]);
-  // Typed a library task by name and kept the defaults: use its real time, effort and frequency.
+  // Typed a library task by name and kept the defaults: use its real time and frequency.
   const known = options ? undefined : suggestions.find((t) => t.title.toLowerCase() === title.trim().toLowerCase());
   // The planned day can't be left behind after midnight.
   const shownSchedule = schedule.date < today ? { ...schedule, date: today } : schedule;
@@ -86,14 +78,12 @@ export function TodayScreen({
   );
   const chosenMinutes = custom ? customMinutes : minutes;
   const canAdd = title.trim().length > 0 && chosenMinutes > 0;
-  const effortLabel = (d: Difficulty) => EFFORTS.find((e) => e.key === d)!.label;
   const summary = known
-    ? `${durationLabel(known.minutes)} · ${effortLabel(known.difficulty)} · ${perWeekLabel(known.perWeek)} · +${xpFor(known.minutes, known.difficulty)} XP`
+    ? `${durationLabel(known.minutes)} · ${perWeekLabel(known.perWeek)} · +${xpFor(known.minutes)} XP`
     : [
         chosenMinutes > 0 ? durationLabel(chosenMinutes) : 'Set a time',
-        effortLabel(difficulty),
         scheduleSummary(shownSchedule, title, today),
-        ...(canAdd ? [`+${xpFor(chosenMinutes, difficulty)} XP`] : []),
+        ...(canAdd ? [`+${xpFor(chosenMinutes)} XP`] : []),
       ].join(' · ');
 
   function add() {
@@ -104,7 +94,7 @@ export function TodayScreen({
       return;
     }
     const { repeat, plan } = scheduleToTask(shownSchedule, title, today);
-    onAdd(title, difficulty, repeat, chosenMinutes, plan);
+    onAdd(title, repeat, chosenMinutes, plan);
     setTitle('');
     setSchedule(defaultSchedule(today));
     setOptions(false);
@@ -245,12 +235,6 @@ export function TodayScreen({
                         <Text style={s.customUnit}>min</Text>
                       </View>
                     )}
-                    <Text style={s.small}>How demanding?</Text>
-                    <View style={s.chipRow}>
-                      {EFFORTS.map((e) => (
-                        <Chip key={e.key} label={e.label} active={difficulty === e.key} onPress={() => setDifficulty(e.key)} />
-                      ))}
-                    </View>
                     <SchedulePicker value={shownSchedule} onChange={setSchedule} title={title} today={today} />
                     <Pressable
                       onPress={add}
@@ -259,7 +243,7 @@ export function TodayScreen({
                       accessibilityRole="button"
                     >
                       <Text style={s.addButtonText}>
-                        Add task{canAdd ? ` · +${xpFor(chosenMinutes, difficulty)} XP` : ''}
+                        Add task{canAdd ? ` · +${xpFor(chosenMinutes)} XP` : ''}
                       </Text>
                     </Pressable>
                   </>

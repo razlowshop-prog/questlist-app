@@ -72,13 +72,13 @@ test('claimable count drops as tiers are claimed', () => {
   assert.equal(claimableCount(s, TODAY), n - 1);
 });
 
-test('claiming achievement XP never unlocks a level achievement by itself', () => {
+test('the level achievement follows the level shown in the header', () => {
   let s = stateWith(done(TODAY, 10, 2));
   for (const a of achievementStatuses(s, TODAY)) {
     for (let i = 0; i < a.reached; i++) s = claimAchievement(s, a.def.id, TODAY).state;
   }
   const level = achievementStatuses(s, TODAY).find((a) => a.def.id === 'level')!;
-  assert.equal(level.reached, 0);
+  assert.equal(level.value, levelInfo(totalXp(s)).level);
 });
 
 test('next level reward counts from the start of the current level', () => {

@@ -117,7 +117,7 @@ export default function App() {
   const statusBar = c.dark ? 'light' : 'dark';
 
   function addFromLibrary(s: GameState, t: LibraryTask, perWeek = t.perWeek): GameState {
-    return addTask(s, t.title, t.difficulty, perWeek === 0 ? false : perWeek, undefined, t.minutes);
+    return addTask(s, t.title, perWeek === 0 ? false : perWeek, undefined, t.minutes);
   }
 
   function onSetupDone(name: string, goals: string[], picks: SetupPick[]) {
@@ -216,8 +216,8 @@ export default function App() {
               today={today}
               loaded={loaded}
               addedTitles={addedTitles}
-              onAdd={(title, difficulty, repeat, minutes, plan) => {
-                setState(addTask(state, title, difficulty, repeat, undefined, minutes, plan));
+              onAdd={(title, repeat, minutes, plan) => {
+                setState(addTask(state, title, repeat, undefined, minutes, plan));
                 if (plan.reminder && REMINDERS_SUPPORTED) {
                   askReminderPermission().then((ok) => {
                     if (!ok) showToast('Notifications are off. Allow them in your phone settings to get reminders.');
