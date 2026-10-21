@@ -7,7 +7,7 @@ import { Fire, fireColor } from './Fire';
 export function StreakCard({ streak, onPress }: { streak: StreakStatus; onPress: () => void }) {
   const s = useStyles(makeStyles);
   const c = useTheme();
-  const color = fireColor(streak.tier, c.muted);
+  const color = fireColor(streak.tier, c);
   const bonus = streakBonus(streak.days);
   // The next fire this week can still earn, if any.
   const target = STREAK_TIERS.find((t) => t.tier > streak.tier && streak.weekXp < t.weekXp) ?? STREAK_TIERS.find((t) => t.tier > streak.tier);
@@ -39,7 +39,7 @@ export function StreakCard({ streak, onPress }: { streak: StreakStatus; onPress:
       </View>
       {target && (
         <View style={s.track}>
-          <View style={[s.fill, { width: `${pct * 100}%`, backgroundColor: fireColor(target.tier, c.muted) }]} />
+          <View style={[s.fill, { width: `${pct * 100}%`, backgroundColor: fireColor(target.tier, c) }]} />
         </View>
       )}
       <Text style={s.week}>{weekLine}</Text>

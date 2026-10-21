@@ -220,7 +220,7 @@ function EventRow({ event }: { event: ActivityEvent }) {
       if (event.change === 'up') {
         title = `Your fire rose to ${streakTierName(event.tier)}`;
         sub = `${event.days}-day streak`;
-        color = fireColor(event.tier, c.text);
+        color = fireColor(event.tier, c, c.text);
       } else if (event.change === 'down') {
         title = `Missed a day: fire dropped to ${streakTierName(event.tier)}`;
         sub = `Streak kept at ${event.days} days`;

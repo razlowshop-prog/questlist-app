@@ -6,12 +6,17 @@ import type { Rarity, TrophyStatus } from '../trophies';
 import { card, eyebrow, FONTS, themed, useStyles, useTheme } from '../theme';
 import { AppIcon } from './AppIcon';
 
-/** Metal of each rarity: gradient top and bottom, the icon colour on it, and the label colour. */
-const METAL: Record<Rarity, { from: string; to: string; icon: string; label: string; name: string }> = {
-  rare: { from: '#DCE5EE', to: '#6F8BA8', icon: '#1D2935', label: '#8FA9C4', name: 'Rare' },
-  epic: { from: '#F8E19A', to: '#A67A1C', icon: '#3B2A07', label: '#D4B27A', name: 'Epic' },
-  legendary: { from: '#F4C2FF', to: '#7A3BC7', icon: '#FFFFFF', label: '#C68CFF', name: 'Legendary' },
+/** Metal of each rarity: gradient top and bottom, and the icon colour on it. */
+const METAL: Record<Rarity, { from: string; to: string; icon: string; name: string }> = {
+  rare: { from: '#C9D1DA', to: '#8A95A1', icon: '#1F262E', name: 'Rare' },
+  epic: { from: '#E2C48B', to: '#B08A4E', icon: '#3B2A0E', name: 'Epic' },
+  legendary: { from: '#C4B0E2', to: '#7E64A8', icon: '#21173A', name: 'Legendary' },
 };
+
+/** Rarity label colour: the light end of the metal on dark themes, the deep end on light ones. */
+function labelColor(rarity: Rarity, dark: boolean): string {
+  return dark ? METAL[rarity].from : METAL[rarity].to;
+}
 
 const HEX = '50,3 95,28 95,82 50,107 5,82 5,28';
 const INNER = '50,13 86,33 86,77 50,97 14,77 14,33';
@@ -42,7 +47,8 @@ export function TrophyBadge({ trophy, size }: { trophy: TrophyStatus; size: numb
         </Defs>
         {trophy.earned ? (
           <>
-            <Polygon points={HEX} fill={`url(#${id})`} />
+            {/* On light themes a thin outline keeps the pale metal from fading into the page. */}
+            <Polygon points={HEX} fill={`url(#${id})`} {...(!c.dark && { stroke: c.outline, strokeWidth: 1 })} />
             <Polygon points={INNER} fill="none" stroke={metal.icon} strokeOpacity={0.35} strokeWidth={1.5} />
           </>
         ) : (
@@ -65,6 +71,7 @@ export function TrophyBadge({ trophy, size }: { trophy: TrophyStatus; size: numb
 /** The profile's trophy cabinet; tapping a trophy shows how it is earned and how far along you are. */
 export function TrophyCabinet({ trophies }: { trophies: TrophyStatus[] }) {
   const s = useStyles(makeStyles);
+  const c = useTheme();
   const [open, setOpen] = useState<TrophyStatus | null>(null);
   // Earned first, then the ones closest to done.
   const sorted = [...trophies].sort(
@@ -86,7 +93,7 @@ export function TrophyCabinet({ trophies }: { trophies: TrophyStatus[] }) {
               {t.def.name}
             </Text>
             {t.earned ? (
-              <Text style={[s.rarity, { color: METAL[t.def.rarity].label }]}>{METAL[t.def.rarity].name}</Text>
+              <Text style={[s.rarity, { color: labelColor(t.def.rarity, c.dark) }]}>{METAL[t.def.rarity].name}</Text>
             ) : (
               <View style={s.miniTrack}>
                 <View style={[s.miniFill, { width: `${(t.value / t.def.target) * 100}%` }]} />
@@ -102,7 +109,7 @@ export function TrophyCabinet({ trophies }: { trophies: TrophyStatus[] }) {
           <View style={s.sheetWrap} pointerEvents="box-none">
             <View style={s.sheet}>
               <TrophyBadge trophy={open} size={120} />
-              <Text style={[s.rarity, { color: METAL[open.def.rarity].label }]}>{METAL[open.def.rarity].name} trophy</Text>
+              <Text style={[s.rarity, { color: labelColor(open.def.rarity, c.dark) }]}>{METAL[open.def.rarity].name} trophy</Text>
               <Text style={s.title}>{open.def.name}</Text>
               <Text style={s.desc}>{open.def.description}</Text>
               <View style={s.track}>

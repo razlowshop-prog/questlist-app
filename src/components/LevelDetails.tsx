@@ -79,7 +79,7 @@ export function LevelDetails({
               {STREAK_TIERS.map((t) => (
                 <View key={t.tier} style={s.tierRow}>
                   <Fire tier={t.tier} size={18} />
-                  <Text style={[s.tierName, { color: fireColor(t.tier, c.muted) }]}>{t.name}</Text>
+                  <Text style={[s.tierName, { color: fireColor(t.tier, c) }]}>{t.name}</Text>
                   <Text style={s.muted}>{t.weekXp} XP a week</Text>
                   {streak.tier >= t.tier && <Check size={14} color={c.accent} strokeWidth={2} aria-hidden />}
                 </View>
