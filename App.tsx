@@ -38,6 +38,9 @@ import { fontFilesFor } from './src/fonts';
 import { loadState, saveState } from './src/storage';
 import { eyebrow, nativeDriver, themeById, themed, ThemeProvider, THEMES, withFonts } from './src/theme';
 
+/** Browser previews are built with this on so every theme can be tried without unlocking it. */
+const PREVIEW_ALL_THEMES = process.env.EXPO_PUBLIC_UNLOCK_THEMES === '1';
+
 type Tab = 'today' | 'challenges' | 'awards' | 'profile';
 
 const TABS: { key: Tab; label: string }[] = [
@@ -84,7 +87,7 @@ export default function App() {
   const rewards = useMemo(() => unlockedRewards(state), [state.achievementClaims]);
   const unlockedThemes = useMemo(() => {
     const labels = new Set(rewards.map((r) => r.label));
-    return new Set(THEMES.filter((t) => !t.reward || labels.has(t.reward)).map((t) => t.id));
+    return new Set(THEMES.filter((t) => !t.reward || labels.has(t.reward) || PREVIEW_ALL_THEMES).map((t) => t.id));
   }, [rewards]);
   const wantedTheme = themeById(unlockedThemes.has(state.settings.theme) ? state.settings.theme : 'classic');
   const theme = themeById(shownThemeId ?? wantedTheme.id);
