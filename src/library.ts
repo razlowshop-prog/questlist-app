@@ -1,3 +1,4 @@
+import type { IconName } from './icons.ts';
 import type { Difficulty } from './game';
 
 // The built-in task library: ready-made tasks people can add with one tap,
@@ -7,7 +8,7 @@ import type { Difficulty } from './game';
 export interface Category {
   id: string;
   label: string;
-  icon: string;
+  icon: IconName;
 }
 
 export interface LibraryTask {
@@ -24,23 +25,23 @@ export interface LibraryTask {
 }
 
 export const CATEGORIES: Category[] = [
-  { id: 'home', label: 'Home & chores', icon: '🏠' },
-  { id: 'fitness', label: 'Fitness', icon: '🏃' },
-  { id: 'health', label: 'Health', icon: '❤️' },
-  { id: 'food', label: 'Food & nutrition', icon: '🥗' },
-  { id: 'mind', label: 'Mind & wellbeing', icon: '🧘' },
-  { id: 'sleep', label: 'Sleep & routine', icon: '😴' },
-  { id: 'work', label: 'Work & focus', icon: '💼' },
-  { id: 'learning', label: 'Learning', icon: '📚' },
-  { id: 'money', label: 'Money', icon: '💰' },
-  { id: 'social', label: 'Family & friends', icon: '👨‍👩‍👧' },
-  { id: 'selfcare', label: 'Self-care', icon: '🛁' },
-  { id: 'digital', label: 'Digital detox', icon: '📵' },
-  { id: 'creative', label: 'Creativity', icon: '🎨' },
-  { id: 'outdoors', label: 'Outdoors & nature', icon: '🌳' },
-  { id: 'pets', label: 'Pets & plants', icon: '🐾' },
-  { id: 'errands', label: 'Errands & admin', icon: '📋' },
-  { id: 'kindness', label: 'Kindness & community', icon: '🤝' },
+  { id: 'home', label: 'Home & chores', icon: 'House' },
+  { id: 'fitness', label: 'Fitness', icon: 'Dumbbell' },
+  { id: 'health', label: 'Health', icon: 'HeartPulse' },
+  { id: 'food', label: 'Food & nutrition', icon: 'Salad' },
+  { id: 'mind', label: 'Mind & wellbeing', icon: 'Brain' },
+  { id: 'sleep', label: 'Sleep & routine', icon: 'Moon' },
+  { id: 'work', label: 'Work & focus', icon: 'Briefcase' },
+  { id: 'learning', label: 'Learning', icon: 'BookOpen' },
+  { id: 'money', label: 'Money', icon: 'Wallet' },
+  { id: 'social', label: 'Family & friends', icon: 'Users' },
+  { id: 'selfcare', label: 'Self-care', icon: 'Bath' },
+  { id: 'digital', label: 'Digital detox', icon: 'Smartphone' },
+  { id: 'creative', label: 'Creativity', icon: 'Palette' },
+  { id: 'outdoors', label: 'Outdoors & nature', icon: 'TreePine' },
+  { id: 'pets', label: 'Pets & plants', icon: 'PawPrint' },
+  { id: 'errands', label: 'Errands & admin', icon: 'ClipboardList' },
+  { id: 'kindness', label: 'Kindness & community', icon: 'HandHeart' },
 ];
 
 type Row = [title: string, minutes: number, effort: 'e' | 'm' | 'h', perWeek: number, tags?: string, featured?: 1];

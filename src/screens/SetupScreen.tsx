@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from 'react-native';
+import { AppIcon } from '../components/AppIcon';
 import { LogoMark } from '../components/LogoMark';
 import { Chip } from '../components/Chip';
 import { durationLabel, xpFor } from '../game';
@@ -128,7 +129,7 @@ export function SetupScreen({
                     accessibilityRole="checkbox"
                     accessibilityState={{ checked: on }}
                   >
-                    <Text style={styles.goalIcon}>{c.icon}</Text>
+                    <AppIcon name={c.icon} color={on ? C.accent : C.muted} />
                     <Text style={styles.goalLabel}>{c.label}</Text>
                   </Pressable>
                 );
@@ -150,7 +151,7 @@ export function SetupScreen({
               return (
                 <View key={g} style={{ marginBottom: 14 }}>
                   <Text style={styles.section}>
-                    {cat.icon} {cat.label}
+                    {cat.label}
                   </Text>
                   {tasks.map((t) => {
                     const on = t.title in picks;
@@ -253,7 +254,6 @@ const makeStyles = themed((c) => ({
     gap: 4,
   },
   goalOn: { borderColor: c.accent, backgroundColor: c.accentSoft },
-  goalIcon: { fontSize: 24 },
   goalLabel: { color: c.text, fontSize: 14, fontWeight: '700' },
   section: { ...eyebrow(c), color: c.muted, marginBottom: 10 },
   taskCard: { backgroundColor: c.surface, borderRadius: c.radius, marginBottom: 6, borderWidth: 1, borderColor: 'transparent' },

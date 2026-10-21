@@ -1,6 +1,8 @@
+import { Lock } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { APP_NAME } from '../brand';
+import { AchievementBadge } from '../components/AppIcon';
 import { tierColor, TIER_NAMES, type AchievementStatus } from '../achievements';
 import { type profileStats, type Settings } from '../game';
 import { card, eyebrow, THEMES, themed, useStyles, useTheme, FONTS, headingCase } from '../theme';
@@ -96,7 +98,7 @@ export function ProfileScreen({
           const tier = a.claimed - 1;
           return (
             <View key={a.def.id} style={[s.trophy, tier < 0 && s.trophyLocked]}>
-              <Text style={[s.trophyIcon, tier < 0 && { opacity: 0.3 }]}>{a.def.icon}</Text>
+              <AchievementBadge name={a.def.icon} state={tier >= 0 ? 'earned' : 'locked'} size={24} />
               <Text style={s.trophyTitle} numberOfLines={1}>
                 {a.def.title}
               </Text>
@@ -125,10 +127,10 @@ export function ProfileScreen({
                 <View style={[s.swatchDot, { backgroundColor: t.palette.accent }]} />
                 <View style={[s.swatchBar, { backgroundColor: t.palette.xp }]} />
               </View>
-              <Text style={s.themeName}>
-                {unlocked ? '' : '🔒 '}
-                {t.name}
-              </Text>
+              <View style={s.themeNameRow}>
+                {!unlocked && <Lock size={12} color={c.muted} strokeWidth={1.5} aria-hidden />}
+                <Text style={s.themeName}>{t.name}</Text>
+              </View>
             </Pressable>
           );
         })}
@@ -228,7 +230,6 @@ const makeStyles = themed((c) => ({
   trophies: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   trophy: { ...card(c), borderRadius: c.radius, flexBasis: '22%', flexGrow: 1, padding: 10, alignItems: 'center', gap: 2 },
   trophyLocked: { backgroundColor: c.surfaceAlt, boxShadow: 'none' },
-  trophyIcon: { fontSize: 24 },
   trophyTitle: { color: c.text, fontSize: 11, fontWeight: '700' },
   themes: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 8 },
   theme: {
@@ -244,6 +245,7 @@ const makeStyles = themed((c) => ({
   swatch: { height: 44, borderRadius: c.radius, padding: 8, justifyContent: 'space-between', borderWidth: 1, borderColor: c.border },
   swatchDot: { width: 14, height: 14, borderRadius: 7 },
   swatchBar: { height: 5, borderRadius: 3, width: '70%' },
+  themeNameRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
   themeName: { color: c.text, fontSize: 12, fontWeight: '700', textAlign: 'center' },
   settingCard: { ...card(c), padding: 14, gap: 10 },
   settingRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },

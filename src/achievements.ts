@@ -1,3 +1,4 @@
+import type { IconName } from './icons.ts';
 import { APP_NAME } from './brand.ts';
 import {
   levelInfo,
@@ -25,7 +26,7 @@ export interface Tier {
 
 export interface AchievementDef {
   id: string;
-  icon: string;
+  icon: IconName;
   title: string;
   /** Shown under the title for the tier being worked on. */
   description: (goal: number) => string;
@@ -82,7 +83,7 @@ export function monthsSince(from: string, today: string): number {
 export const ACHIEVEMENTS: AchievementDef[] = [
   {
     id: 'tasks',
-    icon: '✅',
+    icon: 'ListChecks',
     title: 'Task Master',
     description: (g) => `Complete ${g} ${g === 1 ? 'task' : 'tasks'} in total`,
     unit: 'tasks',
@@ -99,7 +100,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   },
   {
     id: 'bestDay',
-    icon: '⚡',
+    icon: 'Zap',
     title: 'Power Day',
     description: (g) => `Complete ${g} tasks in one day`,
     unit: 'tasks in a day',
@@ -114,7 +115,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   },
   {
     id: 'bestWeek',
-    icon: '📅',
+    icon: 'CalendarDays',
     title: 'Power Week',
     description: (g) => `Complete ${g} tasks in one week`,
     unit: 'tasks in a week',
@@ -129,7 +130,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   },
   {
     id: 'bigTask',
-    icon: '🏔️',
+    icon: 'Weight',
     title: 'Heavy Lifter',
     description: (g) => `Earn ${g} XP from a single task`,
     unit: 'XP in one task',
@@ -144,7 +145,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   },
   {
     id: 'member',
-    icon: '🎂',
+    icon: 'Cake',
     title: 'Member Since',
     description: (g) => `Stay with ${APP_NAME} for ${g} ${g === 1 ? 'month' : 'months'}`,
     unit: 'months',
@@ -158,7 +159,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   },
   {
     id: 'streak',
-    icon: '🔥',
+    icon: 'Flame',
     title: 'On Fire',
     description: (g) => `Reach a ${g}-day streak`,
     unit: 'days in a row',
@@ -173,7 +174,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   },
   {
     id: 'level',
-    icon: '⭐',
+    icon: 'Award',
     title: 'Climber',
     description: (g) => `Reach level ${g}`,
     unit: 'level',
@@ -189,7 +190,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   },
   {
     id: 'challenges',
-    icon: '🎯',
+    icon: 'Target',
     title: 'Challenger',
     description: (g) => `Win ${g} weekly ${g === 1 ? 'challenge' : 'challenges'}`,
     unit: 'challenges',

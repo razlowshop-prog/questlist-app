@@ -1,3 +1,5 @@
+import type { IconName } from './icons.ts';
+
 // Pure game rules: XP, levels, ranks and streaks. No React or storage here,
 // so everything in this file can be unit tested.
 
@@ -424,7 +426,7 @@ export function weekStats(state: GameState, today: string): WeekStats {
 export interface ChallengeDef {
   id: string;
   title: string;
-  icon: string;
+  icon: IconName;
   rewardXp: number;
   target: number;
   unit: string;
@@ -433,19 +435,19 @@ export interface ChallengeDef {
 }
 
 export const CHALLENGE_POOL: ChallengeDef[] = [
-  { id: 'tasks15', title: 'Finish 15 tasks this week', icon: '✅', rewardXp: 100, target: 15, unit: 'tasks', metric: 'tasksDone' },
-  { id: 'tasks25', title: 'Finish 25 tasks this week', icon: '🏆', rewardXp: 180, target: 25, unit: 'tasks', metric: 'tasksDone' },
-  { id: 'hard3', title: 'Complete 3 hard tasks', icon: '💪', rewardXp: 90, target: 3, unit: 'hard tasks', metric: 'hardDone' },
-  { id: 'hard5', title: 'Complete 5 hard tasks', icon: '🔥', rewardXp: 150, target: 5, unit: 'hard tasks', metric: 'hardDone' },
-  { id: 'days5', title: 'Be active on 5 days', icon: '📅', rewardXp: 120, target: 5, unit: 'days', metric: 'activeDays' },
-  { id: 'days7', title: 'Be active every day this week', icon: '⭐', rewardXp: 200, target: 7, unit: 'days', metric: 'activeDays' },
-  { id: 'xp300', title: 'Earn 300 XP from tasks', icon: '⚡', rewardXp: 100, target: 300, unit: 'XP', metric: 'xpEarned' },
+  { id: 'tasks15', title: 'Finish 15 tasks this week', icon: 'ListChecks', rewardXp: 100, target: 15, unit: 'tasks', metric: 'tasksDone' },
+  { id: 'tasks25', title: 'Finish 25 tasks this week', icon: 'Trophy', rewardXp: 180, target: 25, unit: 'tasks', metric: 'tasksDone' },
+  { id: 'hard3', title: 'Complete 3 hard tasks', icon: 'Mountain', rewardXp: 90, target: 3, unit: 'hard tasks', metric: 'hardDone' },
+  { id: 'hard5', title: 'Complete 5 hard tasks', icon: 'MountainSnow', rewardXp: 150, target: 5, unit: 'hard tasks', metric: 'hardDone' },
+  { id: 'days5', title: 'Be active on 5 days', icon: 'CalendarDays', rewardXp: 120, target: 5, unit: 'days', metric: 'activeDays' },
+  { id: 'days7', title: 'Be active every day this week', icon: 'CalendarCheck', rewardXp: 200, target: 7, unit: 'days', metric: 'activeDays' },
+  { id: 'xp300', title: 'Earn 300 XP from tasks', icon: 'Zap', rewardXp: 100, target: 300, unit: 'XP', metric: 'xpEarned' },
 ];
 
 /** Need phone sensors or health data, so they arrive with the phone app builds. */
 export const SENSOR_CHALLENGES: ChallengeDef[] = [
-  { id: 'sleep8', title: 'Sleep 8 hours with your phone down', icon: '😴', rewardXp: 150, target: 5, unit: 'nights' },
-  { id: 'walk10', title: 'Walk 10 km this week', icon: '🚶', rewardXp: 150, target: 10, unit: 'km' },
+  { id: 'sleep8', title: 'Sleep 8 hours with your phone down', icon: 'Moon', rewardXp: 150, target: 5, unit: 'nights' },
+  { id: 'walk10', title: 'Walk 10 km this week', icon: 'Footprints', rewardXp: 150, target: 10, unit: 'km' },
 ];
 
 /** Three challenges per week, the same for everyone, rotating weekly. */
