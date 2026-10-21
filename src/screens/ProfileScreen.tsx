@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { TIER_COLORS, TIER_NAMES, type AchievementStatus } from '../achievements';
 import { type profileStats, type Settings } from '../game';
-import { C } from '../theme';
+import { card, THEMES, themed, useStyles, useTheme } from '../theme';
 
 export function ProfileScreen({
   name,
@@ -10,6 +10,7 @@ export function ProfileScreen({
   achievements,
   joinedAt,
   settings,
+  unlockedThemes,
   onRename,
   onSettings,
   onRedoSetup,
@@ -19,19 +20,23 @@ export function ProfileScreen({
   achievements: AchievementStatus[];
   joinedAt: string;
   settings: Settings;
+  /** Ids of themes the player may use. */
+  unlockedThemes: Set<string>;
   onRename: (name: string) => void;
   onSettings: (s: Partial<Settings>) => void;
   onRedoSetup: () => void;
 }) {
+  const s = useStyles(makeStyles);
+  const c = useTheme();
   const emailValid = /^\S+@\S+\.\S+$/.test(settings.email);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(name);
   const trophies = achievements.reduce((n, a) => n + a.claimed, 0);
   const totalTiers = achievements.reduce((n, a) => n + a.def.tiers.length, 0);
+  const initials = name.trim().slice(0, 2).toUpperCase() || '?';
   const memberSince = joinedAt
     ? new Date(`${joinedAt}T12:00:00`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
     : '';
-  const initials = name.trim().slice(0, 2).toUpperCase() || '?';
 
   function save() {
     if (draft.trim()) onRename(draft.trim());
@@ -39,10 +44,10 @@ export function ProfileScreen({
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
-      <View style={styles.hero}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{initials}</Text>
+    <ScrollView contentContainerStyle={s.content}>
+      <View style={s.hero}>
+        <View style={s.avatar}>
+          <Text style={s.avatarText}>{initials}</Text>
         </View>
         {editing ? (
           <TextInput
@@ -52,55 +57,94 @@ export function ProfileScreen({
             onBlur={save}
             autoFocus
             maxLength={24}
-            style={styles.nameInput}
+            style={s.nameInput}
           />
         ) : (
-          <Pressable onPress={() => { setDraft(name); setEditing(true); }} accessibilityHint="Edit your name">
-            <Text style={styles.name}>{name} ✎</Text>
+          <Pressable
+            onPress={() => {
+              setDraft(name);
+              setEditing(true);
+            }}
+            accessibilityHint="Edit your name"
+          >
+            <Text style={s.name}>
+              {name} <Text style={s.edit}>✎</Text>
+            </Text>
           </Pressable>
         )}
-        <Text style={styles.rank}>
-          Level {stats.level} · {stats.rank}
-        </Text>
-        {memberSince ? <Text style={styles.badgeDesc}>Member since {memberSince}</Text> : null}
+        <View style={s.levelPill}>
+          <Text style={s.levelPillText}>
+            Level {stats.level} · {stats.rank}
+          </Text>
+        </View>
+        {memberSince ? <Text style={s.small}>Member since {memberSince}</Text> : null}
       </View>
 
-      <View style={styles.grid}>
-        <Stat label="Points" value={stats.totalXp.toLocaleString()} color={C.gold} />
+      <View style={s.grid}>
+        <Stat label="Points" value={stats.totalXp.toLocaleString()} color={c.gold} />
         <Stat label="Tasks done" value={String(stats.tasksDone)} />
-        <Stat label="Current streak" value={`🔥 ${stats.currentStreak}`} color={C.flame} />
+        <Stat label="Streak" value={`🔥 ${stats.currentStreak}`} color={c.flame} />
         <Stat label="Best streak" value={String(stats.bestStreak)} />
-        <Stat label="Challenges won" value={String(stats.challengesWon)} />
+        <Stat label="Challenges" value={String(stats.challengesWon)} />
         <Stat label="Trophies" value={`${trophies}/${totalTiers}`} />
       </View>
 
-      <Text style={styles.section}>Trophies</Text>
-      <View style={styles.badges}>
+      <Text style={s.section}>Trophies</Text>
+      <View style={s.trophies}>
         {achievements.map((a) => {
           const tier = a.claimed - 1;
           return (
-            <View key={a.def.id} style={[styles.badge, tier < 0 && styles.badgeLocked]}>
-              <Text style={[styles.badgeIcon, tier < 0 && { opacity: 0.25 }]}>{a.def.icon}</Text>
-              <Text style={styles.badgeTitle}>{a.def.title}</Text>
-              <Text style={[styles.badgeDesc, tier >= 0 && { color: TIER_COLORS[tier], fontWeight: '700' }]}>
-                {tier >= 0 ? TIER_NAMES[tier] : 'Not started'}
+            <View key={a.def.id} style={[s.trophy, tier < 0 && s.trophyLocked]}>
+              <Text style={[s.trophyIcon, tier < 0 && { opacity: 0.3 }]}>{a.def.icon}</Text>
+              <Text style={s.trophyTitle} numberOfLines={1}>
+                {a.def.title}
+              </Text>
+              <Text style={[s.small, tier >= 0 && { color: TIER_COLORS[tier], fontWeight: '800' }]}>
+                {tier >= 0 ? TIER_NAMES[tier] : '—'}
               </Text>
             </View>
           );
         })}
       </View>
 
-      <Text style={styles.section}>Settings</Text>
-      <View style={styles.settingCard}>
-        <View style={styles.settingRow}>
+      <Text style={s.section}>Theme</Text>
+      <View style={s.themes}>
+        {THEMES.map((t) => {
+          const unlocked = unlockedThemes.has(t.id);
+          const active = settings.theme === t.id;
+          return (
+            <Pressable
+              key={t.id}
+              onPress={unlocked ? () => onSettings({ theme: t.id }) : undefined}
+              style={[s.theme, active && { borderColor: t.palette.accent }, !unlocked && { opacity: 0.45 }]}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: active, disabled: !unlocked }}
+            >
+              <View style={[s.swatch, { backgroundColor: t.palette.bg }]}>
+                <View style={[s.swatchDot, { backgroundColor: t.palette.accent }]} />
+                <View style={[s.swatchBar, { backgroundColor: t.palette.xp }]} />
+              </View>
+              <Text style={s.themeName}>
+                {unlocked ? '' : '🔒 '}
+                {t.name}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      <Text style={s.small}>Unlock more themes by claiming achievement tiers.</Text>
+
+      <Text style={s.section}>Settings</Text>
+      <View style={s.settingCard}>
+        <View style={s.settingRow}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.settingTitle}>Daily motivation by email</Text>
-            <Text style={styles.badgeDesc}>A short motivational quote every morning. Unsubscribe anytime.</Text>
+            <Text style={s.settingTitle}>Daily motivation by email</Text>
+            <Text style={s.small}>A short motivational quote every morning. Unsubscribe anytime.</Text>
           </View>
           <Switch
             value={settings.quoteEmails}
             onValueChange={(v) => onSettings({ quoteEmails: v })}
-            trackColor={{ true: C.accent, false: C.border }}
+            trackColor={{ true: c.accent, false: c.border }}
           />
         </View>
         {settings.quoteEmails && (
@@ -109,13 +153,13 @@ export function ProfileScreen({
               value={settings.email}
               onChangeText={(email) => onSettings({ email: email.trim() })}
               placeholder="you@example.com"
-              placeholderTextColor={C.muted}
+              placeholderTextColor={c.muted}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
-              style={styles.emailInput}
+              style={s.emailInput}
             />
-            <Text style={styles.badgeDesc}>
+            <Text style={s.small}>
               {emailValid
                 ? '✓ Saved. Emails start once QuestList accounts are live.'
                 : 'Enter your email address to receive the quotes.'}
@@ -123,75 +167,94 @@ export function ProfileScreen({
           </>
         )}
       </View>
-      <Pressable onPress={onRedoSetup} style={styles.redo} accessibilityRole="button">
-        <Text style={styles.redoText}>Redo setup questions</Text>
+      <Pressable onPress={onRedoSetup} style={s.redo} accessibilityRole="button">
+        <Text style={s.redoText}>Redo setup questions</Text>
       </Pressable>
 
-      <Text style={styles.note}>
+      <Text style={s.note}>
         Friends, public profiles and the global leaderboard arrive once accounts and cloud sync are added.
       </Text>
     </ScrollView>
   );
 }
 
-function Stat({ label, value, color = C.text }: { label: string; value: string; color?: string }) {
+function Stat({ label, value, color }: { label: string; value: string; color?: string }) {
+  const s = useStyles(makeStyles);
   return (
-    <View style={styles.stat}>
-      <Text style={[styles.statValue, { color }]}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+    <View style={s.stat}>
+      <Text style={[s.statValue, color ? { color } : null]}>{value}</Text>
+      <Text style={s.statLabel}>{label}</Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  content: { padding: 16, paddingBottom: 48, maxWidth: 640, width: '100%', alignSelf: 'center' },
-  hero: { alignItems: 'center', gap: 6, marginBottom: 18 },
+const makeStyles = themed((c) => ({
+  content: { padding: 20, paddingBottom: 48, maxWidth: 640, width: '100%', alignSelf: 'center' },
+  hero: { alignItems: 'center', gap: 8, marginBottom: 22 },
   avatar: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    backgroundColor: C.accent,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: c.accent,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 4,
+    borderWidth: 4,
+    borderColor: c.accentSoft,
   },
-  avatarText: { color: '#fff', fontSize: 30, fontWeight: '800' },
-  name: { color: C.text, fontSize: 22, fontWeight: '800' },
+  avatarText: { color: c.onAccent, fontSize: 30, fontWeight: '800' },
+  name: { color: c.text, fontSize: 24, fontWeight: '800', letterSpacing: -0.4 },
+  edit: { color: c.muted, fontSize: 16 },
   nameInput: {
-    color: C.text,
+    color: c.text,
     fontSize: 20,
     fontWeight: '700',
     borderBottomWidth: 2,
-    borderBottomColor: C.accent,
+    borderBottomColor: c.accent,
     minWidth: 160,
     textAlign: 'center',
     paddingVertical: 2,
   },
-  rank: { color: C.muted, fontSize: 14, fontWeight: '600' },
+  levelPill: { backgroundColor: c.accentSoft, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5 },
+  levelPillText: { color: c.accent, fontSize: 13, fontWeight: '700' },
+  small: { color: c.muted, fontSize: 12 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  stat: { flexBasis: '30%', flexGrow: 1, backgroundColor: C.card, borderRadius: 14, padding: 12, alignItems: 'center' },
-  statValue: { fontSize: 20, fontWeight: '800' },
-  statLabel: { color: C.muted, fontSize: 12, marginTop: 2, textAlign: 'center' },
-  section: { color: C.text, fontSize: 17, fontWeight: '800', marginTop: 22, marginBottom: 10 },
-  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  badge: { flexBasis: '45%', flexGrow: 1, backgroundColor: C.card, borderRadius: 14, padding: 12, gap: 2 },
-  badgeLocked: { backgroundColor: C.cardDone },
-  badgeIcon: { fontSize: 26 },
-  badgeTitle: { color: C.text, fontSize: 14, fontWeight: '700' },
-  badgeDesc: { color: C.muted, fontSize: 12 },
-  settingCard: { backgroundColor: C.card, borderRadius: 14, padding: 14, gap: 10 },
+  stat: { ...card(c), borderRadius: 16, flexBasis: '30%', flexGrow: 1, padding: 14, alignItems: 'center' },
+  statValue: { color: c.text, fontSize: 20, fontWeight: '800' },
+  statLabel: { color: c.muted, fontSize: 12, marginTop: 2, textAlign: 'center' },
+  section: { color: c.text, fontSize: 18, fontWeight: '800', marginTop: 26, marginBottom: 12, letterSpacing: -0.3 },
+  trophies: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  trophy: { ...card(c), borderRadius: 16, flexBasis: '22%', flexGrow: 1, padding: 10, alignItems: 'center', gap: 2 },
+  trophyLocked: { backgroundColor: c.surfaceAlt, boxShadow: 'none' },
+  trophyIcon: { fontSize: 24 },
+  trophyTitle: { color: c.text, fontSize: 11, fontWeight: '700' },
+  themes: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 8 },
+  theme: {
+    ...card(c),
+    borderRadius: 14,
+    flexBasis: '30%',
+    flexGrow: 1,
+    padding: 8,
+    gap: 6,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  swatch: { height: 44, borderRadius: 10, padding: 8, justifyContent: 'space-between', borderWidth: 1, borderColor: c.border },
+  swatchDot: { width: 14, height: 14, borderRadius: 7 },
+  swatchBar: { height: 5, borderRadius: 3, width: '70%' },
+  themeName: { color: c.text, fontSize: 12, fontWeight: '700', textAlign: 'center' },
+  settingCard: { ...card(c), padding: 14, gap: 10 },
   settingRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  settingTitle: { color: C.text, fontSize: 15, fontWeight: '700' },
+  settingTitle: { color: c.text, fontSize: 15, fontWeight: '700' },
   emailInput: {
-    color: C.text,
+    color: c.text,
     fontSize: 15,
-    borderWidth: 1,
-    borderColor: C.border,
+    backgroundColor: c.surfaceAlt,
     borderRadius: 10,
     paddingHorizontal: 12,
-    paddingVertical: 9,
+    paddingVertical: 10,
   },
-  redo: { marginTop: 10, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: C.border, alignItems: 'center' },
-  redoText: { color: C.text, fontWeight: '700', fontSize: 14 },
-  note: { color: C.muted, fontSize: 12, textAlign: 'center', marginTop: 22 },
-});
+  redo: { marginTop: 12, paddingVertical: 12, borderRadius: 14, backgroundColor: c.surfaceAlt, alignItems: 'center' },
+  redoText: { color: c.text, fontWeight: '700', fontSize: 14 },
+  note: { color: c.muted, fontSize: 12, textAlign: 'center', marginTop: 22 },
+}));

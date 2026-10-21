@@ -220,3 +220,41 @@ test('XP grows with time and effort', () => {
   assert.equal(taskXp(s.tasks[0]), xpFor(60, 'medium'));
   assert.equal(toggleTask(s, 'w', TODAY).completions[0].xp, xpFor(60, 'medium'));
 });
+
+test('anti-cheat: the same task title gives full XP 5 times a day, then less', () => {
+  let s = emptyState;
+  const ids = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'];
+  for (const id of ids) s = addTask(s, 'Do the dishes', 'easy', false, id, 15);
+  for (const id of ids) s = toggleTask(s, id, TODAY);
+  assert.deepEqual(s.completions.map((c) => c.xp), [10, 10, 10, 10, 10, 5, 3, 1, 1]);
+  assert.equal(s.completions[4].limited, undefined);
+  assert.equal(s.completions[5].limited, 'repeat');
+  assert.equal(s.completions[0].limited, undefined);
+});
+
+test('anti-cheat: only 16 hours of task time per day earn XP', () => {
+  let s = emptyState;
+  for (let i = 0; i < 10; i++) s = addTask(s, `Task ${i}`, 'easy', false, `t${i}`, 120);
+  for (let i = 0; i < 10; i++) s = toggleTask(s, `t${i}`, TODAY);
+  const xps = s.completions.map((c) => c.xp);
+  assert.ok(xps.slice(0, 8).every((x) => x > 0)); // 8 × 2 h = 16 h
+  assert.deepEqual(xps.slice(8), [0, 0]);
+  assert.equal(s.completions[9].limited, 'daily');
+  // Next day is fine again
+  s = toggleTask(addTask(s, 'Tomorrow', 'easy', false, 'n', 15), 'n', addDays(TODAY, 1));
+  assert.equal(s.completions.at(-1)!.xp, 10);
+});
+
+test('anti-cheat: ticking within 10 seconds of adding gives no XP', () => {
+  const s = addTask(emptyState, 'Run', 'hard', false, 'r', 30);
+  const created = Date.parse(s.tasks[0].createdAt);
+  assert.equal(toggleTask(s, 'r', TODAY, created + 3_000).completions[0].xp, 0);
+  assert.equal(toggleTask(s, 'r', TODAY, created + 3_000).completions[0].limited, 'quick');
+  assert.ok(toggleTask(s, 'r', TODAY, created + 60_000).completions[0].xp > 0);
+});
+
+test('long tasks are allowed and keep earning more, up to 16 hours', () => {
+  assert.ok(xpFor(240, 'easy') > xpFor(120, 'easy'));
+  assert.ok(xpFor(600, 'easy') > xpFor(240, 'easy'));
+  assert.equal(xpFor(2000, 'easy'), xpFor(16 * 60, 'easy'));
+});

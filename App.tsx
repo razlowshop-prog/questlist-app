@@ -12,6 +12,7 @@ import {
   finishSetup,
   isDoneToday,
   levelInfo,
+  limitMessage,
   profileStats,
   setName,
   streakBonus,
@@ -33,7 +34,7 @@ import { ProfileScreen } from './src/screens/ProfileScreen';
 import { TodayScreen } from './src/screens/TodayScreen';
 import type { LibraryTask } from './src/library';
 import { loadState, saveState } from './src/storage';
-import { C, nativeDriver } from './src/theme';
+import { nativeDriver, themeById, themed, ThemeProvider, THEMES } from './src/theme';
 
 type Tab = 'today' | 'challenges' | 'awards' | 'profile';
 
@@ -75,6 +76,15 @@ export default function App() {
   const achievements = useMemo(() => achievementStatuses(state, today), [state, today]);
   const awardsToClaim = claimableCount(state, today);
   const addedTitles = useMemo(() => new Set(state.tasks.map((t) => t.title)), [state.tasks]);
+  const rewards = useMemo(() => unlockedRewards(state), [state.achievementClaims]);
+  const unlockedThemes = useMemo(() => {
+    const labels = new Set(rewards.map((r) => r.label));
+    return new Set(THEMES.filter((t) => !t.reward || labels.has(t.reward)).map((t) => t.id));
+  }, [rewards]);
+  const theme = themeById(unlockedThemes.has(state.settings.theme) ? state.settings.theme : 'classic');
+  const c = theme.palette;
+  const styles = useMemo(() => StyleSheet.create(makeStyles(c)), [c]);
+  const statusBar = c.dark ? 'light' : 'dark';
 
   function addFromLibrary(s: GameState, t: LibraryTask, perWeek = t.perWeek): GameState {
     return addTask(s, t.title, t.difficulty, perWeek === 0 ? false : perWeek, undefined, t.minutes);
@@ -113,10 +123,13 @@ export default function App() {
     return gained;
   }
 
-  function onToggle(task: Task): number {
+  function onToggle(task: Task): { xp: number; note?: string } {
     const wasDone = isDoneToday(state, task, today);
-    const gained = apply(toggleTask(state, task.id, today));
-    return wasDone ? 0 : gained;
+    const next = toggleTask(state, task.id, today, Date.now());
+    const gained = apply(next);
+    if (wasDone) return { xp: 0 };
+    const limited = next.completions[next.completions.length - 1].limited;
+    return { xp: gained, note: limited ? limitMessage(limited) : undefined };
   }
 
   function onClaim(id: string) {
@@ -139,8 +152,8 @@ export default function App() {
 
   if (loaded && (!state.onboarded || redoSetup)) {
     return (
-      <>
-        <StatusBar style="light" />
+      <ThemeProvider palette={c}>
+        <StatusBar style={statusBar} />
         <SetupScreen
           initialName={state.profile.name}
           initialGoals={state.goals}
@@ -150,123 +163,133 @@ export default function App() {
             setRedoSetup(false);
           }}
         />
-      </>
+      </ThemeProvider>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <StatusBar style="light" />
-      <XpHeader totalXp={xp} streak={streak} bonus={streakBonus(streak)} />
+    <ThemeProvider palette={c}>
+      <SafeAreaView style={styles.safe}>
+        <StatusBar style={statusBar} />
+        <XpHeader totalXp={xp} streak={streak} bonus={streakBonus(streak)} />
 
-      <View style={{ flex: 1 }}>
-        {tab === 'today' && (
-          <TodayScreen
-            state={state}
-            tasks={tasks}
-            today={today}
-            loaded={loaded}
-            addedTitles={addedTitles}
-            onAdd={(title, difficulty, repeat, minutes) =>
-              setState(addTask(state, title, difficulty, repeat, undefined, minutes))
-            }
-            onAddFromLibrary={(t) => setState(addFromLibrary(state, t))}
-            onOpenLibrary={() => setLibraryOpen(true)}
-            onToggle={onToggle}
-            onDelete={(task) => setState(deleteTask(state, task.id))}
-          />
-        )}
-        {tab === 'challenges' && <ChallengesScreen challenges={challenges} today={today} onClaim={onClaim} />}
-        {tab === 'awards' && (
-          <AchievementsScreen
-            achievements={achievements}
-            rewards={unlockedRewards(state)}
-            onClaim={onClaimAchievement}
-          />
-        )}
-        {tab === 'profile' && (
-          <ProfileScreen
-            name={state.profile.name}
-            stats={profileStats(state, today)}
-            achievements={achievements}
-            joinedAt={state.joinedAt}
-            settings={state.settings}
-            onRename={(name) => setState(setName(state, name))}
-            onSettings={(changes) => setState(updateSettings(state, changes))}
-            onRedoSetup={() => setRedoSetup(true)}
-          />
-        )}
-      </View>
+        <View style={{ flex: 1 }}>
+          {tab === 'today' && (
+            <TodayScreen
+              state={state}
+              tasks={tasks}
+              today={today}
+              loaded={loaded}
+              addedTitles={addedTitles}
+              onAdd={(title, difficulty, repeat, minutes) =>
+                setState(addTask(state, title, difficulty, repeat, undefined, minutes))
+              }
+              onAddFromLibrary={(t) => setState(addFromLibrary(state, t))}
+              onOpenLibrary={() => setLibraryOpen(true)}
+              onToggle={onToggle}
+              onDelete={(task) => setState(deleteTask(state, task.id))}
+            />
+          )}
+          {tab === 'challenges' && <ChallengesScreen challenges={challenges} today={today} onClaim={onClaim} />}
+          {tab === 'awards' && (
+            <AchievementsScreen
+              achievements={achievements}
+              rewards={rewards}
+              onClaim={onClaimAchievement}
+            />
+          )}
+          {tab === 'profile' && (
+            <ProfileScreen
+              name={state.profile.name}
+              stats={profileStats(state, today)}
+              achievements={achievements}
+              joinedAt={state.joinedAt}
+              settings={state.settings}
+              unlockedThemes={unlockedThemes}
+              onRename={(name) => setState(setName(state, name))}
+              onSettings={(changes) => setState(updateSettings(state, changes))}
+              onRedoSetup={() => setRedoSetup(true)}
+            />
+          )}
+        </View>
 
-      <View style={styles.tabBar}>
-        {TABS.map((t) => (
-          <Pressable
-            key={t.key}
-            onPress={() => setTab(t.key)}
-            style={styles.tab}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: tab === t.key }}
-          >
-            <Text style={styles.tabIcon}>{t.icon}</Text>
-            <Text style={[styles.tabLabel, tab === t.key && { color: C.text }]}>{t.label}</Text>
-            {(t.key === 'challenges' ? readyToClaim : t.key === 'awards' ? awardsToClaim : 0) > 0 && (
-              <View style={styles.dot}>
-                <Text style={styles.dotText}>{t.key === 'challenges' ? readyToClaim : awardsToClaim}</Text>
+        <View style={styles.tabBar}>
+          {TABS.map((t) => (
+            <Pressable
+              key={t.key}
+              onPress={() => setTab(t.key)}
+              style={styles.tab}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: tab === t.key }}
+            >
+              <View style={[styles.tabIconWrap, tab === t.key && styles.tabIconActive]}>
+                <Text style={styles.tabIcon}>{t.icon}</Text>
               </View>
-            )}
-          </Pressable>
-        ))}
-      </View>
+              <Text style={[styles.tabLabel, tab === t.key && styles.tabLabelActive]}>{t.label}</Text>
+              {(t.key === 'challenges' ? readyToClaim : t.key === 'awards' ? awardsToClaim : 0) > 0 && (
+                <View style={styles.dot}>
+                  <Text style={styles.dotText}>{t.key === 'challenges' ? readyToClaim : awardsToClaim}</Text>
+                </View>
+              )}
+            </Pressable>
+          ))}
+        </View>
 
-      <LibraryModal
-        visible={libraryOpen}
-        addedTitles={addedTitles}
-        onAdd={(t) => setState((s) => addFromLibrary(s, t))}
-        onClose={() => setLibraryOpen(false)}
-      />
+        <LibraryModal
+          visible={libraryOpen}
+          addedTitles={addedTitles}
+          onAdd={(t) => setState((s) => addFromLibrary(s, t))}
+          onClose={() => setLibraryOpen(false)}
+        />
 
-      {toast && (
-        <Animated.View style={[styles.toast, toastStyle]} pointerEvents="none">
-          <Text style={styles.toastText}>{toast}</Text>
-        </Animated.View>
-      )}
-    </SafeAreaView>
+        {toast && (
+          <Animated.View style={[styles.toast, toastStyle]} pointerEvents="none">
+            <Text style={styles.toastText}>{toast}</Text>
+          </Animated.View>
+        )}
+      </SafeAreaView>
+    </ThemeProvider>
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.bg },
+const makeStyles = themed((c) => ({
+  safe: { flex: 1, backgroundColor: c.bg },
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: C.card,
-    borderTopWidth: 1,
-    borderTopColor: C.border,
-    paddingVertical: 6,
+    backgroundColor: c.surface,
+    paddingTop: 8,
+    paddingBottom: 10,
+    ...(c.shadow ? { boxShadow: '0px -1px 0px rgba(20,22,43,0.06)' } : { borderTopWidth: 1, borderTopColor: c.border }),
   },
-  tab: { flex: 1, alignItems: 'center', paddingVertical: 4 },
-  tabIcon: { fontSize: 20 },
-  tabLabel: { color: C.muted, fontSize: 11, fontWeight: '700', marginTop: 2 },
+  tab: { flex: 1, alignItems: 'center' },
+  tabIconWrap: { paddingHorizontal: 16, paddingVertical: 4, borderRadius: 999 },
+  tabIconActive: { backgroundColor: c.accentSoft },
+  tabIcon: { fontSize: 19 },
+  tabLabel: { color: c.muted, fontSize: 11, fontWeight: '600', marginTop: 3 },
+  tabLabelActive: { color: c.accent, fontWeight: '800' },
   dot: {
     position: 'absolute',
-    top: 0,
-    right: '30%',
-    backgroundColor: C.gold,
+    top: -2,
+    right: '22%',
+    backgroundColor: c.gold,
     borderRadius: 9,
     minWidth: 18,
     height: 18,
+    paddingHorizontal: 4,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dotText: { color: '#2A1E00', fontSize: 11, fontWeight: '800' },
+  dotText: { color: c.onGold, fontSize: 11, fontWeight: '800' },
   toast: {
     position: 'absolute',
-    bottom: 90,
+    bottom: 96,
     alignSelf: 'center',
-    backgroundColor: C.accent,
+    backgroundColor: c.text,
     paddingHorizontal: 20,
     paddingVertical: 12,
-    borderRadius: 24,
+    borderRadius: 16,
     maxWidth: '90%',
+    boxShadow: '0px 8px 24px rgba(20,22,43,0.18)',
   },
-  toastText: { color: '#fff', fontWeight: '800', fontSize: 16, textAlign: 'center' },
-});
+  toastText: { color: c.bg, fontWeight: '700', fontSize: 15, textAlign: 'center' },
+}));

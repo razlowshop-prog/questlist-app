@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Text, View } from 'react-native';
 import { levelInfo } from '../game';
-import { C, nativeDriver } from '../theme';
+import { nativeDriver, useStyles, useTheme, type Palette } from '../theme';
 
 /**
  * Always-visible bar at the top: level, rank, streak and an XP bar that
@@ -9,6 +9,8 @@ import { C, nativeDriver } from '../theme';
  * flashes, then continues from zero on the new level.
  */
 export function XpHeader({ totalXp, streak, bonus }: { totalXp: number; streak: number; bonus: number }) {
+  const s = useStyles(makeStyles);
+  const c = useTheme();
   const info = levelInfo(totalXp);
   const fill = useRef(new Animated.Value(info.progress)).current;
   const glow = useRef(new Animated.Value(0)).current;
@@ -37,7 +39,7 @@ export function XpHeader({ totalXp, streak, bonus }: { totalXp: number; streak: 
         Animated.parallel([
           Animated.timing(fill, { toValue: info.progress, duration: 450, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
           Animated.sequence([
-            Animated.spring(badgeScale, { toValue: 1.35, useNativeDriver: nativeDriver, speed: 30 }),
+            Animated.spring(badgeScale, { toValue: 1.3, useNativeDriver: nativeDriver, speed: 30 }),
             Animated.spring(badgeScale, { toValue: 1, useNativeDriver: nativeDriver, friction: 4 }),
           ]),
         ]).start();
@@ -52,58 +54,71 @@ export function XpHeader({ totalXp, streak, bonus }: { totalXp: number; streak: 
   }, [totalXp]);
 
   const width = fill.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
-  const glowColor = glow.interpolate({ inputRange: [0, 1], outputRange: [C.xp, '#B6FFD9'] });
+  const glowColor = glow.interpolate({ inputRange: [0, 1], outputRange: [c.xp, c.gold] });
 
   return (
-    <View style={styles.wrap}>
-      <View style={styles.row}>
-        <Animated.View style={[styles.badge, { transform: [{ scale: badgeScale }] }]}>
-          <Text style={styles.badgeText}>{shownLevel}</Text>
+    <View style={s.wrap}>
+      <View style={s.row}>
+        <Animated.View style={[s.badge, { transform: [{ scale: badgeScale }] }]}>
+          <Text style={s.badgeText}>{shownLevel}</Text>
         </Animated.View>
         <View style={{ flex: 1 }}>
-          <View style={styles.labels}>
-            <Text style={styles.rank}>{info.rank}</Text>
-            <Text style={styles.xpText}>
+          <View style={s.labels}>
+            <Text style={s.rank}>{info.rank}</Text>
+            <Text style={s.xpText}>
               {info.maxed ? 'MAX LEVEL' : `${info.xpIntoLevel} / ${info.xpForLevel} XP`}
             </Text>
           </View>
-          <View style={styles.track}>
-            <Animated.View style={[styles.fill, { width, backgroundColor: glowColor }]} />
+          <View style={s.track}>
+            <Animated.View style={[s.fill, { width, backgroundColor: glowColor }]} />
           </View>
         </View>
-        <View style={styles.streak}>
-          <Text style={styles.streakText}>🔥 {streak}</Text>
-          {bonus > 0 && <Text style={styles.bonus}>+{Math.round(bonus * 100)}%</Text>}
+        <View style={s.streak}>
+          <Text style={s.streakText}>🔥 {streak}</Text>
+          {bonus > 0 && <Text style={s.bonus}>+{Math.round(bonus * 100)}%</Text>}
         </View>
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: Palette) => ({
   wrap: {
-    backgroundColor: C.card,
+    backgroundColor: c.surface,
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: C.border,
+    paddingVertical: 12,
+    ...(c.shadow ? { boxShadow: '0px 1px 0px rgba(20,22,43,0.06)' } : { borderBottomWidth: 1, borderBottomColor: c.border }),
   },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, maxWidth: 640, width: '100%', alignSelf: 'center' },
+  row: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 12,
+    maxWidth: 640,
+    width: '100%' as const,
+    alignSelf: 'center' as const,
+  },
   badge: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: C.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: c.accent,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
-  badgeText: { color: '#fff', fontSize: 17, fontWeight: '800' },
-  labels: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 },
-  rank: { color: C.text, fontSize: 14, fontWeight: '700' },
-  xpText: { color: C.muted, fontSize: 12, fontWeight: '600' },
-  track: { height: 10, backgroundColor: C.border, borderRadius: 5, overflow: 'hidden' },
-  fill: { height: '100%', borderRadius: 5 },
-  streak: { alignItems: 'center', minWidth: 44 },
-  streakText: { color: C.flame, fontSize: 16, fontWeight: '800' },
-  bonus: { color: C.flame, fontSize: 11, fontWeight: '700' },
+  badgeText: { color: c.onAccent, fontSize: 17, fontWeight: '800' as const },
+  labels: { flexDirection: 'row' as const, justifyContent: 'space-between' as const, marginBottom: 6 },
+  rank: { color: c.text, fontSize: 14, fontWeight: '700' as const },
+  xpText: { color: c.muted, fontSize: 12, fontWeight: '600' as const },
+  track: { height: 8, backgroundColor: c.surfaceAlt, borderRadius: 4, overflow: 'hidden' as const },
+  fill: { height: '100%' as const, borderRadius: 4 },
+  streak: {
+    alignItems: 'center' as const,
+    minWidth: 48,
+    backgroundColor: c.surfaceAlt,
+    borderRadius: 12,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+  },
+  streakText: { color: c.flame, fontSize: 15, fontWeight: '800' as const },
+  bonus: { color: c.flame, fontSize: 10, fontWeight: '700' as const },
 });

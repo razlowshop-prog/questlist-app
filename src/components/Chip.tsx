@@ -1,21 +1,30 @@
-import { Pressable, StyleSheet, Text } from 'react-native';
-import { C } from '../theme';
+import { Pressable, Text } from 'react-native';
+import { useStyles, type Palette } from '../theme';
 
 export function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  const s = useStyles(makeStyles);
   return (
     <Pressable
       onPress={onPress}
-      style={[styles.chip, active && styles.active]}
+      style={[s.chip, active && s.active]}
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
     >
-      <Text style={[styles.text, active && { color: C.text }]}>{label}</Text>
+      <Text style={[s.text, active && s.textActive]}>{label}</Text>
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
-  chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: C.border },
-  active: { backgroundColor: C.accent, borderColor: C.accent },
-  text: { color: C.muted, fontSize: 13, fontWeight: '600' },
+const makeStyles = (c: Palette) => ({
+  chip: {
+    paddingHorizontal: 13,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: c.surfaceAlt,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  active: { backgroundColor: c.accentSoft, borderColor: c.accent },
+  text: { color: c.muted, fontSize: 13, fontWeight: '600' as const },
+  textActive: { color: c.accent },
 });

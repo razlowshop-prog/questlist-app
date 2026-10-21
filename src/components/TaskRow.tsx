@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Pressable, Text, View } from 'react-native';
 import {
   doneThisWeek,
   durationLabel,
@@ -9,11 +9,11 @@ import {
   type GameState,
   type Task,
 } from '../game';
-import { C, nativeDriver } from '../theme';
+import { card, nativeDriver, useStyles, type Palette } from '../theme';
 
 /**
  * One task. Completing it pops the checkbox and sends a "+XP" label
- * floating up from the row.
+ * floating up from the row. When a limit cut the XP, a short note shows instead.
  */
 export function TaskRow({
   task,
@@ -26,99 +26,111 @@ export function TaskRow({
   task: Task;
   state: GameState;
   today: string;
-  /** Returns the XP gained, or 0 when the task was unticked. */
-  onToggle: () => number;
+  /** Returns the XP gained (0 when unticked) and a note when a limit applied. */
+  onToggle: () => { xp: number; note?: string };
   done: boolean;
   onDelete: () => void;
 }) {
+  const s = useStyles(makeStyles);
   const pop = useRef(new Animated.Value(1)).current;
   const float = useRef(new Animated.Value(0)).current;
-  const [gained, setGained] = useState(0);
+  const [label, setLabel] = useState<{ text: string; warn: boolean } | null>(null);
   const perWeek = timesPerWeek(task);
   const weekly = perWeek > 0 && perWeek < 7 ? ` · ${doneThisWeek(state, task, today)}/${perWeek} this week` : '';
 
   function press() {
-    const xp = onToggle();
-    if (xp <= 0) return;
-    setGained(xp);
+    const wasDone = done;
+    const { xp, note } = onToggle();
+    if (wasDone) return;
+    setLabel(xp > 0 ? { text: `+${xp} XP`, warn: false } : { text: note ?? '+0 XP', warn: true });
     float.setValue(0);
     Animated.parallel([
       Animated.sequence([
-        Animated.timing(pop, { toValue: 1.3, duration: 110, useNativeDriver: nativeDriver }),
+        Animated.timing(pop, { toValue: 1.25, duration: 110, useNativeDriver: nativeDriver }),
         Animated.spring(pop, { toValue: 1, friction: 3, useNativeDriver: nativeDriver }),
       ]),
-      Animated.timing(float, { toValue: 1, duration: 900, easing: Easing.out(Easing.quad), useNativeDriver: nativeDriver }),
-    ]).start(() => setGained(0));
+      Animated.timing(float, {
+        toValue: 1,
+        duration: xp > 0 ? 900 : 1800,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: nativeDriver,
+      }),
+    ]).start(() => setLabel(null));
   }
 
   const floatStyle = {
-    opacity: float.interpolate({ inputRange: [0, 0.15, 0.7, 1], outputRange: [0, 1, 1, 0] }),
+    opacity: float.interpolate({ inputRange: [0, 0.15, 0.75, 1], outputRange: [0, 1, 1, 0] }),
     transform: [
-      { translateY: float.interpolate({ inputRange: [0, 1], outputRange: [0, -46] }) },
-      { scale: float.interpolate({ inputRange: [0, 0.2, 1], outputRange: [0.6, 1.15, 1] }) },
+      { translateY: float.interpolate({ inputRange: [0, 1], outputRange: [0, -40] }) },
+      { scale: float.interpolate({ inputRange: [0, 0.2, 1], outputRange: [0.6, 1.1, 1] }) },
     ],
   };
 
   return (
-    <View style={[styles.row, done && { backgroundColor: C.cardDone }]}>
-      <Pressable onPress={press} style={styles.main} accessibilityRole="checkbox" accessibilityState={{ checked: done }}>
-        <Animated.View style={[styles.checkbox, done && styles.checkboxDone, { transform: [{ scale: pop }] }]}>
-          {done && <Text style={styles.checkmark}>✓</Text>}
+    <View style={[s.row, done && s.rowDone]}>
+      <Pressable onPress={press} style={s.main} accessibilityRole="checkbox" accessibilityState={{ checked: done }}>
+        <Animated.View style={[s.checkbox, done && s.checkboxDone, { transform: [{ scale: pop }] }]}>
+          {done && <Text style={s.checkmark}>✓</Text>}
         </Animated.View>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.title, done && styles.titleDone]}>{task.title}</Text>
-          <Text style={styles.meta}>
+          <Text style={[s.title, done && s.titleDone]}>{task.title}</Text>
+          <Text style={s.meta}>
             {task.minutes ? `${durationLabel(task.minutes)} · ` : ''}
             {repeatLabel(task)}
-            {weekly} · {taskXp(task)} XP
+            {weekly}
           </Text>
         </View>
+        <View style={s.xpPill}>
+          <Text style={s.xpPillText}>{taskXp(task)} XP</Text>
+        </View>
       </Pressable>
-      <Pressable onPress={onDelete} hitSlop={10} accessibilityLabel={`Delete ${task.title}`}>
-        <Text style={styles.delete}>✕</Text>
+      <Pressable onPress={onDelete} hitSlop={10} style={s.deleteWrap} accessibilityLabel={`Delete ${task.title}`}>
+        <Text style={s.delete}>✕</Text>
       </Pressable>
-      {gained > 0 && (
-        <Animated.Text style={[styles.float, floatStyle]} pointerEvents="none">
-          +{gained} XP
+      {label && (
+        <Animated.Text style={[s.float, label.warn && s.floatWarn, floatStyle]} pointerEvents="none">
+          {label.text}
         </Animated.Text>
       )}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: Palette) => ({
   row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: C.card,
-    borderRadius: 14,
-    paddingRight: 14,
-    marginBottom: 8,
+    ...card(c),
+    borderRadius: 16,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    marginBottom: 10,
   },
-  main: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
+  rowDone: { opacity: 0.7 },
+  main: { flex: 1, flexDirection: 'row' as const, alignItems: 'center' as const, gap: 12, padding: 14 },
   checkbox: {
     width: 26,
     height: 26,
-    borderRadius: 8,
+    borderRadius: 13,
     borderWidth: 2,
-    borderColor: C.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderColor: c.border,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
-  checkboxDone: { backgroundColor: C.xp, borderColor: C.xp },
-  checkmark: { color: '#0B1A12', fontWeight: '900', fontSize: 15 },
-  title: { color: C.text, fontSize: 16, fontWeight: '600' },
-  titleDone: { color: C.muted, textDecorationLine: 'line-through' },
-  meta: { color: C.muted, fontSize: 12 },
-  delete: { color: C.muted, fontSize: 16 },
+  checkboxDone: { backgroundColor: c.xp, borderColor: c.xp },
+  checkmark: { color: '#FFFFFF', fontWeight: '900' as const, fontSize: 14 },
+  title: { color: c.text, fontSize: 16, fontWeight: '600' as const },
+  titleDone: { color: c.muted, textDecorationLine: 'line-through' as const },
+  meta: { color: c.muted, fontSize: 12, marginTop: 2 },
+  xpPill: { backgroundColor: c.xpSoft, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 },
+  xpPillText: { color: c.xp, fontSize: 12, fontWeight: '800' as const },
+  deleteWrap: { paddingRight: 14, paddingLeft: 2 },
+  delete: { color: c.muted, fontSize: 14, opacity: 0.6 },
   float: {
-    position: 'absolute',
-    right: 48,
-    top: 12,
-    color: C.xp,
+    position: 'absolute' as const,
+    right: 56,
+    top: 10,
+    color: c.xp,
     fontSize: 20,
-    fontWeight: '900',
-    textShadowColor: 'rgba(61,214,140,0.6)',
-    textShadowRadius: 8,
+    fontWeight: '900' as const,
   },
+  floatWarn: { color: c.flame, fontSize: 13, fontWeight: '700' as const, right: 16 },
 });

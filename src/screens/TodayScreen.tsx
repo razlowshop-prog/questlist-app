@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, Pressable, Text, TextInput, View } from 'react-native';
 import { Chip } from '../components/Chip';
 import { LibraryRow } from '../components/LibraryRow';
 import { TaskRow } from '../components/TaskRow';
@@ -7,6 +7,7 @@ import {
   DURATIONS,
   durationLabel,
   isDoneToday,
+  MAX_TASK_MINUTES,
   xpFor,
   type Difficulty,
   type GameState,
@@ -15,7 +16,7 @@ import {
 } from '../game';
 import { searchLibrary, type LibraryTask } from '../library';
 import { quoteOfTheDay } from '../quotes';
-import { C } from '../theme';
+import { card, themed, useStyles, useTheme } from '../theme';
 
 const EFFORTS: { key: Difficulty; label: string }[] = [
   { key: 'easy', label: 'Easy' },
@@ -51,104 +52,164 @@ export function TodayScreen({
   onAdd: (title: string, difficulty: Difficulty, repeat: Repeat, minutes: number) => void;
   onAddFromLibrary: (task: LibraryTask) => void;
   onOpenLibrary: () => void;
-  onToggle: (task: Task) => number;
+  onToggle: (task: Task) => { xp: number; note?: string };
   onDelete: (task: Task) => void;
 }) {
+  const s = useStyles(makeStyles);
+  const c = useTheme();
   const [title, setTitle] = useState('');
   const [minutes, setMinutes] = useState(15);
+  const [custom, setCustom] = useState(false);
+  const [customHours, setCustomHours] = useState('');
+  const [customMins, setCustomMins] = useState('');
   const [difficulty, setDifficulty] = useState<Difficulty>('easy');
   const [repeat, setRepeat] = useState<Repeat>(false);
   const doneCount = tasks.filter((t) => isDoneToday(state, t, today)).length;
   const quote = quoteOfTheDay(today);
   const suggestions = useMemo(() => (title.trim().length >= 2 ? searchLibrary(title, 4) : []), [title]);
 
+  const customMinutes = Math.min(
+    (parseInt(customHours, 10) || 0) * 60 + (parseInt(customMins, 10) || 0),
+    MAX_TASK_MINUTES,
+  );
+  const chosenMinutes = custom ? customMinutes : minutes;
+  const canAdd = title.trim().length > 0 && chosenMinutes > 0;
+
   function add() {
-    if (!title.trim()) return;
-    onAdd(title, difficulty, repeat, minutes);
+    if (!canAdd) return;
+    onAdd(title, difficulty, repeat, chosenMinutes);
     setTitle('');
   }
+
+  const digits = (v: string) => v.replace(/[^0-9]/g, '').slice(0, 2);
 
   return (
     <FlatList
       data={tasks}
       keyExtractor={(t) => t.id}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={s.content}
       keyboardShouldPersistTaps="handled"
       ListHeaderComponent={
         <>
-          <View style={styles.quote}>
-            <Text style={styles.quoteText}>“{quote.text}”</Text>
-            <Text style={styles.quoteAuthor}>— {quote.author}</Text>
+          <Text style={s.greeting}>Hi {state.profile.name} 👋</Text>
+          <Text style={s.date}>
+            {new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}
+          </Text>
+
+          <View style={s.quote}>
+            <Text style={s.quoteText}>“{quote.text}”</Text>
+            <Text style={s.quoteAuthor}>{quote.author}</Text>
           </View>
 
-          <View style={styles.addCard}>
+          <View style={s.addCard}>
             <TextInput
               value={title}
               onChangeText={setTitle}
               onSubmitEditing={add}
               placeholder="Add a task or search ideas…"
-              placeholderTextColor={C.muted}
-              style={styles.input}
+              placeholderTextColor={c.muted}
+              style={s.input}
               returnKeyType="done"
             />
 
             {suggestions.length > 0 && (
               <View>
-                <Text style={styles.small}>Suggestions, tap + to add</Text>
-                {suggestions.map((t) => (
-                  <LibraryRow
-                    key={t.title}
-                    task={t}
-                    added={addedTitles.has(t.title)}
-                    onAdd={() => {
-                      onAddFromLibrary(t);
-                      setTitle('');
-                    }}
-                  />
-                ))}
+                <Text style={s.small}>Suggestions</Text>
+                <View style={{ marginTop: 8 }}>
+                  {suggestions.map((t) => (
+                    <LibraryRow
+                      key={t.title}
+                      task={t}
+                      added={addedTitles.has(t.title)}
+                      onAdd={() => {
+                        onAddFromLibrary(t);
+                        setTitle('');
+                      }}
+                    />
+                  ))}
+                </View>
               </View>
             )}
 
             {title.trim().length > 0 && (
               <>
-                <Text style={styles.small}>How long does it take?</Text>
-                <View style={styles.chipRow}>
+                <Text style={s.small}>How long does it take?</Text>
+                <View style={s.chipRow}>
                   {DURATIONS.map((m) => (
-                    <Chip key={m} label={durationLabel(m)} active={minutes === m} onPress={() => setMinutes(m)} />
+                    <Chip
+                      key={m}
+                      label={durationLabel(m)}
+                      active={!custom && minutes === m}
+                      onPress={() => {
+                        setCustom(false);
+                        setMinutes(m);
+                      }}
+                    />
                   ))}
+                  <Chip label="Custom" active={custom} onPress={() => setCustom(true)} />
                 </View>
-                <Text style={styles.small}>How demanding?</Text>
-                <View style={styles.chipRow}>
+                {custom && (
+                  <View style={s.customRow}>
+                    <TextInput
+                      value={customHours}
+                      onChangeText={(v) => setCustomHours(digits(v))}
+                      placeholder="0"
+                      placeholderTextColor={c.muted}
+                      keyboardType="number-pad"
+                      style={s.customInput}
+                    />
+                    <Text style={s.customUnit}>h</Text>
+                    <TextInput
+                      value={customMins}
+                      onChangeText={(v) => setCustomMins(digits(v))}
+                      placeholder="0"
+                      placeholderTextColor={c.muted}
+                      keyboardType="number-pad"
+                      style={s.customInput}
+                    />
+                    <Text style={s.customUnit}>min</Text>
+                  </View>
+                )}
+                <Text style={s.small}>How demanding?</Text>
+                <View style={s.chipRow}>
                   {EFFORTS.map((e) => (
                     <Chip key={e.key} label={e.label} active={difficulty === e.key} onPress={() => setDifficulty(e.key)} />
                   ))}
                 </View>
-                <Text style={styles.small}>How often?</Text>
-                <View style={styles.chipRow}>
+                <Text style={s.small}>How often?</Text>
+                <View style={s.chipRow}>
                   {REPEATS.map((r) => (
                     <Chip key={String(r.value)} label={r.label} active={repeat === r.value} onPress={() => setRepeat(r.value)} />
                   ))}
                 </View>
-                <Pressable onPress={add} style={styles.addButton} accessibilityRole="button">
-                  <Text style={styles.addButtonText}>Add task · +{xpFor(minutes, difficulty)} XP</Text>
+                <Pressable
+                  onPress={add}
+                  disabled={!canAdd}
+                  style={[s.addButton, !canAdd && { opacity: 0.4 }]}
+                  accessibilityRole="button"
+                >
+                  <Text style={s.addButtonText}>
+                    Add task{canAdd ? ` · +${xpFor(chosenMinutes, difficulty)} XP` : ''}
+                  </Text>
                 </Pressable>
               </>
             )}
 
-            <Pressable onPress={onOpenLibrary} style={styles.libraryButton} accessibilityRole="button">
-              <Text style={styles.libraryText}>📚 Browse the task library</Text>
+            <Pressable onPress={onOpenLibrary} style={s.libraryButton} accessibilityRole="button">
+              <Text style={s.libraryText}>📚  Browse the task library</Text>
             </Pressable>
           </View>
 
-          <Text style={styles.sectionTitle}>
-            Today · {doneCount}/{tasks.length} done
-          </Text>
+          <View style={s.sectionRow}>
+            <Text style={s.sectionTitle}>Today</Text>
+            <Text style={s.sectionCount}>
+              {doneCount}/{tasks.length} done
+            </Text>
+          </View>
         </>
       }
       ListEmptyComponent={
-        loaded ? (
-          <Text style={styles.empty}>No tasks for today. Add one above or pick some from the library!</Text>
-        ) : undefined
+        loaded ? <Text style={s.empty}>No tasks for today. Add one above or pick some from the library!</Text> : undefined
       }
       renderItem={({ item }) => (
         <TaskRow
@@ -164,27 +225,42 @@ export function TodayScreen({
   );
 }
 
-const styles = StyleSheet.create({
-  content: { padding: 16, paddingBottom: 48, maxWidth: 640, width: '100%', alignSelf: 'center' },
-  quote: { borderLeftWidth: 3, borderLeftColor: C.gold, paddingLeft: 12, paddingVertical: 2, marginBottom: 16 },
-  quoteText: { color: C.text, fontSize: 14, fontStyle: 'italic', lineHeight: 20 },
-  quoteAuthor: { color: C.muted, fontSize: 12, marginTop: 4 },
-  addCard: { backgroundColor: C.card, borderRadius: 18, padding: 12, gap: 10, marginBottom: 20 },
+const makeStyles = themed((c) => ({
+  content: { padding: 20, paddingBottom: 48, maxWidth: 640, width: '100%', alignSelf: 'center' },
+  greeting: { color: c.text, fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
+  date: { color: c.muted, fontSize: 14, marginTop: 2, marginBottom: 16 },
+  quote: { backgroundColor: c.accentSoft, borderRadius: 16, padding: 14, marginBottom: 16 },
+  quoteText: { color: c.text, fontSize: 14, lineHeight: 20, fontStyle: 'italic' },
+  quoteAuthor: { color: c.accent, fontSize: 12, fontWeight: '700', marginTop: 6 },
+  addCard: { ...card(c), padding: 14, gap: 12, marginBottom: 24 },
   input: {
-    color: C.text,
+    color: c.text,
     fontSize: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: C.border,
+    backgroundColor: c.surfaceAlt,
   },
-  small: { color: C.muted, fontSize: 12, fontWeight: '700', marginBottom: -2 },
+  small: { color: c.muted, fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
-  addButton: { backgroundColor: C.xp, paddingVertical: 11, borderRadius: 999, alignItems: 'center' },
-  addButtonText: { color: '#0B1A12', fontWeight: '800', fontSize: 15 },
-  libraryButton: { paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: C.border, alignItems: 'center' },
-  libraryText: { color: C.text, fontWeight: '700', fontSize: 14 },
-  sectionTitle: { color: C.text, fontSize: 16, fontWeight: '700', marginBottom: 10 },
-  empty: { color: C.muted, fontSize: 14, textAlign: 'center', marginTop: 24 },
-});
+  customRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  customInput: {
+    width: 56,
+    textAlign: 'center',
+    color: c.text,
+    fontSize: 16,
+    fontWeight: '700',
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: c.surfaceAlt,
+  },
+  customUnit: { color: c.muted, fontSize: 14, fontWeight: '600', marginRight: 8 },
+  addButton: { backgroundColor: c.accent, paddingVertical: 13, borderRadius: 14, alignItems: 'center' },
+  addButtonText: { color: c.onAccent, fontWeight: '800', fontSize: 15 },
+  libraryButton: { paddingVertical: 11, borderRadius: 14, backgroundColor: c.surfaceAlt, alignItems: 'center' },
+  libraryText: { color: c.text, fontWeight: '700', fontSize: 14 },
+  sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 },
+  sectionTitle: { color: c.text, fontSize: 20, fontWeight: '800', letterSpacing: -0.3 },
+  sectionCount: { color: c.muted, fontSize: 14, fontWeight: '600' },
+  empty: { color: c.muted, fontSize: 14, textAlign: 'center', marginTop: 24 },
+}));
