@@ -126,6 +126,7 @@ export default function App() {
   function onToggle(task: Task): { xp: number; note?: string } {
     const wasDone = isDoneToday(state, task, today);
     const next = toggleTask(state, task.id, today, Date.now());
+    if (next === state) return { xp: 0 };
     const gained = apply(next);
     if (wasDone) return { xp: 0 };
     const limited = next.completions[next.completions.length - 1].limited;

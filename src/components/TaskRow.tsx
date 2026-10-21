@@ -1,9 +1,11 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, Text, View } from 'react-native';
 import {
   doneThisWeek,
   durationLabel,
+  QUICK_TICK_MS,
   repeatLabel,
+  secondsUntilTickable,
   taskXp,
   timesPerWeek,
   type GameState,
@@ -14,6 +16,7 @@ import { card, nativeDriver, useStyles, type Palette } from '../theme';
 /**
  * One task. Completing it pops the checkbox and sends a "+XP" label
  * floating up from the row. When a limit cut the XP, a short note shows instead.
+ * A freshly added task counts down until it may be ticked.
  */
 export function TaskRow({
   task,
@@ -35,14 +38,35 @@ export function TaskRow({
   const pop = useRef(new Animated.Value(1)).current;
   const float = useRef(new Animated.Value(0)).current;
   const [label, setLabel] = useState<{ text: string; warn: boolean } | null>(null);
+  const [waitLeft, setWaitLeft] = useState(() => secondsUntilTickable(task, Date.now()));
+  const waitSeconds = QUICK_TICK_MS / 1000;
+
+  useEffect(() => {
+    if (secondsUntilTickable(task, Date.now()) === 0) return;
+    const timer = setInterval(() => {
+      const left = secondsUntilTickable(task, Date.now());
+      setWaitLeft(left);
+      if (left === 0) clearInterval(timer);
+    }, 250);
+    return () => clearInterval(timer);
+  }, [task.createdAt]);
   const perWeek = timesPerWeek(task);
   const weekly = perWeek > 0 && perWeek < 7 ? ` · ${doneThisWeek(state, task, today)}/${perWeek} this week` : '';
 
   function press() {
+    if (!done && waitLeft > 0) {
+      setLabel({ text: `New tasks can be ticked ${waitSeconds} s after adding`, warn: true });
+      animate(false);
+      return;
+    }
     const wasDone = done;
     const { xp, note } = onToggle();
     if (wasDone) return;
     setLabel(xp > 0 ? { text: `+${xp} XP`, warn: false } : { text: note ?? '+0 XP', warn: true });
+    animate(xp > 0);
+  }
+
+  function animate(quick: boolean) {
     float.setValue(0);
     Animated.parallel([
       Animated.sequence([
@@ -51,7 +75,7 @@ export function TaskRow({
       ]),
       Animated.timing(float, {
         toValue: 1,
-        duration: xp > 0 ? 900 : 1800,
+        duration: quick ? 900 : 1800,
         easing: Easing.out(Easing.quad),
         useNativeDriver: nativeDriver,
       }),
@@ -69,16 +93,22 @@ export function TaskRow({
   return (
     <View style={[s.row, done && s.rowDone]}>
       <Pressable onPress={press} style={s.main} accessibilityRole="checkbox" accessibilityState={{ checked: done }}>
-        <Animated.View style={[s.checkbox, done && s.checkboxDone, { transform: [{ scale: pop }] }]}>
+        <Animated.View style={[s.checkbox, done && s.checkboxDone, waitLeft > 0 && !done && s.checkboxLocked, { transform: [{ scale: pop }] }]}>
           {done && <Text style={s.checkmark}>✓</Text>}
         </Animated.View>
         <View style={{ flex: 1 }}>
           <Text style={[s.title, done && s.titleDone]}>{task.title}</Text>
-          <Text style={s.meta}>
-            {task.minutes ? `${durationLabel(task.minutes)} · ` : ''}
-            {repeatLabel(task)}
-            {weekly}
-          </Text>
+          {waitLeft > 0 && !done ? (
+            <Text style={[s.meta, s.wait]}>
+              ⏳ Wait {waitLeft} more {waitLeft === 1 ? 'second' : 'seconds'}
+            </Text>
+          ) : (
+            <Text style={s.meta}>
+              {task.minutes ? `${durationLabel(task.minutes)} · ` : ''}
+              {repeatLabel(task)}
+              {weekly}
+            </Text>
+          )}
         </View>
         <View style={s.xpPill}>
           <Text style={s.xpPillText}>{taskXp(task)} XP</Text>
@@ -116,10 +146,12 @@ const makeStyles = (c: Palette) => ({
     justifyContent: 'center' as const,
   },
   checkboxDone: { backgroundColor: c.xp, borderColor: c.xp },
+  checkboxLocked: { borderStyle: 'dashed' as const, opacity: 0.5 },
   checkmark: { color: '#FFFFFF', fontWeight: '900' as const, fontSize: 14 },
   title: { color: c.text, fontSize: 16, fontWeight: '600' as const },
   titleDone: { color: c.muted, textDecorationLine: 'line-through' as const },
   meta: { color: c.muted, fontSize: 12, marginTop: 2 },
+  wait: { color: c.flame, fontWeight: '700' as const },
   xpPill: { backgroundColor: c.xpSoft, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 },
   xpPillText: { color: c.xp, fontSize: 12, fontWeight: '800' as const },
   deleteWrap: { paddingRight: 14, paddingLeft: 2 },

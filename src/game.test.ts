@@ -14,6 +14,7 @@ import {
   MAX_LEVEL,
   rankFor,
   repeatLabel,
+  secondsUntilTickable,
   streakBonus,
   taskXp,
   toggleTask,
@@ -245,12 +246,15 @@ test('anti-cheat: only 16 hours of task time per day earn XP', () => {
   assert.equal(s.completions.at(-1)!.xp, 10);
 });
 
-test('anti-cheat: ticking within 10 seconds of adding gives no XP', () => {
+test('anti-cheat: a task cannot be ticked within 20 seconds of adding', () => {
   const s = addTask(emptyState, 'Run', 'hard', false, 'r', 30);
   const created = Date.parse(s.tasks[0].createdAt);
-  assert.equal(toggleTask(s, 'r', TODAY, created + 3_000).completions[0].xp, 0);
-  assert.equal(toggleTask(s, 'r', TODAY, created + 3_000).completions[0].limited, 'quick');
-  assert.ok(toggleTask(s, 'r', TODAY, created + 60_000).completions[0].xp > 0);
+  assert.equal(toggleTask(s, 'r', TODAY, created + 3_000), s);
+  assert.equal(secondsUntilTickable(s.tasks[0], created), 20);
+  assert.equal(secondsUntilTickable(s.tasks[0], created + 15_000), 5);
+  assert.equal(secondsUntilTickable(s.tasks[0], created + 14_200), 6);
+  assert.equal(secondsUntilTickable(s.tasks[0], created + 20_000), 0);
+  assert.ok(toggleTask(s, 'r', TODAY, created + 20_000).completions[0].xp > 0);
 });
 
 test('long tasks are allowed and keep earning more, up to 16 hours', () => {
