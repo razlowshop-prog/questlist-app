@@ -12,6 +12,7 @@ import {
 } from '../game';
 import { card, eyebrow, FONTS, headingCase, themed, useStyles, useTheme } from '../theme';
 import { Fire, fireColor } from './Fire';
+import { FireAura } from './FireAura';
 import { RewardPicture } from './RewardPicture';
 
 /** Opened by tapping the level: XP, the streak multiplier and fire tiers, the next reward. */
@@ -78,6 +79,7 @@ export function LevelDetails({
               <Text style={s.small}>Fire tiers</Text>
               {STREAK_TIERS.map((t) => (
                 <View key={t.tier} style={s.tierRow}>
+                  <FireAura tier={t.tier} id={`tier-${t.tier}`} />
                   <Fire tier={t.tier} size={18} />
                   <Text style={[s.tierName, { color: fireColor(t.tier, c) }]}>{t.name}</Text>
                   <Text style={s.muted}>{t.weekXp} XP a week</Text>
@@ -128,9 +130,19 @@ const makeStyles = themed((c) => ({
   step: { flex: 1, alignItems: 'center', gap: 2, paddingVertical: 8, borderRadius: c.radius, borderWidth: 1, borderColor: c.border },
   stepOn: { borderColor: c.accent, backgroundColor: c.accentSoft },
   stepValue: { fontFamily: FONTS.serif, color: c.muted, fontSize: 18, fontVariant: ['lining-nums'] },
+  tierRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    minHeight: 44,
+    borderRadius: c.radius,
+    borderWidth: 1,
+    borderColor: c.border,
+    overflow: 'hidden',
+  },
   stepValueOn: { color: c.accent },
   stepDays: { color: c.faint, fontSize: 11 },
-  tierRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   tierName: { fontWeight: '700', fontSize: 14, width: 64 },
   note: { color: c.faint, fontSize: 12, lineHeight: 17 },
   rewardIcon: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: c.accent, alignItems: 'center', justifyContent: 'center' },

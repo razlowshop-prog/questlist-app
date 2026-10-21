@@ -341,6 +341,12 @@ export function searchLibrary(query: string, limit = 50, category?: string): Lib
   return scored.sort((a, b) => b.score - a.score).slice(0, limit).map((s) => s.task);
 }
 
+/** Most XP = longest first (XP grows with time), quickest = shortest first; ties by name. */
+export function sortTasks(tasks: LibraryTask[], sort: 'xp' | 'quick'): LibraryTask[] {
+  const dir = sort === 'xp' ? -1 : 1;
+  return [...tasks].sort((a, b) => dir * (a.minutes - b.minutes) || a.title.localeCompare(b.title));
+}
+
 /** Suggestions for the setup screen: featured first, from the chosen areas. */
 export function suggestionsFor(categories: string[], perCategory = 6): LibraryTask[] {
   return categories.flatMap((c) => {

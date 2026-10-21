@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CATEGORIES, categoryForTitle, guessCategory, LIBRARY, searchLibrary, suggestionsFor, taskCategory } from './library.ts';
+import { CATEGORIES, categoryForTitle, guessCategory, LIBRARY, searchLibrary, sortTasks, suggestionsFor, taskCategory } from './library.ts';
 
 test('library is big and every task has a known category', () => {
   assert.ok(LIBRARY.length >= 200, `only ${LIBRARY.length} tasks`);
@@ -36,4 +36,14 @@ test('task categories: saved, exact library match, closest guess, or other', () 
   assert.equal(guessCategory('Gym session'), 'fitness');
   assert.equal(taskCategory({ title: 'Vacuum the car' }), 'home');
   assert.equal(taskCategory({ title: 'Xyzzy qwrt' }), 'other');
+});
+
+test('library sorts by most XP and quickest', () => {
+  const xp = sortTasks(LIBRARY, 'xp');
+  const quick = sortTasks(LIBRARY, 'quick');
+  assert.equal(xp.length, LIBRARY.length);
+  for (let i = 1; i < xp.length; i++) assert.ok(xp[i - 1].minutes >= xp[i].minutes);
+  for (let i = 1; i < quick.length; i++) assert.ok(quick[i - 1].minutes <= quick[i].minutes);
+  assert.notEqual(xp, LIBRARY); // a copy, the library itself stays in order
+  assert.equal(LIBRARY[0].category, 'home');
 });

@@ -2,6 +2,7 @@ import { Pressable, Text, View } from 'react-native';
 import { STREAK_TIERS, streakBonus, streakTierName, type StreakStatus } from '../game';
 import { card, eyebrow, FONTS, themed, useStyles, useTheme } from '../theme';
 import { Fire, fireColor } from './Fire';
+import { FireAura } from './FireAura';
 
 /** The streak on the home screen: fire tier, days, multiplier and this week's progress to the next fire. */
 export function StreakCard({ streak, onPress }: { streak: StreakStatus; onPress: () => void }) {
@@ -21,6 +22,7 @@ export function StreakCard({ streak, onPress }: { streak: StreakStatus; onPress:
 
   return (
     <Pressable onPress={onPress} style={[s.card, { borderColor: streak.tier ? color : c.border }]} accessibilityRole="button">
+      <FireAura tier={streak.tier} id="streak-card" />
       <View style={s.row}>
         <Fire tier={streak.tier} size={42} />
         <View style={{ flex: 1 }}>
@@ -50,7 +52,7 @@ export function StreakCard({ streak, onPress }: { streak: StreakStatus; onPress:
 }
 
 const makeStyles = themed((c) => ({
-  card: { ...card(c), borderWidth: 1, padding: 14, gap: 10, marginTop: 18 },
+  card: { ...card(c), borderWidth: 1, padding: 14, gap: 10, marginTop: 18, overflow: 'hidden' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   daysRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
   days: { fontFamily: FONTS.serif, fontSize: 34, lineHeight: 38, fontVariant: ['lining-nums'] },
