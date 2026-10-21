@@ -10,6 +10,7 @@ import {
   dayKey,
   deleteTask,
   emptyState,
+  finishSetup,
   isDoneToday,
   levelInfo,
   profileStats,
@@ -17,14 +18,18 @@ import {
   streakBonus,
   toggleTask,
   totalXp,
+  updateSettings,
   visibleTasks,
   weeklyChallenges,
   type GameState,
   type Task,
 } from './src/game';
 import { ChallengesScreen } from './src/screens/ChallengesScreen';
+import { LibraryModal } from './src/screens/LibraryModal';
+import { SetupScreen, type SetupPick } from './src/screens/SetupScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { TodayScreen } from './src/screens/TodayScreen';
+import type { LibraryTask } from './src/library';
 import { loadState, saveState } from './src/storage';
 import { C, nativeDriver } from './src/theme';
 
@@ -40,6 +45,8 @@ export default function App() {
   const [state, setState] = useState<GameState>(emptyState);
   const [loaded, setLoaded] = useState(false);
   const [tab, setTab] = useState<Tab>('today');
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [redoSetup, setRedoSetup] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const toastAnim = useRef(new Animated.Value(0)).current;
 
@@ -62,6 +69,22 @@ export default function App() {
   const tasks = useMemo(() => visibleTasks(state, today), [state, today]);
   const challenges = useMemo(() => weeklyChallenges(state, today), [state, today]);
   const readyToClaim = challenges.filter((c) => c.complete && !c.claimed).length;
+  const addedTitles = useMemo(() => new Set(state.tasks.map((t) => t.title)), [state.tasks]);
+
+  function addFromLibrary(s: GameState, t: LibraryTask, perWeek = t.perWeek): GameState {
+    return addTask(s, t.title, t.difficulty, perWeek === 0 ? false : perWeek, undefined, t.minutes);
+  }
+
+  function onSetupDone(name: string, goals: string[], picks: SetupPick[]) {
+    let next = finishSetup(state, name, goals);
+    for (const p of picks) {
+      if (!next.tasks.some((t) => t.title === p.task.title)) next = addFromLibrary(next, p.task, p.perWeek);
+    }
+    setState(next);
+    setRedoSetup(false);
+    setTab('today');
+    if (picks.length) setTimeout(() => showToast(`⚔️ ${picks.length} quests added. Let's go!`), 300);
+  }
 
   function showToast(message: string) {
     setToast(message);
@@ -101,6 +124,23 @@ export default function App() {
     transform: [{ translateY: toastAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
   };
 
+  if (loaded && (!state.onboarded || redoSetup)) {
+    return (
+      <>
+        <StatusBar style="light" />
+        <SetupScreen
+          initialName={state.profile.name}
+          initialGoals={state.goals}
+          onFinish={onSetupDone}
+          onSkip={() => {
+            setState({ ...state, onboarded: true });
+            setRedoSetup(false);
+          }}
+        />
+      </>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style="light" />
@@ -113,7 +153,12 @@ export default function App() {
             tasks={tasks}
             today={today}
             loaded={loaded}
-            onAdd={(title, difficulty, daily) => setState(addTask(state, title, difficulty, daily))}
+            addedTitles={addedTitles}
+            onAdd={(title, difficulty, repeat, minutes) =>
+              setState(addTask(state, title, difficulty, repeat, undefined, minutes))
+            }
+            onAddFromLibrary={(t) => setState(addFromLibrary(state, t))}
+            onOpenLibrary={() => setLibraryOpen(true)}
             onToggle={onToggle}
             onDelete={(task) => setState(deleteTask(state, task.id))}
           />
@@ -124,7 +169,10 @@ export default function App() {
             name={state.profile.name}
             stats={profileStats(state, today)}
             badges={badges(state, today)}
+            settings={state.settings}
             onRename={(name) => setState(setName(state, name))}
+            onSettings={(changes) => setState(updateSettings(state, changes))}
+            onRedoSetup={() => setRedoSetup(true)}
           />
         )}
       </View>
@@ -148,6 +196,13 @@ export default function App() {
           </Pressable>
         ))}
       </View>
+
+      <LibraryModal
+        visible={libraryOpen}
+        addedTitles={addedTitles}
+        onAdd={(t) => setState((s) => addFromLibrary(s, t))}
+        onClose={() => setLibraryOpen(false)}
+      />
 
       {toast && (
         <Animated.View style={[styles.toast, toastStyle]} pointerEvents="none">

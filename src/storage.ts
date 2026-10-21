@@ -10,7 +10,12 @@ export async function loadState(): Promise<GameState> {
     if (!raw) return emptyState;
     // Merge so fields added in newer versions get their defaults.
     const saved = JSON.parse(raw);
-    return { ...emptyState, ...saved, profile: { ...emptyState.profile, ...saved.profile } };
+    return {
+      ...emptyState,
+      ...saved,
+      profile: { ...emptyState.profile, ...saved.profile },
+      settings: { ...emptyState.settings, ...saved.settings },
+    };
   } catch {
     return emptyState;
   }

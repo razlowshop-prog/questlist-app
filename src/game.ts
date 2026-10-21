@@ -7,10 +7,17 @@ export interface Task {
   id: string;
   title: string;
   difficulty: Difficulty;
-  /** Daily tasks come back every day; one-off tasks disappear once done. */
+  /** Repeating tasks come back every day; one-off tasks disappear once done. */
   daily: boolean;
+  /** For repeating tasks: how many times per week (1-7). Missing = every day. */
+  perWeek?: number;
+  /** Roughly how long the task takes. XP is based on this. */
+  minutes?: number;
   createdAt: string;
 }
+
+/** false = one-time, true = every day, a number = that many times per week. */
+export type Repeat = boolean | number;
 
 export interface Completion {
   taskId: string;
@@ -38,6 +45,17 @@ export interface GameState {
   completions: Completion[];
   claims: ChallengeClaim[];
   profile: Profile;
+  /** False until the setup questions are answered or skipped. */
+  onboarded: boolean;
+  /** Life areas picked during setup, used to suggest tasks. */
+  goals: string[];
+  settings: Settings;
+}
+
+export interface Settings {
+  /** Opted in to a daily motivational quote by email. */
+  quoteEmails: boolean;
+  email: string;
 }
 
 export const emptyState: GameState = {
@@ -45,17 +63,53 @@ export const emptyState: GameState = {
   completions: [],
   claims: [],
   profile: { name: 'Player' },
+  onboarded: false,
+  goals: [],
+  settings: { quoteEmails: false, email: '' },
 };
 
+/** Fixed XP for tasks saved before XP was based on time. */
 export const BASE_XP: Record<Difficulty, number> = {
   easy: 10,
   medium: 20,
   hard: 40,
 };
 
+/** A new rank every 10 levels; level 100 is the final rank. */
+export const EFFORT_MULTIPLIER: Record<Difficulty, number> = {
+  easy: 1,
+  medium: 1.25,
+  hard: 1.5,
+};
+
+/** Time options offered when adding a task, in minutes. */
+export const DURATIONS = [5, 15, 30, 60, 90, 120];
+
+/**
+ * XP for a task, based on how long it takes and how demanding it is.
+ * Grows a bit slower than time (minutes^0.7) so very long tasks
+ * don't dwarf everything else: 5 min easy = 5 XP, 15 min = 10,
+ * 30 min = 20, 60 min = 30, 2 h = 45. Hard effort gives 1.5x.
+ */
+export function xpFor(minutes: number, difficulty: Difficulty): number {
+  const m = Math.min(Math.max(minutes, 1), 240);
+  const raw = 1.62 * Math.pow(m, 0.7) * EFFORT_MULTIPLIER[difficulty];
+  return Math.max(5, Math.round(raw / 5) * 5);
+}
+
+export function taskXp(task: Task): number {
+  return task.minutes ? xpFor(task.minutes, task.difficulty) : BASE_XP[task.difficulty];
+}
+
+export function durationLabel(minutes: number): string {
+  if (minutes < 60) return `${minutes} min`;
+  const h = minutes / 60;
+  return `${Number.isInteger(h) ? h : h.toFixed(1)} h`;
+}
+
 const RANKS = [
-  'Rookie',
-  'Apprentice',
+  'Rookie', // 1-9
+  'Apprentice', // 10-19
   'Achiever',
   'Go-Getter',
   'Pro',
@@ -63,7 +117,11 @@ const RANKS = [
   'Master',
   'Grandmaster',
   'Legend',
+  'Mythic', // 90-99
+  'Immortal', // 100
 ];
+
+export const MAX_LEVEL = 100;
 
 // ---------- dates ----------
 
@@ -82,17 +140,25 @@ export function addDays(key: string, delta: number): string {
 
 // ---------- levels ----------
 
-/** XP needed to go from `level` to `level + 1`. Grows by 50 each level. */
+/**
+ * XP needed to go from `level` to `level + 1`, rounded to 5.
+ * Starts tiny (25 XP, about two tasks) and gets steeper every level:
+ * level 10 needs ~180, level 50 ~1,790, level 99 ~4,945.
+ * Reaching level 100 takes about 197,000 XP in total.
+ */
 export function xpToNext(level: number): number {
-  return 100 + (level - 1) * 50;
+  return Math.round((20 + 5 * Math.pow(level, 1.5)) / 5) * 5;
 }
 
 export function levelInfo(totalXp: number) {
   let level = 1;
   let remaining = totalXp;
-  while (remaining >= xpToNext(level)) {
+  while (level < MAX_LEVEL && remaining >= xpToNext(level)) {
     remaining -= xpToNext(level);
     level++;
+  }
+  if (level === MAX_LEVEL) {
+    return { level, rank: rankFor(level), xpIntoLevel: remaining, xpForLevel: remaining, progress: 1, maxed: true };
   }
   const needed = xpToNext(level);
   return {
@@ -101,12 +167,12 @@ export function levelInfo(totalXp: number) {
     xpIntoLevel: remaining,
     xpForLevel: needed,
     progress: remaining / needed,
+    maxed: false,
   };
 }
 
-/** A new rank every 5 levels; stays at the top rank after that. */
 export function rankFor(level: number): string {
-  return RANKS[Math.min(Math.floor((level - 1) / 5), RANKS.length - 1)];
+  return RANKS[Math.min(Math.floor(level / 10), RANKS.length - 1)];
 }
 
 export function totalXp(state: GameState): number {
@@ -151,10 +217,25 @@ export function isDoneToday(state: GameState, task: Task, today: string): boolea
   );
 }
 
-/** Tasks to show today: all daily tasks plus one-offs not finished on an earlier day. */
+export function timesPerWeek(task: Task): number {
+  return task.daily ? Math.min(Math.max(task.perWeek ?? 7, 1), 7) : 0;
+}
+
+/** How often a repeating task has been done this week (Monday to Sunday). */
+export function doneThisWeek(state: GameState, task: Task, today: string): number {
+  const start = weekStart(today);
+  return state.completions.filter((c) => c.taskId === task.id && c.date >= start && c.date <= today).length;
+}
+
+/**
+ * Tasks to show today: repeating tasks until their weekly target is reached
+ * (or that were done today), plus one-offs not finished on an earlier day.
+ */
 export function visibleTasks(state: GameState, today: string): Task[] {
   return state.tasks.filter((t) => {
-    if (t.daily) return true;
+    if (t.daily) {
+      return isDoneToday(state, t, today) || doneThisWeek(state, t, today) < timesPerWeek(t);
+    }
     const done = state.completions.find((c) => c.taskId === t.id);
     return !done || done.date === today;
   });
@@ -164,12 +245,15 @@ export function addTask(
   state: GameState,
   title: string,
   difficulty: Difficulty,
-  daily: boolean,
+  repeat: Repeat,
   id: string = Math.random().toString(36).slice(2),
+  minutes?: number,
 ): GameState {
   const trimmed = title.trim();
   if (!trimmed) return state;
-  const task: Task = { id, title: trimmed, difficulty, daily, createdAt: new Date().toISOString() };
+  const task: Task = { id, title: trimmed, difficulty, daily: repeat !== false, createdAt: new Date().toISOString() };
+  if (minutes) task.minutes = minutes;
+  if (typeof repeat === 'number' && repeat < 7) task.perWeek = Math.max(1, Math.round(repeat));
   return { ...state, tasks: [...state.tasks, task] };
 }
 
@@ -199,7 +283,7 @@ export function toggleTask(state: GameState, taskId: string, today: string): Gam
     [...state.completions, { taskId, date: today, xp: 0 }],
     today,
   );
-  const base = BASE_XP[task.difficulty];
+  const base = taskXp(task);
   const xp = Math.round(base * (1 + streakBonus(streakWithToday)));
   return {
     ...state,
@@ -356,9 +440,28 @@ export function badges(state: GameState, today: string): Badge[] {
     b('streak30', '👑', 'Unstoppable', 'Reach a 30-day streak', s.bestStreak >= 30),
     b('level5', '⭐', 'Rising Star', 'Reach level 5', s.level >= 5),
     b('level10', '🚀', 'High Flyer', 'Reach level 10', s.level >= 10),
+    b('level25', '💎', 'Diamond', 'Reach level 25', s.level >= 25),
+    b('level50', '🌟', 'Halfway Hero', 'Reach level 50', s.level >= 50),
+    b('level100', '🏛️', 'Immortal', 'Reach level 100', s.level >= 100),
     b('challenge1', '🎯', 'Challenger', 'Win a weekly challenge', s.challengesWon >= 1),
     b('challenge10', '🏅', 'Champion', 'Win 10 weekly challenges', s.challengesWon >= 10),
   ];
+}
+
+export function repeatLabel(task: Task): string {
+  const n = timesPerWeek(task);
+  if (n === 0) return 'One-time';
+  if (n === 7) return 'Every day';
+  return `${n}× a week`;
+}
+
+export function finishSetup(state: GameState, name: string, goals: string[]): GameState {
+  const named = name.trim() ? setName(state, name.trim()) : state;
+  return { ...named, onboarded: true, goals };
+}
+
+export function updateSettings(state: GameState, settings: Partial<Settings>): GameState {
+  return { ...state, settings: { ...state.settings, ...settings } };
 }
 
 export function setName(state: GameState, name: string): GameState {

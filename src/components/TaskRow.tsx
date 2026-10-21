@@ -1,6 +1,14 @@
 import { useRef, useState } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
-import { BASE_XP, type Task } from '../game';
+import {
+  doneThisWeek,
+  durationLabel,
+  repeatLabel,
+  taskXp,
+  timesPerWeek,
+  type GameState,
+  type Task,
+} from '../game';
 import { C, nativeDriver } from '../theme';
 
 /**
@@ -9,11 +17,15 @@ import { C, nativeDriver } from '../theme';
  */
 export function TaskRow({
   task,
+  state,
+  today,
   done,
   onToggle,
   onDelete,
 }: {
   task: Task;
+  state: GameState;
+  today: string;
   /** Returns the XP gained, or 0 when the task was unticked. */
   onToggle: () => number;
   done: boolean;
@@ -22,6 +34,8 @@ export function TaskRow({
   const pop = useRef(new Animated.Value(1)).current;
   const float = useRef(new Animated.Value(0)).current;
   const [gained, setGained] = useState(0);
+  const perWeek = timesPerWeek(task);
+  const weekly = perWeek > 0 && perWeek < 7 ? ` · ${doneThisWeek(state, task, today)}/${perWeek} this week` : '';
 
   function press() {
     const xp = onToggle();
@@ -54,7 +68,9 @@ export function TaskRow({
         <View style={{ flex: 1 }}>
           <Text style={[styles.title, done && styles.titleDone]}>{task.title}</Text>
           <Text style={styles.meta}>
-            {task.daily ? 'Every day' : 'One-time'} · {BASE_XP[task.difficulty]} XP
+            {task.minutes ? `${durationLabel(task.minutes)} · ` : ''}
+            {repeatLabel(task)}
+            {weekly} · {taskXp(task)} XP
           </Text>
         </View>
       </Pressable>
