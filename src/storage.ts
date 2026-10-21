@@ -7,7 +7,10 @@ const KEY = 'questlist/state/v1';
 export async function loadState(): Promise<GameState> {
   try {
     const raw = await AsyncStorage.getItem(KEY);
-    return raw ? { ...emptyState, ...JSON.parse(raw) } : emptyState;
+    if (!raw) return emptyState;
+    // Merge so fields added in newer versions get their defaults.
+    const saved = JSON.parse(raw);
+    return { ...emptyState, ...saved, profile: { ...emptyState.profile, ...saved.profile } };
   } catch {
     return emptyState;
   }

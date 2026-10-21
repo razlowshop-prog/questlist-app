@@ -18,14 +18,34 @@ export interface Completion {
   date: string;
   /** XP actually awarded, including any streak bonus. */
   xp: number;
+  /** Kept so challenges still count a task after it is deleted. */
+  difficulty?: Difficulty;
+}
+
+export interface ChallengeClaim {
+  challengeId: string;
+  /** Monday of the week the challenge belonged to, YYYY-MM-DD. */
+  week: string;
+  xp: number;
+}
+
+export interface Profile {
+  name: string;
 }
 
 export interface GameState {
   tasks: Task[];
   completions: Completion[];
+  claims: ChallengeClaim[];
+  profile: Profile;
 }
 
-export const emptyState: GameState = { tasks: [], completions: [] };
+export const emptyState: GameState = {
+  tasks: [],
+  completions: [],
+  claims: [],
+  profile: { name: 'Player' },
+};
 
 export const BASE_XP: Record<Difficulty, number> = {
   easy: 10,
@@ -90,7 +110,10 @@ export function rankFor(level: number): string {
 }
 
 export function totalXp(state: GameState): number {
-  return state.completions.reduce((sum, c) => sum + c.xp, 0);
+  return (
+    state.completions.reduce((sum, c) => sum + c.xp, 0) +
+    state.claims.reduce((sum, c) => sum + c.xp, 0)
+  );
 }
 
 // ---------- streaks ----------
@@ -178,5 +201,166 @@ export function toggleTask(state: GameState, taskId: string, today: string): Gam
   );
   const base = BASE_XP[task.difficulty];
   const xp = Math.round(base * (1 + streakBonus(streakWithToday)));
-  return { ...state, completions: [...state.completions, { taskId, date: today, xp }] };
+  return {
+    ...state,
+    completions: [...state.completions, { taskId, date: today, xp, difficulty: task.difficulty }],
+  };
+}
+
+export function longestStreak(completions: Completion[]): number {
+  const days = [...new Set(completions.map((c) => c.date))].sort();
+  let best = 0;
+  let run = 0;
+  let prev: string | null = null;
+  for (const d of days) {
+    run = prev && addDays(prev, 1) === d ? run + 1 : 1;
+    best = Math.max(best, run);
+    prev = d;
+  }
+  return best;
+}
+
+// ---------- weekly challenges ----------
+
+/** Monday of the week containing `day`. */
+export function weekStart(day: string): string {
+  const [y, m, d] = day.split('-').map(Number);
+  const weekday = (new Date(y, m - 1, d, 12).getDay() + 6) % 7; // Monday = 0
+  return addDays(day, -weekday);
+}
+
+export interface WeekStats {
+  tasksDone: number;
+  hardDone: number;
+  activeDays: number;
+  /** XP from tasks only; challenge rewards don't count towards challenges. */
+  xpEarned: number;
+}
+
+export function weekStats(state: GameState, today: string): WeekStats {
+  const start = weekStart(today);
+  const end = addDays(start, 6);
+  const inWeek = state.completions.filter((c) => c.date >= start && c.date <= end);
+  return {
+    tasksDone: inWeek.length,
+    hardDone: inWeek.filter((c) => c.difficulty === 'hard').length,
+    activeDays: new Set(inWeek.map((c) => c.date)).size,
+    xpEarned: inWeek.reduce((sum, c) => sum + c.xp, 0),
+  };
+}
+
+export interface ChallengeDef {
+  id: string;
+  title: string;
+  icon: string;
+  rewardXp: number;
+  target: number;
+  unit: string;
+  /** Measured from tasks in the app. Undefined = needs phone sensors (coming soon). */
+  metric?: keyof WeekStats;
+}
+
+export const CHALLENGE_POOL: ChallengeDef[] = [
+  { id: 'tasks15', title: 'Finish 15 tasks this week', icon: '✅', rewardXp: 100, target: 15, unit: 'tasks', metric: 'tasksDone' },
+  { id: 'tasks25', title: 'Finish 25 tasks this week', icon: '🏆', rewardXp: 180, target: 25, unit: 'tasks', metric: 'tasksDone' },
+  { id: 'hard3', title: 'Complete 3 hard tasks', icon: '💪', rewardXp: 90, target: 3, unit: 'hard tasks', metric: 'hardDone' },
+  { id: 'hard5', title: 'Complete 5 hard tasks', icon: '🔥', rewardXp: 150, target: 5, unit: 'hard tasks', metric: 'hardDone' },
+  { id: 'days5', title: 'Be active on 5 days', icon: '📅', rewardXp: 120, target: 5, unit: 'days', metric: 'activeDays' },
+  { id: 'days7', title: 'Be active every day this week', icon: '⭐', rewardXp: 200, target: 7, unit: 'days', metric: 'activeDays' },
+  { id: 'xp300', title: 'Earn 300 XP from tasks', icon: '⚡', rewardXp: 100, target: 300, unit: 'XP', metric: 'xpEarned' },
+];
+
+/** Need phone sensors or health data, so they arrive with the phone app builds. */
+export const SENSOR_CHALLENGES: ChallengeDef[] = [
+  { id: 'sleep8', title: 'Sleep 8 hours with your phone down', icon: '😴', rewardXp: 150, target: 5, unit: 'nights' },
+  { id: 'walk10', title: 'Walk 10 km this week', icon: '🚶', rewardXp: 150, target: 10, unit: 'km' },
+];
+
+/** Three challenges per week, the same for everyone, rotating weekly. */
+export function challengesForWeek(week: string): ChallengeDef[] {
+  const [y, m, d] = week.split('-').map(Number);
+  const weekNumber = Math.round(Date.UTC(y, m - 1, d) / (7 * 86400000));
+  const n = CHALLENGE_POOL.length;
+  const picks: ChallengeDef[] = [];
+  for (let i = 0; picks.length < 3; i++) {
+    const c = CHALLENGE_POOL[(weekNumber * 3 + i * 2) % n];
+    // Skip a second challenge measuring the same thing.
+    if (!picks.some((p) => p.metric === c.metric)) picks.push(c);
+  }
+  return picks;
+}
+
+export interface ChallengeStatus {
+  def: ChallengeDef;
+  progress: number;
+  complete: boolean;
+  claimed: boolean;
+}
+
+export function weeklyChallenges(state: GameState, today: string): ChallengeStatus[] {
+  const week = weekStart(today);
+  const stats = weekStats(state, today);
+  return challengesForWeek(week).map((def) => {
+    const progress = Math.min(def.metric ? stats[def.metric] : 0, def.target);
+    return {
+      def,
+      progress,
+      complete: progress >= def.target,
+      claimed: state.claims.some((c) => c.challengeId === def.id && c.week === week),
+    };
+  });
+}
+
+export function claimChallenge(state: GameState, challengeId: string, today: string): GameState {
+  const status = weeklyChallenges(state, today).find((c) => c.def.id === challengeId);
+  if (!status || !status.complete || status.claimed) return state;
+  return {
+    ...state,
+    claims: [...state.claims, { challengeId, week: weekStart(today), xp: status.def.rewardXp }],
+  };
+}
+
+// ---------- profile & badges ----------
+
+export interface Badge {
+  id: string;
+  icon: string;
+  title: string;
+  description: string;
+  earned: boolean;
+}
+
+export function profileStats(state: GameState, today: string) {
+  const xp = totalXp(state);
+  return {
+    ...levelInfo(xp),
+    totalXp: xp,
+    tasksDone: state.completions.length,
+    currentStreak: currentStreak(state.completions, today),
+    bestStreak: longestStreak(state.completions),
+    challengesWon: state.claims.length,
+  };
+}
+
+export function badges(state: GameState, today: string): Badge[] {
+  const s = profileStats(state, today);
+  const b = (id: string, icon: string, title: string, description: string, earned: boolean): Badge => ({
+    id, icon, title, description, earned,
+  });
+  return [
+    b('first', '🌱', 'First Step', 'Finish your first task', s.tasksDone >= 1),
+    b('tasks10', '✅', 'Getting Things Done', 'Finish 10 tasks', s.tasksDone >= 10),
+    b('tasks100', '💯', 'Centurion', 'Finish 100 tasks', s.tasksDone >= 100),
+    b('streak3', '🔥', 'On Fire', 'Reach a 3-day streak', s.bestStreak >= 3),
+    b('streak7', '📆', 'Full Week', 'Reach a 7-day streak', s.bestStreak >= 7),
+    b('streak30', '👑', 'Unstoppable', 'Reach a 30-day streak', s.bestStreak >= 30),
+    b('level5', '⭐', 'Rising Star', 'Reach level 5', s.level >= 5),
+    b('level10', '🚀', 'High Flyer', 'Reach level 10', s.level >= 10),
+    b('challenge1', '🎯', 'Challenger', 'Win a weekly challenge', s.challengesWon >= 1),
+    b('challenge10', '🏅', 'Champion', 'Win 10 weekly challenges', s.challengesWon >= 10),
+  ];
+}
+
+export function setName(state: GameState, name: string): GameState {
+  return { ...state, profile: { ...state.profile, name: name.slice(0, 24) } };
 }

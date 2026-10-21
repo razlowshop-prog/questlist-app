@@ -3,15 +3,21 @@ import assert from 'node:assert/strict';
 import {
   addDays,
   addTask,
+  badges,
+  challengesForWeek,
+  claimChallenge,
   currentStreak,
   deleteTask,
   emptyState,
   levelInfo,
+  longestStreak,
   rankFor,
   streakBonus,
   toggleTask,
   totalXp,
   visibleTasks,
+  weekStart,
+  weekStats,
   type Completion,
 } from './game.ts';
 
@@ -103,4 +109,51 @@ test('empty titles are ignored and deleting keeps earned XP', () => {
   s = deleteTask(s, 'a');
   assert.equal(s.tasks.length, 0);
   assert.equal(totalXp(s), 10);
+});
+
+test('weekStart returns the Monday', () => {
+  assert.equal(weekStart('2026-10-21'), '2026-10-19'); // Wednesday
+  assert.equal(weekStart('2026-10-19'), '2026-10-19'); // Monday
+  assert.equal(weekStart('2026-10-25'), '2026-10-19'); // Sunday
+});
+
+test('three different challenges each week, rotating', () => {
+  const a = challengesForWeek('2026-10-19');
+  const b = challengesForWeek('2026-10-26');
+  assert.equal(a.length, 3);
+  assert.equal(new Set(a.map((c) => c.metric)).size, 3);
+  assert.notDeepEqual(a.map((c) => c.id), b.map((c) => c.id));
+});
+
+test('challenge can be claimed once when complete, and adds XP', () => {
+  const week = weekStart(TODAY);
+  const def = challengesForWeek(week)[0];
+  let s = addTask(emptyState, 'Hard thing', 'hard', true, 'h');
+  // Fill the week with plenty of hard completions on different days
+  const days = [0, 1, 2, 3, 4, 5, 6].map((i) => addDays(week, i));
+  s = {
+    ...s,
+    completions: days.flatMap((date) =>
+      Array.from({ length: 5 }, () => ({ taskId: 'h', date, xp: 40, difficulty: 'hard' as const })),
+    ),
+  };
+  const before = totalXp(s);
+  assert.equal(claimChallenge(emptyState, def.id, TODAY), emptyState); // not complete
+  s = claimChallenge(s, def.id, TODAY);
+  assert.equal(totalXp(s), before + def.rewardXp);
+  assert.equal(claimChallenge(s, def.id, TODAY), s); // second claim does nothing
+});
+
+test('last week does not count towards this week', () => {
+  const lastWeek = addDays(weekStart(TODAY), -1);
+  const s = { ...emptyState, completions: [{ taskId: 'x', date: lastWeek, xp: 10 }] };
+  assert.equal(weekStats(s, TODAY).tasksDone, 0);
+});
+
+test('longest streak and badges', () => {
+  const completions = [...streakOf(7, '2026-09-10'), ...streakOf(2)];
+  assert.equal(longestStreak(completions), 7);
+  const s = { ...emptyState, completions };
+  const earned = badges(s, TODAY).filter((b) => b.earned).map((b) => b.id);
+  assert.deepEqual(earned, ['first', 'streak3', 'streak7']);
 });
