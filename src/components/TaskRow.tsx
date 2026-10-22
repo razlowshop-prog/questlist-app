@@ -17,6 +17,9 @@ import { card, FONTS, nativeDriver, themed, useStyles, useTheme, type Palette } 
 import { FIRE_COLORS } from './Fire';
 import { CoinCheck, HoloBorder } from './Fortuna';
 import { stepStatus } from '../steps';
+import { taskCategory } from '../library';
+import { categoryLook, midColor, MYTHIC } from '../vivid';
+import { fill, GradientText } from './Vivid';
 
 /** The tick celebration the player has equipped. */
 export const CelebrationContext = createContext<CelebrationId>('classic');
@@ -54,6 +57,9 @@ export function TaskRow({
   const c = useTheme();
   const look = useContext(CelebrationContext);
   const particles = useMemo(() => particlesFor(look, c), [look, c]);
+  // The task's category colours: the edge, the check outline and the filled check.
+  const cat = useMemo(() => categoryLook(taskCategory(task)), [task.title, task.category]);
+  const catLine = midColor(cat);
   const pop = useRef(new Animated.Value(1)).current;
   // The Fortuna coin flips over when it turns gold.
   const flip = useRef(new Animated.Value(0)).current;
@@ -174,6 +180,7 @@ export function TaskRow({
   const row = (
     <View style={[s.row, label && !c.holo && { zIndex: 2 }]}>
       <Animated.View style={[s.flash, flashStyle]} pointerEvents="none" />
+      <View style={[s.edge, fill(cat, 180)]} pointerEvents="none" />
       <View style={s.top}>
       <Pressable onPress={press} style={s.main} accessibilityRole="checkbox" accessibilityState={{ checked: done }}>
         <Text style={s.num}>{String(index + 1).padStart(2, '0')}</Text>
@@ -209,7 +216,7 @@ export function TaskRow({
             >
               <View style={s.stepBars}>
                 {steps.done.map((d, i) => (
-                  <View key={i} style={[s.stepBar, d && s.stepBarDone]} />
+                  <View key={i} style={[s.stepBar, d && fill(cat, 90)]} />
                 ))}
               </View>
               <Text style={s.stepCount}>
@@ -232,6 +239,7 @@ export function TaskRow({
                 height: p.h,
                 borderRadius: p.round ? p.w / 2 : 0,
                 backgroundColor: p.color,
+                ...(p.glow && { boxShadow: `0px 0px 6px ${p.color}` }),
                 opacity: burst.interpolate({ inputRange: [0, 0.12, p.fadeFrom, 1], outputRange: [0, 1, 1, 0] }),
                 transform: [
                   { translateX: burst.interpolate({ inputRange: [0, 0.5, 1], outputRange: [p.x[0], p.x[1], p.x[2]] }) },
@@ -258,8 +266,10 @@ export function TaskRow({
               <CoinCheck done={done} size={30} />
             </Animated.View>
           ) : (
-            <Animated.View style={[s.checkbox, done && s.checkboxDone, locked && s.checkboxLocked, { transform: [{ scale: pop }, ...rotate] }]}>
-              {done && <Text style={[s.checkmark, c.check === 'diamond' && s.checkmarkDiamond]}>✓</Text>}
+            <Animated.View
+              style={[s.checkbox, { borderColor: catLine }, done && { ...fill(cat), borderColor: 'transparent', boxShadow: `0px 2px 8px ${cat.c2}88` }, locked && s.checkboxLocked, { transform: [{ scale: pop }, ...rotate] }]}
+            >
+              {done && <Text style={[s.checkmark, { color: cat.ink }, c.check === 'diamond' && s.checkmarkDiamond]}>✓</Text>}
             </Animated.View>
           )}
         </View>
@@ -284,8 +294,8 @@ export function TaskRow({
                 {c.check === 'coin' ? (
                   <CoinCheck done={steps.done[i]} size={18} />
                 ) : (
-                  <View style={[s.stepCheck, steps.done[i] && s.stepCheckDone]}>
-                    {steps.done[i] && <Text style={s.stepTick}>✓</Text>}
+                  <View style={[s.stepCheck, { borderColor: catLine }, steps.done[i] && { ...fill(cat), borderColor: 'transparent' }]}>
+                    {steps.done[i] && <Text style={[s.stepTick, { color: cat.ink }]}>✓</Text>}
                   </View>
                 )}
                 <Text style={[s.stepTitle, steps.done[i] && s.stepTitleDone]}>{title}</Text>
@@ -295,11 +305,16 @@ export function TaskRow({
           })}
         </View>
       )}
-      {label && (
-        <Animated.Text style={[s.float, label.warn && s.floatWarn, label.small && s.floatSmall, floatStyle]} pointerEvents="none">
-          {label.text}
-        </Animated.Text>
-      )}
+      {label &&
+        (label.warn ? (
+          <Animated.Text style={[s.float, s.floatWarn, floatStyle]} pointerEvents="none">
+            {label.text}
+          </Animated.Text>
+        ) : (
+          <Animated.View style={[s.floatBox, floatStyle]} pointerEvents="none">
+            <GradientText style={[s.floatText, label.small && s.floatSmall]}>{label.text}</GradientText>
+          </Animated.View>
+        ))}
     </View>
   );
   // Fortuna draws a drifting holo border around each card.
@@ -324,6 +339,8 @@ interface Particle {
   spin: [number, number];
   /** Point of the burst (0-1) from which it fades out. */
   fadeFrom: number;
+  /** A soft glow in its own colour. */
+  glow?: boolean;
 }
 
 /** The pieces that fly out of the check for each celebration look. */
@@ -409,20 +426,24 @@ function particlesFor(look: CelebrationId, c: Palette): { duration: number; list
         }),
       };
     default:
+      // Rainbow sparks bursting out of the check (rewards spec).
       return {
-        duration: 750,
-        list: Array.from({ length: 10 }, (_, i) => {
-          const a = around(10, i);
-          const r = i % 2 ? 26 : 36;
+        duration: 850,
+        list: Array.from({ length: 12 }, (_, i) => {
+          const a = around(12, i);
+          const r = i % 2 ? 28 : 38;
+          const size = 6 + (i % 4);
           return {
-            w: i % 2 ? 4 : 6,
-            h: i % 2 ? 4 : 6,
-            color: i % 2 ? c.xp : c.accent,
-            x: [0, Math.cos(a) * r * 0.5, Math.cos(a) * r],
-            y: [0, Math.sin(a) * r * 0.5, Math.sin(a) * r],
-            scale: [1, 1],
-            spin: [45, 45],
-            fadeFrom: 0.15,
+            w: size,
+            h: size,
+            round: i % 3 === 0,
+            color: MYTHIC[i % MYTHIC.length],
+            glow: true,
+            x: [0, Math.cos(a) * r * 0.55, Math.cos(a) * r],
+            y: [0, Math.sin(a) * r * 0.55, Math.sin(a) * r],
+            scale: [1, 0.6],
+            spin: [45, 135],
+            fadeFrom: 0.35,
           };
         }),
       };
@@ -432,8 +453,13 @@ function particlesFor(look: CelebrationId, c: Palette): { duration: number; list
 const makeStyles = themed((c) => ({
   row:
     c.listStyle === 'cards'
-      ? { ...card(c), paddingHorizontal: 14, marginBottom: c.holo ? 0 : 10, ...(c.holo && { borderWidth: 0 }) }
-      : { borderBottomWidth: 1, borderBottomColor: c.border },
+      ? { ...card(c), paddingHorizontal: 14, marginBottom: c.holo ? 0 : 10, overflow: 'visible', ...(c.holo && { borderWidth: 0 }) }
+      : { borderBottomWidth: 1, borderBottomColor: c.border, paddingLeft: 12 },
+  /** The 3 px category edge on the left. */
+  edge:
+    c.listStyle === 'cards'
+      ? { position: 'absolute', left: -1, top: 10, bottom: 10, width: 3, borderRadius: 2 }
+      : { position: 'absolute', left: 0, top: 12, bottom: 12, width: 3, borderRadius: 2 },
   top: { flexDirection: 'row', alignItems: 'center' },
   main: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 64, paddingVertical: 10 },
   num: { fontFamily: FONTS.serif, fontStyle: 'italic', color: c.accent, fontSize: 16, width: 24, fontVariant: ['lining-nums'] },
@@ -450,21 +476,20 @@ const makeStyles = themed((c) => ({
     width: 48,
     height: 48,
     borderRadius: c.check === 'circle' || c.check === 'coin' ? 24 : c.check === 'square' ? Math.min(c.radius * 2, 12) : 4,
-    borderWidth: 1.5,
-    borderColor: c.accent,
+    borderWidth: 2,
+    borderColor: '#FFB547',
   },
   checkbox: {
     width: c.check === 'diamond' ? 20 : 24,
     height: c.check === 'diamond' ? 20 : 24,
     borderRadius: c.check === 'circle' ? 12 : c.check === 'square' ? Math.min(c.radius, 6) : 2,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: c.outline,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkboxDone: { backgroundColor: c.accent, borderColor: c.accent },
   checkboxLocked: { borderStyle: 'dashed', opacity: 0.6 },
-  checkmark: { color: c.onAccent, fontWeight: '800', fontSize: 13 },
+  checkmark: { color: '#FFFFFF', fontWeight: '800', fontSize: 13 },
   /** Turns the tick upright again inside the rotated diamond. */
   checkmarkDiamond: { transform: [{ rotate: '-45deg' }] },
   deleteWrap: { paddingLeft: 14, paddingVertical: 10 },
@@ -478,22 +503,13 @@ const makeStyles = themed((c) => ({
     backgroundColor: c.accentSoft,
     borderRadius: c.listStyle === 'cards' ? c.radius : 0,
   },
-  float: {
-    position: 'absolute',
-    right: 64,
-    top: 2,
-    fontFamily: FONTS.serifItalic,
-    color: c.accent,
-    fontSize: 30,
-    textShadowColor: c.accent,
-    textShadowRadius: 14,
-    textShadowOffset: { width: 0, height: 0 },
-  },
-  floatSmall: { fontSize: 20, textShadowRadius: 8 },
+  floatBox: { position: 'absolute', right: 64, top: 2 },
+  float: { position: 'absolute', right: 64, top: 2 },
+  floatText: { fontFamily: 'Vivid_800ExtraBold', fontSize: 28 },
+  floatSmall: { fontSize: 19 },
   stepStrip: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, alignSelf: 'flex-start' },
   stepBars: { flexDirection: 'row', gap: 3 },
   stepBar: { width: 14, height: 4, borderRadius: 2, backgroundColor: c.border },
-  stepBarDone: { backgroundColor: c.accent },
   stepCount: { color: c.muted, fontSize: 12, fontVariant: ['tabular-nums'] },
   steps: { paddingLeft: 36, paddingBottom: 10, gap: 2 },
   step: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 36 },
@@ -501,13 +517,12 @@ const makeStyles = themed((c) => ({
     width: 18,
     height: 18,
     borderRadius: c.check === 'square' ? Math.min(c.radius, 4) : 9,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: c.outline,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepCheckDone: { backgroundColor: c.accent, borderColor: c.accent },
-  stepTick: { color: c.onAccent, fontWeight: '800', fontSize: 10 },
+  stepTick: { color: '#FFFFFF', fontWeight: '800', fontSize: 10 },
   stepTitle: { flex: 1, color: c.text, fontSize: 14 },
   stepTitleDone: { color: c.faint, textDecorationLine: 'line-through' },
   stepXp: { color: c.muted, fontSize: 12, fontVariant: ['tabular-nums'] },

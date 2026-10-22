@@ -3,6 +3,7 @@ import { streakTierName } from '../game';
 import { card, eyebrow, FONTS, headingCase, themed, useStyles } from '../theme';
 import type { RestOffer } from '../tokens';
 import { Fire } from './Fire';
+import { GOLD_FILL, GOLD_INK, VIVID_HEAVY } from './Vivid';
 
 /**
  * The one-time free save, the first time a missed day would end the streak
@@ -45,13 +46,13 @@ const makeStyles = themed((c) => ({
   backdrop: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: '#000', opacity: 0.6 },
   sheetWrap: { flex: 1, justifyContent: 'center', padding: 20 },
   sheet: { ...card(c), backgroundColor: c.bg, borderColor: c.accent, maxWidth: 420, width: '100%', alignSelf: 'center', padding: 24, gap: 12 },
-  fire: { alignSelf: 'center', width: 76, height: 76, borderRadius: 38, backgroundColor: c.accentSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
+  fire: { alignSelf: 'center', width: 76, height: 76, borderRadius: 38, backgroundColor: c.surface, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   eyebrow: { ...eyebrow(c, 11), color: c.label, textAlign: 'center' },
   title: { fontFamily: FONTS.serif, color: c.text, fontSize: 30, lineHeight: 36, textAlign: 'center', ...headingCase(c) },
   body: { color: c.text, fontSize: 15, lineHeight: 22, textAlign: 'center' },
   note: { color: c.faint, fontSize: 12, lineHeight: 17, textAlign: 'center' },
-  primary: { backgroundColor: c.accent, minHeight: 48, borderRadius: c.radius, alignItems: 'center', justifyContent: 'center', marginTop: 6 },
-  primaryText: { color: c.onAccent, fontWeight: '700', fontSize: 15 },
+  primary: { ...GOLD_FILL, minHeight: 54, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 6 },
+  primaryText: { color: GOLD_INK, fontFamily: VIVID_HEAVY, fontSize: 17 },
   secondary: { minHeight: 42, alignItems: 'center', justifyContent: 'center' },
   secondaryText: { color: c.muted, fontWeight: '600' },
 }));

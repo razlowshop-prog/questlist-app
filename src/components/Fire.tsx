@@ -1,16 +1,21 @@
-import { Flame, FlameKindling } from 'lucide-react-native';
-import { createContext, useContext } from 'react';
-import { View } from 'react-native';
+import { createContext, useContext, useEffect, useRef } from 'react';
+import { Animated, Easing, View } from 'react-native';
+import Svg, { Circle, Defs, LinearGradient, Path, RadialGradient, Stop } from 'react-native-svg';
 import type { FlameStyleId } from '../cosmetics';
-import { useTheme, type Palette } from '../theme';
+import { GLYPHS } from '../glyphs';
+import { nativeDriver, useTheme, type Palette } from '../theme';
+import { FLAMES, midColor, mixHex, STYLE_FLAMES, tierFlame, type Grad } from '../vivid';
+import { useReduceMotion } from './FireAura';
+import { useSvgId } from './Vivid';
 
 /**
- * Fire colours per streak tier: Spark (none yet), Flame, Blaze, Inferno.
- * Same hues on both, softer on dark themes and deeper on light ones so they stay readable.
+ * Text colour per streak tier: Spark (none yet), Flame, Blaze, Inferno, taken
+ * from the vivid flames. The middle of the gradient on dark themes, its deep
+ * end on light ones, so labels stay readable.
  */
 export const FIRE_COLORS = {
-  dark: ['', '#E0915A', '#8FB4D9', '#B49AD8'],
-  light: ['', '#B8612A', '#3F6E99', '#6E4FA3'],
+  dark: ['', midColor(FLAMES.ember), midColor(FLAMES.blaze), midColor(FLAMES.inferno)],
+  light: ['', FLAMES.ember.c2, FLAMES.blaze.c2, FLAMES.inferno.c2],
 };
 
 /** The tier's colour on this theme; Spark (tier 0) uses `none`, the muted text colour unless given. */
@@ -21,47 +26,74 @@ export function fireColor(tier: number, c: Palette, none: string = c.muted): str
 /** The flame style the player has equipped, for every flame in the app. */
 export const FlameStyleContext = createContext<FlameStyleId>('classic');
 
-/** The streak flame in its tier's colour, drawn in the equipped (or given) flame style. */
+/** The gradient a flame is drawn in: the style's own colours, or the fire tier's. */
+export function flameGrad(tier: number, style: FlameStyleId): Grad | undefined {
+  if (tier <= 0) return undefined;
+  return STYLE_FLAMES[style] ?? tierFlame(tier);
+}
+
+/**
+ * The streak flame (rewards spec): a filled flame in a top-to-bottom gradient
+ * with a white core, a soft glow and a gentle flicker. The fire tier picks
+ * Ember, Blaze or Inferno; Toxic, Solar and Phantom bring their own colours;
+ * Twin, Glow and Crackle add a second flame, a bigger glow or sparks.
+ * No fire yet (tier 0) = a faint, unlit flame.
+ */
 export function Fire({ tier, size, look }: { tier: number; size: number; /** Overrides the equipped style, for previews. */ look?: FlameStyleId }) {
   const c = useTheme();
   const equipped = useContext(FlameStyleContext);
   const style = look ?? equipped;
-  const color = fireColor(tier, c);
-  const lit = tier > 0;
-  const fill = !lit || style === 'outline' ? 'none' : style === 'solid' ? color : `${color}55`;
-  const icon =
-    style === 'kindling' ? (
-      <FlameKindling size={size} color={color} fill={fill} strokeWidth={1.75} aria-hidden />
-    ) : (
-      <Flame size={size} color={color} fill={fill} strokeWidth={style === 'outline' ? 1.4 : 1.75} aria-hidden />
+  const grad = flameGrad(tier, style);
+  const reduce = useReduceMotion();
+  const flicker = useRef(new Animated.Value(0)).current;
+  const lit = !!grad;
+
+  useEffect(() => {
+    if (!lit || reduce || size < 16) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(flicker, { toValue: 1, duration: 800, easing: Easing.inOut(Easing.sin), useNativeDriver: nativeDriver }),
+        Animated.timing(flicker, { toValue: 0, duration: 800, easing: Easing.inOut(Easing.sin), useNativeDriver: nativeDriver }),
+      ]),
     );
-  if (style === 'twin') {
+    loop.start();
+    return () => loop.stop();
+  }, [lit, reduce, size]);
+
+  if (!grad) {
     return (
       <View style={{ width: size, height: size }}>
-        <View style={{ position: 'absolute', left: -size * 0.22, top: size * 0.22, opacity: 0.55 }}>
-          <Flame size={size * 0.75} color={color} fill={fill} strokeWidth={1.75} aria-hidden />
-        </View>
-        {icon}
+        <Svg width={size} height={size} viewBox="-24 -24 304 304" aria-hidden>
+          <Path d={GLYPHS.Flame} fill={c.faint} opacity={0.45} />
+        </Svg>
       </View>
     );
   }
-  if (style === 'glow' || style === 'sparks') {
-    const spark = Math.max(2, Math.round(size / 10));
-    return (
-      <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
-        {style === 'glow' && lit && (
-          <View
-            style={{ position: 'absolute', width: size * 0.95, height: size * 0.95, borderRadius: size, backgroundColor: color, opacity: 0.18 }}
-          />
-        )}
-        {icon}
-        {style === 'sparks' &&
-          lit &&
-          [
-            [0.86, 0.12],
-            [0.02, 0.3],
-            [0.92, 0.55],
-          ].map(([x, y], i) => (
+
+  const flame = <FlameShape grad={grad} size={size} glow={style === 'glow' ? 0.75 : 0.45} />;
+  const flick = {
+    transform: [
+      { translateY: flicker.interpolate({ inputRange: [0, 1], outputRange: [0, -size * 0.05] }) },
+      { scaleX: flicker.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] }) },
+      { scaleY: flicker.interpolate({ inputRange: [0, 1], outputRange: [1, 1.1] }) },
+    ],
+  };
+  return (
+    <View style={{ width: size, height: size }}>
+      {style === 'twin' && (
+        <View style={{ position: 'absolute', left: -size * 0.26, top: size * 0.24, opacity: 0.8 }}>
+          <FlameShape grad={grad} size={size * 0.72} glow={0.3} />
+        </View>
+      )}
+      <Animated.View style={flick}>{flame}</Animated.View>
+      {style === 'sparks' &&
+        [
+          [0.86, 0.1],
+          [0.0, 0.28],
+          [0.94, 0.52],
+        ].map(([x, y], i) => {
+          const spark = Math.max(3, Math.round(size / 9));
+          return (
             <View
               key={i}
               style={{
@@ -70,13 +102,36 @@ export function Fire({ tier, size, look }: { tier: number; size: number; /** Ove
                 top: y * size,
                 width: spark,
                 height: spark,
-                backgroundColor: color,
+                backgroundColor: grad.c1,
+                boxShadow: `0px 0px 6px ${grad.c2}`,
                 transform: [{ rotate: '45deg' }],
               }}
             />
-          ))}
-      </View>
-    );
-  }
-  return icon;
+          );
+        })}
+    </View>
+  );
+}
+
+/** One flame: glow behind, white core showing through the inner flame, gradient body. */
+function FlameShape({ grad, size, glow }: { grad: Grad; size: number; glow: number }) {
+  const body = useSvgId('flame');
+  const halo = useSvgId('flameGlow');
+  return (
+    <Svg width={size} height={size} viewBox="-24 -24 304 304" aria-hidden>
+      <Defs>
+        <LinearGradient id={body} x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor={grad.c1} />
+          <Stop offset="1" stopColor={grad.c2} />
+        </LinearGradient>
+        <RadialGradient id={halo} cx="50%" cy="58%" r="50%">
+          <Stop offset="0" stopColor={grad.c2} stopOpacity={glow} />
+          <Stop offset="1" stopColor={grad.c2} stopOpacity={0} />
+        </RadialGradient>
+      </Defs>
+      <Circle cx={128} cy={150} r={150} fill={`url(#${halo})`} />
+      <Circle cx={128} cy={182} r={38} fill={mixHex(grad.c1, '#FFFFFF', 0.6)} />
+      <Path d={GLYPHS.Flame} fill={`url(#${body})`} />
+    </Svg>
+  );
 }

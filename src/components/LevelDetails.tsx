@@ -128,7 +128,7 @@ const makeStyles = themed((c) => ({
   small: { ...eyebrow(c, 11), color: c.muted },
   steps: { flexDirection: 'row', gap: 8 },
   step: { flex: 1, alignItems: 'center', gap: 2, paddingVertical: 8, borderRadius: c.radius, borderWidth: 1, borderColor: c.border },
-  stepOn: { borderColor: c.accent, backgroundColor: c.accentSoft },
+  stepOn: { borderColor: '#FFB547', backgroundColor: c.surface, boxShadow: '0px 0px 10px rgba(255,138,0,0.3)' },
   stepValue: { fontFamily: FONTS.serif, color: c.muted, fontSize: 18, fontVariant: ['lining-nums'] },
   tierRow: {
     flexDirection: 'row',
@@ -145,7 +145,7 @@ const makeStyles = themed((c) => ({
   stepDays: { color: c.faint, fontSize: 11 },
   tierName: { fontWeight: '700', fontSize: 14, width: 64 },
   note: { color: c.faint, fontSize: 12, lineHeight: 17 },
-  rewardIcon: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: c.accent, alignItems: 'center', justifyContent: 'center' },
+  rewardIcon: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   close: { minHeight: 46, borderRadius: c.radius, borderWidth: 1, borderColor: c.outline, alignItems: 'center', justifyContent: 'center' },
   closeText: { ...eyebrow(c, 12), fontWeight: '700', color: c.text },
 }));

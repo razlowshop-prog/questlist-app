@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp, Plus, Sparkles, X } from 'lucide-react-native';
 import { Pressable, ScrollView, SectionList, Text, TextInput, View } from 'react-native';
 import { Chip } from '../components/Chip';
-import { AppIcon } from '../components/AppIcon';
+import { EmptyState, GOLD_FILL, GOLD_FILL_SMALL, GOLD_INK, GradientText, Sticker, VIVID_HEAVY, VividButton } from '../components/Vivid';
+import { categoryLook, RARITY } from '../vivid';
 import { LibraryRow } from '../components/LibraryRow';
 import { defaultSchedule, scheduleProblem, SchedulePicker, scheduleToTask, type Schedule } from '../components/SchedulePicker';
 import { StreakCard } from '../components/StreakCard';
@@ -19,6 +20,7 @@ import {
   type StreakStatus,
   type Task,
   type TaskPlan,
+  weekDots,
 } from '../game';
 import { CATEGORIES, categoryOf, FEATURED, guessCategory, librarySteps, OTHER_CATEGORY, searchLibrary, taskCategory, type LibraryTask } from '../library';
 import { STEP_SHARE, suggestedSteps } from '../steps';
@@ -187,7 +189,7 @@ export function TodayScreen({
             Good <Text style={s.greetingEm}>{partOfDay(new Date().getHours())}</Text>, {state.profile.name}.
           </Text>
 
-          <StreakCard streak={streak} onPress={onOpenStreak} />
+          <StreakCard streak={streak} week={weekDots(state, today)} onPress={onOpenStreak} />
           {tokenStrip}
 
           <View style={s.quote}>
@@ -213,7 +215,7 @@ export function TodayScreen({
                 accessibilityRole="button"
                 accessibilityLabel="Add task"
               >
-                <Plus size={22} color={c.onAccent} strokeWidth={2} />
+                <Plus size={22} color={GOLD_INK} strokeWidth={2.5} />
               </Pressable>
             </View>
 
@@ -321,19 +323,18 @@ export function TodayScreen({
               </>
             )}
 
-            {typed.length === 0 && (
-              <Pressable onPress={onOpenLibrary} style={s.libraryButton} accessibilityRole="button">
-                <Text style={s.libraryText}>Browse the task library</Text>
-              </Pressable>
-            )}
+            {typed.length === 0 && <VividButton label="Browse the task library" kind="secondary" compact onPress={onOpenLibrary} />}
           </View>
 
           <View style={s.sectionRow}>
             <Text style={s.sectionTitle}>Today</Text>
             <Text style={s.sectionCount}>
-              {doneCount} of {tasks.length}
+              <GradientText style={s.sectionCountStrong}>{doneCount}</GradientText> of {tasks.length} done
             </Text>
           </View>
+          {tasks.length > 0 && doneCount === tasks.length && (
+            <EmptyState glyph="Trophy" grad={RARITY.legendary} before="All " word="done" after=" for today" body="Every task is ticked off. Enjoy the rest of your day." />
+          )}
         </>
       }
       renderSectionHeader={({ section }) => {
@@ -345,11 +346,17 @@ export function TodayScreen({
             accessibilityRole="button"
             accessibilityState={{ expanded: !section.collapsed }}
           >
-            {cat ? <AppIcon name={cat.icon} size={18} color={section.done === section.total ? c.accent : c.muted} /> : null}
+            <Sticker grad={categoryLook(section.id)} glyph={categoryLook(section.id).glyph} size={28} />
             <Text style={s.groupTitle}>{cat?.label ?? 'Other'}</Text>
-            <Text style={[s.groupCount, section.done === section.total && { color: c.accent }]}>
-              {section.done}/{section.total}
-            </Text>
+            {section.done === section.total ? (
+              <GradientText style={s.groupCountDone}>
+                {section.done}/{section.total}
+              </GradientText>
+            ) : (
+              <Text style={s.groupCount}>
+                {section.done}/{section.total}
+              </Text>
+            )}
             {section.collapsed ? (
               <ChevronDown size={16} color={c.muted} strokeWidth={1.5} />
             ) : (
@@ -359,7 +366,9 @@ export function TodayScreen({
         );
       }}
       ListEmptyComponent={
-        loaded ? <Text style={s.empty}>No tasks for today. Add one above or pick some from the library.</Text> : undefined
+        loaded ? (
+          <EmptyState glyph="Sparkle" mythic before="A " word="fresh" after=" start" body="No tasks for today. Add one above or pick some from the library." />
+        ) : undefined
       }
       ListFooterComponent={
         upcoming.length > 0 ? (
@@ -411,7 +420,7 @@ const makeStyles = themed((c) => ({
   quoteAuthor: { ...eyebrow(c, 11), color: c.label },
   addCard: { ...card(c), padding: 14, gap: 12, marginBottom: 28 },
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  plus: { width: 46, height: 46, borderRadius: c.radius, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' },
+  plus: { width: 46, height: 46, borderRadius: 14, ...GOLD_FILL_SMALL, alignItems: 'center', justifyContent: 'center' },
   quickRow: { gap: 8, paddingRight: 4 },
   quick: {
     flexDirection: 'row',
@@ -426,9 +435,10 @@ const makeStyles = themed((c) => ({
   quickText: { color: c.text, fontSize: 13, fontWeight: '600' },
   cancel: { alignItems: 'center', paddingVertical: 4 },
   cancelText: { ...eyebrow(c, 11), color: c.muted },
-  groupHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 18, paddingBottom: 8 },
+  groupHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 18, paddingBottom: 8 },
   groupTitle: { flex: 1, color: c.text, fontSize: 15, fontWeight: '700' },
   groupCount: { color: c.muted, fontSize: 13, fontVariant: ['tabular-nums'] },
+  groupCountDone: { fontFamily: VIVID_HEAVY, fontSize: 14, fontVariant: ['tabular-nums'] },
   upcoming: { marginTop: 28, gap: 2 },
   upcomingRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.border },
   upcomingTitle: { flex: 1, color: c.text, fontSize: 15 },
@@ -453,17 +463,8 @@ const makeStyles = themed((c) => ({
   estimateText: { color: c.text, fontSize: 14 },
   estimateStrong: { fontWeight: '700' },
   estimateNote: { color: c.faint, fontSize: 12 },
-  addButton: { backgroundColor: c.accent, minHeight: 48, justifyContent: 'center', borderRadius: c.radius, alignItems: 'center' },
-  addButtonText: { ...eyebrow(c, 13), fontWeight: '700', color: c.onAccent },
-  libraryButton: {
-    minHeight: 44,
-    justifyContent: 'center',
-    borderRadius: c.radius,
-    borderWidth: 1,
-    borderColor: c.outline,
-    alignItems: 'center',
-  },
-  libraryText: { ...eyebrow(c, 12), fontWeight: '700', color: c.text },
+  addButton: { ...GOLD_FILL, minHeight: 54, justifyContent: 'center', borderRadius: 14, alignItems: 'center' },
+  addButtonText: { fontFamily: VIVID_HEAVY, fontSize: 17, color: GOLD_INK },
   sectionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -475,5 +476,5 @@ const makeStyles = themed((c) => ({
   },
   sectionTitle: { ...eyebrow(c), color: c.muted },
   sectionCount: { color: c.muted, fontSize: 13 },
-  empty: { color: c.muted, fontSize: 14, textAlign: 'center', marginTop: 24 },
+  sectionCountStrong: { fontFamily: VIVID_HEAVY, fontSize: 15 },
 }));

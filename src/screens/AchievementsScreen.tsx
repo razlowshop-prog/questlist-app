@@ -1,7 +1,8 @@
 import { Pressable, ScrollView, Text, View } from 'react-native';
-import { AchievementBadge } from '../components/AppIcon';
-import { tierColor, TIER_NAMES, type AchievementStatus, type Reward } from '../achievements';
-import { card, themed, useStyles, FONTS, headingCase, useTheme } from '../theme';
+import { TIER_NAMES, type AchievementStatus, type Reward } from '../achievements';
+import { card, themed, useStyles, FONTS, headingCase } from '../theme';
+import { fill, GOLD_FILL_SMALL, GOLD_INK, GradientText, Sticker, StickerHeading, VIVID_HEAVY } from '../components/Vivid';
+import { achievementTierLook, ICON_GLYPHS, RARITY } from '../vivid';
 
 
 export function AchievementsScreen({
@@ -16,7 +17,6 @@ export function AchievementsScreen({
   const s = useStyles(makeStyles);
   // Tokens are counted in the inventory; here only what stays: themes, titles, looks, ad-free and Premium time.
   const shown = rewards.filter((r) => r.kind !== 'token');
-  const c = useTheme();
   const earned = achievements.reduce((n, a) => n + Math.min(a.claimed, a.def.tiers.length), 0);
   const total = achievements.reduce((n, a) => n + a.def.tiers.length, 0);
   // Claimable ones first.
@@ -26,7 +26,9 @@ export function AchievementsScreen({
 
   return (
     <ScrollView contentContainerStyle={s.content}>
-      <Text style={s.heading}>Achievements</Text>
+      <StickerHeading glyph="Medal" grad={RARITY.legendary}>
+        <Text style={s.heading}>Achievements</Text>
+      </StickerHeading>
       <Text style={s.sub}>
         {earned} of {total} tiers claimed · reach a tier, then claim your XP and rewards
       </Text>
@@ -40,7 +42,7 @@ export function AchievementsScreen({
         return (
           <View key={a.def.id} style={[s.card, claimable && s.cardClaimable]}>
             <View style={s.row}>
-              <AchievementBadge name={a.def.icon} state={a.claimed > 0 ? 'earned' : 'normal'} />
+              <Sticker grad={achievementTierLook(Math.max(0, a.claimed - 1))} mythic={a.claimed >= 7} glyph={ICON_GLYPHS[a.def.icon]} size={48} dim={a.claimed === 0} />
               <View style={{ flex: 1 }}>
                 <Text style={s.title}>{a.def.title}</Text>
                 <Text style={s.desc}>
@@ -52,9 +54,9 @@ export function AchievementsScreen({
                   <Text style={s.claimText}>Claim +{tierToClaim.xp}</Text>
                 </Pressable>
               ) : shownTier ? (
-                <Text style={s.reward}>+{shownTier.xp} XP</Text>
+                <GradientText style={s.reward}>+{shownTier.xp} XP</GradientText>
               ) : (
-                <Text style={s.reward}>COMPLETE</Text>
+                <GradientText style={s.reward}>COMPLETE</GradientText>
               )}
             </View>
 
@@ -64,11 +66,11 @@ export function AchievementsScreen({
                   key={t.goal}
                   style={[
                     s.tierDot,
-                    i < a.claimed && { backgroundColor: tierColor(i, c.dark), borderColor: tierColor(i, c.dark) },
-                    i >= a.claimed && i < a.reached && { borderColor: tierColor(i, c.dark) },
+                    i < a.claimed && { ...fill(achievementTierLook(i)), borderColor: 'transparent' },
+                    i >= a.claimed && i < a.reached && { borderColor: achievementTierLook(i).c2 },
                   ]}
                 >
-                  <Text style={[s.tierGoal, i < a.claimed && s.tierGoalDone]}>{t.goal}</Text>
+                  <Text style={[s.tierGoal, i < a.claimed && { color: achievementTierLook(i).ink }]}>{t.goal}</Text>
                 </View>
               ))}
             </View>
@@ -76,7 +78,7 @@ export function AchievementsScreen({
             {a.next && (
               <>
                 <View style={s.track}>
-                  <View style={[s.fill, { width: `${Math.round(pct * 100)}%`, backgroundColor: tierColor(a.reached, c.dark) }]} />
+                  <View style={[s.fill, fill(achievementTierLook(a.reached), 90), { width: `${Math.round(pct * 100)}%` }]} />
                 </View>
                 <Text style={s.progress}>
                   {a.value} / {a.next.goal} {a.def.unit} · next: {TIER_NAMES[a.reached]}
@@ -91,7 +93,9 @@ export function AchievementsScreen({
         );
       })}
 
-      <Text style={[s.heading, s.subHeading]}>Your rewards</Text>
+      <StickerHeading glyph="Gift" grad={RARITY.epic} style={{ marginTop: 22 }}>
+        <Text style={[s.heading, s.subHeading, { marginTop: 0 }]}>Your rewards</Text>
+      </StickerHeading>
       {shown.length === 0 ? (
         <Text style={s.sub}>Claim achievement tiers and reach new levels to unlock themes, titles, frames and more.</Text>
       ) : (
@@ -116,13 +120,13 @@ const makeStyles = themed((c) => ({
   subHeading: { fontSize: 22, lineHeight: 28, marginTop: 22 },
   sub: { color: c.muted, fontSize: 14, marginTop: 4, marginBottom: 16 },
   card: { ...card(c), padding: 14, marginBottom: 10, gap: 10 },
-  cardClaimable: { borderWidth: 1, borderColor: c.gold },
+  cardClaimable: { borderWidth: 1.5, borderColor: '#FFB547', boxShadow: '0px 0px 16px rgba(255,138,0,0.3)' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   title: { color: c.text, fontSize: 16, fontWeight: '700' },
   desc: { color: c.muted, fontSize: 13, marginTop: 2 },
-  reward: { color: c.gold, fontWeight: '700', fontSize: 13 },
-  claim: { backgroundColor: c.gold, paddingHorizontal: 14, minHeight: 36, justifyContent: 'center', borderRadius: c.radius },
-  claimText: { color: c.onGold, fontWeight: '700', fontSize: 13 },
+  reward: { fontFamily: VIVID_HEAVY, fontSize: 14 },
+  claim: { ...GOLD_FILL_SMALL, paddingHorizontal: 14, minHeight: 38, justifyContent: 'center', borderRadius: 12 },
+  claimText: { color: GOLD_INK, fontFamily: VIVID_HEAVY, fontSize: 13 },
   tiers: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
   tierDot: {
     minWidth: 34,
@@ -135,12 +139,11 @@ const makeStyles = themed((c) => ({
     justifyContent: 'center',
   },
   tierGoal: { color: c.muted, fontSize: 11, fontWeight: '700' },
-  tierGoalDone: { color: c.onGold },
   track: { height: c.lineWeight, borderRadius: c.lineWeight / 2, backgroundColor: c.border, overflow: 'hidden' },
   fill: { height: '100%' },
   progress: { color: c.muted, fontSize: 12, marginTop: -4 },
   unlock: { color: c.gold, fontSize: 12, fontWeight: '700' },
   rewards: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
-  rewardChip: { ...card(c), borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 },
+  rewardChip: { ...card(c), borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, borderColor: '#FFB547', borderWidth: 1.5 },
   rewardChipText: { color: c.text, fontSize: 13, fontWeight: '600' },
 }));

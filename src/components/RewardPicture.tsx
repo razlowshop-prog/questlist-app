@@ -1,10 +1,10 @@
-import { Ban, Coffee, Crown, Droplets, Flame, Gem, PartyPopper, RefreshCw, Sparkles, Star, Zap, type LucideIcon } from 'lucide-react-native';
-import { View } from 'react-native';
+import { Ban, Coffee, Droplets, Flame, PartyPopper, RefreshCw, Sparkles, Star, Zap, type LucideIcon } from 'lucide-react-native';
 import type { LevelMilestone, TokenKind } from '../achievements';
 import type { CelebrationId, FlameStyleId } from '../cosmetics';
-import { THEMES, useTheme } from '../theme';
 import { Fire } from './Fire';
-import { ProfileFrame } from './ProfileFrame';
+import { Avatar, ProfileFrame } from './ProfileFrame';
+import { Sticker } from './Vivid';
+import { CELEBRATION_GLYPHS, CELEBRATION_LOOKS, REWARD_LOOKS, TOKEN_LOOKS } from '../vivid';
 
 /** Icon of each one-time token. */
 export const TOKEN_ICONS: Record<TokenKind, LucideIcon> = { rest: Coffee, double: Zap, reroll: RefreshCw, adfree: Ban };
@@ -19,51 +19,30 @@ export const CELEBRATION_ICONS: Record<CelebrationId, LucideIcon> = {
 };
 
 /**
- * A picture of a level reward: the theme's own colours, the frame or flame
- * itself, or an icon for a title, token, celebration, ad-free time, Premium or bonus XP.
+ * A picture of a level reward as a vivid sticker (rewards spec), the same on
+ * every theme: tokens in their own colours, a diamond for a theme, a crown
+ * for Premium, a medal for a title. Frames and flames show themselves when
+ * there is room for them.
  */
 export function RewardPicture({ milestone, size }: { milestone: LevelMilestone; size: number }) {
-  const c = useTheme();
   const reward = milestone.reward;
-  const theme = reward?.kind === 'theme' ? THEMES.find((t) => t.reward === reward.label) : undefined;
-  if (theme) {
-    const dot = Math.round(size * 0.43);
-    return (
-      <View
-        style={{
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          backgroundColor: theme.palette.bg,
-          borderWidth: 1,
-          borderColor: theme.palette.border,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <View style={{ width: dot, height: dot, borderRadius: dot / 2, backgroundColor: theme.palette.accent }} />
-      </View>
-    );
-  }
-  if (reward?.kind === 'frame' && reward.item) {
+  if (reward?.kind === 'frame' && reward.item && size >= 40) {
     const inner = size / 1.3;
     return (
       <ProfileFrame frame={reward.item} size={inner}>
-        <View style={{ width: inner * 0.82, height: inner * 0.82, borderRadius: inner, backgroundColor: c.accentSoft }} />
+        <Avatar initials="" size={inner * 0.82} />
       </ProfileFrame>
     );
   }
   if (reward?.kind === 'flame' && reward.item) return <Fire tier={1} size={size} look={reward.item as FlameStyleId} />;
-  const Icon = reward?.token
-    ? TOKEN_ICONS[reward.token]
-    : reward?.kind === 'celebration'
-      ? CELEBRATION_ICONS[reward.item as CelebrationId]
-      : reward?.kind === 'title'
-        ? Crown
-        : reward?.kind === 'adfree'
-          ? Ban
-          : reward?.kind === 'premium'
-            ? Gem
-            : Sparkles;
-  return <Icon size={size} color={c.accent} strokeWidth={1.5} aria-hidden />;
+  const look = reward?.token
+    ? TOKEN_LOOKS[reward.token]
+    : reward?.kind === 'adfree'
+      ? TOKEN_LOOKS.adfree
+      : reward?.kind === 'celebration'
+        ? { ...(CELEBRATION_LOOKS[reward.item as CelebrationId] ?? REWARD_LOOKS.celebration), glyph: CELEBRATION_GLYPHS[reward.item as CelebrationId] ?? 'Confetti' }
+        : reward?.kind === 'theme' || reward?.kind === 'premium' || reward?.kind === 'frame' || reward?.kind === 'title'
+          ? REWARD_LOOKS[reward.kind]
+          : REWARD_LOOKS.bonus;
+  return <Sticker grad={look} glyph={look.glyph} size={size} />;
 }

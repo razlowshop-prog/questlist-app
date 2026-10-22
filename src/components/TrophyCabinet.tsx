@@ -1,69 +1,62 @@
 import { Lock } from 'lucide-react-native';
-import { useState } from 'react';
-import { Modal, Pressable, Text, View } from 'react-native';
-import Svg, { Defs, LinearGradient, Polygon, Stop } from 'react-native-svg';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Easing, Modal, Pressable, Text, View } from 'react-native';
 import type { Rarity, TrophyStatus } from '../trophies';
-import { card, eyebrow, FONTS, themed, useStyles, useTheme } from '../theme';
-import { AppIcon } from './AppIcon';
+import { card, eyebrow, FONTS, nativeDriver, themed, useStyles, useTheme } from '../theme';
+import { ICON_GLYPHS, RARITY, rarityLabel, type Rarity as VividRarity } from '../vivid';
+import { useReduceMotion } from './FireAura';
+import { fill, Glyph, HexSticker, VividButton } from './Vivid';
 
-/** Metal of each rarity: gradient top and bottom, and the icon colour on it. */
-const METAL: Record<Rarity, { from: string; to: string; icon: string; name: string }> = {
-  rare: { from: '#C9D1DA', to: '#8A95A1', icon: '#1F262E', name: 'Rare' },
-  epic: { from: '#E2C48B', to: '#B08A4E', icon: '#3B2A0E', name: 'Epic' },
-  legendary: { from: '#C4B0E2', to: '#7E64A8', icon: '#21173A', name: 'Legendary' },
-};
+/** Trophy rarities in the vivid rarity colours. */
+const RARITY_OF: Record<Rarity, VividRarity> = { rare: 'rare', epic: 'epic', legendary: 'legendary' };
 
-/** Rarity label colour: the light end of the metal on dark themes, the deep end on light ones. */
-function labelColor(rarity: Rarity, dark: boolean): string {
-  return dark ? METAL[rarity].from : METAL[rarity].to;
-}
-
-const HEX = '50,3 95,28 95,82 50,107 5,82 5,28';
-const INNER = '50,13 86,33 86,77 50,97 14,77 14,33';
-
-/** A hexagonal badge: polished metal once earned, a dark outline with a lock until then. */
+/**
+ * A hexagonal badge in its rarity gradient with a glyph (rewards spec);
+ * legendary ones get a shine sweeping across. Faint with a lock until earned.
+ */
 export function TrophyBadge({ trophy, size }: { trophy: TrophyStatus; size: number }) {
   const c = useTheme();
-  const metal = METAL[trophy.def.rarity];
-  const id = `trophy-${trophy.def.id}-${size}`;
-  const h = size * 1.1;
+  const rarity = RARITY_OF[trophy.def.rarity];
+  const ink = trophy.earned ? RARITY[rarity].ink : c.faint;
   return (
-    <View
-      style={{
-        width: size,
-        height: h,
-        alignItems: 'center',
-        justifyContent: 'center',
-        ...(trophy.earned ? { boxShadow: `0px 0px ${Math.round(size / 4)}px ${metal.to}88`, borderRadius: size / 2 } : {}),
-      }}
-    >
-      <Svg width={size} height={h} viewBox="0 0 100 110" style={{ position: 'absolute' }}>
-        <Defs>
-          <LinearGradient id={id} x1="0" y1="0" x2="0.4" y2="1">
-            <Stop offset="0" stopColor={metal.from} />
-            <Stop offset="0.55" stopColor={metal.to} />
-            <Stop offset="1" stopColor={metal.from} stopOpacity={0.85} />
-          </LinearGradient>
-        </Defs>
-        {trophy.earned ? (
-          <>
-            {/* On light themes a thin outline keeps the pale metal from fading into the page. */}
-            <Polygon points={HEX} fill={`url(#${id})`} {...(!c.dark && { stroke: c.outline, strokeWidth: 1 })} />
-            <Polygon points={INNER} fill="none" stroke={metal.icon} strokeOpacity={0.35} strokeWidth={1.5} />
-          </>
-        ) : (
-          <>
-            <Polygon points={HEX} fill={c.surfaceAlt} stroke={c.border} strokeWidth={2} />
-            <Polygon points={INNER} fill="none" stroke={c.border} strokeWidth={1} strokeDasharray="3 4" />
-          </>
-        )}
-      </Svg>
-      <AppIcon name={trophy.def.icon} size={Math.round(size * 0.36)} color={trophy.earned ? metal.icon : c.faint} />
+    <View style={{ width: size, height: size * 1.1, alignItems: 'center', justifyContent: 'center' }}>
+      <HexSticker rarity={rarity} size={size} dim={!trophy.earned}>
+        <Glyph name={ICON_GLYPHS[trophy.def.icon]} size={Math.round(size * 0.4)} color={trophy.earned ? ink : c.text} style={!trophy.earned ? { opacity: 0.5 } : undefined} />
+      </HexSticker>
+      {trophy.earned && rarity === 'legendary' && <Shine size={size} />}
       {!trophy.earned && (
-        <View style={{ position: 'absolute', bottom: size * 0.06 }}>
-          <Lock size={Math.round(size * 0.16)} color={c.faint} strokeWidth={1.75} aria-hidden />
+        <View style={{ position: 'absolute', bottom: size * 0.04 }}>
+          <Lock size={Math.round(size * 0.16)} color={c.muted} strokeWidth={2} aria-hidden />
         </View>
       )}
+    </View>
+  );
+}
+
+/** A white shine sweeping across the badge every 3.2 s. */
+function Shine({ size }: { size: number }) {
+  const reduce = useReduceMotion();
+  const t = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (reduce) return;
+    const loop = Animated.loop(Animated.sequence([Animated.timing(t, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: nativeDriver }), Animated.delay(2300)]));
+    loop.start();
+    return () => loop.stop();
+  }, [reduce]);
+  if (reduce) return null;
+  return (
+    <View pointerEvents="none" style={{ position: 'absolute', left: size * 0.1, top: size * 0.1, width: size * 0.8, height: size * 0.9, overflow: 'hidden', borderRadius: size * 0.2 }}>
+      <Animated.View
+        style={{
+          position: 'absolute',
+          top: -size * 0.2,
+          width: size * 0.18,
+          height: size * 1.4,
+          backgroundColor: '#FFFFFF',
+          opacity: 0.45,
+          transform: [{ translateX: t.interpolate({ inputRange: [0, 1], outputRange: [-size * 0.3, size] }) }, { rotate: '20deg' }],
+        }}
+      />
     </View>
   );
 }
@@ -93,10 +86,10 @@ export function TrophyCabinet({ trophies }: { trophies: TrophyStatus[] }) {
               {t.def.name}
             </Text>
             {t.earned ? (
-              <Text style={[s.rarity, { color: labelColor(t.def.rarity, c.dark) }]}>{METAL[t.def.rarity].name}</Text>
+              <Text style={[s.rarity, { color: rarityLabel(RARITY_OF[t.def.rarity], c.dark) }]}>{RARITY[RARITY_OF[t.def.rarity]].name}</Text>
             ) : (
               <View style={s.miniTrack}>
-                <View style={[s.miniFill, { width: `${(t.value / t.def.target) * 100}%` }]} />
+                <View style={[s.miniFill, fill(RARITY[RARITY_OF[t.def.rarity]], 90), { width: `${(t.value / t.def.target) * 100}%` }]} />
               </View>
             )}
           </Pressable>
@@ -109,20 +102,18 @@ export function TrophyCabinet({ trophies }: { trophies: TrophyStatus[] }) {
           <View style={s.sheetWrap} pointerEvents="box-none">
             <View style={s.sheet}>
               <TrophyBadge trophy={open} size={120} />
-              <Text style={[s.rarity, { color: labelColor(open.def.rarity, c.dark) }]}>{METAL[open.def.rarity].name} trophy</Text>
+              <Text style={[s.rarity, { color: rarityLabel(RARITY_OF[open.def.rarity], c.dark) }]}>{RARITY[RARITY_OF[open.def.rarity]].name} trophy</Text>
               <Text style={s.title}>{open.def.name}</Text>
               <Text style={s.desc}>{open.def.description}</Text>
               <View style={s.track}>
-                <View style={[s.fill, { width: `${(open.value / open.def.target) * 100}%` }]} />
+                <View style={[s.fill, fill(RARITY[RARITY_OF[open.def.rarity]], 90), { width: `${(open.value / open.def.target) * 100}%` }]} />
               </View>
               <Text style={s.progress}>
                 {open.earned
                   ? 'Earned'
                   : `${open.value.toLocaleString()} / ${open.def.target.toLocaleString()} ${open.def.unit}`}
               </Text>
-              <Pressable onPress={() => setOpen(null)} style={s.close} accessibilityRole="button">
-                <Text style={s.closeText}>Close</Text>
-              </Pressable>
+              <VividButton label="Close" kind="secondary" onPress={() => setOpen(null)} style={{ alignSelf: 'stretch', marginTop: 8 }} />
             </View>
           </View>
         )}
@@ -147,6 +138,4 @@ const makeStyles = themed((c) => ({
   track: { alignSelf: 'stretch', height: 6, borderRadius: 3, backgroundColor: c.border, overflow: 'hidden', marginTop: 8 },
   fill: { height: '100%', backgroundColor: c.accent },
   progress: { color: c.muted, fontSize: 13, fontVariant: ['tabular-nums'] },
-  close: { alignSelf: 'stretch', minHeight: 46, marginTop: 8, borderRadius: c.radius, borderWidth: 1, borderColor: c.outline, alignItems: 'center', justifyContent: 'center' },
-  closeText: { ...eyebrow(c, 12), fontWeight: '700', color: c.text },
 }));

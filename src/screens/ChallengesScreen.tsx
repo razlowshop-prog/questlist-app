@@ -1,11 +1,12 @@
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { addDays, SENSOR_CHALLENGES, weekStart, type ChallengeDef, type ChallengeStatus } from '../game';
-import { AppIcon } from '../components/AppIcon';
 import { ProfileFrame } from '../components/ProfileFrame';
 import { frameName } from '../cosmetics';
 import { CATEGORIES } from '../library';
 import type { SeasonStatus } from '../seasons';
 import { card, themed, useStyles, useTheme, FONTS, headingCase } from '../theme';
+import { fill, Glyph, GOLD_FILL_SMALL, GOLD_INK, GradientText, ProgressRing, StickerHeading, VIVID_HEAVY } from '../components/Vivid';
+import { challengeRarity, ICON_GLYPHS, RARITY, SEASON_PILL } from '../vivid';
 
 export function ChallengesScreen({
   challenges,
@@ -35,7 +36,9 @@ export function ChallengesScreen({
 
   return (
     <ScrollView contentContainerStyle={s.content}>
-      <Text style={s.heading}>Weekly challenges</Text>
+      <StickerHeading glyph="Target" grad={RARITY.epic}>
+        <Text style={s.heading}>Weekly challenges</Text>
+      </StickerHeading>
       <Text style={s.sub}>
         New challenges every Monday · {daysLeft} {daysLeft === 1 ? 'day' : 'days'} left
       </Text>
@@ -50,7 +53,7 @@ export function ChallengesScreen({
             </Pressable>
           ) : (
             <>
-              <Text style={s.reward}>+{ch.def.rewardXp} XP</Text>
+              <GradientText style={s.reward}>+{ch.def.rewardXp} XP</GradientText>
               {swapsLeft > 0 && (
                 <Pressable onPress={() => onSwap(ch.def.id)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Swap ${ch.def.title}`}>
                   <Text style={s.swap}>Swap</Text>
@@ -66,7 +69,9 @@ export function ChallengesScreen({
         </Text>
       )}
 
-      <Text style={[s.heading, s.subHeading]}>{monthName} event</Text>
+      <StickerHeading glyph="CalendarStar" grad={SEASON_PILL} style={{ marginTop: 24 }}>
+        <Text style={[s.heading, s.subHeading, { marginTop: 0 }]}>{monthName} event</Text>
+      </StickerHeading>
       <Text style={s.sub}>
         A new event every month · {season.daysLeft === 0 ? 'last day' : `${season.daysLeft} ${season.daysLeft === 1 ? 'day' : 'days'} left`}
       </Text>
@@ -78,7 +83,7 @@ export function ChallengesScreen({
           <Text style={s.title}>{season.season.name}</Text>
           <Text style={s.progress}>{season.season.pitch}</Text>
           <View style={s.track}>
-            <View style={[s.fill, { width: `${Math.round((season.progress / season.season.target) * 100)}%` }]} />
+            <View style={[s.fill, fill(SEASON_PILL, 90), { width: `${Math.min(100, Math.round((season.progress / season.season.target) * 100))}%` }]} />
           </View>
           <Text style={s.progress}>
             {season.progress} / {season.season.target} tasks from {listOf(counts)}
@@ -90,16 +95,18 @@ export function ChallengesScreen({
               <Text style={s.claimText}>Claim the {frameName(season.frame)} frame</Text>
             </Pressable>
           ) : (
-            <Text style={[s.reward, { color: c.accent }]}>Wins the {frameName(season.frame)} frame, only this month</Text>
+            <Text style={[s.reward, { color: c.accent, fontSize: 13 }]}>Wins the {frameName(season.frame)} frame, only this month</Text>
           )}
         </View>
       </View>
 
-      <Text style={[s.heading, s.subHeading]}>Coming with the phone app</Text>
+      <StickerHeading glyph="DeviceMobile" grad={RARITY.rare} style={{ marginTop: 24 }}>
+        <Text style={[s.heading, s.subHeading, { marginTop: 0 }]}>Coming with the phone app</Text>
+      </StickerHeading>
       <Text style={s.sub}>These use your phone's sensors and health data, so they can't run in the browser.</Text>
       {SENSOR_CHALLENGES.map((def) => (
         <ChallengeCard key={def.id} def={def} progress={0} locked>
-          <Text style={s.reward}>+{def.rewardXp} XP</Text>
+          <Text style={[s.reward, { color: c.muted }]}>+{def.rewardXp} XP</Text>
         </ChallengeCard>
       ))}
     </ScrollView>
@@ -126,16 +133,17 @@ function ChallengeCard({
 }) {
   const s = useStyles(makeStyles);
   const c = useTheme();
-  const pct = Math.round((progress / def.target) * 100);
+  const pct = Math.min(100, Math.round((progress / def.target) * 100));
+  const grad = RARITY[challengeRarity(def.rewardXp)];
   return (
     <View style={[s.card, locked && { opacity: 0.55 }, highlight && s.cardHighlight]}>
-      <View style={s.iconWrap}>
-        <AppIcon name={def.icon} color={locked ? c.faint : highlight ? c.accent : c.muted} />
-      </View>
+      <ProgressRing progress={locked ? 0 : progress / def.target} size={50} grad={grad}>
+        <Glyph name={ICON_GLYPHS[def.icon]} size={20} grad={locked ? undefined : grad} color={c.faint} />
+      </ProgressRing>
       <View style={{ flex: 1, gap: 6 }}>
         <Text style={s.title}>{def.title}</Text>
         <View style={s.track}>
-          <View style={[s.fill, { width: `${pct}%` }]} />
+          <View style={[s.fill, fill(grad, 90), { width: `${pct}%` }]} />
         </View>
         <Text style={s.progress}>{locked ? 'Coming soon' : `${progress} / ${def.target} ${def.unit}`}</Text>
       </View>
@@ -150,25 +158,17 @@ const makeStyles = themed((c) => ({
   subHeading: { fontSize: 22, lineHeight: 28, marginTop: 24 },
   sub: { color: c.muted, fontSize: 14, marginTop: 4, marginBottom: 16 },
   card: { ...card(c), flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, marginBottom: 10 },
-  cardHighlight: { borderWidth: 1, borderColor: c.gold },
-  iconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: c.radius,
-    backgroundColor: c.goldSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  cardHighlight: { borderWidth: 1.5, borderColor: '#FFB547', boxShadow: '0px 0px 16px rgba(255,138,0,0.3)' },
   title: { color: c.text, fontSize: 15, fontWeight: '700' },
   track: { height: c.lineWeight, borderRadius: c.lineWeight / 2, backgroundColor: c.border, overflow: 'hidden' },
-  fill: { height: '100%', backgroundColor: c.gold },
+  fill: { height: '100%', borderRadius: 3 },
   progress: { color: c.muted, fontSize: 12 },
-  reward: { color: c.gold, fontWeight: '700', fontSize: 13 },
-  claim: { backgroundColor: c.gold, paddingHorizontal: 14, minHeight: 36, justifyContent: 'center', borderRadius: c.radius },
-  claimText: { color: c.onGold, fontWeight: '700', fontSize: 13 },
-  claimed: { color: c.xp, fontWeight: '700', fontSize: 13 },
+  reward: { fontFamily: VIVID_HEAVY, fontSize: 14 },
+  claim: { ...GOLD_FILL_SMALL, paddingHorizontal: 14, minHeight: 38, justifyContent: 'center', borderRadius: 12 },
+  claimText: { color: GOLD_INK, fontFamily: VIVID_HEAVY, fontSize: 13 },
+  claimed: { color: c.dark ? '#34E3C4' : '#0B7C8C', fontWeight: '700', fontSize: 13 },
   swap: { color: c.accent, fontWeight: '600', fontSize: 13, marginTop: 8, textDecorationLine: 'underline' },
   event: { alignItems: 'flex-start' },
-  eventDot: { width: 34, height: 34, borderRadius: 17, backgroundColor: c.goldSoft },
+  eventDot: { width: 34, height: 34, borderRadius: 17, backgroundColor: c.surfaceAlt },
   swapNote: { color: c.faint, fontSize: 12, marginTop: 2 },
 }));

@@ -183,6 +183,8 @@ export interface Settings {
   frame?: string;
   flameStyle?: FlameStyleId;
   celebration?: CelebrationId;
+  /** Which of the five avatar gradients (vivid.ts AVATAR_DISCS) the profile picture uses. */
+  avatar?: number;
 }
 
 /** Evening time of the "your streak is about to end" notification. */
@@ -676,6 +678,27 @@ export function weekStart(day: string): string {
   const [y, m, d] = day.split('-').map(Number);
   const weekday = (new Date(y, m - 1, d, 12).getDay() + 6) % 7; // Monday = 0
   return addDays(day, -weekday);
+}
+
+/** One day of this week on the streak card. */
+export type WeekDot = 'done' | 'rest' | 'missed' | 'today' | 'future';
+
+/**
+ * Monday to Sunday of today's week: done (a task finished), rest (covered by a
+ * rest day), today (nothing yet), missed, or future (still to come, or before
+ * the player joined).
+ */
+export function weekDots(state: Pick<GameState, 'completions' | 'restDays' | 'recovery' | 'joinedAt'>, today: string): WeekDot[] {
+  const active = new Set(state.completions.map((c) => c.date));
+  const rest = new Set(restDaysOf(state));
+  const monday = weekStart(today);
+  return Array.from({ length: 7 }, (_, i) => {
+    const day = addDays(monday, i);
+    if (active.has(day)) return 'done';
+    if (day > today || (state.joinedAt && day < state.joinedAt)) return 'future';
+    if (rest.has(day)) return 'rest';
+    return day === today ? 'today' : 'missed';
+  });
 }
 
 export interface WeekStats {

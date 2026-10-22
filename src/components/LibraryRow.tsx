@@ -1,8 +1,10 @@
 import { Pressable, Text, View } from 'react-native';
 import { durationLabel, xpFor } from '../game';
 import { categoryOf, type LibraryTask } from '../library';
-import { card, useStyles, useTheme, type Palette } from '../theme';
-import { AppIcon } from './AppIcon';
+import { card, useStyles, type Palette } from '../theme';
+import { GOLD_FILL_SMALL, GOLD_INK } from './Vivid';
+import { Sticker } from './Vivid';
+import { categoryLook } from '../vivid';
 
 export function perWeekLabel(n: number): string {
   if (n === 0) return 'One-time';
@@ -13,12 +15,11 @@ export function perWeekLabel(n: number): string {
 /** A library task with a one-tap add button. */
 export function LibraryRow({ task, added, onAdd }: { task: LibraryTask; added: boolean; onAdd: () => void }) {
   const s = useStyles(makeStyles);
-  const c = useTheme();
   const cat = categoryOf(task.category);
   return (
     <Pressable onPress={added ? undefined : onAdd} style={s.row} accessibilityRole="button">
       <View style={s.iconWrap}>
-        {cat && <AppIcon name={cat.icon} color={added ? c.accent : c.muted} />}
+        {cat && <Sticker grad={categoryLook(cat.id)} glyph={categoryLook(cat.id).glyph} size={32} />}
       </View>
       <View style={{ flex: 1 }}>
         <Text style={s.title}>{task.title}</Text>
@@ -59,11 +60,11 @@ const makeStyles = (c: Palette) => ({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: c.accent,
+    ...GOLD_FILL_SMALL,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
   },
   added: { backgroundColor: c.xpSoft },
-  addText: { color: c.onAccent, fontSize: 18, fontWeight: '700' as const, lineHeight: 20 },
+  addText: { color: GOLD_INK, fontSize: 18, fontWeight: '700' as const, lineHeight: 20 },
   addedText: { color: c.xp },
 });

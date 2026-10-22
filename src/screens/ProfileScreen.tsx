@@ -1,16 +1,16 @@
-import { Backpack, ChevronRight, Lock } from 'lucide-react-native';
+import { ChevronRight, Lock } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView,  Text, TextInput, View } from 'react-native';
 import { APP_NAME } from '../brand';
-import { AppIcon } from '../components/AppIcon';
 import { MultiplierPill } from '../components/MultiplierPill';
-import { ProfileFrame } from '../components/ProfileFrame';
+import { Avatar, ProfileFrame } from '../components/ProfileFrame';
 import { TrophyCabinet } from '../components/TrophyCabinet';
 import { STREAK_REMINDER_HOUR, type profileStats, type Settings, type xpMultiplier } from '../game';
 import { EMBLEM_TIERS, type EmblemStatus } from '../emblems';
 import type { TrophyStatus } from '../trophies';
-import { tierColor } from '../achievements';
 import { card, eyebrow, THEMES, themed, useStyles, useTheme, FONTS, headingCase } from '../theme';
+import { GradientText, LevelBadge, Sticker, StickerHeading, VIVID_HEAVY, VividButton, VividSwitch } from '../components/Vivid';
+import { AVATAR_DISCS, CATEGORY_LOOKS, EMBLEM_METALS, RARITY, categoryLook } from '../vivid';
 
 export function ProfileScreen({
   name,
@@ -66,9 +66,7 @@ export function ProfileScreen({
     <ScrollView contentContainerStyle={s.content}>
       <View style={s.hero}>
         <ProfileFrame frame={frame} size={88}>
-          <View style={[s.avatar, frame ? s.avatarFramed : null]}>
-            <Text style={s.avatarText}>{initials}</Text>
-          </View>
+          <Avatar initials={initials} size={88} />
         </ProfileFrame>
         {editing ? (
           <TextInput
@@ -96,6 +94,7 @@ export function ProfileScreen({
         {title ? <Text style={s.title}>{title}</Text> : null}
         <View style={s.levelRow}>
           <View style={s.levelPill}>
+            <LevelBadge level={stats.level} size={26} />
             <Text style={s.levelPillText}>
               Level {stats.level} · {stats.rank}
             </Text>
@@ -103,35 +102,48 @@ export function ProfileScreen({
           <MultiplierPill multiplier={multiplier} />
         </View>
         {memberSince ? <Text style={s.small}>Member since {memberSince}</Text> : null}
+        <View style={s.discs} accessibilityRole="radiogroup" accessibilityLabel="Avatar colour">
+          {AVATAR_DISCS.map((_, i) => {
+            const active = (settings.avatar ?? 0) === i;
+            return (
+              <Pressable
+                key={i}
+                onPress={() => onSettings({ avatar: i })}
+                hitSlop={4}
+                style={[s.disc, active && s.discActive]}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: active }}
+                accessibilityLabel={`Avatar colour ${i + 1}`}
+              >
+                <Avatar initials="" size={24} disc={i} />
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
 
       <View style={s.grid}>
-        <Stat label="Points" value={stats.totalXp.toLocaleString()} color={c.gold} />
+        <Stat label="Points" value={stats.totalXp.toLocaleString()} />
         <Stat label="Tasks done" value={String(stats.tasksDone)} />
-        <Stat label="Streak" value={String(stats.currentStreak)} color={c.accent} />
+        <Stat label="Streak" value={String(stats.currentStreak)} />
         <Stat label="Best streak" value={String(stats.bestStreak)} />
         <Stat label="Challenges" value={String(stats.challengesWon)} />
         <Stat label="Trophies" value={`${earnedTrophies}/${trophies.length}`} />
       </View>
 
-      <View style={s.sectionRow}>
-        <Text style={s.section}>Trophy cabinet</Text>
-        <Text style={s.small}>
-          {earnedTrophies} of {trophies.length} · tap one to see how
-        </Text>
-      </View>
+      <StickerHeading glyph="Trophy" grad={RARITY.legendary} style={s.headingRow} right={<Text style={s.small}>{earnedTrophies} of {trophies.length} · tap one</Text>}>
+        <Text style={s.sectionTitle}>Trophy cabinet</Text>
+      </StickerHeading>
       <TrophyCabinet trophies={trophies} />
 
-      <View style={s.sectionRow}>
-        <Text style={s.section}>Emblems</Text>
-        <Text style={s.small}>
-          {EMBLEM_TIERS.map((t) => `${t.name} ${t.goal}`).join(' · ')} tasks
-        </Text>
-      </View>
+      <StickerHeading glyph="Medal" grad={EMBLEM_METALS[2]} style={s.headingRow}>
+        <Text style={s.sectionTitle}>Emblems</Text>
+        <Text style={s.small}>{EMBLEM_TIERS.map((t) => `${t.name} ${t.goal}`).join(' · ')} tasks</Text>
+      </StickerHeading>
       <Emblems emblems={emblems} />
 
       <Pressable onPress={onOpenBag} style={s.bagLink} accessibilityRole="button">
-        <Backpack size={20} color={c.accent} strokeWidth={1.5} aria-hidden />
+        <Sticker grad={RARITY.epic} glyph="Backpack" size={36} />
         <View style={{ flex: 1 }}>
           <Text style={s.settingTitle}>Inventory</Text>
           <Text style={s.small}>Use tokens and pick your title, frame, flame and tick celebration.</Text>
@@ -139,7 +151,9 @@ export function ProfileScreen({
         <ChevronRight size={18} color={c.muted} strokeWidth={1.5} aria-hidden />
       </Pressable>
 
-      <Text style={s.section}>Theme</Text>
+      <StickerHeading glyph="Palette" grad={CATEGORY_LOOKS.creative} style={s.headingRow}>
+        <Text style={s.sectionTitle}>Theme</Text>
+      </StickerHeading>
       <View style={s.themes}>
         {THEMES.map((t) => {
           const unlocked = unlockedThemes.has(t.id);
@@ -166,20 +180,18 @@ export function ProfileScreen({
       </View>
       <Text style={s.small}>Unlock more themes by claiming achievement tiers. Fortuna is only won on the lucky wheel.</Text>
 
-      <Text style={s.section}>Settings</Text>
+      <StickerHeading glyph="GearSix" grad={CATEGORY_LOOKS.errands} style={s.headingRow}>
+        <Text style={s.sectionTitle}>Settings</Text>
+      </StickerHeading>
       <View style={s.settingCard}>
         <View style={s.settingRow}>
           <View style={{ flex: 1 }}>
             <Text style={s.settingTitle}>Streak reminders</Text>
             <Text style={s.small}>A notification at {STREAK_REMINDER_HOUR}:00 when nothing is done yet and your streak is at risk.</Text>
           </View>
-          <Switch
+          <VividSwitch
             value={settings.streakReminders !== false}
             onValueChange={(v) => onSettings({ streakReminders: v })}
-            trackColor={{ true: c.accent, false: c.border }}
-            thumbColor={c.surface}
-            // react-native-web paints the 'on' thumb teal unless told otherwise
-            {...({ activeThumbColor: c.surface } as object)}
             accessibilityLabel="Streak reminders"
           />
         </View>
@@ -188,13 +200,9 @@ export function ProfileScreen({
             <Text style={s.settingTitle}>Daily motivation by email</Text>
             <Text style={s.small}>A short motivational quote every morning. Unsubscribe anytime.</Text>
           </View>
-          <Switch
+          <VividSwitch
             value={settings.quoteEmails}
             onValueChange={(v) => onSettings({ quoteEmails: v })}
-            trackColor={{ true: c.accent, false: c.border }}
-            thumbColor={c.surface}
-            // react-native-web paints the 'on' thumb teal unless told otherwise
-            {...({ activeThumbColor: c.surface } as object)}
           />
         </View>
         {settings.quoteEmails && (
@@ -217,9 +225,7 @@ export function ProfileScreen({
           </>
         )}
       </View>
-      <Pressable onPress={onRedoSetup} style={s.redo} accessibilityRole="button">
-        <Text style={s.redoText}>Redo setup questions</Text>
-      </Pressable>
+      <VividButton label="Redo setup questions" kind="secondary" compact onPress={onRedoSetup} style={{ marginTop: 12 }} />
 
       <Text style={s.note}>
         Friends, public profiles and the global leaderboard arrive once accounts and cloud sync are added.
@@ -231,23 +237,22 @@ export function ProfileScreen({
 /** Earned emblems in their metal; the rest faint, with how far along they are. */
 function Emblems({ emblems }: { emblems: EmblemStatus[] }) {
   const s = useStyles(makeStyles);
-  const c = useTheme();
   const [open, setOpen] = useState<string | null>(null);
   const picked = emblems.find((e) => e.category === open);
   return (
     <View style={{ gap: 10 }}>
       <View style={s.emblems}>
         {emblems.map((e) => {
-          const color = e.tier ? tierColor(e.tier - 1, c.dark) : c.faint;
+          const glyph = categoryLook(e.category).glyph;
           return (
             <Pressable
               key={e.category}
               onPress={() => setOpen(open === e.category ? null : e.category)}
-              style={[s.emblem, { borderColor: e.tier ? color : c.border }, open === e.category && s.emblemOpen, !e.tier && { opacity: 0.55 }]}
+              style={[s.emblem, open === e.category && s.emblemOpen]}
               accessibilityRole="button"
               accessibilityLabel={`${e.label}: ${e.done} tasks${e.tier ? `, ${EMBLEM_TIERS[e.tier - 1].name}` : ''}`}
             >
-              <AppIcon name={e.icon} size={20} color={color} />
+              {e.tier ? <Sticker grad={EMBLEM_METALS[e.tier - 1]} glyph={glyph} size={42} /> : <Sticker grad={categoryLook(e.category)} glyph={glyph} size={42} dim />}
             </Pressable>
           );
         })}
@@ -263,11 +268,11 @@ function Emblems({ emblems }: { emblems: EmblemStatus[] }) {
   );
 }
 
-function Stat({ label, value, color }: { label: string; value: string; color?: string }) {
+function Stat({ label, value }: { label: string; value: string }) {
   const s = useStyles(makeStyles);
   return (
     <View style={s.stat}>
-      <Text style={[s.statValue, color ? { color } : null]}>{value}</Text>
+      <GradientText style={s.statValue}>{value}</GradientText>
       <Text style={s.statLabel}>{label}</Text>
     </View>
   );
@@ -276,23 +281,12 @@ function Stat({ label, value, color }: { label: string; value: string; color?: s
 const makeStyles = themed((c) => ({
   content: { padding: 20, paddingBottom: 48, maxWidth: 640, width: '100%', alignSelf: 'center' },
   hero: { alignItems: 'center', gap: 8, marginBottom: 22 },
-  avatar: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: c.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 4,
-    borderWidth: 4,
-    borderColor: c.accentSoft,
-  },
-  /** Inside a frame the soft outer ring would crowd it, and the frame adds its own space. */
-  avatarFramed: { borderWidth: 0, marginBottom: 0 },
-  avatarText: { color: c.onAccent, fontSize: 30, fontWeight: '700' },
+  discs: { flexDirection: 'row', gap: 10, marginTop: 6 },
+  disc: { padding: 2, borderRadius: 16, borderWidth: 1.5, borderColor: 'transparent' },
+  discActive: { borderColor: '#FFB547' },
   emblems: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  emblem: { width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
-  emblemOpen: { backgroundColor: c.accentSoft },
+  emblem: { width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'transparent' },
+  emblemOpen: { borderColor: '#FFB547' },
   bagLink: { ...card(c), flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, marginTop: 22 },
   name: { fontFamily: FONTS.serif, color: c.text, fontSize: 28, ...headingCase(c) },
   title: { fontFamily: FONTS.serifItalic, color: c.accent, fontSize: 17, marginTop: -2 },
@@ -308,15 +302,16 @@ const makeStyles = themed((c) => ({
     paddingVertical: 2,
   },
   levelRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'center' },
-  levelPill: { backgroundColor: c.accentSoft, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5 },
-  levelPillText: { color: c.accent, fontSize: 13, fontWeight: '700' },
+  levelPill: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 999, paddingLeft: 4, paddingRight: 12, paddingVertical: 3 },
+  levelPillText: { color: c.text, fontSize: 13, fontWeight: '700' },
   small: { color: c.muted, fontSize: 12 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   stat: { ...card(c), borderRadius: c.radius, flexBasis: '30%', flexGrow: 1, padding: 14, alignItems: 'center' },
-  statValue: { fontFamily: FONTS.serif, color: c.text, fontSize: 24, fontVariant: ['lining-nums'] },
+  statValue: { fontFamily: VIVID_HEAVY, fontSize: 24, fontVariant: ['lining-nums'] },
   statLabel: { color: c.muted, fontSize: 12, marginTop: 2, textAlign: 'center' },
   section: { ...eyebrow(c), color: c.muted, marginTop: 30, marginBottom: 12 },
-  sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 },
+  headingRow: { marginTop: 30, marginBottom: 12 },
+  sectionTitle: { fontFamily: FONTS.serif, color: c.text, fontSize: 19, ...headingCase(c) },
   themes: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 8 },
   theme: {
     ...card(c),
@@ -344,7 +339,5 @@ const makeStyles = themed((c) => ({
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
-  redo: { marginTop: 12, paddingVertical: 12, borderRadius: c.radius, backgroundColor: c.surfaceAlt, alignItems: 'center' },
-  redoText: { color: c.text, fontWeight: '700', fontSize: 14 },
   note: { color: c.muted, fontSize: 12, textAlign: 'center', marginTop: 22 },
 }));
