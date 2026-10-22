@@ -21,6 +21,7 @@ import {
   type Task,
   type TaskPlan,
   weekDots,
+  type xpMultiplier,
 } from '../game';
 import { CATEGORIES, FEATURED, guessCategory, librarySteps, OTHER_CATEGORY, searchLibrary, taskCategory, type LibraryTask } from '../library';
 import { STEP_SHARE, suggestedSteps } from '../steps';
@@ -40,6 +41,8 @@ export function TodayScreen({
   tasks,
   upcoming,
   streak,
+  multiplier,
+  xpProgress,
   onOpenStreak,
   tokenStrip,
   today,
@@ -57,6 +60,9 @@ export function TodayScreen({
   tasks: Task[];
   upcoming: Task[];
   streak: StreakStatus;
+  multiplier: ReturnType<typeof xpMultiplier>;
+  /** Level and XP bar, shown under the greeting. */
+  xpProgress?: React.ReactNode;
   onOpenStreak: () => void;
   /** Tokens to use, shown under the streak. */
   tokenStrip?: React.ReactNode;
@@ -170,8 +176,9 @@ export function TodayScreen({
             <Text style={s.greeting}>
               Good <Text style={s.greetingEm}>{partOfDay(new Date().getHours())}</Text>, {state.profile.name}.
             </Text>
+            {xpProgress}
 
-            <StreakCard streak={streak} week={weekDots(state, today)} onPress={onOpenStreak} />
+            <StreakCard streak={streak} week={weekDots(state, today)} multiplier={multiplier} onPress={onOpenStreak} />
             {tokenStrip}
 
             <View style={s.sectionRow}>

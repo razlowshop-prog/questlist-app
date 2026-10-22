@@ -1,3 +1,4 @@
+import { Plus } from 'lucide-react-native';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { addDays, SENSOR_CHALLENGES, weekStart, type ChallengeDef, type ChallengeStatus } from '../game';
 import { ProfileFrame } from '../components/ProfileFrame';
@@ -68,6 +69,15 @@ export function ChallengesScreen({
           You have {swapsLeft} challenge {swapsLeft === 1 ? 'swap' : 'swaps'}. A new challenge counts everything you did this week.
         </Text>
       )}
+
+      {/* Friends' challenges need accounts; the card shows where they will be. */}
+      <View style={s.join} accessible accessibilityLabel="Join a friend's challenge. Arrives with friends and accounts">
+        <Plus size={20} color={brandLine(c.dark)} strokeWidth={2} aria-hidden />
+        <View style={{ flex: 1 }}>
+          <Text style={s.joinTitle}>Join a friend's challenge</Text>
+          <Text style={s.progress}>Arrives with friends and accounts</Text>
+        </View>
+      </View>
 
       <StickerHeading glyph="CalendarStar" grad={SEASON_PILL} style={{ marginTop: 24 }}>
         <Text style={[s.heading, s.subHeading, { marginTop: 0 }]}>{monthName} event</Text>
@@ -171,4 +181,6 @@ const makeStyles = themed((c) => ({
   event: { alignItems: 'flex-start' },
   eventDot: { width: 34, height: 34, borderRadius: 17, backgroundColor: c.surfaceAlt },
   swapNote: { color: c.faint, fontSize: 12, marginTop: 2 },
+  join: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, minHeight: 56, borderRadius: c.radius, borderWidth: 1.5, borderStyle: 'dashed', borderColor: c.outline, marginTop: 10 },
+  joinTitle: { color: c.text, fontSize: 15, fontWeight: '700' },
 }));

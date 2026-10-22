@@ -1,4 +1,4 @@
-import { Crown, FerrisWheel, ListChecks, Sparkles, Users } from 'lucide-react-native';
+import { Crown, FerrisWheel, ListChecks, Sparkles } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView,  Text, View } from 'react-native';
 import { activityDayLabel, activitySummary, activityTimeline, type ActivityDay, type ActivityEvent, type WeekTotals } from '../activity';
@@ -6,9 +6,8 @@ import { AppIcon } from '../components/AppIcon';
 import { Fire, fireColor } from '../components/Fire';
 import { TOKEN_ICONS } from '../components/RewardPicture';
 import { durationLabel, streakTierName, type GameState } from '../game';
-import { card, eyebrow, FONTS, headingCase, themed, useStyles, useTheme } from '../theme';
-import { VividSwitch, BRAND_TEXT_SHADOW } from '../components/Vivid';
-import { fill, BRAND_FILL_SMALL, BRAND_INK, GradientText, VIVID_HEAVY } from '../components/Vivid';
+import { card, eyebrow, FONTS, themed, useStyles, useTheme } from '../theme';
+import { fill, GradientText, VIVID_HEAVY } from '../components/Vivid';
 import { BRAND } from '../vivid';
 
 /** Days shown before "Show older"; each tap adds this many more. */
@@ -17,86 +16,34 @@ const PAGE = 10;
 const TASKS_SHOWN = 4;
 
 /**
- * The activity timeline: this week at a glance, then each day's tasks, level
- * ups, claimed rewards and fire changes. Friends' activity needs accounts, so
- * that tab explains what is coming and records the opt-in.
+ * The activity feed, opened from the bell: each day's tasks, level ups,
+ * claimed rewards and fire changes, newest first. Friends' activity joins it
+ * once accounts arrive.
  */
-export function ActivityScreen({
-  state,
-  today,
-  onShareActivity,
-}: {
-  state: GameState;
-  today: string;
-  onShareActivity: (share: boolean) => void;
-}) {
+export function ActivityScreen({ state, today }: { state: GameState; today: string }) {
   const s = useStyles(makeStyles);
-  const [view, setView] = useState<'you' | 'friends'>('you');
   const [shown, setShown] = useState(PAGE);
   const days = useMemo(() => activityTimeline(state, today), [state, today]);
-  const summary = useMemo(() => activitySummary(state, today), [state, today]);
 
   return (
     <ScrollView contentContainerStyle={s.content}>
-      <Text style={s.eyebrow}>Your activity</Text>
-      <Text style={s.heading}>Activity</Text>
-
-      <View style={s.segment} accessibilityRole="tablist">
-        {(['you', 'friends'] as const).map((v) => (
-          <Pressable
-            key={v}
-            onPress={() => setView(v)}
-            style={[s.segmentItem, view === v && s.segmentActive]}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: view === v }}
-          >
-            <Text style={[s.segmentText, view === v && s.segmentTextActive]}>{v === 'you' ? 'You' : 'Friends'}</Text>
-          </Pressable>
-        ))}
-      </View>
-
-      {view === 'friends' ? (
-        <View style={s.card}>
-          <View style={s.friendsIcon}>
-            <Users size={26} color="#FFFFFF" strokeWidth={2} aria-hidden />
-          </View>
-          <Text style={s.friendsTitle}>Friends' activity is coming</Text>
-          <Text style={s.body}>
-            Once accounts arrive you can add friends and contacts. Everyone who chooses to share shows up here with their finished
-            tasks, level ups and streaks.
-          </Text>
-          <View style={s.shareRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.shareTitle}>Share my activity with friends</Text>
-              <Text style={s.small}>Off unless you turn it on. Only friends you add will see it.</Text>
-            </View>
-            <VividSwitch
-              value={state.settings.shareActivity === true}
-              onValueChange={onShareActivity}
-              accessibilityLabel="Share my activity with friends"
-            />
-          </View>
-        </View>
+      <Text style={s.intro}>Your finished tasks, level ups and rewards. Friends' streaks and level ups join here once accounts arrive.</Text>
+      {days.length === 0 ? (
+        <Text style={s.empty}>Nothing here yet. Finish your first task and it shows up here.</Text>
       ) : (
-        <>
-          <WeekCard summary={summary} today={today} />
-          {days.length === 0 ? (
-            <Text style={s.empty}>Nothing here yet. Finish your first task and it shows up here.</Text>
-          ) : (
-            days.slice(0, shown).map((d) => <DayCard key={d.date} day={d} today={today} />)
-          )}
-          {days.length > shown && (
-            <Pressable onPress={() => setShown(shown + PAGE)} style={s.more} accessibilityRole="button">
-              <Text style={s.moreText}>Show older</Text>
-            </Pressable>
-          )}
-        </>
+        days.slice(0, shown).map((d) => <DayCard key={d.date} day={d} today={today} />)
+      )}
+      {days.length > shown && (
+        <Pressable onPress={() => setShown(shown + PAGE)} style={s.more} accessibilityRole="button">
+          <Text style={s.moreText}>Show older</Text>
+        </Pressable>
       )}
     </ScrollView>
   );
 }
 
-function WeekCard({ summary, today }: { summary: ReturnType<typeof activitySummary>; today: string }) {
+/** This week's tasks, time and XP against the same days last week, and XP per day as bars. */
+export function WeekCard({ summary, today }: { summary: ReturnType<typeof activitySummary>; today: string }) {
   const s = useStyles(makeStyles);
   const { thisWeek, lastWeekSoFar, week } = summary;
   const top = Math.max(1, ...week.map((d) => d.xp));
@@ -266,14 +213,8 @@ function EventRow({ event }: { event: ActivityEvent }) {
 }
 
 const makeStyles = themed((c) => ({
-  content: { padding: 20, paddingBottom: 48, maxWidth: 640, width: '100%', alignSelf: 'center' },
-  eyebrow: { ...eyebrow(c, 11), color: c.accent },
-  heading: { fontFamily: FONTS.serif, color: c.text, fontSize: 30, lineHeight: 36, marginTop: 4, ...headingCase(c) },
-  segment: { flexDirection: 'row', gap: 6, marginTop: 14, marginBottom: 16 },
-  segmentItem: { paddingHorizontal: 16, minHeight: 36, justifyContent: 'center', borderRadius: c.radius, borderWidth: 1, borderColor: c.border },
-  segmentActive: { ...BRAND_FILL_SMALL, borderColor: 'transparent' },
-  segmentText: { color: c.muted, fontWeight: '600', fontSize: 14 },
-  segmentTextActive: { color: BRAND_INK, fontFamily: VIVID_HEAVY, ...BRAND_TEXT_SHADOW },
+  content: { padding: 20, paddingTop: 8, paddingBottom: 48, maxWidth: 640, width: '100%', alignSelf: 'center' },
+  intro: { color: c.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 },
   card: { ...card(c), padding: 16, gap: 10, marginBottom: 18 },
   cardEyebrow: { ...eyebrow(c, 11), color: c.muted },
   stats: { flexDirection: 'row' },
@@ -284,14 +225,13 @@ const makeStyles = themed((c) => ({
   chart: { flexDirection: 'row', gap: 8, height: 92, marginTop: 4 },
   barCol: { flex: 1, alignItems: 'center', gap: 6 },
   barTrack: { flex: 1, width: '100%', justifyContent: 'flex-end', alignItems: 'center' },
-  bar: { width: '70%', maxWidth: 22, borderTopLeftRadius: 4, borderTopRightRadius: 4, ...fill(['#FF3D9A', '#A45CFF', '#4DB8FF', '#5BF0D2'], 180), opacity: 0.75 },
+  bar: { width: '70%', maxWidth: 22, borderTopLeftRadius: 4, borderTopRightRadius: 4, ...fill(BRAND, 180), opacity: 0.45 },
   barToday: { ...fill(BRAND, 180), opacity: 1 },
   barEmpty: { width: '70%', maxWidth: 22, height: 2, backgroundColor: c.border },
   barFuture: { opacity: 0.4 },
   barLabel: { color: c.faint, fontSize: 11, fontWeight: '600' },
   barLabelToday: { color: c.accent },
   small: { color: c.faint, fontSize: 12 },
-  body: { color: c.muted, fontSize: 14, lineHeight: 20 },
   empty: { color: c.muted, fontSize: 14, textAlign: 'center', marginTop: 12 },
   day: { borderTopWidth: 1, borderTopColor: c.border, paddingTop: 14, paddingBottom: 16, gap: 8 },
   dayHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
@@ -316,8 +256,4 @@ const makeStyles = themed((c) => ({
   showAll: { color: c.accent, fontSize: 13, fontWeight: '600', paddingLeft: 15 },
   more: { alignSelf: 'center', paddingHorizontal: 18, minHeight: 40, justifyContent: 'center', borderRadius: c.radius, borderWidth: 1, borderColor: c.border, marginTop: 8 },
   moreText: { color: c.text, fontWeight: '600' },
-  friendsIcon: { width: 52, height: 52, borderRadius: 26, borderWidth: 1.5, borderColor: '#0e0b12', ...fill(['#FF84DC', '#FF3D9A']), alignItems: 'center', justifyContent: 'center' },
-  friendsTitle: { fontFamily: FONTS.serif, color: c.text, fontSize: 22 },
-  shareRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: 1, borderTopColor: c.border, paddingTop: 12, marginTop: 4 },
-  shareTitle: { color: c.text, fontSize: 15, fontWeight: '600' },
 }));

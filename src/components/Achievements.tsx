@@ -1,11 +1,14 @@
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { TIER_NAMES, type AchievementStatus, type Reward } from '../achievements';
 import { card, themed, useStyles, FONTS, headingCase } from '../theme';
-import { fill, BRAND_FILL_SMALL, BRAND_INK, GradientText, Sticker, StickerHeading, VIVID_HEAVY, BRAND_TEXT_SHADOW } from '../components/Vivid';
+import { fill, BRAND_FILL_SMALL, BRAND_INK, GradientText, Sticker, StickerHeading, VIVID_HEAVY, BRAND_TEXT_SHADOW } from './Vivid';
 import { achievementTierLook, brandGlow, brandLine, ICON_GLYPHS, RARITY } from '../vivid';
 
-
-export function AchievementsScreen({
+/**
+ * Achievement tiers to reach and claim, claimable ones first, then the rewards
+ * won so far. Part of the Awards page on the profile.
+ */
+export function Achievements({
   achievements,
   rewards,
   onClaim,
@@ -25,7 +28,7 @@ export function AchievementsScreen({
   );
 
   return (
-    <ScrollView contentContainerStyle={s.content}>
+    <View>
       <StickerHeading glyph="Medal" grad={RARITY.legendary}>
         <Text style={s.heading}>Achievements</Text>
       </StickerHeading>
@@ -110,14 +113,13 @@ export function AchievementsScreen({
         </View>
       )}
       <Text style={[s.sub, { marginTop: 10 }]}>Tokens are in your bag at the top right, where you can also wear your looks.</Text>
-    </ScrollView>
+    </View>
   );
 }
 
 const makeStyles = themed((c) => ({
-  content: { padding: 20, paddingBottom: 48, maxWidth: 640, width: '100%', alignSelf: 'center' },
-  heading: { fontFamily: FONTS.serif, color: c.text, fontSize: 30, lineHeight: 36, ...headingCase(c) },
-  subHeading: { fontSize: 22, lineHeight: 28, marginTop: 22 },
+  heading: { fontFamily: FONTS.serif, color: c.text, fontSize: 19, lineHeight: 24, ...headingCase(c) },
+  subHeading: { fontSize: 19, lineHeight: 24, marginTop: 22 },
   sub: { color: c.muted, fontSize: 14, marginTop: 4, marginBottom: 16 },
   card: { ...card(c), padding: 14, marginBottom: 10, gap: 10 },
   cardClaimable: { borderWidth: 1.5, borderColor: brandLine(c.dark), boxShadow: `0px 0px 16px ${brandGlow(0.3)}` },

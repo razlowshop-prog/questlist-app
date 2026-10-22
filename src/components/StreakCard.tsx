@@ -1,8 +1,9 @@
 import { Pressable, Text, View } from 'react-native';
-import { STREAK_TIERS, streakTierName, type StreakStatus, type WeekDot } from '../game';
+import { STREAK_TIERS, streakTierName, type StreakStatus, type WeekDot, type xpMultiplier } from '../game';
 import { card, themed, useStyles, useTheme } from '../theme';
 import { brandLine, tierFlame } from '../vivid';
 import { Fire } from './Fire';
+import { MultiplierPill } from './MultiplierPill';
 import { fill, GradientText, VIVID_HEAVY } from './Vivid';
 
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -11,10 +12,22 @@ const DOT_WORDS: Record<WeekDot, string> = { done: 'done', rest: 'rest day', tod
 /**
  * The streak on the home screen (home variant F): one calm row with a still
  * flame, the day count in gradient text, the fire's name and this week's days
- * as small dots, inside a thin border in the fire tier's gradient. Tapping it
- * opens the level sheet with the streak bonus and the fire tiers.
+ * as small dots, inside a thin border in the fire tier's gradient. The XP
+ * multiplier sits on the right while it is above 1. Tapping the card opens the
+ * level sheet with the streak bonus and the fire tiers.
  */
-export function StreakCard({ streak, week, onPress }: { streak: StreakStatus; /** Monday to Sunday of this week. */ week: WeekDot[]; onPress: () => void }) {
+export function StreakCard({
+  streak,
+  week,
+  multiplier,
+  onPress,
+}: {
+  streak: StreakStatus;
+  /** Monday to Sunday of this week. */
+  week: WeekDot[];
+  multiplier: ReturnType<typeof xpMultiplier>;
+  onPress: () => void;
+}) {
   const s = useStyles(makeStyles);
   const c = useTheme();
   const grad = tierFlame(streak.tier);
@@ -41,6 +54,7 @@ export function StreakCard({ streak, week, onPress }: { streak: StreakStatus; /*
               ))}
             </View>
           </View>
+          {multiplier.total > 1 && <MultiplierPill multiplier={multiplier} size="small" />}
         </View>
         {streak.atRisk && <Text style={s.risk}>Nothing done today yet. One task keeps your streak.</Text>}
         {streak.days === 0 && <Text style={s.note}>Finish a task today to light your streak.</Text>}
