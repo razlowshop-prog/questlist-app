@@ -30,12 +30,12 @@ const CINZEL = 'Cinzel_800ExtraBold';
 /** Each slice's colour and label (design thread, "Fortuna theme and wheel spec"). The theme slice is a rainbow. */
 const SLICES: Record<string, { color: string; ink: string; font: number }> = {
   xp20: { color: '#34E3C4', ink: '#063a33', font: 24 },
-  xp50: { color: '#1FC7AE', ink: '#063a33', font: 22 },
-  double: { color: '#4A7BFF', ink: '#FFFFFF', font: 17 },
-  xp100: { color: '#0E9BB0', ink: '#FFFFFF', font: 15 },
-  rest: { color: '#3557FF', ink: '#FFFFFF', font: 13 },
-  reroll: { color: '#2E46C8', ink: '#FFFFFF', font: 13 },
-  adfree: { color: '#C03CE0', ink: '#FFFFFF', font: 11 },
+  xp50: { color: '#1FC7AE', ink: '#063a33', font: 24 },
+  double: { color: '#4A7BFF', ink: '#FFFFFF', font: 22 },
+  xp100: { color: '#0E9BB0', ink: '#FFFFFF', font: 20 },
+  rest: { color: '#3557FF', ink: '#FFFFFF', font: 16 },
+  reroll: { color: '#2E46C8', ink: '#FFFFFF', font: 16 },
+  adfree: { color: '#C03CE0', ink: '#FFFFFF', font: 13 },
 };
 
 /** A prize's colour on the wheel, for dots and rays; the theme (and its jackpot) is rainbow. */
@@ -79,6 +79,7 @@ export function SpinScreen({
   const kick = useRef(new Animated.Value(0)).current;
   const [spinning, setSpinning] = useState(false);
   const [won, setWon] = useState<WheelPrize | null>(null);
+  const [oddsOpen, setOddsOpen] = useState(false);
   const [phase, setPhase] = useState(0);
   const lastSegment = useRef(-1);
   const lastTick = useRef(0);
@@ -149,6 +150,9 @@ export function SpinScreen({
           <StarRule end="right" style={{ width: 54 }} />
         </View>
         <GoldText style={s.heading}>Spin the wheel</GoldText>
+        <Pressable onPress={() => setOddsOpen(true)} hitSlop={10} style={s.oddsButton} accessibilityRole="button" accessibilityLabel="Show the odds">
+          <Text style={s.oddsButtonText}>?</Text>
+        </Pressable>
 
         <HoloBorder radius={14} style={{ marginTop: 18 }}>
           <View style={s.ticketCard}>
@@ -200,27 +204,6 @@ export function SpinScreen({
           </Text>
         )}
 
-        <Text style={s.section}>Odds</Text>
-        <View style={s.panel}>
-          {WHEEL_PRIZES.map((p) => {
-            const shown = p.theme && ownsTheme ? JACKPOT : p;
-            return (
-              <View key={p.id} style={s.oddsRow}>
-                {isMythic(shown) ? <RainbowDot /> : <View style={[s.dot, { backgroundColor: prizeColor(shown) }]} />}
-                <Text style={s.oddsLabel}>{shown.label}</Text>
-                <Text style={[s.rarity, { color: RARITY_COLORS[shown.rarity].label }]}>{RARITY_NAMES[shown.rarity]}</Text>
-                <Text style={s.oddsValue}>{p.odds}%</Text>
-              </View>
-            );
-          })}
-          <Text style={s.footnote}>
-            Slices are drawn to scale.{' '}
-            {ownsTheme
-              ? `You own Fortuna, so its slice now pays a ${JACKPOT.xp} XP jackpot.`
-              : `If you haven't won the Fortuna theme after ${PITY_SPINS} spins, spin ${PITY_SPINS} gives it to you.`}
-          </Text>
-        </View>
-
         <Text style={s.section}>How tickets work</Text>
         <View style={s.panel}>
           <Info text={`Every ${XP_PER_TICKET} XP from tasks, weekly challenges and achievements gives one ticket.`} />
@@ -251,6 +234,7 @@ export function SpinScreen({
         {/* Holds every other tap while the wheel turns, so nothing changes under it. */}
         <View style={{ flex: 1 }} />
       </Modal>
+      {oddsOpen && <OddsSheet ownsTheme={ownsTheme} onClose={() => setOddsOpen(false)} />}
       {won && (
         <PrizeReveal
           prize={won}
@@ -267,6 +251,41 @@ export function SpinScreen({
         />
       )}
     </View>
+  );
+}
+
+/** The chances of each prize, behind the "?" next to the heading. */
+function OddsSheet({ ownsTheme, onClose }: { ownsTheme: boolean; onClose: () => void }) {
+  const s = useStyles(makeStyles);
+  return (
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={s.revealBackdrop} onPress={onClose} accessibilityLabel="Close" />
+      <View style={s.revealWrap} pointerEvents="box-none">
+        <HoloBorder radius={18} style={{ width: '100%', maxWidth: 380 }}>
+          <View style={s.oddsSheet}>
+            <Text style={s.oddsTitle}>Odds</Text>
+            {WHEEL_PRIZES.map((p) => {
+              const shown = p.theme && ownsTheme ? JACKPOT : p;
+              return (
+                <View key={p.id} style={s.oddsRow}>
+                  {isMythic(shown) ? <RainbowDot /> : <View style={[s.dot, { backgroundColor: prizeColor(shown) }]} />}
+                  <Text style={s.oddsLabel}>{shown.label}</Text>
+                  <Text style={[s.rarity, { color: RARITY_COLORS[shown.rarity].label }]}>{RARITY_NAMES[shown.rarity]}</Text>
+                  <Text style={s.oddsValue}>{p.odds}%</Text>
+                </View>
+              );
+            })}
+            <Text style={s.footnote}>
+              All slices look the same, but the chances differ as listed.{' '}
+              {ownsTheme
+                ? `You own Fortuna, so its slice now pays a ${JACKPOT.xp} XP jackpot.`
+                : `If you haven't won the Fortuna theme after ${PITY_SPINS} spins, spin ${PITY_SPINS} gives it to you.`}
+            </Text>
+            <GoldAction label="Got it" onPress={onClose} />
+          </View>
+        </HoloBorder>
+      </View>
+    </Modal>
   );
 }
 
@@ -404,23 +423,22 @@ function WheelFace({ size, ownsTheme }: { size: number; ownsTheme: boolean }) {
       {slices.map((sl) => {
         const mid = (sl.from + sl.to) / 2;
         if (sl.prize.theme) {
-          // Six thin rainbow stripes and a glowing star near the rim.
+          // Six rainbow stripes and a big glowing star.
           const step = (sl.to - sl.from) / MYTHIC.length;
-          const [sx, sy] = point(mid, FACE - 15);
+          const [sx, sy] = point(mid, FACE * 0.66);
           return (
             <G key={sl.i}>
               {MYTHIC.map((col, j) => (
                 <Path key={col} d={wedge(sl.from + j * step, sl.from + (j + 1) * step, FACE)} fill={col} />
               ))}
-              <Circle cx={sx} cy={sy} r={11} fill="#FFF1B8" opacity={0.35} />
-              <Path d={star(sx, sy, 7.5)} fill={ownsTheme ? GOLD.light : '#FFFFFF'} stroke={KEYLINE} strokeWidth={1} />
+              <Path d={wedge(sl.from, sl.to, FACE)} fill="none" stroke="#120a1f" strokeWidth={1.5} strokeLinejoin="round" />
+              <Circle cx={sx} cy={sy} r={18} fill="#FFF1B8" opacity={0.35} />
+              <Path d={star(sx, sy, 13)} fill={ownsTheme ? GOLD.light : '#FFFFFF'} stroke={KEYLINE} strokeWidth={1.5} />
             </G>
           );
         }
         const look = SLICES[sl.prize.id];
-        const big = sl.share >= 20;
-        const r = big ? FACE * 0.6 : FACE * 0.66;
-        const [lx, ly] = point(mid, r);
+        const [lx, ly] = point(mid, FACE * 0.64);
         // Labels run along the radius, turned so none reads upside down at rest.
         const turn = mid <= 180 ? mid - 90 : mid + 90;
         return (
@@ -722,6 +740,22 @@ const makeStyles = themed((c) => ({
   rarity: { fontSize: 11, fontWeight: '800', letterSpacing: 0.6, textTransform: 'uppercase' },
   oddsValue: { color: c.text, fontSize: 14, fontWeight: '700', fontVariant: ['tabular-nums'], minWidth: 34, textAlign: 'right' },
   footnote: { color: c.muted, fontSize: 12, lineHeight: 18 },
+  oddsButton: {
+    position: 'absolute',
+    right: 20,
+    top: 20,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 1.5,
+    borderColor: GOLD.mid,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: c.surface,
+  },
+  oddsButtonText: { fontFamily: CINZEL, color: GOLD.mid, fontSize: 16, lineHeight: 20 },
+  oddsSheet: { backgroundColor: c.surface, borderRadius: 18, padding: 20, gap: 12 },
+  oddsTitle: { fontFamily: FONTS.serif, color: c.text, fontSize: 22, ...headingCase(c) },
   infoRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
   infoText: { flex: 1, color: c.text, fontSize: 14, lineHeight: 20 },
   revealBackdrop: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: '#07050a', opacity: 0.88 },

@@ -26,13 +26,12 @@ const done = (date: string, xp: number): Completion => ({ taskId: 'x', date, xp,
 const player = (xp: number, spins: WheelSpin[] = []): GameState => ({ ...emptyState, joinedAt: TODAY, completions: xp ? [done(TODAY, xp)] : [], wheelSpins: spins });
 const spin = (prize: string, xp?: number): WheelSpin => ({ date: TODAY, prize, ...(xp && { xp }) });
 
-test('the odds add up to 100 and the wheel slices match them', () => {
+test('the odds add up to 100 and every prize has one equal slice', () => {
   assert.equal(WHEEL_PRIZES.reduce((n, p) => n + p.odds, 0), 100);
+  assert.equal(WHEEL_SEGMENTS.length, WHEEL_PRIZES.length);
   assert.equal(WHEEL_SEGMENTS.reduce((n, s) => n + s.share, 0), 100);
-  for (const p of WHEEL_PRIZES) {
-    const share = WHEEL_SEGMENTS.filter((s) => s.prize === p.id).reduce((n, s) => n + s.share, 0);
-    assert.equal(share, p.odds, p.id);
-  }
+  for (const seg of WHEEL_SEGMENTS) assert.equal(seg.share, 100 / WHEEL_SEGMENTS.length);
+  assert.deepEqual(new Set(WHEEL_SEGMENTS.map((s) => s.prize)), new Set(WHEEL_PRIZES.map((p) => p.id)));
   // The approved odds.
   const odds = Object.fromEntries(WHEEL_PRIZES.map((p) => [p.id, p.odds]));
   assert.deepEqual(odds, { xp20: 40, xp50: 20, xp100: 8, double: 9, rest: 9, reroll: 8, adfree: 5, theme: 1 });
