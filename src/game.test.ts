@@ -429,9 +429,36 @@ test('streak tiers: weekly XP sets the fire tier on Monday', () => {
   // 7 × 10 = 70 XP -> still Spark
   s = streakStatus(activeDays(MON, 8, 10), addDays(MON, 7));
   assert.equal(s.tier, 0);
-  // Not before the week is over
-  assert.equal(streakStatus(activeDays(MON, 7, 50), addDays(MON, 6)).tier, 0);
+  // Blaze and Inferno wait until the week is over (Flame lit on day 2)
+  assert.equal(streakStatus(activeDays(MON, 7, 50), addDays(MON, 6)).tier, 1);
   assert.equal(streakStatus(activeDays(MON, 7, 50), addDays(MON, 6)).weekTier, 3);
+});
+
+test('streak tiers: Flame lights the moment a streak has earned 100 XP', () => {
+  // 60 + 40 XP: Flame on day 2, today counting right away
+  let s = streakStatus(activeDays(MON, 2, 50).map((c, i) => ({ ...c, xp: i ? 40 : 60 })), addDays(MON, 1));
+  assert.equal(s.tier, 1);
+  assert.equal(s.streakXp, 100);
+  assert.deepEqual(s.history, [{ date: addDays(MON, 1), change: 'up', tier: 1, days: 2 }]);
+  // 99 XP is still Spark
+  s = streakStatus(activeDays(MON, 3, 33), addDays(MON, 2));
+  assert.equal(s.tier, 0);
+  assert.equal(s.streakXp, 99);
+  // A streak running over a Monday counts all its days
+  const sun = addDays(MON, 6);
+  s = streakStatus([{ taskId: 'x', date: sun, xp: 60 }, { taskId: 'x', date: addDays(sun, 1), xp: 40 }], addDays(sun, 1));
+  assert.equal(s.tier, 1);
+  assert.equal(s.history.length, 1);
+  // A lost streak starts counting again from zero
+  s = streakStatus([...activeDays(MON, 2, 40), ...activeDays(addDays(MON, 3), 1, 30)], addDays(MON, 3));
+  assert.equal(s.tier, 0);
+  assert.equal(s.streakXp, 30);
+  assert.equal(s.days, 1);
+  // No streak, no streak XP
+  assert.equal(streakStatus([], MON).streakXp, 0);
+  // Already on Flame from the instant rule: Monday only moves it up, no duplicate change
+  s = streakStatus(activeDays(MON, 8, 20), addDays(MON, 7));
+  assert.deepEqual(s.history.map((h) => [h.date, h.tier]), [[addDays(MON, 4), 1]]);
 });
 
 test('streak tiers: a missed day costs a tier, on the lowest tier the streak ends', () => {

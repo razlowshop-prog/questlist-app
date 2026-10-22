@@ -1,5 +1,5 @@
 import { Pressable, Text, View } from 'react-native';
-import { streakTierName, type StreakStatus, type WeekDot } from '../game';
+import { STREAK_TIERS, streakTierName, type StreakStatus, type WeekDot } from '../game';
 import { card, themed, useStyles, useTheme } from '../theme';
 import { brandLine, tierFlame } from '../vivid';
 import { Fire } from './Fire';
@@ -44,6 +44,12 @@ export function StreakCard({ streak, week, onPress }: { streak: StreakStatus; /*
         </View>
         {streak.atRisk && <Text style={s.risk}>Nothing done today yet. One task keeps your streak.</Text>}
         {streak.days === 0 && <Text style={s.note}>Finish a task today to light your streak.</Text>}
+        {/* Flame lights the moment the streak has earned its XP. */}
+        {streak.days > 0 && streak.tier === 0 && (
+          <Text style={s.note}>
+            {STREAK_TIERS[0].weekXp - streak.streakXp} XP more to light {STREAK_TIERS[0].name}
+          </Text>
+        )}
       </View>
     </Pressable>
   );
