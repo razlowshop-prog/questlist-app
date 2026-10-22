@@ -3,9 +3,10 @@ import { useState } from 'react';
 import { Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { APP_NAME } from '../brand';
 import { AppIcon } from '../components/AppIcon';
+import { MultiplierPill } from '../components/MultiplierPill';
 import { ProfileFrame } from '../components/ProfileFrame';
 import { TrophyCabinet } from '../components/TrophyCabinet';
-import { STREAK_REMINDER_HOUR, type profileStats, type Settings } from '../game';
+import { STREAK_REMINDER_HOUR, type profileStats, type Settings, type xpMultiplier } from '../game';
 import { EMBLEM_TIERS, type EmblemStatus } from '../emblems';
 import type { TrophyStatus } from '../trophies';
 import { tierColor } from '../achievements';
@@ -21,6 +22,7 @@ export function ProfileScreen({
   title,
   frame,
   emblems,
+  multiplier,
   onOpenBag,
   onRename,
   onSettings,
@@ -37,6 +39,8 @@ export function ProfileScreen({
   title?: string;
   frame?: string;
   emblems: EmblemStatus[];
+  /** What the next task today is multiplied by. */
+  multiplier: ReturnType<typeof xpMultiplier>;
   onOpenBag: () => void;
   onRename: (name: string) => void;
   onSettings: (s: Partial<Settings>) => void;
@@ -90,10 +94,13 @@ export function ProfileScreen({
           </Pressable>
         )}
         {title ? <Text style={s.title}>{title}</Text> : null}
-        <View style={s.levelPill}>
-          <Text style={s.levelPillText}>
-            Level {stats.level} · {stats.rank}
-          </Text>
+        <View style={s.levelRow}>
+          <View style={s.levelPill}>
+            <Text style={s.levelPillText}>
+              Level {stats.level} · {stats.rank}
+            </Text>
+          </View>
+          <MultiplierPill multiplier={multiplier} />
         </View>
         {memberSince ? <Text style={s.small}>Member since {memberSince}</Text> : null}
       </View>
@@ -157,7 +164,7 @@ export function ProfileScreen({
           );
         })}
       </View>
-      <Text style={s.small}>Unlock more themes by claiming achievement tiers.</Text>
+      <Text style={s.small}>Unlock more themes by claiming achievement tiers. Fortuna is only won on the lucky wheel.</Text>
 
       <Text style={s.section}>Settings</Text>
       <View style={s.settingCard}>
@@ -300,6 +307,7 @@ const makeStyles = themed((c) => ({
     textAlign: 'center',
     paddingVertical: 2,
   },
+  levelRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'center' },
   levelPill: { backgroundColor: c.accentSoft, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5 },
   levelPillText: { color: c.accent, fontSize: 13, fontWeight: '700' },
   small: { color: c.muted, fontSize: 12 },

@@ -1,5 +1,6 @@
 import type { IconName } from './icons.ts';
 import { APP_NAME } from './brand.ts';
+import { ownsWheelTheme, WHEEL_THEME_REWARD } from './wheel.ts';
 import { CELEBRATIONS, FLAME_STYLES, FRAMES, type CelebrationId, type FlameStyleId, type FrameId } from './cosmetics.ts';
 import {
   levelInfo,
@@ -350,7 +351,8 @@ export function unlockedRewards(state: GameState): Reward[] {
     return reward ? [reward] : [];
   });
   const reached = new Set(state.levelRewards ?? []);
-  return [...fromAchievements, ...LEVEL_LADDER.filter((l) => reached.has(l.level)).map((l) => l.reward)];
+  const fromWheel: Reward[] = ownsWheelTheme(state) ? [{ kind: 'theme', label: WHEEL_THEME_REWARD }] : [];
+  return [...fromAchievements, ...LEVEL_LADDER.filter((l) => reached.has(l.level)).map((l) => l.reward), ...fromWheel];
 }
 
 /** Hands out the ladder rewards for every level up to `level` not given yet. Levels lost by unticking keep theirs. */

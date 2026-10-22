@@ -1,4 +1,5 @@
 import { LEVEL_LADDER, type TokenKind } from './achievements.ts';
+import { wheelTokens } from './wheel.ts';
 import { addDays, restDaysOf, streakStatus, swapCandidate, weekStart, weeklyChallenges, type GameState } from './game.ts';
 
 // One-time tokens from level rewards: rest days, double XP days and
@@ -21,6 +22,8 @@ export function tokenCounts(state: GameState): Record<TokenKind, number> {
   for (const l of LEVEL_LADDER) {
     if (reached.has(l.level) && l.reward.token) counts[l.reward.token] += l.reward.count ?? 1;
   }
+  const won = wheelTokens(state);
+  for (const k of Object.keys(counts) as TokenKind[]) counts[k] += won[k];
   counts.rest -= state.restDays?.length ?? 0;
   counts.double -= state.doubleDays?.length ?? 0;
   counts.reroll -= state.swaps?.length ?? 0;

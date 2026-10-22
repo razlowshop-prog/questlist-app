@@ -23,6 +23,8 @@ import { BodoniModa_400Regular } from '@expo-google-fonts/bodoni-moda/400Regular
 import { BodoniModa_400Regular_Italic } from '@expo-google-fonts/bodoni-moda/400Regular_Italic';
 import { InstrumentSerif_400Regular } from '@expo-google-fonts/instrument-serif/400Regular';
 import { InstrumentSerif_400Regular_Italic } from '@expo-google-fonts/instrument-serif/400Regular_Italic';
+import { Cinzel_700Bold } from '@expo-google-fonts/cinzel/700Bold';
+import { Cinzel_800ExtraBold } from '@expo-google-fonts/cinzel/800ExtraBold';
 
 export const FONT_FILES: Record<string, number> = {
   Assistant_400Regular,
@@ -48,6 +50,8 @@ export const FONT_FILES: Record<string, number> = {
   BodoniModa_400Regular_Italic,
   InstrumentSerif_400Regular,
   InstrumentSerif_400Regular_Italic,
+  Cinzel_700Bold,
+  Cinzel_800ExtraBold,
 };
 
 /** The font files a theme needs, ready for expo-font's loadAsync. */
@@ -59,3 +63,6 @@ export function fontFilesFor(fonts: ThemeFonts): Record<string, number> {
   }
   return out;
 }
+
+/** Cinzel for the Spin tab, which always wears the Fortuna look whatever the theme. */
+export const WHEEL_FONTS: Record<string, number> = { Cinzel_700Bold, Cinzel_800ExtraBold };

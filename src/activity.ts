@@ -1,5 +1,6 @@
 import { ACHIEVEMENTS, TIER_NAMES } from './achievements.ts';
 import { frameName, seasonFrameId } from './cosmetics.ts';
+import { prizeById, type Rarity } from './wheel.ts';
 import {
   addDays,
   CHALLENGE_POOL,
@@ -22,7 +23,8 @@ export type ActivityEvent =
   | { kind: 'achievement'; title: string; tier: string; icon: IconName; xp: number }
   | { kind: 'fire'; change: 'up' | 'down' | 'lost'; tier: number; days: number }
   | { kind: 'token'; token: 'rest' | 'double' | 'adfree' | 'recovery' }
-  | { kind: 'season'; frame: string };
+  | { kind: 'season'; frame: string }
+  | { kind: 'wheel'; prize: string; rarity: Rarity; xp: number };
 
 export interface ActivityTask {
   title: string;
@@ -105,6 +107,15 @@ export function activityTimeline(state: GameState, today: string): ActivityDay[]
       xp: c.xp,
     });
     items.push({ date, xp: c.xp });
+  }
+
+  for (const s of state.wheelSpins ?? []) {
+    if (s.date > today) continue;
+    const prize = prizeById(s.prize);
+    const day = dayOf(s.date);
+    day.xp += s.xp ?? 0;
+    day.events.push({ kind: 'wheel', prize: prize?.label ?? 'Prize', rarity: prize?.rarity ?? 'common', xp: s.xp ?? 0 });
+    if (s.xp) items.push({ date: s.date, xp: s.xp });
   }
 
   // Replay the XP day by day to find the days a new level was reached.

@@ -113,6 +113,16 @@ export interface GameState {
   recovery?: { day: string; used: boolean };
   /** Monthly events finished, by month ("2026-10"); each wins that month's frame. */
   seasonClaims?: { month: string; date: string }[];
+  /** Lucky wheel spins, oldest first (see wheel.ts). */
+  wheelSpins?: WheelSpin[];
+}
+
+export interface WheelSpin {
+  date: string;
+  /** Id of the prize won (WHEEL_PRIZES in wheel.ts). */
+  prize: string;
+  /** XP won, for XP prizes. */
+  xp?: number;
 }
 
 /** Days the streak counts as kept without a task: rest tokens plus a taken free recovery. */
@@ -279,8 +289,14 @@ export function totalXp(state: GameState): number {
   return (
     state.completions.reduce((sum, c) => sum + c.xp, 0) +
     state.claims.reduce((sum, c) => sum + c.xp, 0) +
-    state.achievementClaims.reduce((sum, c) => sum + c.xp, 0)
+    state.achievementClaims.reduce((sum, c) => sum + c.xp, 0) +
+    wheelXp(state)
   );
+}
+
+/** XP won on the lucky wheel. It counts for levels but doesn't earn wheel tickets. */
+export function wheelXp(state: Pick<GameState, 'wheelSpins'>): number {
+  return (state.wheelSpins ?? []).reduce((sum, s) => sum + (s.xp ?? 0), 0);
 }
 
 // ---------- streaks ----------
@@ -407,6 +423,18 @@ export function comebackDaysLeft(state: Pick<GameState, 'completions' | 'restDay
   if (!lost) return 0;
   const before = new Set(state.completions.filter((c) => c.date > lost.date && c.date < today).map((c) => c.date));
   return Math.max(0, COMEBACK_DAYS - before.size);
+}
+
+/**
+ * What the next task finished today is multiplied by, and why: the streak
+ * bonus (counting today), a double XP token and the comeback boost.
+ */
+export function xpMultiplier(state: GameState, today: string): { total: number; parts: { label: string; x: number }[]; streak: number } {
+  const streak = currentStreak([...state.completions, { taskId: '', date: today, xp: 0 }], today, restDaysOf(state));
+  const parts = [{ label: 'Streak', x: 1 + streakBonus(streak) }];
+  if (state.doubleDays?.includes(today)) parts.push({ label: 'Double XP', x: 2 });
+  if (comebackDaysLeft(state, today) > 0) parts.push({ label: 'Comeback', x: 1 + COMEBACK_BONUS });
+  return { total: parts.reduce((t, p) => t * p.x, 1), parts, streak };
 }
 
 /** Daily-streak XP multiplier steps: from 5 days 1.2x, 10 days 1.4x, 30 days 1.5x, 150 days 1.6x. */
@@ -551,15 +579,7 @@ export function toggleTask(state: GameState, taskId: string, today: string, now?
 
   if (now !== undefined && secondsUntilTickable(task, now) > 0) return state;
 
-  const streakWithToday = currentStreak(
-    [...state.completions, { taskId, date: today, xp: 0 }],
-    today,
-    restDaysOf(state),
-  );
-  const base = taskXp(task);
-  const double = state.doubleDays?.includes(today) ? 2 : 1;
-  const comeback = comebackDaysLeft(state, today) > 0 ? 1 + COMEBACK_BONUS : 1;
-  let xp = base * (1 + streakBonus(streakWithToday)) * double * comeback;
+  let xp = taskXp(task) * xpMultiplier(state, today).total;
   let limited: Limit | undefined;
 
   const todays = state.completions.filter((c) => c.date === today);
