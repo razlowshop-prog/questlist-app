@@ -25,9 +25,11 @@ test('the ladder pays out often early on and never clashes with Climber rewards'
 });
 
 test('level rewards are handed out once and add up to tokens', () => {
-  assert.deepEqual(tokenCounts(withLevel(1)), { rest: 0, double: 0, reroll: 0 });
+  assert.deepEqual(tokenCounts(withLevel(1)), { rest: 0, double: 0, reroll: 0, adfree: 0 });
   const s = withLevel(9);
-  assert.deepEqual(tokenCounts(s), { rest: 2, double: 3, reroll: 2 });
+  // 2-9: tokens on 2, 3, 4, 7, 9; a title on 5, a frame on 6, a flame on 8.
+  assert.deepEqual(tokenCounts(s), { rest: 2, double: 2, reroll: 1, adfree: 0 });
+  assert.equal(tokenCounts(withLevel(11)).adfree, 1);
   assert.equal(grantLevelRewards(s, 9), s);
   assert.equal(grantLevelRewards(s, 5), s); // losing levels takes nothing back
   assert.ok(unlockedRewards(s).some((r) => r.label === '"Rising Star" title'));
@@ -38,7 +40,7 @@ test('level rewards are handed out once and add up to tokens', () => {
 test('a rest day keeps a streak through today, or saves a missed yesterday', () => {
   // Streak until yesterday, nothing yet today: offer today.
   let s = withLevel(2, { completions: streak(5, addDays(TODAY, -1)) });
-  assert.deepEqual(restOffer(s, TODAY), { day: TODAY, keeps: 5, missed: false });
+  assert.deepEqual(restOffer(s, TODAY), { day: TODAY, keeps: 5, missed: false, tier: 0, streakLost: false });
   s = spendRestDay(s, TODAY, TODAY);
   assert.equal(streakStatus(s.completions, TODAY, s.restDays).atRisk, false);
   assert.equal(tokenCounts(s).rest, 0);
@@ -49,7 +51,7 @@ test('a rest day keeps a streak through today, or saves a missed yesterday', () 
   // Missed yesterday, the streak already ended: the token brings it back.
   s = withLevel(2, { completions: streak(4, addDays(TODAY, -2)) });
   assert.equal(streakStatus(s.completions, TODAY).days, 0);
-  assert.deepEqual(restOffer(s, TODAY), { day: addDays(TODAY, -1), keeps: 4, missed: true });
+  assert.deepEqual(restOffer(s, TODAY), { day: addDays(TODAY, -1), keeps: 4, missed: true, tier: 0, streakLost: true });
   s = spendRestDay(s, addDays(TODAY, -1), TODAY);
   assert.equal(streakStatus(s.completions, TODAY, s.restDays).days, 4);
 

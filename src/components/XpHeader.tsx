@@ -1,3 +1,4 @@
+import { Backpack } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, Text, View } from 'react-native';
 import { nextLevelReward } from '../achievements';
@@ -7,12 +8,26 @@ import { LogoMark } from './LogoMark';
 import { RewardPicture } from './RewardPicture';
 
 /**
- * Always-visible header: centred wordmark, level badge with the streak multiplier, and the XP bar. Gained XP
+ * Always-visible header: centred wordmark with the inventory bag at the right, level badge with the streak multiplier, and the XP bar. Gained XP
  * counts up: a light "ghost" bar jumps ahead to the new total, the solid bar
  * fills after it, the numbers tick up and the bar glows. A level-up runs the
  * bar to the end and continues from zero on the new level.
  */
-export function XpHeader({ totalXp, bonus, onPressLevel }: { totalXp: number; bonus: number; onPressLevel: () => void }) {
+export function XpHeader({
+  totalXp,
+  bonus,
+  onPressLevel,
+  onOpenBag,
+  bagCount,
+}: {
+  totalXp: number;
+  bonus: number;
+  onPressLevel: () => void;
+  /** Opens the inventory from the bag at the top right. */
+  onOpenBag: () => void;
+  /** Tokens held, shown small on the bag. */
+  bagCount: number;
+}) {
   const s = useStyles(makeStyles);
   const c = useTheme();
   const real = levelInfo(totalXp);
@@ -74,6 +89,20 @@ export function XpHeader({ totalXp, bonus, onPressLevel }: { totalXp: number; bo
       <View style={s.inner}>
         <View style={s.top}>
           <LogoMark textStyle={s.wordmark} ruleWidth={22} />
+          <Pressable
+            onPress={onOpenBag}
+            hitSlop={10}
+            style={s.bag}
+            accessibilityRole="button"
+            accessibilityLabel={`Inventory${bagCount ? `, ${bagCount} tokens` : ''}`}
+          >
+            <Backpack size={20} color={c.muted} strokeWidth={1.5} aria-hidden />
+            {bagCount > 0 && (
+              <View style={s.bagBadge}>
+                <Text style={s.bagBadgeText}>{bagCount > 99 ? '99+' : bagCount}</Text>
+              </View>
+            )}
+          </Pressable>
         </View>
         <Pressable onPress={onPressLevel} style={s.levelRow} accessibilityRole="button" accessibilityLabel={`Level ${shown.level}, ${shown.rank}. Show level details`}>
           <Animated.View style={[s.badge, { transform: [{ scale: badgeScale }] }]}>
@@ -190,6 +219,22 @@ const makeStyles = themed((c) => ({
   wrap: { backgroundColor: c.bg, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 16 },
   inner: { maxWidth: 640, width: '100%', alignSelf: 'center', gap: 12 },
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 2 },
+  bag: { position: 'absolute', right: 0, top: -4, width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  bagBadge: {
+    position: 'absolute',
+    top: 0,
+    right: -4,
+    minWidth: 15,
+    height: 15,
+    borderRadius: 8,
+    paddingHorizontal: 3,
+    backgroundColor: c.accentSoft,
+    borderWidth: 1,
+    borderColor: c.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bagBadgeText: { color: c.accent, fontSize: 9, fontWeight: '700', fontVariant: ['tabular-nums'] },
   wordmark: { fontFamily: FONTS.serif, color: c.text, fontSize: 15, letterSpacing: 3.6 },
   levelRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   badge: {

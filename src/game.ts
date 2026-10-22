@@ -1,3 +1,4 @@
+import type { CelebrationId, FlameStyleId } from './cosmetics.ts';
 import type { IconName } from './icons.ts';
 
 // Pure game rules: XP, levels, ranks and streaks. No React or storage here,
@@ -103,6 +104,21 @@ export interface GameState {
   doubleDays?: string[];
   /** Weekly challenges swapped with a reroll token. */
   swaps?: ChallengeSwap[];
+  /** Days an ad-free token was used. */
+  adFreeDays?: string[];
+  /**
+   * The one-time free recovery offered the first time a missed day would cost
+   * the streak or a tier: the missed day, and whether the player took it.
+   */
+  recovery?: { day: string; used: boolean };
+  /** Monthly events finished, by month ("2026-10"); each wins that month's frame. */
+  seasonClaims?: { month: string; date: string }[];
+}
+
+/** Days the streak counts as kept without a task: rest tokens plus a taken free recovery. */
+export function restDaysOf(state: Pick<GameState, 'restDays' | 'recovery'>): string[] {
+  const days = state.restDays ?? [];
+  return state.recovery?.used ? [...days, state.recovery.day] : days;
 }
 
 export interface ChallengeSwap {
@@ -135,6 +151,10 @@ export interface Settings {
   shareActivity?: boolean;
   /** Title shown under the name, one the player has won. */
   title?: string;
+  /** Equipped looks from the inventory; each only shows while the player owns it. */
+  frame?: string;
+  flameStyle?: FlameStyleId;
+  celebration?: CelebrationId;
 }
 
 /** Evening time of the "your streak is about to end" notification. */
@@ -373,6 +393,22 @@ export function currentStreak(completions: Completion[], today: string, restDays
   return streakStatus(completions, today, restDays).days;
 }
 
+/** Extra XP on the first few active days after a streak was lost, to help back in. */
+export const COMEBACK_BONUS = 0.25;
+export const COMEBACK_DAYS = 3;
+
+/**
+ * Active days left (today included) with the comeback boost: after a lost
+ * streak, the first COMEBACK_DAYS days with a task done earn extra XP.
+ * 0 when no streak was ever lost or the boost is used up.
+ */
+export function comebackDaysLeft(state: Pick<GameState, 'completions' | 'restDays' | 'recovery'>, today: string): number {
+  const lost = streakStatus(state.completions, today, restDaysOf(state)).history.filter((h) => h.change === 'lost').at(-1);
+  if (!lost) return 0;
+  const before = new Set(state.completions.filter((c) => c.date > lost.date && c.date < today).map((c) => c.date));
+  return Math.max(0, COMEBACK_DAYS - before.size);
+}
+
 /** Daily-streak XP multiplier steps: from 5 days 1.2x, 10 days 1.4x, 30 days 1.5x, 150 days 1.6x. */
 export const STREAK_BONUSES = [
   { days: 5, bonus: 0.2 },
@@ -518,11 +554,12 @@ export function toggleTask(state: GameState, taskId: string, today: string, now?
   const streakWithToday = currentStreak(
     [...state.completions, { taskId, date: today, xp: 0 }],
     today,
-    state.restDays,
+    restDaysOf(state),
   );
   const base = taskXp(task);
   const double = state.doubleDays?.includes(today) ? 2 : 1;
-  let xp = base * (1 + streakBonus(streakWithToday)) * double;
+  const comeback = comebackDaysLeft(state, today) > 0 ? 1 + COMEBACK_BONUS : 1;
+  let xp = base * (1 + streakBonus(streakWithToday)) * double * comeback;
   let limited: Limit | undefined;
 
   const todays = state.completions.filter((c) => c.date === today);
@@ -723,8 +760,8 @@ export function profileStats(state: GameState, today: string) {
     ...levelInfo(xp),
     totalXp: xp,
     tasksDone: state.completions.length,
-    currentStreak: currentStreak(state.completions, today, state.restDays),
-    bestStreak: longestStreak(state.completions, state.restDays),
+    currentStreak: currentStreak(state.completions, today, restDaysOf(state)),
+    bestStreak: longestStreak(state.completions, restDaysOf(state)),
     challengesWon: state.claims.length,
   };
 }
@@ -784,10 +821,10 @@ export function reminderPlan(state: GameState, now: Date, days = 7, limit = 60):
     }
   }
   // Streak warning at 20:00 on days nothing is done yet, today and the next two.
-  const streak = streakStatus(state.completions, today, state.restDays);
+  const streak = streakStatus(state.completions, today, restDaysOf(state));
   if (streak.days > 0 && state.settings.streakReminders !== false) {
     // A rest day already covers today.
-    const doneToday = state.completions.some((c) => c.date === today) || !!state.restDays?.includes(today);
+    const doneToday = state.completions.some((c) => c.date === today) || restDaysOf(state).includes(today);
     const fire = streakTierName(streak.tier);
     const ends = streak.tier >= 2 ? `drops from ${fire} to ${streakTierName(streak.tier - 1)}` : 'ends';
     for (let i = doneToday ? 1 : 0; i < 3; i++) {

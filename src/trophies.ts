@@ -1,5 +1,5 @@
 import { monthsSince } from './achievements.ts';
-import { DEFAULT_MINUTES, levelInfo, streakStatus, totalXp, type GameState } from './game.ts';
+import { DEFAULT_MINUTES, levelInfo, restDaysOf, streakStatus, totalXp, type GameState } from './game.ts';
 import type { IconName } from './icons.ts';
 import { guessCategory } from './library.ts';
 
@@ -32,7 +32,7 @@ export const TROPHIES: TrophyDef[] = [
     rarity: 'epic',
     target: 100,
     unit: 'days',
-    value: (s, today) => streakStatus(s.completions, today, s.restDays).best,
+    value: (s, today) => streakStatus(s.completions, today, restDaysOf(s)).best,
   },
   {
     id: 'yearOfFire',
@@ -42,7 +42,7 @@ export const TROPHIES: TrophyDef[] = [
     rarity: 'legendary',
     target: 365,
     unit: 'days',
-    value: (s, today) => streakStatus(s.completions, today, s.restDays).best,
+    value: (s, today) => streakStatus(s.completions, today, restDaysOf(s)).best,
   },
   {
     id: 'infernoKeeper',
@@ -52,7 +52,7 @@ export const TROPHIES: TrophyDef[] = [
     rarity: 'epic',
     target: 8,
     unit: 'weeks',
-    value: (s, today) => streakStatus(s.completions, today, s.restDays).bestInfernoWeeks,
+    value: (s, today) => streakStatus(s.completions, today, restDaysOf(s)).bestInfernoWeeks,
   },
   {
     id: 'centurion',

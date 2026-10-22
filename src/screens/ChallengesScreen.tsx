@@ -1,6 +1,10 @@
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { addDays, SENSOR_CHALLENGES, weekStart, type ChallengeDef, type ChallengeStatus } from '../game';
 import { AppIcon } from '../components/AppIcon';
+import { ProfileFrame } from '../components/ProfileFrame';
+import { frameName } from '../cosmetics';
+import { CATEGORIES } from '../library';
+import type { SeasonStatus } from '../seasons';
 import { card, themed, useStyles, useTheme, FONTS, headingCase } from '../theme';
 
 export function ChallengesScreen({
@@ -9,6 +13,8 @@ export function ChallengesScreen({
   onClaim,
   swapsLeft,
   onSwap,
+  season,
+  onClaimSeason,
 }: {
   challenges: ChallengeStatus[];
   today: string;
@@ -16,8 +22,13 @@ export function ChallengesScreen({
   /** Challenge swap tokens held. */
   swapsLeft: number;
   onSwap: (id: string) => void;
+  season: SeasonStatus;
+  onClaimSeason: () => void;
 }) {
   const s = useStyles(makeStyles);
+  const c = useTheme();
+  const monthName = new Date(`${season.month}-15T12:00:00`).toLocaleDateString('en', { month: 'long' });
+  const counts = season.season.categories.map((id) => CATEGORIES.find((cat) => cat.id === id)?.label.toLowerCase() ?? id);
   const end = addDays(weekStart(today), 6);
   const [y, m, d] = end.split('-').map(Number);
   const daysLeft = Math.round((new Date(y, m - 1, d).getTime() - new Date().setHours(0, 0, 0, 0)) / 86400000) + 1;
@@ -55,6 +66,35 @@ export function ChallengesScreen({
         </Text>
       )}
 
+      <Text style={[s.heading, s.subHeading]}>{monthName} event</Text>
+      <Text style={s.sub}>
+        A new event every month · {season.daysLeft === 0 ? 'last day' : `${season.daysLeft} ${season.daysLeft === 1 ? 'day' : 'days'} left`}
+      </Text>
+      <View style={[s.card, s.event, season.complete && !season.claimed && s.cardHighlight]}>
+        <ProfileFrame frame={season.frame} size={44} locked={!season.claimed && !season.complete}>
+          <View style={s.eventDot} />
+        </ProfileFrame>
+        <View style={{ flex: 1, gap: 6 }}>
+          <Text style={s.title}>{season.season.name}</Text>
+          <Text style={s.progress}>{season.season.pitch}</Text>
+          <View style={s.track}>
+            <View style={[s.fill, { width: `${Math.round((season.progress / season.season.target) * 100)}%` }]} />
+          </View>
+          <Text style={s.progress}>
+            {season.progress} / {season.season.target} tasks from {listOf(counts)}
+          </Text>
+          {season.claimed ? (
+            <Text style={s.claimed}>✓ {frameName(season.frame)} frame won · wear it from your inventory</Text>
+          ) : season.complete ? (
+            <Pressable style={[s.claim, { alignSelf: 'flex-start' }]} onPress={onClaimSeason} accessibilityRole="button">
+              <Text style={s.claimText}>Claim the {frameName(season.frame)} frame</Text>
+            </Pressable>
+          ) : (
+            <Text style={[s.reward, { color: c.accent }]}>Wins the {frameName(season.frame)} frame, only this month</Text>
+          )}
+        </View>
+      </View>
+
       <Text style={[s.heading, s.subHeading]}>Coming with the phone app</Text>
       <Text style={s.sub}>These use your phone's sensors and health data, so they can't run in the browser.</Text>
       {SENSOR_CHALLENGES.map((def) => (
@@ -64,6 +104,11 @@ export function ChallengesScreen({
       ))}
     </ScrollView>
   );
+}
+
+/** "a, b and c" */
+function listOf(items: string[]): string {
+  return items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
 }
 
 function ChallengeCard({
@@ -123,5 +168,7 @@ const makeStyles = themed((c) => ({
   claimText: { color: c.onGold, fontWeight: '700', fontSize: 13 },
   claimed: { color: c.xp, fontWeight: '700', fontSize: 13 },
   swap: { color: c.accent, fontWeight: '600', fontSize: 13, marginTop: 8, textDecorationLine: 'underline' },
+  event: { alignItems: 'flex-start' },
+  eventDot: { width: 34, height: 34, borderRadius: 17, backgroundColor: c.goldSoft },
   swapNote: { color: c.faint, fontSize: 12, marginTop: 2 },
 }));

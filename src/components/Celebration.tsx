@@ -167,6 +167,9 @@ export function Celebration({
                     </View>
                     <Text style={s.itemName}>{milestone.reward?.label ?? `+${milestone.bonusXp} XP bonus`}</Text>
                     {milestone.reward?.token && <Text style={s.itemDesc}>{TOKEN_INFO[milestone.reward.token].description}</Text>}
+                    {(milestone.reward?.kind === 'frame' || milestone.reward?.kind === 'flame' || milestone.reward?.kind === 'celebration' || milestone.reward?.kind === 'title') && (
+                      <Text style={s.itemDesc}>Wear it from your bag at the top right.</Text>
+                    )}
                     <Text style={s.itemMeta}>
                       Level {milestone.level} reward{milestone.reward && milestone.bonusXp ? ` · +${milestone.bonusXp} XP` : ''}
                     </Text>

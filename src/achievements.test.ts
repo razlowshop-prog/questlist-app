@@ -88,12 +88,13 @@ test('next level reward counts from the start of the current level', () => {
   assert.deepEqual(r.levels.map((l) => l.level), [2]);
   assert.equal(r.xpInto, 10);
   assert.equal(r.xpNeeded, xpToNext(1));
-  // At level 10, the next reward is two levels away (11 has none).
+  // At level 10, the next reward is level 11 (every level pays out).
   let xp = 0;
   for (let l = 1; l < 10; l++) xp += xpToNext(l);
   const r10 = nextLevelReward(xp + 5)!;
-  assert.deepEqual(r10.levels.map((l) => [l.level, !!l.milestone]), [[11, false], [12, true]]);
-  assert.equal(r10.xpNeeded, xpToNext(10) + xpToNext(11));
+  assert.deepEqual(r10.levels.map((l) => [l.level, !!l.milestone]), [[11, true]]);
+  assert.equal(r10.xpInto, 5);
+  assert.equal(r10.xpNeeded, xpToNext(10));
 });
 
 test('next level reward skips to the next milestone once one is reached', () => {
@@ -101,9 +102,10 @@ test('next level reward skips to the next milestone once one is reached', () => 
   for (let l = 1; l < 10; l++) xp += xpToNext(l);
   const atTen = nextLevelReward(xp)!;
   assert.equal(levelInfo(xp).level, 10);
-  assert.equal(atTen.milestone.level, 12);
+  assert.equal(atTen.milestone.level, 11);
+  assert.equal(atTen.milestone.reward?.label, 'Ad-free day');
   assert.equal(atTen.xpInto, 0);
-  assert.equal(atTen.levels.length, 2);
+  assert.equal(atTen.levels.length, 1);
   const nine = nextLevelReward(xp - 1)!;
   assert.equal(nine.milestone.level, 10);
   assert.equal(nine.milestone.reward?.label, 'Midnight theme');
