@@ -1,16 +1,16 @@
-import { useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { Avatar } from '../components/ProfileFrame';
-import { BRAND_FILL_SMALL, BRAND_INK, BRAND_TEXT_SHADOW, GradientText, Sticker, StickerHeading, VIVID_HEAVY, VividSwitch } from '../components/Vivid';
-import { card, FONTS, headingCase, themed, useStyles } from '../theme';
+import { GradientText, Sticker, VIVID_HEAVY, VividSwitch } from '../components/Vivid';
+import { card, FONTS, themed, useStyles } from '../theme';
 import { brandLine, RARITY } from '../vivid';
 
 /**
- * The Friends tab: friends and the leaderboard. Both need accounts, so until
- * then Friends explains what is coming and records the opt-in to share, and
- * the leaderboard shows only the player's own row. Nothing here is made up.
+ * The Friends and Leaderboard pages from the Menu. Both need accounts, so
+ * until then Friends explains what is coming and records the opt-in to share,
+ * and the leaderboard shows only the player's own row. Nothing here is made up.
  */
 export function FriendsScreen({
+  view,
   name,
   level,
   streak,
@@ -18,6 +18,7 @@ export function FriendsScreen({
   shareActivity,
   onShareActivity,
 }: {
+  view: 'friends' | 'leaderboard';
   name: string;
   level: number;
   streak: number;
@@ -26,29 +27,10 @@ export function FriendsScreen({
   onShareActivity: (share: boolean) => void;
 }) {
   const s = useStyles(makeStyles);
-  const [view, setView] = useState<'friends' | 'leaderboard'>('friends');
   const initials = name.trim().slice(0, 2).toUpperCase() || '?';
 
   return (
     <ScrollView contentContainerStyle={s.content}>
-      <StickerHeading glyph="UsersThree" grad={RARITY.rare}>
-        <Text style={s.heading}>Friends</Text>
-      </StickerHeading>
-
-      <View style={s.chips} accessibilityRole="tablist">
-        {(['friends', 'leaderboard'] as const).map((v) => (
-          <Pressable
-            key={v}
-            onPress={() => setView(v)}
-            style={[s.chip, view === v && s.chipActive]}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: view === v }}
-          >
-            <Text style={[s.chipText, view === v && s.chipTextActive]}>{v === 'friends' ? 'Friends' : 'Leaderboard'}</Text>
-          </Pressable>
-        ))}
-      </View>
-
       {view === 'friends' ? (
         <View style={s.card}>
           <Sticker grad={RARITY.rare} glyph="UsersThree" size={48} />
@@ -88,13 +70,7 @@ export function FriendsScreen({
 }
 
 const makeStyles = themed((c) => ({
-  content: { padding: 20, paddingBottom: 48, maxWidth: 640, width: '100%', alignSelf: 'center' },
-  heading: { fontFamily: FONTS.serif, color: c.text, fontSize: 30, lineHeight: 36, ...headingCase(c) },
-  chips: { flexDirection: 'row', gap: 8, marginTop: 14, marginBottom: 16 },
-  chip: { paddingHorizontal: 16, minHeight: 36, justifyContent: 'center', borderRadius: 999, backgroundColor: c.surface },
-  chipActive: { ...BRAND_FILL_SMALL },
-  chipText: { color: c.muted, fontWeight: '700', fontSize: 14 },
-  chipTextActive: { color: BRAND_INK, fontFamily: VIVID_HEAVY, ...BRAND_TEXT_SHADOW },
+  content: { padding: 20, paddingTop: 8, paddingBottom: 48, maxWidth: 640, width: '100%', alignSelf: 'center' },
   card: { ...card(c), padding: 16, gap: 10, alignItems: 'flex-start' },
   title: { fontFamily: FONTS.serif, color: c.text, fontSize: 22 },
   body: { color: c.muted, fontSize: 14, lineHeight: 20 },

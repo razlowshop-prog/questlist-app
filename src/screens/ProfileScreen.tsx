@@ -3,17 +3,16 @@ import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import type { activitySummary } from '../activity';
 import type { AchievementStatus, Reward } from '../achievements';
 import { Achievements } from '../components/Achievements';
-import { APP_NAME } from '../brand';
 import { MultiplierPill } from '../components/MultiplierPill';
 import { Avatar, ProfileFrame } from '../components/ProfileFrame';
 import { TrophyCabinet } from '../components/TrophyCabinet';
-import { STREAK_REMINDER_HOUR, type profileStats, type Settings, type xpMultiplier } from '../game';
+import { type profileStats, type Settings, type xpMultiplier } from '../game';
 import { EMBLEM_TIERS, type EmblemStatus } from '../emblems';
 import type { TrophyStatus } from '../trophies';
-import { card, themed, useStyles, useTheme, FONTS, headingCase } from '../theme';
+import { card, themed, useStyles, FONTS, headingCase } from '../theme';
 import { WeekCard } from './ActivityScreen';
-import { BRAND_FILL_SMALL, BRAND_INK, BRAND_TEXT_SHADOW, CountBadge, GradientText, LevelBadge, Sticker, StickerHeading, VIVID_HEAVY, VividButton, VividSwitch } from '../components/Vivid';
-import { AVATAR_DISCS, brandLine, CATEGORY_LOOKS, categoryLook, EMBLEM_METALS, RARITY } from '../vivid';
+import { BRAND_FILL_SMALL, BRAND_INK, BRAND_TEXT_SHADOW, CountBadge, GradientText, LevelBadge, Sticker, StickerHeading, VIVID_HEAVY } from '../components/Vivid';
+import { AVATAR_DISCS, brandLine, categoryLook, EMBLEM_METALS, RARITY } from '../vivid';
 
 export function ProfileScreen({
   name,
@@ -33,7 +32,6 @@ export function ProfileScreen({
   onClaimAchievement,
   onRename,
   onSettings,
-  onRedoSetup,
 }: {
   name: string;
   stats: ReturnType<typeof profileStats>;
@@ -56,11 +54,8 @@ export function ProfileScreen({
   onClaimAchievement: (id: string) => void;
   onRename: (name: string) => void;
   onSettings: (s: Partial<Settings>) => void;
-  onRedoSetup: () => void;
 }) {
   const s = useStyles(makeStyles);
-  const c = useTheme();
-  const emailValid = /^\S+@\S+\.\S+$/.test(settings.email);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(name);
   const [view, setView] = useState<'awards' | 'stats'>('awards');
@@ -185,52 +180,6 @@ export function ProfileScreen({
         </>
       )}
 
-      <StickerHeading glyph="GearSix" grad={CATEGORY_LOOKS.errands} style={s.headingRow}>
-        <Text style={s.sectionTitle}>Settings</Text>
-      </StickerHeading>
-      <View style={s.settingCard}>
-        <View style={s.settingRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.settingTitle}>Streak reminders</Text>
-            <Text style={s.small}>A notification at {STREAK_REMINDER_HOUR}:00 when nothing is done yet and your streak is at risk.</Text>
-          </View>
-          <VividSwitch
-            value={settings.streakReminders !== false}
-            onValueChange={(v) => onSettings({ streakReminders: v })}
-            accessibilityLabel="Streak reminders"
-          />
-        </View>
-        <View style={s.settingRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.settingTitle}>Daily motivation by email</Text>
-            <Text style={s.small}>A short motivational quote every morning. Unsubscribe anytime.</Text>
-          </View>
-          <VividSwitch
-            value={settings.quoteEmails}
-            onValueChange={(v) => onSettings({ quoteEmails: v })}
-          />
-        </View>
-        {settings.quoteEmails && (
-          <>
-            <TextInput
-              value={settings.email}
-              onChangeText={(email) => onSettings({ email: email.trim() })}
-              placeholder="you@example.com"
-              placeholderTextColor={c.muted}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              style={s.emailInput}
-            />
-            <Text style={s.small}>
-              {emailValid
-                ? `✓ Saved. Emails start once ${APP_NAME} accounts are live.`
-                : 'Enter your email address to receive the quotes.'}
-            </Text>
-          </>
-        )}
-      </View>
-      <VividButton label="Redo setup questions" kind="secondary" compact onPress={onRedoSetup} style={{ marginTop: 12 }} />
     </ScrollView>
   );
 }
@@ -318,15 +267,4 @@ const makeStyles = themed((c) => ({
   segmentTextActive: { color: BRAND_INK, fontFamily: VIVID_HEAVY, ...BRAND_TEXT_SHADOW },
   segmentBadge: { position: 'absolute', top: -6, right: 10 },
   sectionTitle: { fontFamily: FONTS.serif, color: c.text, fontSize: 19, ...headingCase(c) },
-  settingCard: { ...card(c), padding: 14, gap: 10 },
-  settingRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  settingTitle: { color: c.text, fontSize: 15, fontWeight: '700' },
-  emailInput: {
-    color: c.text,
-    fontSize: 15,
-    backgroundColor: c.surfaceAlt,
-    borderRadius: c.radius,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
 }));

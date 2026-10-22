@@ -1,4 +1,4 @@
-import { Backpack, Bell, ChevronLeft } from 'lucide-react-native';
+import { Backpack, ChevronLeft } from 'lucide-react-native';
 import { Pressable, Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { APP_NAME } from '../brand';
@@ -12,19 +12,16 @@ const RING = 34;
 const STROKE = 3;
 
 /**
- * The header on the three tab screens (navigation A): the bell for Activity
- * on the left, the wordmark in the middle, then the bag for the inventory and
- * the avatar for the profile. The ring round the avatar fills with the XP
- * towards the next level.
+ * The header on the tab screens (navigation A): the wordmark in the middle,
+ * then the bag for the inventory and the avatar for the profile on the right.
+ * The ring round the avatar fills with the XP towards the next level.
  */
 export function TopBar({
   level,
   progress,
   initials,
-  unread,
   bagCount,
   toClaim,
-  onActivity,
   onInventory,
   onProfile,
 }: {
@@ -32,13 +29,10 @@ export function TopBar({
   /** 0 to 1: XP into this level. */
   progress: number;
   initials: string;
-  /** Something new in the activity feed: a small pink dot on the bell. */
-  unread: boolean;
   /** Tokens held, shown small on the bag. */
   bagCount: number;
   /** Trophy tiers ready to claim on the profile. */
   toClaim: number;
-  onActivity: () => void;
   onInventory: () => void;
   onProfile: () => void;
 }) {
@@ -50,10 +44,6 @@ export function TopBar({
 
   return (
     <View style={s.bar}>
-      <Pressable onPress={onActivity} style={s.icon} accessibilityRole="button" accessibilityLabel={unread ? 'Activity, something new' : 'Activity'}>
-        <Bell size={22} color={c.muted} strokeWidth={1.6} aria-hidden />
-        {unread && <View style={s.unread} />}
-      </Pressable>
       <View style={s.middle} pointerEvents="none">
         <GradientText style={s.wordmark} numberOfLines={1}>
           {APP_NAME.toUpperCase()}
@@ -104,7 +94,7 @@ export function TopBar({
   );
 }
 
-/** Replaces the header on Activity, Inventory and Profile: back to the tab it came from, and the page's name. */
+/** Replaces the header on pages (Profile, Inventory, every Menu entry): back to the tab it came from, and the page's name. */
 export function BackBar({ backTo, title, onBack }: { backTo: string; title: string; onBack: () => void }) {
   const s = useStyles(makeStyles);
   const c = useTheme();
@@ -129,7 +119,6 @@ const makeStyles = themed((c) => ({
   middle: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   wordmark: { fontFamily: FONTS.serif, fontSize: 21, letterSpacing: 4.6 },
   icon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', zIndex: 1 },
-  unread: { position: 'absolute', top: 7, right: 8, width: 8, height: 8, borderRadius: 4, backgroundColor: '#FF3D9A', borderWidth: 2, borderColor: c.bg },
   badge: { position: 'absolute', top: 0, right: -2 },
   avatarHit: { marginLeft: 4, padding: 3, zIndex: 1 },
   ring: { width: RING, height: RING, alignItems: 'center', justifyContent: 'center' },

@@ -177,6 +177,8 @@ export interface Settings {
   askedNotifications?: boolean;
   /** Opt-in: friends may see this player's activity once accounts exist. Off unless turned on. */
   shareActivity?: boolean;
+  /** Who may find the profile once accounts exist. Friends only unless changed. */
+  profileVisibility?: 'public' | 'friends';
   /** Title shown under the name, one the player has won. */
   title?: string;
   /** Equipped looks from the inventory; each only shows while the player owns it. */

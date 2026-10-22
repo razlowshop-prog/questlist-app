@@ -1,6 +1,6 @@
 import { loadAsync } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
-import { FerrisWheel, ListChecks, Trophy, Users, type LucideIcon } from 'lucide-react-native';
+import { FerrisWheel, ListChecks, Menu, Trophy, type LucideIcon } from 'lucide-react-native';
 import type { GlyphName } from './src/glyphs';
 import { CountBadge, Glyph, VIVID_HEAVY } from './src/components/Vivid';
 import { BRAND, brandGlow, brandLine } from './src/vivid';
@@ -49,7 +49,10 @@ import { LevelDetails } from './src/components/LevelDetails';
 import { ActivityScreen } from './src/screens/ActivityScreen';
 import { ChallengesScreen } from './src/screens/ChallengesScreen';
 import { FriendsScreen } from './src/screens/FriendsScreen';
+import { ConnectedAppsScreen, HelpScreen, LegalScreen } from './src/screens/InfoScreens';
 import { InventoryScreen } from './src/screens/InventoryScreen';
+import { MenuScreen, type MenuPage } from './src/screens/MenuScreen';
+import { SettingsScreen } from './src/screens/SettingsScreen';
 import { LibraryModal } from './src/screens/LibraryModal';
 import { SetupScreen, type SetupPick } from './src/screens/SetupScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
@@ -82,19 +85,33 @@ const FORTUNA = themeById('fortune').palette;
 /** Browser previews are built with this on so every theme and look can be tried without unlocking it. */
 const PREVIEW_ALL_THEMES = process.env.EXPO_PUBLIC_UNLOCK_THEMES === '1';
 
-type Tab = 'today' | 'challenges' | 'spin' | 'friends';
-/** Pages opened from the header. They sit above the tab they were opened from, which stays lit in the tab bar. */
-type Page = 'activity' | 'inventory' | 'profile';
+type Tab = 'today' | 'challenges' | 'spin' | 'menu';
+/** Pages opened from the header or the Menu. They sit above the tab they were opened from, which stays lit in the tab bar. */
+type Page = 'inventory' | 'profile' | MenuPage;
 
-/** Inactive tabs: the theme's muted line icon. Active: a filled glyph in the brand gradient with a soft glow. */
-const TABS: { key: Tab; label: string; Icon: LucideIcon; glyph: GlyphName }[] = [
+/**
+ * Inactive tabs: the theme's muted line icon. Active: a filled glyph in the
+ * brand gradient with a soft glow; Menu's three lines have no filled glyph, so
+ * they are drawn bolder in the brand colour instead.
+ */
+const TABS: { key: Tab; label: string; Icon: LucideIcon; glyph?: GlyphName }[] = [
   { key: 'today', label: 'Today', Icon: ListChecks, glyph: 'ListChecks' },
   { key: 'challenges', label: 'Challenges', Icon: Trophy, glyph: 'Trophy' },
   { key: 'spin', label: 'Spin', Icon: FerrisWheel, glyph: 'Pinwheel' },
-  { key: 'friends', label: 'Friends', Icon: Users, glyph: 'UsersThree' },
+  { key: 'menu', label: 'Menu', Icon: Menu },
 ];
 
-const PAGE_TITLES: Record<Page, string> = { activity: 'Activity', inventory: 'Inventory', profile: 'Profile' };
+const PAGE_TITLES: Record<Page, string> = {
+  inventory: 'Inventory',
+  profile: 'Profile',
+  activity: 'Activity',
+  friends: 'Friends',
+  leaderboard: 'Leaderboard',
+  settings: 'Settings',
+  apps: 'Connected apps',
+  help: 'Contact & help',
+  legal: 'Legal',
+};
 
 export default function App() {
   const [state, setState] = useState<GameState>(emptyState);
@@ -311,7 +328,7 @@ export default function App() {
     showToast(`${tierName} trophy · +${tier.xp} XP${tier.reward ? ` · ${tier.reward.label} unlocked` : ''}`);
   }
 
-  const badges: Record<Tab, number> = { today: 0, challenges: readyToClaim, spin: tickets.tickets, friends: 0 };
+  const badges: Record<Tab, number> = { today: 0, challenges: readyToClaim, spin: tickets.tickets, menu: 0 };
 
   const toastStyle = {
     opacity: toastAnim,
@@ -353,11 +370,8 @@ export default function App() {
                 level={level.level}
                 progress={level.progress}
                 initials={initials}
-                // Nothing is unread until friends' activity arrives with accounts.
-                unread={false}
                 bagCount={bagCount}
                 toClaim={awardsToClaim}
-                onActivity={() => setPage('activity')}
                 onInventory={() => setPage('inventory')}
                 onProfile={() => setPage('profile')}
               />
@@ -409,9 +423,25 @@ export default function App() {
                   onClaimAchievement={onClaimAchievement}
                   onRename={(name) => setState(setName(state, name))}
                   onSettings={(changes) => setState(updateSettings(state, changes))}
-                  onRedoSetup={() => setRedoSetup(true)}
                 />
               )}
+              {(page === 'friends' || page === 'leaderboard') && (
+                <FriendsScreen
+                  view={page}
+                  name={state.profile.name}
+                  level={level.level}
+                  streak={streakInfo.days}
+                  totalXp={xp}
+                  shareActivity={state.settings.shareActivity === true}
+                  onShareActivity={(share) => setState(updateSettings(state, { shareActivity: share }))}
+                />
+              )}
+              {page === 'settings' && (
+                <SettingsScreen settings={state.settings} onSettings={(changes) => setState(updateSettings(state, changes))} onRedoSetup={() => setRedoSetup(true)} />
+              )}
+              {page === 'apps' && <ConnectedAppsScreen />}
+              {page === 'help' && <HelpScreen />}
+              {page === 'legal' && <LegalScreen />}
               {!page && tab === 'today' && (
                 <TodayScreen
                   state={state}
@@ -482,16 +512,7 @@ export default function App() {
                   />
                 </ThemeProvider>
               )}
-              {!page && tab === 'friends' && (
-                <FriendsScreen
-                  name={state.profile.name}
-                  level={level.level}
-                  streak={streakInfo.days}
-                  totalXp={xp}
-                  shareActivity={state.settings.shareActivity === true}
-                  onShareActivity={(share) => setState(updateSettings(state, { shareActivity: share }))}
-                />
-              )}
+              {!page && tab === 'menu' && <MenuScreen onOpen={setPage} />}
             </View>
 
             <View style={styles.tabBar}>
@@ -505,7 +526,7 @@ export default function App() {
                 >
                   {tab === t.key ? (
                     <View style={[styles.tabGlyph, styles.tabGlow]}>
-                      <Glyph name={t.glyph} size={24} grad={BRAND} />
+                      {t.glyph ? <Glyph name={t.glyph} size={24} grad={BRAND} /> : <t.Icon size={24} color={brandLine(c.dark)} strokeWidth={2.5} aria-hidden />}
                     </View>
                   ) : (
                     <View style={styles.tabGlyph}>
