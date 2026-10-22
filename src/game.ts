@@ -3,12 +3,14 @@ import type { IconName } from './icons.ts';
 // Pure game rules: XP, levels, ranks and streaks. No React or storage here,
 // so everything in this file can be unit tested.
 
+/** Old saved data only; XP no longer depends on it. */
 export type Difficulty = 'easy' | 'medium' | 'hard';
 
 export interface Task {
   id: string;
   title: string;
-  difficulty: Difficulty;
+  /** Saved by older versions; ignored now that XP comes from time alone. */
+  difficulty?: Difficulty;
   /** Repeating tasks come back every day; one-off tasks disappear once done. */
   daily: boolean;
   /** For repeating tasks: how many times per week (1-7). Missing = every day. */
@@ -21,6 +23,8 @@ export interface Task {
   date?: string;
   /** Daily reminder time, "HH:MM", sent as a phone notification. */
   reminder?: string;
+  /** Library category id, for grouping the day. */
+  category?: string;
   createdAt: string;
 }
 
@@ -29,6 +33,7 @@ export interface TaskPlan {
   days?: number[];
   date?: string;
   reminder?: string;
+  category?: string;
 }
 
 /** false = one-time, true = every day, a number = that many times per week. */
@@ -69,6 +74,8 @@ export interface ChallengeClaim {
   /** Monday of the week the challenge belonged to, YYYY-MM-DD. */
   week: string;
   xp: number;
+  /** Day it was claimed, YYYY-MM-DD. Missing on claims saved before the activity timeline. */
+  date?: string;
 }
 
 export interface Profile {
@@ -95,6 +102,8 @@ export interface AchievementClaim {
   /** 0-based tier index. */
   tier: number;
   xp: number;
+  /** Day it was claimed, YYYY-MM-DD. Missing on claims saved before the activity timeline. */
+  date?: string;
 }
 
 export interface Settings {
@@ -103,7 +112,16 @@ export interface Settings {
   email: string;
   /** Selected colour theme id. */
   theme: string;
+  /** Evening notification while the streak is at risk; on unless turned off. */
+  streakReminders?: boolean;
+  /** The phone has been asked once for notification permission. */
+  askedNotifications?: boolean;
+  /** Opt-in: friends may see this player's activity once accounts exist. Off unless turned on. */
+  shareActivity?: boolean;
 }
+
+/** Evening time of the "your streak is about to end" notification. */
+export const STREAK_REMINDER_HOUR = 20;
 
 export const emptyState: GameState = {
   tasks: [],
@@ -124,37 +142,26 @@ export function withDefaults(state: GameState, today: string): GameState {
   return { ...state, joinedAt: first ?? today };
 }
 
-/** Fixed XP for tasks saved before XP was based on time. */
-export const BASE_XP: Record<Difficulty, number> = {
-  easy: 10,
-  medium: 20,
-  hard: 40,
-};
-
-/** A new rank every 10 levels; level 100 is the final rank. */
-export const EFFORT_MULTIPLIER: Record<Difficulty, number> = {
-  easy: 1,
-  medium: 1.25,
-  hard: 1.5,
-};
+/** Time assumed for tasks saved before tasks had a duration. */
+export const DEFAULT_MINUTES = 15;
 
 /** Time options offered when adding a task, in minutes. */
 export const DURATIONS = [5, 15, 30, 60, 90, 120, 180, 240, 480];
 
 /**
- * XP for a task, based on how long it takes and how demanding it is.
- * Grows a bit slower than time (minutes^0.7) so very long tasks
- * don't dwarf everything else: 5 min easy = 5 XP, 15 min = 10,
- * 30 min = 20, 60 min = 30, 2 h = 45. Hard effort gives 1.5x.
+ * XP for a task, from how long it takes alone (how hard something feels is
+ * personal and easy to game). Grows a bit slower than time (minutes^0.7) so
+ * very long tasks don't dwarf everything else: 5 min = 5 XP, 15 min = 15,
+ * 30 min = 20, 60 min = 35, 2 h = 55, 8 h = 150.
  */
-export function xpFor(minutes: number, difficulty: Difficulty): number {
+export function xpFor(minutes: number): number {
   const m = Math.min(Math.max(minutes, 1), MAX_TASK_MINUTES);
-  const raw = 1.62 * Math.pow(m, 0.7) * EFFORT_MULTIPLIER[difficulty];
+  const raw = 2 * Math.pow(m, 0.7);
   return Math.max(5, Math.round(raw / 5) * 5);
 }
 
 export function taskXp(task: Task): number {
-  return task.minutes ? xpFor(task.minutes, task.difficulty) : BASE_XP[task.difficulty];
+  return xpFor(task.minutes ?? DEFAULT_MINUTES);
 }
 
 export function durationLabel(minutes: number): string {
@@ -241,29 +248,128 @@ export function totalXp(state: GameState): number {
 
 // ---------- streaks ----------
 
-/**
- * Days in a row with at least one completed task, ending today.
- * If nothing is done yet today, a streak that ran until yesterday still
- * counts: it only breaks once a whole day has been missed.
- */
-export function currentStreak(completions: Completion[], today: string): number {
-  const days = new Set(completions.map((c) => c.date));
-  let cursor = days.has(today) ? today : addDays(today, -1);
-  let streak = 0;
-  while (days.has(cursor)) {
-    streak++;
-    cursor = addDays(cursor, -1);
-  }
-  return streak;
+/** Weekly task XP needed for each fire tier, reached at the end of a week. */
+export const STREAK_TIERS = [
+  { tier: 1, name: 'Flame', weekXp: 100 },
+  { tier: 2, name: 'Blaze', weekXp: 200 },
+  { tier: 3, name: 'Inferno', weekXp: 300 },
+] as const;
+
+export function streakTierName(tier: number): string {
+  return tier === 0 ? 'Spark' : STREAK_TIERS[tier - 1].name;
 }
 
-/** Streak bonus as a fraction of base XP, e.g. 0.25 = +25 %. */
+export interface StreakStatus {
+  /** Active days in the current streak. */
+  days: number;
+  /** 0 = Spark (no tier yet), 1 Flame, 2 Blaze, 3 Inferno. */
+  tier: number;
+  /** Longest streak ever, in days. */
+  best: number;
+  /** Task XP earned this week, counting towards next Monday's tier. */
+  weekXp: number;
+  /** The tier this week's XP reaches so far (0 = none). */
+  weekTier: number;
+  /** Nothing done yet today while a streak is running. */
+  atRisk: boolean;
+  /** Most weeks in a row that started on Inferno. */
+  bestInfernoWeeks: number;
+  /** Every fire change, oldest first, for the activity timeline. */
+  history: StreakChange[];
+}
+
+/**
+ * A change to the streak fire: up = a Monday raised the tier, down = a missed
+ * day cost a tier, lost = a missed day ended the streak. date is the Monday or
+ * the missed day; days is the streak length right before the change.
+ */
+export interface StreakChange {
+  date: string;
+  change: 'up' | 'down' | 'lost';
+  tier: number;
+  days: number;
+}
+
+/**
+ * Replays every day since the first completion. A day with at least one task
+ * done keeps the streak going. A missed day costs a tier (Blaze -> Flame,
+ * Inferno -> Blaze) and the days counted so far survive; on Flame or Spark a
+ * missed day ends the streak. Each Monday, last week's task XP raises the
+ * tier to whatever threshold it reached (never lowers it). Today only counts
+ * against the streak once it is over.
+ */
+export function streakStatus(completions: Completion[], today: string): StreakStatus {
+  const xpByDay = new Map<string, number>();
+  for (const c of completions) if (c.date <= today) xpByDay.set(c.date, (xpByDay.get(c.date) ?? 0) + c.xp);
+  const weekXpOf = (monday: string) => {
+    let sum = 0;
+    for (let i = 0; i < 7; i++) sum += xpByDay.get(addDays(monday, i)) ?? 0;
+    return sum;
+  };
+  const tierFor = (xp: number) => STREAK_TIERS.filter((t) => xp >= t.weekXp).length;
+  const thisWeek = weekStart(today);
+  const weekXp = weekXpOf(thisWeek);
+  const first = [...xpByDay.keys()].sort()[0];
+  let days = 0;
+  let tier = 0;
+  let best = 0;
+  let infernoRun = 0;
+  let bestInfernoWeeks = 0;
+  const history: StreakChange[] = [];
+  if (first) {
+    for (let d = first; d <= today; d = addDays(d, 1)) {
+      if (d !== first && weekdayOf(d) === 0) {
+        const reached = days > 0 ? tierFor(weekXpOf(addDays(d, -7))) : 0;
+        if (reached > tier) {
+          tier = reached;
+          history.push({ date: d, change: 'up', tier, days });
+        }
+        infernoRun = tier === 3 ? infernoRun + 1 : 0;
+        bestInfernoWeeks = Math.max(bestInfernoWeeks, infernoRun);
+      }
+      if (xpByDay.has(d)) {
+        days++;
+        best = Math.max(best, days);
+      } else if (d !== today) {
+        if (tier >= 2) {
+          tier--;
+          history.push({ date: d, change: 'down', tier, days });
+        } else {
+          if (days > 0) history.push({ date: d, change: 'lost', tier: 0, days });
+          days = 0;
+          tier = 0;
+        }
+      }
+    }
+  }
+  return { days, tier, best, weekXp, weekTier: tierFor(weekXp), atRisk: days > 0 && !xpByDay.has(today), bestInfernoWeeks, history };
+}
+
+/**
+ * Days in the current streak. If nothing is done yet today, a streak that ran
+ * until yesterday still counts: it only breaks once a whole day has been missed.
+ */
+export function currentStreak(completions: Completion[], today: string): number {
+  return streakStatus(completions, today).days;
+}
+
+/** Daily-streak XP multiplier steps: from 5 days 1.2x, 10 days 1.4x, 30 days 1.5x, 150 days 1.6x. */
+export const STREAK_BONUSES = [
+  { days: 5, bonus: 0.2 },
+  { days: 10, bonus: 0.4 },
+  { days: 30, bonus: 0.5 },
+  { days: 150, bonus: 0.6 },
+] as const;
+
+/** Streak bonus as a fraction of base XP, e.g. 0.2 = 1.2x. */
 export function streakBonus(streak: number): number {
-  if (streak >= 30) return 0.5;
-  if (streak >= 14) return 0.35;
-  if (streak >= 7) return 0.25;
-  if (streak >= 3) return 0.1;
-  return 0;
+  return STREAK_BONUSES.filter((b) => streak >= b.days).at(-1)?.bonus ?? 0;
+}
+
+/** The next multiplier step and how many more days it takes, or undefined at the top. */
+export function nextStreakBonus(streak: number): { days: number; bonus: number; daysLeft: number } | undefined {
+  const next = STREAK_BONUSES.find((b) => streak < b.days);
+  return next ? { ...next, daysLeft: next.days - streak } : undefined;
 }
 
 // ---------- actions ----------
@@ -329,7 +435,6 @@ export function upcomingTasks(state: GameState, today: string): Task[] {
 export function addTask(
   state: GameState,
   title: string,
-  difficulty: Difficulty,
   repeat: Repeat,
   id: string = Math.random().toString(36).slice(2),
   minutes?: number,
@@ -337,7 +442,7 @@ export function addTask(
 ): GameState {
   const trimmed = title.trim();
   if (!trimmed) return state;
-  const task: Task = { id, title: trimmed, difficulty, daily: repeat !== false, createdAt: new Date().toISOString() };
+  const task: Task = { id, title: trimmed, daily: repeat !== false, createdAt: new Date().toISOString() };
   if (minutes) task.minutes = minutes;
   const max = maxPerWeek(trimmed);
   if (task.daily) {
@@ -351,6 +456,7 @@ export function addTask(
     task.date = plan.date;
   }
   if (plan.reminder && /^([01]\d|2[0-3]):[0-5]\d$/.test(plan.reminder)) task.reminder = plan.reminder;
+  if (plan.category) task.category = plan.category;
   return { ...state, tasks: [...state.tasks, task] };
 }
 
@@ -405,7 +511,7 @@ export function toggleTask(state: GameState, taskId: string, today: string, now?
     limited = 'repeat';
   }
 
-  const minutes = Math.min(task.minutes ?? 15, MAX_TASK_MINUTES);
+  const minutes = Math.min(task.minutes ?? DEFAULT_MINUTES, MAX_TASK_MINUTES);
   const usedMinutes = todays.reduce((sum, c) => sum + (c.minutes ?? 0), 0);
   const allowed = Math.max(0, DAILY_MINUTES_CAP - usedMinutes);
   if (allowed < minutes) {
@@ -417,7 +523,6 @@ export function toggleTask(state: GameState, taskId: string, today: string, now?
     taskId,
     date: today,
     xp: Math.round(xp),
-    difficulty: task.difficulty,
     minutes,
     title: task.title,
   };
@@ -435,16 +540,8 @@ export function limitMessage(limit: Limit): string {
 }
 
 export function longestStreak(completions: Completion[]): number {
-  const days = [...new Set(completions.map((c) => c.date))].sort();
-  let best = 0;
-  let run = 0;
-  let prev: string | null = null;
-  for (const d of days) {
-    run = prev && addDays(prev, 1) === d ? run + 1 : 1;
-    best = Math.max(best, run);
-    prev = d;
-  }
-  return best;
+  const last = completions.reduce((max, c) => (c.date > max ? c.date : max), '');
+  return last ? streakStatus(completions, last).best : 0;
 }
 
 // ---------- weekly challenges ----------
@@ -458,7 +555,14 @@ export function weekStart(day: string): string {
 
 export interface WeekStats {
   tasksDone: number;
-  hardDone: number;
+  /** Task time, in hours to one decimal. */
+  hoursDone: number;
+  /** Tasks of an hour or more. */
+  longDone: number;
+  /** Different task titles. */
+  variety: number;
+  /** Days with at least 3 tasks done. */
+  busyDays: number;
   activeDays: number;
   /** XP from tasks only; challenge rewards don't count towards challenges. */
   xpEarned: number;
@@ -470,10 +574,19 @@ export function weekStats(state: GameState, today: string): WeekStats {
   const inWeek = state.completions.filter((c) => c.date >= start && c.date <= end);
   return {
     tasksDone: inWeek.length,
-    hardDone: inWeek.filter((c) => c.difficulty === 'hard').length,
+    hoursDone: Math.floor(inWeek.reduce((sum, c) => sum + (c.minutes ?? DEFAULT_MINUTES), 0) / 6) / 10,
+    longDone: inWeek.filter((c) => (c.minutes ?? DEFAULT_MINUTES) >= 60).length,
+    variety: new Set(inWeek.map((c) => (c.title ?? c.taskId).trim().toLowerCase())).size,
+    busyDays: [...countBy(inWeek.map((c) => c.date)).values()].filter((n) => n >= 3).length,
     activeDays: new Set(inWeek.map((c) => c.date)).size,
     xpEarned: inWeek.reduce((sum, c) => sum + c.xp, 0),
   };
+}
+
+function countBy(keys: string[]): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const k of keys) m.set(k, (m.get(k) ?? 0) + 1);
+  return m;
 }
 
 export interface ChallengeDef {
@@ -490,11 +603,15 @@ export interface ChallengeDef {
 export const CHALLENGE_POOL: ChallengeDef[] = [
   { id: 'tasks15', title: 'Finish 15 tasks this week', icon: 'ListChecks', rewardXp: 100, target: 15, unit: 'tasks', metric: 'tasksDone' },
   { id: 'tasks25', title: 'Finish 25 tasks this week', icon: 'Trophy', rewardXp: 180, target: 25, unit: 'tasks', metric: 'tasksDone' },
-  { id: 'hard3', title: 'Complete 3 hard tasks', icon: 'Mountain', rewardXp: 90, target: 3, unit: 'hard tasks', metric: 'hardDone' },
-  { id: 'hard5', title: 'Complete 5 hard tasks', icon: 'MountainSnow', rewardXp: 150, target: 5, unit: 'hard tasks', metric: 'hardDone' },
+  { id: 'hours5', title: 'Spend 5 hours on your tasks', icon: 'Hourglass', rewardXp: 120, target: 5, unit: 'h', metric: 'hoursDone' },
+  { id: 'hours10', title: 'Spend 10 hours on your tasks', icon: 'Timer', rewardXp: 200, target: 10, unit: 'h', metric: 'hoursDone' },
+  { id: 'long3', title: 'Finish 3 tasks of an hour or more', icon: 'Mountain', rewardXp: 120, target: 3, unit: 'long tasks', metric: 'longDone' },
+  { id: 'variety8', title: 'Do 8 different tasks', icon: 'Shuffle', rewardXp: 110, target: 8, unit: 'tasks', metric: 'variety' },
+  { id: 'busy3', title: 'Finish 3 or more tasks on 3 days', icon: 'Rocket', rewardXp: 130, target: 3, unit: 'days', metric: 'busyDays' },
   { id: 'days5', title: 'Be active on 5 days', icon: 'CalendarDays', rewardXp: 120, target: 5, unit: 'days', metric: 'activeDays' },
   { id: 'days7', title: 'Be active every day this week', icon: 'CalendarCheck', rewardXp: 200, target: 7, unit: 'days', metric: 'activeDays' },
   { id: 'xp300', title: 'Earn 300 XP from tasks', icon: 'Zap', rewardXp: 100, target: 300, unit: 'XP', metric: 'xpEarned' },
+  { id: 'xp600', title: 'Earn 600 XP from tasks', icon: 'Gem', rewardXp: 180, target: 600, unit: 'XP', metric: 'xpEarned' },
 ];
 
 /** Need phone sensors or health data, so they arrive with the phone app builds. */
@@ -543,7 +660,7 @@ export function claimChallenge(state: GameState, challengeId: string, today: str
   if (!status || !status.complete || status.claimed) return state;
   return {
     ...state,
-    claims: [...state.claims, { challengeId, week: weekStart(today), xp: status.def.rewardXp }],
+    claims: [...state.claims, { challengeId, week: weekStart(today), xp: status.def.rewardXp, date: today }],
   };
 }
 
@@ -581,8 +698,10 @@ export function dayLabel(day: string): string {
 }
 
 export interface PlannedReminder {
+  /** 'streak' for the streak warning. */
   taskId: string;
   title: string;
+  body?: string;
   /** Local time the notification should appear. */
   at: Date;
 }
@@ -611,6 +730,23 @@ export function reminderPlan(state: GameState, now: Date, days = 7, limit = 60):
       const [y, mo, d] = day.split('-').map(Number);
       const at = new Date(y, mo - 1, d, h, m);
       if (at.getTime() > now.getTime()) out.push({ taskId: task.id, title: task.title, at });
+    }
+  }
+  // Streak warning at 20:00 on days nothing is done yet, today and the next two.
+  const streak = streakStatus(state.completions, today);
+  if (streak.days > 0 && state.settings.streakReminders !== false) {
+    const doneToday = state.completions.some((c) => c.date === today);
+    const fire = streakTierName(streak.tier);
+    const ends = streak.tier >= 2 ? `drops from ${fire} to ${streakTierName(streak.tier - 1)}` : 'ends';
+    for (let i = doneToday ? 1 : 0; i < 3; i++) {
+      const [y, mo, d] = addDays(today, i).split('-').map(Number);
+      const at = new Date(y, mo - 1, d, STREAK_REMINDER_HOUR, 0);
+      if (at.getTime() <= now.getTime()) continue;
+      out.push(
+        i === 0
+          ? { taskId: 'streak', title: `Your ${streak.days}-day streak ${ends} at midnight`, body: 'One task today keeps it going.', at }
+          : { taskId: 'streak', title: 'Keep your streak alive', body: 'Nothing done yet today. One task is enough.', at },
+      );
     }
   }
   return out.sort((a, b) => a.at.getTime() - b.at.getTime()).slice(0, limit);

@@ -3,8 +3,16 @@ import { FlatList, Modal, Pressable, SafeAreaView, ScrollView, Text, TextInput, 
 import { APP_NAME } from '../brand';
 import { Chip } from '../components/Chip';
 import { LibraryRow } from '../components/LibraryRow';
-import { CATEGORIES, FEATURED, LIBRARY, searchLibrary, type LibraryTask } from '../library';
+import { CATEGORIES, FEATURED, LIBRARY, searchLibrary, sortTasks, type LibraryTask } from '../library';
 import { themed, useStyles, useTheme, FONTS, headingCase } from '../theme';
+
+type Sort = 'best' | 'xp' | 'quick';
+
+const SORTS: { key: Sort; label: string }[] = [
+  { key: 'best', label: 'Best match' },
+  { key: 'xp', label: 'Most XP' },
+  { key: 'quick', label: 'Quickest' },
+];
 
 /** Full-screen browser for the task library: search, categories, recommended. */
 export function LibraryModal({
@@ -22,12 +30,14 @@ export function LibraryModal({
   const C = useTheme();
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<string | undefined>();
+  const [sort, setSort] = useState<Sort>('best');
 
-  const browsing = !query.trim() && !category;
-  const results = useMemo(
-    () => (browsing ? FEATURED : searchLibrary(query, 100, category)),
-    [query, category, browsing],
-  );
+  // Sorting by XP or time looks through the whole library, not just the recommended picks.
+  const browsing = !query.trim() && !category && sort === 'best';
+  const results = useMemo(() => {
+    const found = browsing ? FEATURED : searchLibrary(query, LIBRARY.length, category);
+    return sort === 'best' ? found : sortTasks(found, sort);
+  }, [query, category, sort, browsing]);
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
@@ -51,7 +61,7 @@ export function LibraryModal({
         </View>
         <View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cats}>
-            <Chip label={query.trim() ? 'All' : 'Recommended'} active={!category} onPress={() => setCategory(undefined)} />
+            <Chip label={query.trim() || sort !== 'best' ? 'All' : 'Recommended'} active={!category} onPress={() => setCategory(undefined)} />
             {CATEGORIES.map((c) => (
               <Chip
                 key={c.id}
@@ -61,6 +71,12 @@ export function LibraryModal({
               />
             ))}
           </ScrollView>
+          <View style={styles.sortRow}>
+            <Text style={styles.sortLabel}>Sort</Text>
+            {SORTS.map((o) => (
+              <Chip key={o.key} label={o.label} active={sort === o.key} onPress={() => setSort(o.key)} />
+            ))}
+          </View>
         </View>
         <FlatList
           data={results}
@@ -106,7 +122,9 @@ const makeStyles = themed((c) => ({
     paddingVertical: 11,
     borderRadius: c.radius,
   },
-  cats: { gap: 8, paddingHorizontal: 16, paddingVertical: 12 },
+  cats: { gap: 8, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 },
+  sortRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingBottom: 12 },
+  sortLabel: { color: c.muted, fontSize: 13, fontWeight: '600' },
   list: { paddingHorizontal: 16, paddingBottom: 40, maxWidth: 640, width: '100%', alignSelf: 'center' },
   sub: { color: c.muted, fontSize: 13, marginBottom: 8 },
   empty: { color: c.muted, fontSize: 14, textAlign: 'center', marginTop: 24 },

@@ -180,8 +180,8 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     title: 'Climber',
     description: (g) => `Reach level ${g}`,
     unit: 'level',
-    // Achievement XP is left out so claiming can't feed itself.
-    value: (s) => levelInfo(totalXp({ ...s, achievementClaims: [] })).level,
+    // The level shown in the header, so a level's reward is ready the moment it is reached.
+    value: (s) => levelInfo(totalXp(s)).level,
     tiers: [
       { goal: 5, xp: 25 },
       { goal: 10, xp: 75, reward: theme('Midnight') },
@@ -242,7 +242,7 @@ export function claimAchievement(
   return {
     state: {
       ...state,
-      achievementClaims: [...state.achievementClaims, { achievementId, tier: status.claimed, xp: tier.xp }],
+      achievementClaims: [...state.achievementClaims, { achievementId, tier: status.claimed, xp: tier.xp, date: today }],
     },
     tier,
   };

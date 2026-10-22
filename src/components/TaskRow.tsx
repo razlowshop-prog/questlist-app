@@ -15,8 +15,10 @@ import {
 import { card, FONTS, nativeDriver, themed, useStyles, useTheme } from '../theme';
 
 /**
- * One task, as a numbered line. Completing it fills the check with a soft
- * ring and lets a "+XP" figure rise from the row. When a limit cut the XP, a short note shows instead.
+ * One task, as a numbered line. Completing it pops the check, sends a ring
+ * and a burst of sparks out of it, flashes the row and lets a big "+XP"
+ * figure bounce in, hang for a moment and rise away. When a limit cut the
+ * XP, a short note shows instead.
  * A freshly added task counts down until it may be ticked.
  */
 export function TaskRow({
@@ -43,6 +45,8 @@ export function TaskRow({
   const pop = useRef(new Animated.Value(1)).current;
   const float = useRef(new Animated.Value(0)).current;
   const ring = useRef(new Animated.Value(1)).current;
+  const burst = useRef(new Animated.Value(1)).current;
+  const flash = useRef(new Animated.Value(0)).current;
   const [label, setLabel] = useState<{ text: string; warn: boolean } | null>(null);
   const [waitLeft, setWaitLeft] = useState(() => secondsUntilTickable(task, Date.now()));
   const waitSeconds = QUICK_TICK_MS / 1000;
@@ -68,36 +72,51 @@ export function TaskRow({
     const wasDone = done;
     const { xp, note } = onToggle();
     if (wasDone) return;
-    setLabel(xp > 0 ? { text: `+${xp}`, warn: false } : { text: note ?? '+0 XP', warn: true });
-    if (xp > 0) {
-      ring.setValue(0);
-      Animated.timing(ring, { toValue: 1, duration: 900, easing: Easing.out(Easing.quad), useNativeDriver: nativeDriver }).start();
-    }
+    setLabel(xp > 0 ? { text: `+${xp} XP`, warn: false } : { text: note ?? '+0 XP', warn: true });
+    if (xp > 0) celebrate();
     animate(xp > 0);
   }
 
-  function animate(quick: boolean) {
+  function celebrate() {
+    ring.setValue(0);
+    burst.setValue(0);
+    flash.setValue(0);
+    Animated.parallel([
+      Animated.timing(ring, { toValue: 1, duration: 900, easing: Easing.out(Easing.quad), useNativeDriver: nativeDriver }),
+      Animated.timing(burst, { toValue: 1, duration: 750, easing: Easing.out(Easing.cubic), useNativeDriver: nativeDriver }),
+      Animated.sequence([
+        Animated.timing(flash, { toValue: 1, duration: 120, useNativeDriver: nativeDriver }),
+        Animated.timing(flash, { toValue: 0, duration: 900, easing: Easing.out(Easing.quad), useNativeDriver: nativeDriver }),
+      ]),
+    ]).start();
+  }
+
+  function animate(success: boolean) {
     float.setValue(0);
     Animated.parallel([
       Animated.sequence([
         Animated.timing(pop, { toValue: 0.6, duration: 0, useNativeDriver: nativeDriver }),
         Animated.timing(pop, { toValue: 1, duration: 260, easing: Easing.out(Easing.back(1.6)), useNativeDriver: nativeDriver }),
       ]),
-      Animated.timing(float, {
-        toValue: 1,
-        duration: quick ? 1200 : 1800,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: nativeDriver,
-      }),
-    ]).start(() => setLabel(null));
+      // Linear, so the bounce, the pause and the rise below keep their timing.
+      Animated.timing(float, { toValue: 1, duration: success ? 2400 : 1800, easing: Easing.linear, useNativeDriver: nativeDriver }),
+    ]).start(({ finished }) => finished && setLabel(null));
   }
 
-  const floatStyle = {
-    opacity: float.interpolate({ inputRange: [0, 0.15, 0.75, 1], outputRange: [0, 1, 1, 0] }),
-    transform: [
-      { translateY: float.interpolate({ inputRange: [0, 0.2, 1], outputRange: [6, -2, -22] }) },
-    ],
-  };
+  const floatStyle = label?.warn
+    ? {
+        opacity: float.interpolate({ inputRange: [0, 0.15, 0.75, 1], outputRange: [0, 1, 1, 0] }),
+        transform: [{ translateY: float.interpolate({ inputRange: [0, 0.2, 1], outputRange: [6, -2, -22] }) }],
+      }
+    : {
+        // Bounces in big, settles, hangs for about a second, then rises and fades.
+        opacity: float.interpolate({ inputRange: [0, 0.06, 0.72, 1], outputRange: [0, 1, 1, 0] }),
+        transform: [
+          { translateY: float.interpolate({ inputRange: [0, 0.12, 0.65, 1], outputRange: [12, -4, -8, -40] }) },
+          { scale: float.interpolate({ inputRange: [0, 0.1, 0.18, 1], outputRange: [0.3, 1.35, 1, 1] }) },
+        ],
+      };
+  const flashStyle = { opacity: flash.interpolate({ inputRange: [0, 1], outputRange: [0, 1] }) };
   const rotate = c.check === 'diamond' ? [{ rotate: '45deg' }] : [];
   const ringStyle = {
     opacity: ring.interpolate({ inputRange: [0, 1], outputRange: [0.9, 0] }),
@@ -107,7 +126,8 @@ export function TaskRow({
   const locked = waitLeft > 0 && !done;
 
   return (
-    <View style={s.row}>
+    <View style={[s.row, label && { zIndex: 2 }]}>
+      <Animated.View style={[s.flash, flashStyle]} pointerEvents="none" />
       <Pressable onPress={press} style={s.main} accessibilityRole="checkbox" accessibilityState={{ checked: done }}>
         <Text style={s.num}>{String(index + 1).padStart(2, '0')}</Text>
         <View style={{ flex: 1 }}>
@@ -135,6 +155,24 @@ export function TaskRow({
         <Text style={s.xp}>{taskXp(task)} XP</Text>
         <View style={s.checkWrap}>
           <Animated.View style={[s.ring, ringStyle]} pointerEvents="none" />
+          {SPARKS.map((angle, i) => (
+            <Animated.View
+              key={i}
+              pointerEvents="none"
+              style={[
+                s.spark,
+                i % 2 === 1 && s.sparkSmall,
+                {
+                  opacity: burst.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 1, 0] }),
+                  transform: [
+                    { translateX: burst.interpolate({ inputRange: [0, 1], outputRange: [0, Math.cos(angle) * (i % 2 ? 26 : 36)] }) },
+                    { translateY: burst.interpolate({ inputRange: [0, 1], outputRange: [0, Math.sin(angle) * (i % 2 ? 26 : 36)] }) },
+                    { rotate: '45deg' },
+                  ],
+                },
+              ]}
+            />
+          ))}
           <Animated.View style={[s.checkbox, done && s.checkboxDone, locked && s.checkboxLocked, { transform: [{ scale: pop }, ...rotate] }]}>
             {done && <Text style={[s.checkmark, c.check === 'diamond' && s.checkmarkDiamond]}>✓</Text>}
           </Animated.View>
@@ -151,6 +189,9 @@ export function TaskRow({
     </View>
   );
 }
+
+/** Directions of the sparks that fly out of the check. */
+const SPARKS = Array.from({ length: 10 }, (_, i) => (i / 10) * Math.PI * 2 - Math.PI / 2);
 
 const makeStyles = themed((c) => ({
   row:
@@ -191,14 +232,27 @@ const makeStyles = themed((c) => ({
   checkmarkDiamond: { transform: [{ rotate: '-45deg' }] },
   deleteWrap: { paddingLeft: 14, paddingVertical: 10 },
   delete: { color: c.faint, fontSize: 13 },
+  flash: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: c.accentSoft,
+    borderRadius: c.listStyle === 'cards' ? c.radius : 0,
+  },
+  spark: { position: 'absolute', width: 6, height: 6, backgroundColor: c.accent },
+  sparkSmall: { width: 4, height: 4, backgroundColor: c.xp },
   float: {
     position: 'absolute',
-    right: 84,
-    top: 8,
-    fontFamily: FONTS.serif,
-    fontStyle: 'italic',
+    right: 64,
+    top: 2,
+    fontFamily: FONTS.serifItalic,
     color: c.accent,
-    fontSize: 20,
+    fontSize: 30,
+    textShadowColor: c.accent,
+    textShadowRadius: 14,
+    textShadowOffset: { width: 0, height: 0 },
   },
-  floatWarn: { fontFamily: FONTS.bodySemiBold, color: c.flame, fontSize: 13, right: 0 },
+  floatWarn: { fontFamily: FONTS.bodySemiBold, color: c.flame, fontSize: 13, right: 0, top: 8, textShadowRadius: 0 },
 }));

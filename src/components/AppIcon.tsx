@@ -1,16 +1,16 @@
 import {
-  Award, Bath, BookOpen, Brain, Briefcase, Cake, CalendarCheck, CalendarDays, ClipboardList, Dumbbell,
-  Flame, Footprints, HandHeart, HeartPulse, House, ListChecks, Moon, Mountain, MountainSnow, Palette,
-  PawPrint, Salad, Smartphone, Target, TreePine, Trophy, Users, Wallet, Weight, Zap, type LucideIcon,
+  Award, Bath, BookOpen, Brain, Briefcase, Cake, CalendarCheck, CalendarDays, ClipboardList, Compass, Crown, Dumbbell,
+  Flame, FlameKindling, Footprints, Gem, HandHeart, HeartPulse, Hourglass, House, ListChecks, Moon, Mountain, Palette,
+  PawPrint, Rocket, Salad, Shield, Shuffle, Smartphone, Sun, Target, Timer, TreePine, Trophy, Users, Wallet, Weight, Zap, type LucideIcon,
 } from 'lucide-react-native';
 import { View } from 'react-native';
 import type { IconName } from '../icons';
 import { useTheme } from '../theme';
 
 const ICONS: Record<IconName, LucideIcon> = {
-  Award, Bath, BookOpen, Brain, Briefcase, Cake, CalendarCheck, CalendarDays, ClipboardList, Dumbbell,
-  Flame, Footprints, HandHeart, HeartPulse, House, ListChecks, Moon, Mountain, MountainSnow, Palette,
-  PawPrint, Salad, Smartphone, Target, TreePine, Trophy, Users, Wallet, Weight, Zap,
+  Award, Bath, BookOpen, Brain, Briefcase, Cake, CalendarCheck, CalendarDays, ClipboardList, Compass, Crown, Dumbbell,
+  Flame, FlameKindling, Footprints, Gem, HandHeart, HeartPulse, Hourglass, House, ListChecks, Moon, Mountain, Palette,
+  PawPrint, Rocket, Salad, Shield, Shuffle, Smartphone, Sun, Target, Timer, TreePine, Trophy, Users, Wallet, Weight, Zap,
 };
 
 /** A line icon: 1.5 stroke, 20 px in lists, 28 px on badges. */

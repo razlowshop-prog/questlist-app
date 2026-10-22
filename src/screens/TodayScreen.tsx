@@ -1,32 +1,27 @@
-import { useMemo, useState } from 'react';
-import { Plus } from 'lucide-react-native';
-import { FlatList, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ChevronDown, ChevronUp, Plus, Sparkles } from 'lucide-react-native';
+import { Pressable, ScrollView, SectionList, Text, TextInput, View } from 'react-native';
 import { Chip } from '../components/Chip';
-import { LibraryRow, perWeekLabel } from '../components/LibraryRow';
-import { defaultSchedule, SchedulePicker, scheduleSummary, scheduleToTask, type Schedule } from '../components/SchedulePicker';
+import { AppIcon } from '../components/AppIcon';
+import { LibraryRow } from '../components/LibraryRow';
+import { defaultSchedule, scheduleProblem, SchedulePicker, scheduleToTask, type Schedule } from '../components/SchedulePicker';
+import { StreakCard } from '../components/StreakCard';
 import { TaskRow } from '../components/TaskRow';
 import {
   dayLabel,
-  DURATIONS,
   durationLabel,
   isDoneToday,
-  MAX_TASK_MINUTES,
   xpFor,
-  type Difficulty,
   type GameState,
   type Repeat,
+  type StreakStatus,
   type Task,
   type TaskPlan,
 } from '../game';
-import { FEATURED, searchLibrary, type LibraryTask } from '../library';
+import { CATEGORIES, categoryOf, FEATURED, guessCategory, OTHER_CATEGORY, searchLibrary, taskCategory, type LibraryTask } from '../library';
+import { estimateMinutes } from '../estimate';
 import { quoteOfTheDay } from '../quotes';
 import { card, eyebrow, FONTS, themed, useStyles, useTheme, headingCase } from '../theme';
-
-const EFFORTS: { key: Difficulty; label: string }[] = [
-  { key: 'easy', label: 'Easy' },
-  { key: 'medium', label: 'Medium' },
-  { key: 'hard', label: 'Hard' },
-];
 
 function partOfDay(hour: number): string {
   if (hour < 5) return 'evening';
@@ -39,11 +34,14 @@ export function TodayScreen({
   state,
   tasks,
   upcoming,
+  streak,
+  onOpenStreak,
   today,
   loaded,
   addedTitles,
+  draft,
+  onDraftUsed,
   onAdd,
-  onAddFromLibrary,
   onOpenLibrary,
   onToggle,
   onDelete,
@@ -51,11 +49,15 @@ export function TodayScreen({
   state: GameState;
   tasks: Task[];
   upcoming: Task[];
+  streak: StreakStatus;
+  onOpenStreak: () => void;
   today: string;
   loaded: boolean;
   addedTitles: Set<string>;
-  onAdd: (title: string, difficulty: Difficulty, repeat: Repeat, minutes: number, plan: TaskPlan) => void;
-  onAddFromLibrary: (task: LibraryTask) => void;
+  /** A library task picked elsewhere, to plan here before adding. */
+  draft?: LibraryTask;
+  onDraftUsed: () => void;
+  onAdd: (title: string, repeat: Repeat, minutes: number, plan: TaskPlan) => void;
   onOpenLibrary: () => void;
   onToggle: (task: Task) => { xp: number; note?: string };
   onDelete: (task: Task) => void;
@@ -63,61 +65,83 @@ export function TodayScreen({
   const s = useStyles(makeStyles);
   const c = useTheme();
   const [title, setTitle] = useState('');
-  const [minutes, setMinutes] = useState(15);
-  const [custom, setCustom] = useState(false);
-  const [customHours, setCustomHours] = useState('');
-  const [customMins, setCustomMins] = useState('');
-  const [difficulty, setDifficulty] = useState<Difficulty>('easy');
   const [schedule, setSchedule] = useState<Schedule>(() => defaultSchedule(today));
-  const [options, setOptions] = useState(false);
-  const doneCount = tasks.filter((t) => isDoneToday(state, t, today)).length;
+  /** Chosen by the user; otherwise guessed from the title. */
+  const [category, setCategory] = useState<string | undefined>();
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  // Groups just ticked stay open while the tick celebrates, then fold away.
+  const [holdOpen, setHoldOpen] = useState<Record<string, number>>({});
   const quote = quoteOfTheDay(today);
-  const suggestions = useMemo(() => (title.trim().length >= 2 ? searchLibrary(title, 4) : []), [title]);
-  // Common tasks for one-tap adding while the field is empty.
+  const typed = title.trim();
+  const suggestions = useMemo(
+    () => (typed.length >= 2 ? searchLibrary(typed, 4).filter((t) => t.title.toLowerCase() !== typed.toLowerCase()) : []),
+    [typed],
+  );
+  // Common tasks to start from while the field is empty.
   const quick = useMemo(() => FEATURED.filter((t) => !addedTitles.has(t.title)).slice(0, 10), [addedTitles]);
-  // Typed a library task by name and kept the defaults: use its real time, effort and frequency.
-  const known = options ? undefined : suggestions.find((t) => t.title.toLowerCase() === title.trim().toLowerCase());
+  const chosenCategory = category ?? guessCategory(typed) ?? OTHER_CATEGORY;
   // The planned day can't be left behind after midnight.
   const shownSchedule = schedule.date < today ? { ...schedule, date: today } : schedule;
 
-  const customMinutes = Math.min(
-    (parseInt(customHours, 10) || 0) * 60 + (parseInt(customMins, 10) || 0),
-    MAX_TASK_MINUTES,
-  );
-  const chosenMinutes = custom ? customMinutes : minutes;
-  const canAdd = title.trim().length > 0 && chosenMinutes > 0;
-  const effortLabel = (d: Difficulty) => EFFORTS.find((e) => e.key === d)!.label;
-  const summary = known
-    ? `${durationLabel(known.minutes)} · ${effortLabel(known.difficulty)} · ${perWeekLabel(known.perWeek)} · +${xpFor(known.minutes, known.difficulty)} XP`
-    : [
-        chosenMinutes > 0 ? durationLabel(chosenMinutes) : 'Set a time',
-        effortLabel(difficulty),
-        scheduleSummary(shownSchedule, title, today),
-        ...(canAdd ? [`+${xpFor(chosenMinutes, difficulty)} XP`] : []),
-      ].join(' · ');
+  // Time is judged from the title, so it can't be inflated for XP.
+  const estimate = useMemo(() => estimateMinutes(typed), [typed]);
+  const chosenMinutes = estimate.minutes;
+  const problem = typed ? scheduleProblem(shownSchedule, typed) : undefined;
+  const canAdd = typed.length > 0 && chosenMinutes > 0 && !problem;
+
+  /** Fills the form from a library task so its days and frequency can be picked before adding. */
+  function prefill(t: LibraryTask) {
+    setTitle(t.title);
+    setSchedule({ ...defaultSchedule(today), repeat: t.perWeek > 0, perWeek: t.perWeek > 0 ? t.perWeek : 3 });
+    setCategory(t.category);
+  }
+
+  useEffect(() => {
+    if (!draft) return;
+    prefill(draft);
+    onDraftUsed();
+  }, [draft]);
+
+  function reset() {
+    setTitle('');
+    setSchedule(defaultSchedule(today));
+    setCategory(undefined);
+  }
 
   function add() {
     if (!canAdd) return;
-    if (known) {
-      onAddFromLibrary(known);
-      setTitle('');
-      return;
-    }
-    const { repeat, plan } = scheduleToTask(shownSchedule, title, today);
-    onAdd(title, difficulty, repeat, chosenMinutes, plan);
-    setTitle('');
-    setSchedule(defaultSchedule(today));
-    setOptions(false);
+    const { repeat, plan } = scheduleToTask(shownSchedule, typed, today);
+    onAdd(typed, repeat, chosenMinutes, { ...plan, category: chosenCategory });
+    reset();
   }
 
-  const digits = (v: string) => v.replace(/[^0-9]/g, '').slice(0, 2);
+  // Today's tasks grouped by category, in the library's order, "Other" last.
+  const sections = useMemo(() => {
+    const order = [...CATEGORIES.map((cat) => cat.id), OTHER_CATEGORY];
+    const groups = new Map<string, Task[]>();
+    for (const t of tasks) {
+      const id = taskCategory(t);
+      groups.set(id, [...(groups.get(id) ?? []), t]);
+    }
+    return order
+      .filter((id) => groups.has(id))
+      .map((id) => {
+        const all = groups.get(id)!;
+        const done = all.filter((t) => isDoneToday(state, t, today)).length;
+        // A finished group folds away on its own unless opened.
+        const isCollapsed = collapsed[id] ?? (done === all.length && all.length > 0 && !holdOpen[id]);
+        return { id, done, total: all.length, collapsed: isCollapsed, data: isCollapsed ? [] : all };
+      });
+  }, [tasks, state, today, collapsed, holdOpen]);
+  const doneCount = sections.reduce((n, sec) => n + sec.done, 0);
 
   return (
-    <FlatList
-      data={tasks}
+    <SectionList
+      sections={sections}
       keyExtractor={(t) => t.id}
       contentContainerStyle={s.content}
       keyboardShouldPersistTaps="handled"
+      stickySectionHeadersEnabled={false}
       ListHeaderComponent={
         <>
           <Text style={s.date}>
@@ -126,6 +150,8 @@ export function TodayScreen({
           <Text style={s.greeting}>
             Good <Text style={s.greetingEm}>{partOfDay(new Date().getHours())}</Text>, {state.profile.name}.
           </Text>
+
+          <StreakCard streak={streak} onPress={onOpenStreak} />
 
           <View style={s.quote}>
             <Text style={s.quoteText}>“{quote.text}”</Text>
@@ -154,17 +180,17 @@ export function TodayScreen({
               </Pressable>
             </View>
 
-            {title.trim().length === 0 && quick.length > 0 && (
+            {typed.length === 0 && quick.length > 0 && (
               <View style={{ gap: 8 }}>
                 <Text style={s.small}>Quick add</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.quickRow}>
                   {quick.map((t) => (
                     <Pressable
                       key={t.title}
-                      onPress={() => onAddFromLibrary(t)}
+                      onPress={() => prefill(t)}
                       style={s.quick}
                       accessibilityRole="button"
-                      accessibilityLabel={`Add ${t.title}`}
+                      accessibilityLabel={`Plan ${t.title}`}
                     >
                       <Plus size={14} color={c.accent} strokeWidth={2} />
                       <Text style={s.quickText}>{t.title}</Text>
@@ -179,97 +205,49 @@ export function TodayScreen({
                 <Text style={s.small}>Suggestions</Text>
                 <View style={{ marginTop: 8 }}>
                   {suggestions.map((t) => (
-                    <LibraryRow
-                      key={t.title}
-                      task={t}
-                      added={addedTitles.has(t.title)}
-                      onAdd={() => {
-                        onAddFromLibrary(t);
-                        setTitle('');
-                      }}
-                    />
+                    <LibraryRow key={t.title} task={t} added={addedTitles.has(t.title)} onAdd={() => prefill(t)} />
                   ))}
                 </View>
               </View>
             )}
 
-            {title.trim().length > 0 && (
+            {typed.length > 0 && (
               <>
-                <Pressable
-                  onPress={() => setOptions(!options)}
-                  style={s.summary}
-                  accessibilityRole="button"
-                  accessibilityState={{ expanded: options }}
-                >
-                  <Text style={s.summaryText} numberOfLines={2}>
-                    {summary}
+                <View style={s.estimate} accessibilityLabel={`Takes about ${durationLabel(chosenMinutes)}, ${xpFor(chosenMinutes)} XP`}>
+                  <Sparkles size={16} color={c.accent} strokeWidth={1.5} aria-hidden />
+                  <Text style={s.estimateText}>
+                    About <Text style={s.estimateStrong}>{durationLabel(chosenMinutes)}</Text> · +{xpFor(chosenMinutes)} XP
                   </Text>
-                  <Text style={s.summaryToggle}>{options ? 'Done' : 'Options'}</Text>
+                  <Text style={s.estimateNote}>{estimate.source === 'default' ? 'standard time' : 'estimated from the title'}</Text>
+                </View>
+                <SchedulePicker value={shownSchedule} onChange={setSchedule} title={typed} today={today} />
+                <Text style={s.small}>Category</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.quickRow}>
+                  {[...CATEGORIES, { id: OTHER_CATEGORY, label: 'Other' }].map((cat) => (
+                    <Chip key={cat.id} label={cat.label} active={chosenCategory === cat.id} onPress={() => setCategory(cat.id)} />
+                  ))}
+                </ScrollView>
+                <Pressable
+                  onPress={add}
+                  disabled={!canAdd}
+                  style={[s.addButton, !canAdd && { opacity: 0.4 }]}
+                  accessibilityRole="button"
+                >
+                  <Text style={s.addButtonText}>
+                    {problem ? 'Pick the days first' : `Add task${canAdd ? ` · +${xpFor(chosenMinutes)} XP` : ''}`}
+                  </Text>
                 </Pressable>
-                {options && (
-                  <>
-                    <Text style={s.small}>How long does it take?</Text>
-                    <View style={s.chipRow}>
-                      {DURATIONS.map((m) => (
-                        <Chip
-                          key={m}
-                          label={durationLabel(m)}
-                          active={!custom && minutes === m}
-                          onPress={() => {
-                            setCustom(false);
-                            setMinutes(m);
-                          }}
-                        />
-                      ))}
-                      <Chip label="Custom" active={custom} onPress={() => setCustom(true)} />
-                    </View>
-                    {custom && (
-                      <View style={s.customRow}>
-                        <TextInput
-                          value={customHours}
-                          onChangeText={(v) => setCustomHours(digits(v))}
-                          placeholder="0"
-                          placeholderTextColor={c.muted}
-                          keyboardType="number-pad"
-                          style={s.customInput}
-                        />
-                        <Text style={s.customUnit}>h</Text>
-                        <TextInput
-                          value={customMins}
-                          onChangeText={(v) => setCustomMins(digits(v))}
-                          placeholder="0"
-                          placeholderTextColor={c.muted}
-                          keyboardType="number-pad"
-                          style={s.customInput}
-                        />
-                        <Text style={s.customUnit}>min</Text>
-                      </View>
-                    )}
-                    <Text style={s.small}>How demanding?</Text>
-                    <View style={s.chipRow}>
-                      {EFFORTS.map((e) => (
-                        <Chip key={e.key} label={e.label} active={difficulty === e.key} onPress={() => setDifficulty(e.key)} />
-                      ))}
-                    </View>
-                    <SchedulePicker value={shownSchedule} onChange={setSchedule} title={title} today={today} />
-                    <Pressable
-                      onPress={add}
-                      disabled={!canAdd}
-                      style={[s.addButton, !canAdd && { opacity: 0.4 }]}
-                      accessibilityRole="button"
-                    >
-                      <Text style={s.addButtonText}>
-                        Add task{canAdd ? ` · +${xpFor(chosenMinutes, difficulty)} XP` : ''}
-                      </Text>
-                    </Pressable>
-                  </>
-                )}
+                <Pressable onPress={reset} style={s.cancel} accessibilityRole="button">
+                  <Text style={s.cancelText}>Cancel</Text>
+                </Pressable>
               </>
             )}
 
-            <Pressable onPress={onOpenLibrary} style={s.libraryButton} accessibilityRole="button">
-              <Text style={s.libraryText}>Browse the task library</Text>
-            </Pressable>
+            {typed.length === 0 && (
+              <Pressable onPress={onOpenLibrary} style={s.libraryButton} accessibilityRole="button">
+                <Text style={s.libraryText}>Browse the task library</Text>
+              </Pressable>
+            )}
           </View>
 
           <View style={s.sectionRow}>
@@ -280,6 +258,28 @@ export function TodayScreen({
           </View>
         </>
       }
+      renderSectionHeader={({ section }) => {
+        const cat = categoryOf(section.id);
+        return (
+          <Pressable
+            onPress={() => setCollapsed((m) => ({ ...m, [section.id]: !section.collapsed }))}
+            style={s.groupHeader}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: !section.collapsed }}
+          >
+            {cat ? <AppIcon name={cat.icon} size={18} color={section.done === section.total ? c.accent : c.muted} /> : null}
+            <Text style={s.groupTitle}>{cat?.label ?? 'Other'}</Text>
+            <Text style={[s.groupCount, section.done === section.total && { color: c.accent }]}>
+              {section.done}/{section.total}
+            </Text>
+            {section.collapsed ? (
+              <ChevronDown size={16} color={c.muted} strokeWidth={1.5} />
+            ) : (
+              <ChevronUp size={16} color={c.muted} strokeWidth={1.5} />
+            )}
+          </Pressable>
+        );
+      }}
       ListEmptyComponent={
         loaded ? <Text style={s.empty}>No tasks for today. Add one above or pick some from the library.</Text> : undefined
       }
@@ -305,13 +305,23 @@ export function TodayScreen({
           state={state}
           today={today}
           done={isDoneToday(state, item, today)}
-          onToggle={() => onToggle(item)}
+          onToggle={() => {
+            const id = taskCategory(item);
+            const at = Date.now();
+            setHoldOpen((m) => ({ ...m, [id]: at }));
+            // Only the latest tick in the group closes it again.
+            setTimeout(() => setHoldOpen((m) => (m[id] === at ? { ...m, [id]: 0 } : m)), HOLD_OPEN_MS);
+            return onToggle(item);
+          }}
           onDelete={() => onDelete(item)}
         />
       )}
     />
   );
 }
+
+/** How long a just-finished group stays open: the tick's "+XP" takes about 2.4 s. */
+const HOLD_OPEN_MS = 2600;
 
 const makeStyles = themed((c) => ({
   content: { padding: 20, paddingTop: 12, paddingBottom: 48, maxWidth: 640, width: '100%', alignSelf: 'center' },
@@ -336,9 +346,11 @@ const makeStyles = themed((c) => ({
     borderColor: c.border,
   },
   quickText: { color: c.text, fontSize: 13, fontWeight: '600' },
-  summary: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  summaryText: { flex: 1, color: c.muted, fontSize: 13 },
-  summaryToggle: { ...eyebrow(c, 11), fontWeight: '700', color: c.accent },
+  cancel: { alignItems: 'center', paddingVertical: 4 },
+  cancelText: { ...eyebrow(c, 11), color: c.muted },
+  groupHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 18, paddingBottom: 8 },
+  groupTitle: { flex: 1, color: c.text, fontSize: 15, fontWeight: '700' },
+  groupCount: { color: c.muted, fontSize: 13, fontVariant: ['tabular-nums'] },
   upcoming: { marginTop: 28, gap: 2 },
   upcomingRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.border },
   upcomingTitle: { flex: 1, color: c.text, fontSize: 15 },
@@ -354,18 +366,10 @@ const makeStyles = themed((c) => ({
   },
   small: { ...eyebrow(c, 11), color: c.muted },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
-  customRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  customInput: {
-    width: 56,
-    textAlign: 'center',
-    color: c.text,
-    fontSize: 16,
-    fontWeight: '600',
-    paddingVertical: 8,
-    borderRadius: c.radius,
-    backgroundColor: c.surfaceAlt,
-  },
-  customUnit: { color: c.muted, fontSize: 14, fontWeight: '600', marginRight: 8 },
+  estimate: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: 8, rowGap: 2 },
+  estimateText: { color: c.text, fontSize: 14 },
+  estimateStrong: { fontWeight: '700' },
+  estimateNote: { color: c.faint, fontSize: 12 },
   addButton: { backgroundColor: c.accent, minHeight: 48, justifyContent: 'center', borderRadius: c.radius, alignItems: 'center' },
   addButtonText: { ...eyebrow(c, 13), fontWeight: '700', color: c.onAccent },
   libraryButton: {

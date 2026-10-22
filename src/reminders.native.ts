@@ -44,7 +44,7 @@ export async function syncReminders(state: GameState): Promise<void> {
   await ensureChannel();
   for (const r of plan) {
     await Notifications.scheduleNotificationAsync({
-      content: { title: r.title, body: 'Time for this task. Tick it off to earn your XP.', data: { taskId: r.taskId } },
+      content: { title: r.title, body: r.body ?? 'Time for this task. Tick it off to earn your XP.', data: { taskId: r.taskId } },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: r.at, channelId: CHANNEL },
     });
   }

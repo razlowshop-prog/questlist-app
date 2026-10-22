@@ -1,12 +1,13 @@
 import { loadAsync } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
+import { Activity, Award, Sun, Target, User, type LucideIcon } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { XpHeader } from './src/components/XpHeader';
 import {
   addTask,
   claimChallenge,
-  currentStreak,
+  streakStatus,
   dayKey,
   deleteTask,
   emptyState,
@@ -27,8 +28,19 @@ import {
   type GameState,
   type Task,
 } from './src/game';
-import { achievementStatuses, claimableCount, claimAchievement, TIER_NAMES, unlockedRewards } from './src/achievements';
+import {
+  achievementStatuses,
+  claimableCount,
+  claimAchievement,
+  LEVEL_MILESTONES,
+  TIER_NAMES,
+  unlockedRewards,
+  type LevelMilestone,
+} from './src/achievements';
+import { Celebration, type CelebrationEvent } from './src/components/Celebration';
+import { LevelDetails } from './src/components/LevelDetails';
 import { AchievementsScreen } from './src/screens/AchievementsScreen';
+import { ActivityScreen } from './src/screens/ActivityScreen';
 import { ChallengesScreen } from './src/screens/ChallengesScreen';
 import { LibraryModal } from './src/screens/LibraryModal';
 import { SetupScreen, type SetupPick } from './src/screens/SetupScreen';
@@ -36,6 +48,8 @@ import { ProfileScreen } from './src/screens/ProfileScreen';
 import { TodayScreen } from './src/screens/TodayScreen';
 import type { LibraryTask } from './src/library';
 import { fontFilesFor } from './src/fonts';
+import { trophyStatuses } from './src/trophies';
+import { withEstimatedTimes } from './src/estimate';
 import { askReminderPermission, REMINDERS_SUPPORTED, syncReminders } from './src/reminders';
 import { loadState, saveState } from './src/storage';
 import { eyebrow, nativeDriver, themeById, themed, ThemeProvider, THEMES, withFonts } from './src/theme';
@@ -43,13 +57,14 @@ import { eyebrow, nativeDriver, themeById, themed, ThemeProvider, THEMES, withFo
 /** Browser previews are built with this on so every theme can be tried without unlocking it. */
 const PREVIEW_ALL_THEMES = process.env.EXPO_PUBLIC_UNLOCK_THEMES === '1';
 
-type Tab = 'today' | 'challenges' | 'awards' | 'profile';
+type Tab = 'today' | 'challenges' | 'activity' | 'awards' | 'profile';
 
-const TABS: { key: Tab; label: string }[] = [
-  { key: 'today', label: 'Today' },
-  { key: 'challenges', label: 'Challenges' },
-  { key: 'awards', label: 'Awards' },
-  { key: 'profile', label: 'Profile' },
+const TABS: { key: Tab; label: string; Icon: LucideIcon }[] = [
+  { key: 'today', label: 'Today', Icon: Sun },
+  { key: 'challenges', label: 'Challenges', Icon: Target },
+  { key: 'activity', label: 'Activity', Icon: Activity },
+  { key: 'awards', label: 'Awards', Icon: Award },
+  { key: 'profile', label: 'Profile', Icon: User },
 ];
 
 export default function App() {
@@ -60,6 +75,10 @@ export default function App() {
   const [redoSetup, setRedoSetup] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const toastAnim = useRef(new Animated.Value(0)).current;
+  const [levelOpen, setLevelOpen] = useState(false);
+  const [draft, setDraft] = useState<LibraryTask | undefined>();
+  const [celebration, setCelebration] = useState<CelebrationEvent | null>(null);
+  const bestLevel = useRef<number | null>(null);
   // Theme whose fonts are loaded and which is on screen; a newly picked theme
   // shows once its fonts are ready, so text never flashes in a missing font.
   const [shownThemeId, setShownThemeId] = useState<string | null>(null);
@@ -69,7 +88,7 @@ export default function App() {
 
   useEffect(() => {
     loadState().then((s) => {
-      setState(withDefaults(s, dayKey()));
+      setState(withEstimatedTimes(withDefaults(s, dayKey())));
       setLoaded(true);
     });
   }, []);
@@ -85,12 +104,14 @@ export default function App() {
   }, [state.tasks, state.completions, loaded, today]);
 
   const xp = totalXp(state);
-  const streak = currentStreak(state.completions, today);
+  const streakInfo = useMemo(() => streakStatus(state.completions, today), [state.completions, today]);
+  const streak = streakInfo.days;
   const tasks = useMemo(() => visibleTasks(state, today), [state, today]);
   const upcoming = useMemo(() => upcomingTasks(state, today), [state.tasks, today]);
   const challenges = useMemo(() => weeklyChallenges(state, today), [state, today]);
   const readyToClaim = challenges.filter((c) => c.complete && !c.claimed).length;
   const achievements = useMemo(() => achievementStatuses(state, today), [state, today]);
+  const trophies = useMemo(() => trophyStatuses(state, today), [state, today]);
   const awardsToClaim = claimableCount(state, today);
   const addedTitles = useMemo(() => new Set(state.tasks.map((t) => t.title)), [state.tasks]);
   const rewards = useMemo(() => unlockedRewards(state), [state.achievementClaims]);
@@ -117,7 +138,7 @@ export default function App() {
   const statusBar = c.dark ? 'light' : 'dark';
 
   function addFromLibrary(s: GameState, t: LibraryTask, perWeek = t.perWeek): GameState {
-    return addTask(s, t.title, t.difficulty, perWeek === 0 ? false : perWeek, undefined, t.minutes);
+    return addTask(s, t.title, perWeek === 0 ? false : perWeek, undefined, t.minutes);
   }
 
   function onSetupDone(name: string, goals: string[], picks: SetupPick[]) {
@@ -147,16 +168,45 @@ export default function App() {
     const before = levelInfo(xp);
     const after = levelInfo(totalXp(next));
     setState(next);
-    if (after.level > before.level) {
-      setTimeout(() => showToast(`Level ${after.level}.${after.rank !== before.rank ? ` You are now ${after.rank}.` : ''}`), 500);
+    // Each level is celebrated once, even if a task is unticked and ticked again.
+    bestLevel.current = Math.max(bestLevel.current ?? before.level, before.level);
+    if (after.level > bestLevel.current) {
+      const from = bestLevel.current;
+      bestLevel.current = after.level;
+      const claimed = new Set(next.achievementClaims.filter((a) => a.achievementId === 'level').map((a) => a.tier));
+      const milestone = LEVEL_MILESTONES.filter((m, i) => m.level > from && m.level <= after.level && !claimed.has(i)).at(-1);
+      // After the XP bar has run to the end.
+      setTimeout(
+        () => setCelebration({ level: after.level, rank: after.rank, newRank: after.rank !== before.rank, milestone }),
+        900,
+      );
     }
     return gained;
   }
 
+  /** Collect on the reward pop-up: claims the level achievement up to that level. */
+  function collectLevelReward(milestone: LevelMilestone) {
+    let next = state;
+    const tier = LEVEL_MILESTONES.indexOf(milestone);
+    for (let i = 0; i <= tier; i++) {
+      const done = next.achievementClaims.some((a) => a.achievementId === 'level' && a.tier === tier);
+      if (done) break;
+      const result = claimAchievement(next, 'level', today);
+      if (!result.tier) break;
+      next = result.state;
+    }
+    if (next !== state) apply(next);
+  }
+
   function onToggle(task: Task): { xp: number; note?: string } {
     const wasDone = isDoneToday(state, task, today);
-    const next = toggleTask(state, task.id, today, Date.now());
+    let next = toggleTask(state, task.id, today, Date.now());
     if (next === state) return { xp: 0 };
+    // On the phone, the first finished task asks once whether streak reminders may notify.
+    if (!wasDone && REMINDERS_SUPPORTED && !next.settings.askedNotifications && next.settings.streakReminders !== false) {
+      next = updateSettings(next, { askedNotifications: true });
+      askReminderPermission().catch(() => {});
+    }
     const gained = apply(next);
     if (wasDone) return { xp: 0 };
     const limited = next.completions[next.completions.length - 1].limited;
@@ -205,7 +255,7 @@ export default function App() {
     <ThemeProvider palette={c}>
       <SafeAreaView style={styles.safe}>
         <StatusBar style={statusBar} />
-        <XpHeader totalXp={xp} streak={streak} bonus={streakBonus(streak)} />
+        <XpHeader totalXp={xp} bonus={streakBonus(streak)} onPressLevel={() => setLevelOpen(true)} />
 
         <View style={{ flex: 1 }}>
           {tab === 'today' && (
@@ -213,24 +263,30 @@ export default function App() {
               state={state}
               tasks={tasks}
               upcoming={upcoming}
+              streak={streakInfo}
+              onOpenStreak={() => setLevelOpen(true)}
               today={today}
               loaded={loaded}
               addedTitles={addedTitles}
-              onAdd={(title, difficulty, repeat, minutes, plan) => {
-                setState(addTask(state, title, difficulty, repeat, undefined, minutes, plan));
+              onAdd={(title, repeat, minutes, plan) => {
+                setState(addTask(state, title, repeat, undefined, minutes, plan));
                 if (plan.reminder && REMINDERS_SUPPORTED) {
                   askReminderPermission().then((ok) => {
                     if (!ok) showToast('Notifications are off. Allow them in your phone settings to get reminders.');
                   });
                 }
               }}
-              onAddFromLibrary={(t) => setState(addFromLibrary(state, t))}
+              draft={draft}
+              onDraftUsed={() => setDraft(undefined)}
               onOpenLibrary={() => setLibraryOpen(true)}
               onToggle={onToggle}
               onDelete={(task) => setState(deleteTask(state, task.id))}
             />
           )}
           {tab === 'challenges' && <ChallengesScreen challenges={challenges} today={today} onClaim={onClaim} />}
+          {tab === 'activity' && (
+            <ActivityScreen state={state} today={today} onShareActivity={(share) => setState(updateSettings(state, { shareActivity: share }))} />
+          )}
           {tab === 'awards' && (
             <AchievementsScreen
               achievements={achievements}
@@ -242,7 +298,7 @@ export default function App() {
             <ProfileScreen
               name={state.profile.name}
               stats={profileStats(state, today)}
-              achievements={achievements}
+              trophies={trophies}
               joinedAt={state.joinedAt}
               settings={state.settings}
               unlockedThemes={unlockedThemes}
@@ -262,7 +318,10 @@ export default function App() {
               accessibilityRole="tab"
               accessibilityState={{ selected: tab === t.key }}
             >
-              <Text style={[styles.tabLabel, tab === t.key && styles.tabLabelActive]}>{t.label}</Text>
+              <t.Icon size={20} color={tab === t.key ? c.accent : c.muted} strokeWidth={1.5} aria-hidden />
+              <Text style={[styles.tabLabel, tab === t.key && styles.tabLabelActive]} numberOfLines={1}>
+                {t.label}
+              </Text>
               <View style={[styles.tabMark, tab === t.key && styles.tabMarkActive]} />
               {(t.key === 'challenges' ? readyToClaim : t.key === 'awards' ? awardsToClaim : 0) > 0 && (
                 <View style={styles.dot}>
@@ -276,7 +335,12 @@ export default function App() {
         <LibraryModal
           visible={libraryOpen}
           addedTitles={addedTitles}
-          onAdd={(t) => setState((s) => addFromLibrary(s, t))}
+          onAdd={(t) => {
+            // Picked tasks open in the add form, so days and frequency can be set first.
+            setDraft(t);
+            setLibraryOpen(false);
+            setTab('today');
+          }}
           onClose={() => setLibraryOpen(false)}
         />
 
@@ -284,6 +348,21 @@ export default function App() {
           <Animated.View style={[styles.toast, toastStyle]} pointerEvents="none">
             <Text style={styles.toastText}>{toast}</Text>
           </Animated.View>
+        )}
+
+        <LevelDetails visible={levelOpen} totalXp={xp} streak={streakInfo} onClose={() => setLevelOpen(false)} />
+
+        {celebration && (
+          <Celebration
+            key={celebration.level}
+            event={celebration}
+            onClose={() => setCelebration(null)}
+            onCollect={() => {
+              const m = celebration.milestone;
+              setCelebration(null);
+              if (m) collectLevelReward(m);
+            }}
+          />
         )}
       </SafeAreaView>
     </ThemeProvider>
@@ -295,20 +374,21 @@ const makeStyles = themed((c) => ({
   tabBar: {
     flexDirection: 'row',
     backgroundColor: c.bg,
-    paddingTop: 12,
-    paddingBottom: 14,
+    paddingTop: 10,
+    paddingBottom: 10,
     borderTopWidth: 1,
     borderTopColor: c.border,
   },
-  tab: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 44, gap: 6 },
-  tabLabel: { ...eyebrow(c, 11), color: c.muted },
+  tab: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 44, gap: 4 },
+  // Five tabs share a phone's width, so the spaced capitals are tightened a little.
+  tabLabel: { ...eyebrow(c, 9), ...(c.eyebrowCaps && { letterSpacing: 1.1 }), color: c.muted },
   tabLabelActive: { color: c.dark ? c.accent : c.text },
-  tabMark: { width: 6, height: 6, transform: [{ rotate: '45deg' }], backgroundColor: 'transparent' },
+  tabMark: { width: 5, height: 5, transform: [{ rotate: '45deg' }], backgroundColor: 'transparent' },
   tabMarkActive: { backgroundColor: c.accent },
   dot: {
     position: 'absolute',
-    top: -2,
-    right: '14%',
+    top: -4,
+    right: '20%',
     backgroundColor: c.accent,
     borderRadius: 9,
     minWidth: 18,
