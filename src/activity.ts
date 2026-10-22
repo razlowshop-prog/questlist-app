@@ -1,10 +1,12 @@
 import { ACHIEVEMENTS, TIER_NAMES } from './achievements.ts';
+import { frameName, seasonFrameId } from './cosmetics.ts';
 import {
   addDays,
   CHALLENGE_POOL,
   DEFAULT_MINUTES,
   levelInfo,
   rankFor,
+  restDaysOf,
   streakStatus,
   weekStart,
   type GameState,
@@ -18,7 +20,9 @@ export type ActivityEvent =
   | { kind: 'level'; level: number; from: number; rank?: string }
   | { kind: 'challenge'; title: string; icon: IconName; xp: number }
   | { kind: 'achievement'; title: string; tier: string; icon: IconName; xp: number }
-  | { kind: 'fire'; change: 'up' | 'down' | 'lost'; tier: number; days: number };
+  | { kind: 'fire'; change: 'up' | 'down' | 'lost'; tier: number; days: number }
+  | { kind: 'token'; token: 'rest' | 'double' | 'adfree' | 'recovery' }
+  | { kind: 'season'; frame: string };
 
 export interface ActivityTask {
   title: string;
@@ -118,7 +122,13 @@ export function activityTimeline(state: GameState, today: string): ActivityDay[]
     }
   }
 
-  for (const h of streakStatus(state.completions, today).history) {
+  for (const d of state.restDays ?? []) if (d <= today) dayOf(d).events.push({ kind: 'token', token: 'rest' });
+  if (state.recovery?.used) dayOf(state.recovery.day).events.push({ kind: 'token', token: 'recovery' });
+  for (const d of state.doubleDays ?? []) if (d <= today) dayOf(d).events.push({ kind: 'token', token: 'double' });
+  for (const d of state.adFreeDays ?? []) if (d <= today) dayOf(d).events.push({ kind: 'token', token: 'adfree' });
+  for (const c of state.seasonClaims ?? []) if (c.date <= today) dayOf(c.date).events.push({ kind: 'season', frame: frameName(seasonFrameId(c.month)) });
+
+  for (const h of streakStatus(state.completions, today, restDaysOf(state)).history) {
     dayOf(h.date).events.push({ kind: 'fire', change: h.change, tier: h.tier, days: h.days });
   }
 

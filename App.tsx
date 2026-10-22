@@ -8,6 +8,7 @@ import {
   addTask,
   claimChallenge,
   streakStatus,
+  restDaysOf,
   dayKey,
   deleteTask,
   emptyState,
@@ -32,6 +33,7 @@ import {
   achievementStatuses,
   claimableCount,
   claimAchievement,
+  grantLevelRewards,
   LEVEL_MILESTONES,
   TIER_NAMES,
   unlockedRewards,
@@ -50,11 +52,21 @@ import type { LibraryTask } from './src/library';
 import { fontFilesFor } from './src/fonts';
 import { trophyStatuses } from './src/trophies';
 import { withEstimatedTimes } from './src/estimate';
+import { answerRecovery, recoveryOffer, spendAdFree, spendDoubleXp, spendRestDay, swapChallenge, tokenCounts } from './src/tokens';
+import { TokenStrip } from './src/components/TokenStrip';
+import { Inventory } from './src/components/Inventory';
+import { RecoveryModal } from './src/components/RecoveryModal';
+import { FlameStyleContext } from './src/components/Fire';
+import { CelebrationContext } from './src/components/TaskRow';
+import { emblemStatuses } from './src/emblems';
+import { equippedLooks, ownedLooks } from './src/inventory';
+import { claimSeason, seasonStatus } from './src/seasons';
+import { frameName } from './src/cosmetics';
 import { askReminderPermission, REMINDERS_SUPPORTED, syncReminders } from './src/reminders';
 import { loadState, saveState } from './src/storage';
 import { eyebrow, nativeDriver, themeById, themed, ThemeProvider, THEMES, withFonts } from './src/theme';
 
-/** Browser previews are built with this on so every theme can be tried without unlocking it. */
+/** Browser previews are built with this on so every theme and look can be tried without unlocking it. */
 const PREVIEW_ALL_THEMES = process.env.EXPO_PUBLIC_UNLOCK_THEMES === '1';
 
 type Tab = 'today' | 'challenges' | 'activity' | 'awards' | 'profile';
@@ -76,6 +88,7 @@ export default function App() {
   const [toast, setToast] = useState<string | null>(null);
   const toastAnim = useRef(new Animated.Value(0)).current;
   const [levelOpen, setLevelOpen] = useState(false);
+  const [bagOpen, setBagOpen] = useState(false);
   const [draft, setDraft] = useState<LibraryTask | undefined>();
   const [celebration, setCelebration] = useState<CelebrationEvent | null>(null);
   const bestLevel = useRef<number | null>(null);
@@ -88,7 +101,9 @@ export default function App() {
 
   useEffect(() => {
     loadState().then((s) => {
-      setState(withEstimatedTimes(withDefaults(s, dayKey())));
+      const loadedState = withEstimatedTimes(withDefaults(s, dayKey()));
+      // Level rewards for levels reached before the reward ladder existed.
+      setState(grantLevelRewards(loadedState, levelInfo(totalXp(loadedState)).level));
       setLoaded(true);
     });
   }, []);
@@ -104,7 +119,7 @@ export default function App() {
   }, [state.tasks, state.completions, loaded, today]);
 
   const xp = totalXp(state);
-  const streakInfo = useMemo(() => streakStatus(state.completions, today), [state.completions, today]);
+  const streakInfo = useMemo(() => streakStatus(state.completions, today, restDaysOf(state)), [state.completions, state.restDays, state.recovery, today]);
   const streak = streakInfo.days;
   const tasks = useMemo(() => visibleTasks(state, today), [state, today]);
   const upcoming = useMemo(() => upcomingTasks(state, today), [state.tasks, today]);
@@ -112,13 +127,20 @@ export default function App() {
   const readyToClaim = challenges.filter((c) => c.complete && !c.claimed).length;
   const achievements = useMemo(() => achievementStatuses(state, today), [state, today]);
   const trophies = useMemo(() => trophyStatuses(state, today), [state, today]);
+  const tokens = tokenCounts(state);
   const awardsToClaim = claimableCount(state, today);
   const addedTitles = useMemo(() => new Set(state.tasks.map((t) => t.title)), [state.tasks]);
-  const rewards = useMemo(() => unlockedRewards(state), [state.achievementClaims]);
+  const rewards = useMemo(() => unlockedRewards(state), [state.achievementClaims, state.levelRewards]);
   const unlockedThemes = useMemo(() => {
     const labels = new Set(rewards.map((r) => r.label));
     return new Set(THEMES.filter((t) => !t.reward || labels.has(t.reward) || PREVIEW_ALL_THEMES).map((t) => t.id));
   }, [rewards]);
+  const owned = useMemo(() => ownedLooks(state, PREVIEW_ALL_THEMES), [state.achievementClaims, state.levelRewards, state.seasonClaims]);
+  const looks = equippedLooks(state.settings, owned);
+  const season = useMemo(() => seasonStatus(state, today), [state.completions, state.tasks, state.seasonClaims, today]);
+  const emblems = useMemo(() => emblemStatuses(state), [state.completions, state.tasks]);
+  const recovery = loaded ? recoveryOffer(state, today) : undefined;
+  const bagCount = Object.values(tokens).reduce((sum, n) => sum + Math.max(0, n), 0);
   const wantedTheme = themeById(unlockedThemes.has(state.settings.theme) ? state.settings.theme : 'classic');
   const theme = themeById(shownThemeId ?? wantedTheme.id);
   const c = theme.palette;
@@ -163,18 +185,19 @@ export default function App() {
   }
 
   /** Applies a change and celebrates a level-up. Returns the XP gained. */
-  function apply(next: GameState): number {
-    const gained = totalXp(next) - xp;
+  function apply(change: GameState): number {
+    const gained = totalXp(change) - xp;
     const before = levelInfo(xp);
-    const after = levelInfo(totalXp(next));
+    const after = levelInfo(totalXp(change));
+    // Level rewards (tokens, titles) arrive the moment a level is reached.
+    const next = grantLevelRewards(change, after.level);
     setState(next);
     // Each level is celebrated once, even if a task is unticked and ticked again.
     bestLevel.current = Math.max(bestLevel.current ?? before.level, before.level);
     if (after.level > bestLevel.current) {
       const from = bestLevel.current;
       bestLevel.current = after.level;
-      const claimed = new Set(next.achievementClaims.filter((a) => a.achievementId === 'level').map((a) => a.tier));
-      const milestone = LEVEL_MILESTONES.filter((m, i) => m.level > from && m.level <= after.level && !claimed.has(i)).at(-1);
+      const milestone = LEVEL_MILESTONES.filter((m) => m.level > from && m.level <= after.level).at(-1);
       // After the XP bar has run to the end.
       setTimeout(
         () => setCelebration({ level: after.level, rank: after.rank, newRank: after.rank !== before.rank, milestone }),
@@ -184,10 +207,11 @@ export default function App() {
     return gained;
   }
 
-  /** Collect on the reward pop-up: claims the level achievement up to that level. */
+  /** Collect on the reward pop-up: claims the Climber bonus XP up to that level (other rewards are already given). */
   function collectLevelReward(milestone: LevelMilestone) {
+    const tier = milestone.climberTier;
+    if (tier === undefined) return;
     let next = state;
-    const tier = LEVEL_MILESTONES.indexOf(milestone);
     for (let i = 0; i <= tier; i++) {
       const done = next.achievementClaims.some((a) => a.achievementId === 'level' && a.tier === tier);
       if (done) break;
@@ -196,6 +220,11 @@ export default function App() {
       next = result.state;
     }
     if (next !== state) apply(next);
+  }
+
+  function takeRestDay(day: string) {
+    setState(spendRestDay(state, day, today));
+    showToast(day === today ? 'Rest day: your streak is safe today' : 'Streak saved with a rest day');
   }
 
   function onToggle(task: Task): { xp: number; note?: string } {
@@ -253,118 +282,194 @@ export default function App() {
 
   return (
     <ThemeProvider palette={c}>
-      <SafeAreaView style={styles.safe}>
-        <StatusBar style={statusBar} />
-        <XpHeader totalXp={xp} bonus={streakBonus(streak)} onPressLevel={() => setLevelOpen(true)} />
+      <FlameStyleContext.Provider value={looks.flameStyle}>
+        <CelebrationContext.Provider value={looks.celebration}>
+          <SafeAreaView style={styles.safe}>
+            <StatusBar style={statusBar} />
+            <XpHeader
+              totalXp={xp}
+              bonus={streakBonus(streak)}
+              onPressLevel={() => setLevelOpen(true)}
+              onOpenBag={() => setBagOpen(true)}
+              bagCount={bagCount}
+            />
 
-        <View style={{ flex: 1 }}>
-          {tab === 'today' && (
-            <TodayScreen
-              state={state}
-              tasks={tasks}
-              upcoming={upcoming}
-              streak={streakInfo}
-              onOpenStreak={() => setLevelOpen(true)}
-              today={today}
-              loaded={loaded}
-              addedTitles={addedTitles}
-              onAdd={(title, repeat, minutes, plan) => {
-                setState(addTask(state, title, repeat, undefined, minutes, plan));
-                if (plan.reminder && REMINDERS_SUPPORTED) {
-                  askReminderPermission().then((ok) => {
-                    if (!ok) showToast('Notifications are off. Allow them in your phone settings to get reminders.');
-                  });
-                }
-              }}
-              draft={draft}
-              onDraftUsed={() => setDraft(undefined)}
-              onOpenLibrary={() => setLibraryOpen(true)}
-              onToggle={onToggle}
-              onDelete={(task) => setState(deleteTask(state, task.id))}
-            />
-          )}
-          {tab === 'challenges' && <ChallengesScreen challenges={challenges} today={today} onClaim={onClaim} />}
-          {tab === 'activity' && (
-            <ActivityScreen state={state} today={today} onShareActivity={(share) => setState(updateSettings(state, { shareActivity: share }))} />
-          )}
-          {tab === 'awards' && (
-            <AchievementsScreen
-              achievements={achievements}
-              rewards={rewards}
-              onClaim={onClaimAchievement}
-            />
-          )}
-          {tab === 'profile' && (
-            <ProfileScreen
-              name={state.profile.name}
-              stats={profileStats(state, today)}
-              trophies={trophies}
-              joinedAt={state.joinedAt}
-              settings={state.settings}
-              unlockedThemes={unlockedThemes}
-              onRename={(name) => setState(setName(state, name))}
-              onSettings={(changes) => setState(updateSettings(state, changes))}
-              onRedoSetup={() => setRedoSetup(true)}
-            />
-          )}
-        </View>
-
-        <View style={styles.tabBar}>
-          {TABS.map((t) => (
-            <Pressable
-              key={t.key}
-              onPress={() => setTab(t.key)}
-              style={styles.tab}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: tab === t.key }}
-            >
-              <t.Icon size={20} color={tab === t.key ? c.accent : c.muted} strokeWidth={1.5} aria-hidden />
-              <Text style={[styles.tabLabel, tab === t.key && styles.tabLabelActive]} numberOfLines={1}>
-                {t.label}
-              </Text>
-              <View style={[styles.tabMark, tab === t.key && styles.tabMarkActive]} />
-              {(t.key === 'challenges' ? readyToClaim : t.key === 'awards' ? awardsToClaim : 0) > 0 && (
-                <View style={styles.dot}>
-                  <Text style={styles.dotText}>{t.key === 'challenges' ? readyToClaim : awardsToClaim}</Text>
-                </View>
+            <View style={{ flex: 1 }}>
+              {tab === 'today' && (
+                <TodayScreen
+                  state={state}
+                  tasks={tasks}
+                  upcoming={upcoming}
+                  streak={streakInfo}
+                  onOpenStreak={() => setLevelOpen(true)}
+                  tokenStrip={
+                    <TokenStrip
+                      state={state}
+                      today={today}
+                      onRest={takeRestDay}
+                    />
+                  }
+                  today={today}
+                  loaded={loaded}
+                  addedTitles={addedTitles}
+                  onAdd={(title, repeat, minutes, plan) => {
+                    setState(addTask(state, title, repeat, undefined, minutes, plan));
+                    if (plan.reminder && REMINDERS_SUPPORTED) {
+                      askReminderPermission().then((ok) => {
+                        if (!ok) showToast('Notifications are off. Allow them in your phone settings to get reminders.');
+                      });
+                    }
+                  }}
+                  draft={draft}
+                  onDraftUsed={() => setDraft(undefined)}
+                  onOpenLibrary={() => setLibraryOpen(true)}
+                  onToggle={onToggle}
+                  onDelete={(task) => setState(deleteTask(state, task.id))}
+                />
               )}
-            </Pressable>
-          ))}
-        </View>
+              {tab === 'challenges' && (
+                <ChallengesScreen
+                  challenges={challenges}
+                  today={today}
+                  onClaim={onClaim}
+                  swapsLeft={tokens.reroll}
+                  onSwap={(id) => {
+                    const next = swapChallenge(state, id, today);
+                    if (next !== state) {
+                      setState(next);
+                      showToast('Challenge swapped');
+                    }
+                  }}
+                  season={season}
+                  onClaimSeason={() => {
+                    setState(claimSeason(state, today));
+                    showToast(`${frameName(season.frame)} frame won`);
+                  }}
+                />
+              )}
+              {tab === 'activity' && (
+                <ActivityScreen state={state} today={today} onShareActivity={(share) => setState(updateSettings(state, { shareActivity: share }))} />
+              )}
+              {tab === 'awards' && (
+                <AchievementsScreen
+                  achievements={achievements}
+                  rewards={rewards}
+                  onClaim={onClaimAchievement}
+                />
+              )}
+              {tab === 'profile' && (
+                <ProfileScreen
+                  name={state.profile.name}
+                  stats={profileStats(state, today)}
+                  trophies={trophies}
+                  joinedAt={state.joinedAt}
+                  settings={state.settings}
+                  unlockedThemes={unlockedThemes}
+                  title={looks.title}
+                  frame={looks.frame}
+                  emblems={emblems}
+                  onOpenBag={() => setBagOpen(true)}
+                  onRename={(name) => setState(setName(state, name))}
+                  onSettings={(changes) => setState(updateSettings(state, changes))}
+                  onRedoSetup={() => setRedoSetup(true)}
+                />
+              )}
+            </View>
 
-        <LibraryModal
-          visible={libraryOpen}
-          addedTitles={addedTitles}
-          onAdd={(t) => {
-            // Picked tasks open in the add form, so days and frequency can be set first.
-            setDraft(t);
-            setLibraryOpen(false);
-            setTab('today');
-          }}
-          onClose={() => setLibraryOpen(false)}
-        />
+            <View style={styles.tabBar}>
+              {TABS.map((t) => (
+                <Pressable
+                  key={t.key}
+                  onPress={() => setTab(t.key)}
+                  style={styles.tab}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: tab === t.key }}
+                >
+                  <t.Icon size={20} color={tab === t.key ? c.accent : c.muted} strokeWidth={1.5} aria-hidden />
+                  <Text style={[styles.tabLabel, tab === t.key && styles.tabLabelActive]} numberOfLines={1}>
+                    {t.label}
+                  </Text>
+                  <View style={[styles.tabMark, tab === t.key && styles.tabMarkActive]} />
+                  {(t.key === 'challenges' ? readyToClaim : t.key === 'awards' ? awardsToClaim : 0) > 0 && (
+                    <View style={styles.dot}>
+                      <Text style={styles.dotText}>{t.key === 'challenges' ? readyToClaim : awardsToClaim}</Text>
+                    </View>
+                  )}
+                </Pressable>
+              ))}
+            </View>
 
-        {toast && (
-          <Animated.View style={[styles.toast, toastStyle]} pointerEvents="none">
-            <Text style={styles.toastText}>{toast}</Text>
-          </Animated.View>
-        )}
+            <LibraryModal
+              visible={libraryOpen}
+              addedTitles={addedTitles}
+              onAdd={(t) => {
+                // Picked tasks open in the add form, so days and frequency can be set first.
+                setDraft(t);
+                setLibraryOpen(false);
+                setTab('today');
+              }}
+              onClose={() => setLibraryOpen(false)}
+            />
 
-        <LevelDetails visible={levelOpen} totalXp={xp} streak={streakInfo} onClose={() => setLevelOpen(false)} />
+            {toast && (
+              <Animated.View style={[styles.toast, toastStyle]} pointerEvents="none">
+                <Text style={styles.toastText}>{toast}</Text>
+              </Animated.View>
+            )}
 
-        {celebration && (
-          <Celebration
-            key={celebration.level}
-            event={celebration}
-            onClose={() => setCelebration(null)}
-            onCollect={() => {
-              const m = celebration.milestone;
-              setCelebration(null);
-              if (m) collectLevelReward(m);
-            }}
-          />
-        )}
-      </SafeAreaView>
+            <LevelDetails visible={levelOpen} totalXp={xp} streak={streakInfo} onClose={() => setLevelOpen(false)} />
+
+            <Inventory
+              visible={bagOpen}
+              state={state}
+              today={today}
+              level={levelInfo(xp).level}
+              fireTier={streakInfo.tier}
+              initials={state.profile.name.trim().slice(0, 2).toUpperCase() || '?'}
+              owned={owned}
+              season={season}
+              onClose={() => setBagOpen(false)}
+              onRest={takeRestDay}
+              onDouble={() => {
+                setState(spendDoubleXp(state, today));
+                showToast('Double XP is on for the rest of today');
+              }}
+              onAdFree={() => {
+                setState(spendAdFree(state, today));
+                showToast('No ads for the rest of today');
+              }}
+              onOpenChallenges={() => {
+                setBagOpen(false);
+                setTab('challenges');
+              }}
+              onEquip={(changes) => setState(updateSettings(state, changes))}
+            />
+
+            {recovery && !celebration && (
+              <RecoveryModal
+                offer={recovery}
+                onAnswer={(take) => {
+                  setState(answerRecovery(state, today, take));
+                  if (take) showToast(recovery.streakLost ? `Your ${recovery.keeps}-day streak is safe. Welcome back!` : 'Your fire is safe. Welcome back!');
+                }}
+              />
+            )}
+
+            {celebration && (
+              <Celebration
+                key={celebration.level}
+                event={celebration}
+                onClose={() => setCelebration(null)}
+                onCollect={() => {
+                  const m = celebration.milestone;
+                  setCelebration(null);
+                  if (m) collectLevelReward(m);
+                }}
+              />
+            )}
+          </SafeAreaView>
+        </CelebrationContext.Provider>
+      </FlameStyleContext.Provider>
     </ThemeProvider>
   );
 }

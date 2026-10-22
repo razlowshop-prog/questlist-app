@@ -14,6 +14,8 @@ export function AchievementsScreen({
   onClaim: (id: string) => void;
 }) {
   const s = useStyles(makeStyles);
+  // Tokens are counted in the inventory; here only what stays: themes, titles, looks, ad-free and Premium time.
+  const shown = rewards.filter((r) => r.kind !== 'token');
   const c = useTheme();
   const earned = achievements.reduce((n, a) => n + Math.min(a.claimed, a.def.tiers.length), 0);
   const total = achievements.reduce((n, a) => n + a.def.tiers.length, 0);
@@ -90,11 +92,11 @@ export function AchievementsScreen({
       })}
 
       <Text style={[s.heading, s.subHeading]}>Your rewards</Text>
-      {rewards.length === 0 ? (
-        <Text style={s.sub}>Claim achievement tiers to unlock themes, titles and ad-free or Premium time.</Text>
+      {shown.length === 0 ? (
+        <Text style={s.sub}>Claim achievement tiers and reach new levels to unlock themes, titles, frames and more.</Text>
       ) : (
         <View style={s.rewards}>
-          {rewards.map((r, i) => (
+          {shown.map((r, i) => (
             <View key={i} style={s.rewardChip}>
               <Text style={s.rewardChipText}>
                 {r.label}
@@ -103,6 +105,7 @@ export function AchievementsScreen({
           ))}
         </View>
       )}
+      <Text style={[s.sub, { marginTop: 10 }]}>Tokens are in your bag at the top right, where you can also wear your looks.</Text>
     </ScrollView>
   );
 }

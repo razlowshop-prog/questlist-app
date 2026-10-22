@@ -88,3 +88,9 @@ test('day labels read naturally', () => {
   assert.equal(activityDayLabel('2026-10-19', TODAY), 'Mon 19 Oct');
   assert.equal(activityDayLabel('2025-12-31', TODAY), 'Wed 31 Dec 2025');
 });
+
+test('used rest and double XP tokens show on their day', () => {
+  const t = activityTimeline(state({ completions: [done('2026-10-19', 20)], restDays: ['2026-10-20'], doubleDays: ['2026-10-19'] }), TODAY);
+  assert.deepEqual(t.find((d) => d.date === '2026-10-20')?.events, [{ kind: 'token', token: 'rest' }]);
+  assert.ok(t.find((d) => d.date === '2026-10-19')?.events.some((e) => e.kind === 'token' && e.token === 'double'));
+});

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, Text, View } from 'react-native';
 import type { LevelMilestone } from '../achievements';
 import { eyebrow, FONTS, nativeDriver, themed, useStyles } from '../theme';
+import { TOKEN_INFO } from '../tokens';
 import { RewardPicture } from './RewardPicture';
 
 export interface CelebrationEvent {
@@ -165,8 +166,12 @@ export function Celebration({
                       <RewardPicture milestone={milestone} size={milestone.reward?.kind === 'theme' ? 72 : 56} />
                     </View>
                     <Text style={s.itemName}>{milestone.reward?.label ?? `+${milestone.bonusXp} XP bonus`}</Text>
+                    {milestone.reward?.token && <Text style={s.itemDesc}>{TOKEN_INFO[milestone.reward.token].description}</Text>}
+                    {(milestone.reward?.kind === 'frame' || milestone.reward?.kind === 'flame' || milestone.reward?.kind === 'celebration' || milestone.reward?.kind === 'title') && (
+                      <Text style={s.itemDesc}>Wear it from your bag at the top right.</Text>
+                    )}
                     <Text style={s.itemMeta}>
-                      Level {milestone.level} reward{milestone.reward ? ` · +${milestone.bonusXp} XP` : ''}
+                      Level {milestone.level} reward{milestone.reward && milestone.bonusXp ? ` · +${milestone.bonusXp} XP` : ''}
                     </Text>
                   </Animated.View>
                 </View>
@@ -230,6 +235,7 @@ const makeStyles = themed((c) => ({
   },
   itemName: { fontFamily: FONTS.serif, color: c.text, fontSize: 22, textAlign: 'center' },
   itemMeta: { ...eyebrow(c, 11), color: c.muted, textAlign: 'center' },
+  itemDesc: { color: c.muted, fontSize: 13, lineHeight: 18, textAlign: 'center', marginTop: 6, marginBottom: 2 },
   spark: { position: 'absolute', width: 8, height: 8, backgroundColor: c.accent },
   sparkSmall: { width: 5, height: 5, backgroundColor: c.xp },
   collect: { backgroundColor: c.accent, minHeight: 50, minWidth: 200, paddingHorizontal: 32, justifyContent: 'center', alignItems: 'center', borderRadius: c.radius },

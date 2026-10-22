@@ -1,9 +1,10 @@
-import { Crown, Users } from 'lucide-react-native';
+import { Crown, Sparkles, Users } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { activityDayLabel, activitySummary, activityTimeline, type ActivityDay, type ActivityEvent, type WeekTotals } from '../activity';
 import { AppIcon } from '../components/AppIcon';
 import { Fire, fireColor } from '../components/Fire';
+import { TOKEN_ICONS } from '../components/RewardPicture';
 import { durationLabel, streakTierName, type GameState } from '../game';
 import { card, eyebrow, FONTS, headingCase, themed, useStyles, useTheme } from '../theme';
 
@@ -214,6 +215,18 @@ function EventRow({ event }: { event: ActivityEvent }) {
       title = `${event.title}${event.tier ? ` · ${event.tier}` : ''}`;
       sub = 'Achievement claimed';
       xp = event.xp;
+      break;
+    case 'token': {
+      const Icon = TOKEN_ICONS[event.token === 'recovery' ? 'rest' : event.token];
+      color = event.token === 'double' ? c.accent : c.muted;
+      icon = <Icon size={18} color={color} strokeWidth={1.5} aria-hidden />;
+      title = { rest: 'Rest day: streak kept', recovery: 'Free save: streak kept', double: 'Double XP day', adfree: 'Ad-free day' }[event.token];
+      break;
+    }
+    case 'season':
+      icon = <Sparkles size={18} color={c.accent} strokeWidth={1.5} aria-hidden />;
+      title = `Monthly event won: ${event.frame} frame`;
+      color = c.accent;
       break;
     case 'fire':
       icon = <Fire tier={event.tier} size={18} />;
