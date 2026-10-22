@@ -50,6 +50,7 @@ import { ProfileScreen } from './src/screens/ProfileScreen';
 import { SpinScreen } from './src/screens/SpinScreen';
 import { TodayScreen } from './src/screens/TodayScreen';
 import { ownsWheelTheme, spinsToPity, spinWheel, ticketStatus } from './src/wheel';
+import { tickStep } from './src/steps';
 import type { LibraryTask } from './src/library';
 import { fontFilesFor, WHEEL_FONTS } from './src/fonts';
 import { trophyStatuses } from './src/trophies';
@@ -262,6 +263,14 @@ export default function App() {
     return { prize, finish: () => apply(next) };
   }
 
+  function onStep(task: Task, step: number): { xp: number; finished: boolean; note?: string } {
+    const { state: next, finished } = tickStep(state, task.id, step, today, Date.now());
+    if (next === state) return { xp: 0, finished: false };
+    const gained = apply(next);
+    const limited = finished ? next.completions[next.completions.length - 1].limited : undefined;
+    return { xp: gained, finished, note: limited ? limitMessage(limited) : undefined };
+  }
+
   function onClaim(id: string) {
     const gained = apply(claimChallenge(state, id, today));
     if (gained > 0) showToast(`Challenge complete · +${gained} XP`);
@@ -347,6 +356,7 @@ export default function App() {
                   onDraftUsed={() => setDraft(undefined)}
                   onOpenLibrary={() => setLibraryOpen(true)}
                   onToggle={onToggle}
+                  onStep={onStep}
                   onDelete={(task) => setState(deleteTask(state, task.id))}
                 />
               )}

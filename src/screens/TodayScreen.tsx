@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronUp, Plus, Sparkles } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, Plus, Sparkles, X } from 'lucide-react-native';
 import { Pressable, ScrollView, SectionList, Text, TextInput, View } from 'react-native';
 import { Chip } from '../components/Chip';
 import { AppIcon } from '../components/AppIcon';
@@ -11,6 +11,8 @@ import {
   dayLabel,
   durationLabel,
   isDoneToday,
+  MAX_STEP_LENGTH,
+  MAX_STEPS,
   xpFor,
   type GameState,
   type Repeat,
@@ -18,7 +20,8 @@ import {
   type Task,
   type TaskPlan,
 } from '../game';
-import { CATEGORIES, categoryOf, FEATURED, guessCategory, OTHER_CATEGORY, searchLibrary, taskCategory, type LibraryTask } from '../library';
+import { CATEGORIES, categoryOf, FEATURED, guessCategory, librarySteps, OTHER_CATEGORY, searchLibrary, taskCategory, type LibraryTask } from '../library';
+import { STEP_SHARE, suggestedSteps } from '../steps';
 import { estimateMinutes } from '../estimate';
 import { quoteOfTheDay } from '../quotes';
 import { card, eyebrow, FONTS, themed, useStyles, useTheme, headingCase } from '../theme';
@@ -45,6 +48,7 @@ export function TodayScreen({
   onAdd,
   onOpenLibrary,
   onToggle,
+  onStep,
   onDelete,
 }: {
   state: GameState;
@@ -63,6 +67,7 @@ export function TodayScreen({
   onAdd: (title: string, repeat: Repeat, minutes: number, plan: TaskPlan) => void;
   onOpenLibrary: () => void;
   onToggle: (task: Task) => { xp: number; note?: string };
+  onStep: (task: Task, step: number) => { xp: number; finished: boolean; note?: string };
   onDelete: (task: Task) => void;
 }) {
   const s = useStyles(makeStyles);
@@ -71,6 +76,9 @@ export function TodayScreen({
   const [schedule, setSchedule] = useState<Schedule>(() => defaultSchedule(today));
   /** Chosen by the user; otherwise guessed from the title. */
   const [category, setCategory] = useState<string | undefined>();
+  /** Steps the user edited; undefined = the suggested ones. */
+  const [stepDraft, setStepDraft] = useState<string[] | undefined>();
+  const [newStep, setNewStep] = useState('');
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   // Groups just ticked stay open while the tick celebrates, then fold away.
   const [holdOpen, setHoldOpen] = useState<Record<string, number>>({});
@@ -91,12 +99,25 @@ export function TodayScreen({
   const chosenMinutes = estimate.minutes;
   const problem = typed ? scheduleProblem(shownSchedule, typed) : undefined;
   const canAdd = typed.length > 0 && chosenMinutes > 0 && !problem;
+  const suggested = useMemo(() => suggestedSteps(typed, chosenMinutes), [typed, chosenMinutes]);
+  const shownSteps = stepDraft ?? suggested;
+  // Steps are offered for longer tasks, or whenever some are already there.
+  const offerSteps = typed.length > 0 && (shownSteps.length > 0 || chosenMinutes >= 30);
+  const stepXp = shownSteps.length ? Math.max(1, Math.round((xpFor(chosenMinutes) * STEP_SHARE) / shownSteps.length)) : 0;
+
+  function addStep() {
+    const name = newStep.trim();
+    if (!name || shownSteps.length >= MAX_STEPS) return;
+    setStepDraft([...shownSteps, name.slice(0, MAX_STEP_LENGTH)]);
+    setNewStep('');
+  }
 
   /** Fills the form from a library task so its days and frequency can be picked before adding. */
   function prefill(t: LibraryTask) {
     setTitle(t.title);
     setSchedule({ ...defaultSchedule(today), repeat: t.perWeek > 0, perWeek: t.perWeek > 0 ? t.perWeek : 3 });
     setCategory(t.category);
+    setStepDraft(undefined);
   }
 
   useEffect(() => {
@@ -109,13 +130,25 @@ export function TodayScreen({
     setTitle('');
     setSchedule(defaultSchedule(today));
     setCategory(undefined);
+    setStepDraft(undefined);
+    setNewStep('');
   }
 
   function add() {
     if (!canAdd) return;
     const { repeat, plan } = scheduleToTask(shownSchedule, typed, today);
-    onAdd(typed, repeat, chosenMinutes, { ...plan, category: chosenCategory });
+    // Library steps follow the library; anything else is saved with the task.
+    const steps = stepDraft ?? (librarySteps(typed) || !suggested.length ? undefined : suggested);
+    onAdd(typed, repeat, chosenMinutes, { ...plan, category: chosenCategory, ...(steps && { steps }) });
     reset();
+  }
+
+  /** Keeps a task's group open while its tick celebrates; only the latest tick in the group closes it again. */
+  function holdGroupOpen(task: Task) {
+    const id = taskCategory(task);
+    const at = Date.now();
+    setHoldOpen((m) => ({ ...m, [id]: at }));
+    setTimeout(() => setHoldOpen((m) => (m[id] === at ? { ...m, [id]: 0 } : m)), HOLD_OPEN_MS);
   }
 
   // Today's tasks grouped by category, in the library's order, "Other" last.
@@ -225,6 +258,47 @@ export function TodayScreen({
                   <Text style={s.estimateNote}>{estimate.source === 'default' ? 'standard time' : 'estimated from the title'}</Text>
                 </View>
                 <SchedulePicker value={shownSchedule} onChange={setSchedule} title={typed} today={today} />
+                {offerSteps && (
+                  <View style={{ gap: 8 }}>
+                    <Text style={s.small}>Steps</Text>
+                    <Text style={s.stepsHint}>
+                      {shownSteps.length
+                        ? `+${stepXp} XP for each step, the rest when you finish. The last step finishes the task.`
+                        : 'Split a long task into steps to earn a little XP on the way.'}
+                    </Text>
+                    {shownSteps.map((st, i) => (
+                      <View key={`${i}-${st}`} style={s.stepRow}>
+                        <Text style={s.stepNum}>{i + 1}</Text>
+                        <Text style={s.stepName}>{st}</Text>
+                        <Pressable
+                          onPress={() => setStepDraft(shownSteps.filter((_, j) => j !== i))}
+                          hitSlop={8}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Remove step ${st}`}
+                        >
+                          <X size={16} color={c.muted} strokeWidth={1.75} />
+                        </Pressable>
+                      </View>
+                    ))}
+                    {shownSteps.length < MAX_STEPS && (
+                      <View style={s.stepRow}>
+                        <TextInput
+                          value={newStep}
+                          onChangeText={setNewStep}
+                          onSubmitEditing={addStep}
+                          placeholder="Add a step"
+                          placeholderTextColor={c.muted}
+                          maxLength={MAX_STEP_LENGTH}
+                          style={s.stepInput}
+                          returnKeyType="done"
+                        />
+                        <Pressable onPress={addStep} disabled={!newStep.trim()} hitSlop={8} style={!newStep.trim() && { opacity: 0.35 }} accessibilityRole="button" accessibilityLabel="Add step">
+                          <Plus size={18} color={c.accent} strokeWidth={2} />
+                        </Pressable>
+                      </View>
+                    )}
+                  </View>
+                )}
                 <Text style={s.small}>Category</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.quickRow}>
                   {[...CATEGORIES, { id: OTHER_CATEGORY, label: 'Other' }].map((cat) => (
@@ -310,12 +384,12 @@ export function TodayScreen({
           today={today}
           done={isDoneToday(state, item, today)}
           onToggle={() => {
-            const id = taskCategory(item);
-            const at = Date.now();
-            setHoldOpen((m) => ({ ...m, [id]: at }));
-            // Only the latest tick in the group closes it again.
-            setTimeout(() => setHoldOpen((m) => (m[id] === at ? { ...m, [id]: 0 } : m)), HOLD_OPEN_MS);
+            holdGroupOpen(item);
             return onToggle(item);
+          }}
+          onStep={(step) => {
+            holdGroupOpen(item);
+            return onStep(item, step);
           }}
           onDelete={() => onDelete(item)}
         />
@@ -369,6 +443,11 @@ const makeStyles = themed((c) => ({
     backgroundColor: c.surfaceAlt,
   },
   small: { ...eyebrow(c, 11), color: c.muted },
+  stepsHint: { color: c.muted, fontSize: 13, lineHeight: 18 },
+  stepRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 36, borderBottomWidth: 1, borderBottomColor: c.border },
+  stepNum: { fontFamily: FONTS.serif, fontStyle: 'italic', color: c.accent, fontSize: 14, width: 16, fontVariant: ['lining-nums'] },
+  stepName: { flex: 1, color: c.text, fontSize: 14 },
+  stepInput: { flex: 1, color: c.text, fontSize: 14, paddingVertical: 8 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
   estimate: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: 8, rowGap: 2 },
   estimateText: { color: c.text, fontSize: 14 },

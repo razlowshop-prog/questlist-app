@@ -20,6 +20,8 @@ export interface LibraryTask {
   tags: string[];
   /** Picked by the team; shown under "Recommended". */
   featured: boolean;
+  /** Steps on the way for long tasks, the last one finishing the task (see steps.ts). */
+  steps?: string[];
 }
 
 export const CATEGORIES: Category[] = [
@@ -302,6 +304,41 @@ const ROWS: Record<string, Row[]> = {
   ],
 };
 
+/**
+ * Steps for long library tasks, where the task splits into clear parts. The
+ * last step is the finish line: ticking it completes the task.
+ */
+const STEPS: Record<string, string[]> = {
+  'Clean the bathroom': ['Toilet', 'Sink and mirror', 'Shower or bath', 'Floor'],
+  'Clean the kitchen': ['Clear the counters', 'Wipe counters and stove', 'Clean the sink', 'Sweep the floor'],
+  'Clean the windows': ['Inside of the glass', 'Outside of the glass', 'Frames and sills'],
+  'Declutter your wardrobe': ['Take everything out', 'Sort: keep, donate, toss', 'Put the keepers back', 'Bag up the donations'],
+  'Mow the lawn': ['Clear the lawn', 'Mow', 'Edges and clippings'],
+  'Clean the oven': ['Take out the racks', 'Spray and let it soak', 'Scrub the inside', 'Racks and door'],
+  'Wash the car': ['Rinse', 'Soap and scrub', 'Rinse and dry', 'Windows and wheels'],
+  'Deep clean one room': ['Declutter', 'Dust top to bottom', 'Wipe the surfaces', 'Vacuum', 'Mop the floor'],
+  'Walk 5 km': ['1 km', '2.5 km', '5 km'],
+  'Walk 10,000 steps': ['2,500 steps', '5,000 steps', '7,500 steps', '10,000 steps'],
+  'Go for a 10 km run': ['Warm up', '5 km', '10 km'],
+  'Strength workout': ['Warm up', 'Main sets', 'Stretch'],
+  'Go to the gym': ['Warm up', 'Main workout', 'Cool down and stretch'],
+  'Go hiking': ['Pack water and snacks', 'Halfway point', 'Back at the start'],
+  'Cook a healthy meal': ['Prep the ingredients', 'Cook', 'Serve and clean up'],
+  'Meal prep for the week': ['Plan the meals', 'Prep the ingredients', 'Cook', 'Pack the boxes'],
+  'Try a new recipe': ['Get the ingredients ready', 'Cook', 'Taste and clean up'],
+  'Bake bread': ['Mix the dough', 'Let it rise', 'Shape the loaf', 'Bake'],
+  'Deep work block (90 min)': ['First 30 min', '60 min in', 'Full 90 min'],
+  'Update your CV': ['Add your latest job', 'Refresh your skills', 'Proofread', 'Save as PDF'],
+  'Apply for a job': ['Read the job ad', 'Tailor your CV', 'Write the cover letter', 'Send it'],
+  'Study for an exam': ['Review your notes', 'Practice questions', 'Go over what you missed'],
+  'Do your taxes': ['Gather the documents', 'Fill in the forms', 'Double-check', 'Submit'],
+  'Host friends at home': ['Tidy up', 'Food and drinks', 'Enjoy the evening', 'Clean up'],
+  'Build something with your hands': ['Plan it', 'Gather materials', 'Build', 'Tidy the workspace'],
+  'Go camping': ['Pack the gear', 'Set up camp', 'Pack up and head home'],
+  'Do the grocery shopping': ['Write the list', 'Shop', 'Put it all away'],
+  'Organise your documents': ['Gather all papers', 'Sort into piles', 'File them', "Shred what you don't need"],
+};
+
 export const LIBRARY: LibraryTask[] = Object.entries(ROWS).flatMap(([category, rows]) =>
   rows.map(([title, minutes, perWeek, tags = '', featured]) => ({
     title,
@@ -310,8 +347,15 @@ export const LIBRARY: LibraryTask[] = Object.entries(ROWS).flatMap(([category, r
     perWeek,
     tags: tags.split(' ').filter(Boolean),
     featured: featured === 1,
+    ...(STEPS[title] && { steps: STEPS[title] }),
   })),
 );
+
+/** Steps of the library task with exactly this title, if it has any. */
+export function librarySteps(title: string): string[] | undefined {
+  const t = title.trim().toLowerCase();
+  return LIBRARY.find((l) => l.title.toLowerCase() === t)?.steps;
+}
 
 export function categoryOf(id: string): Category | undefined {
   return CATEGORIES.find((c) => c.id === id);

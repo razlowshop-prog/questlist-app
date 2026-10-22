@@ -1,4 +1,4 @@
-import { Crown, FerrisWheel, Sparkles, Users } from 'lucide-react-native';
+import { Crown, FerrisWheel, ListChecks, Sparkles, Users } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { activityDayLabel, activitySummary, activityTimeline, type ActivityDay, type ActivityEvent, type WeekTotals } from '../activity';
@@ -227,6 +227,11 @@ function EventRow({ event }: { event: ActivityEvent }) {
       color = event.rarity === 'legendary' || event.rarity === 'rare' ? c.accent : c.text;
       icon = <FerrisWheel size={18} color={event.rarity === 'common' ? c.muted : c.accent} strokeWidth={1.5} aria-hidden />;
       title = `Lucky wheel: ${event.prize}`;
+      xp = event.xp || undefined;
+      break;
+    case 'steps':
+      icon = <ListChecks size={18} color={c.muted} strokeWidth={1.5} aria-hidden />;
+      title = `${event.count} ${event.count === 1 ? 'step' : 'steps'} of ${event.title}`;
       xp = event.xp || undefined;
       break;
     case 'season':

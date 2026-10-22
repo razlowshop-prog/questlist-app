@@ -26,6 +26,11 @@ export interface Task {
   reminder?: string;
   /** Library category id, for grouping the day. */
   category?: string;
+  /**
+   * Steps on the way to finishing a long task, each paying a little XP (see
+   * steps.ts). Missing = the library's steps for this title, if any; [] = none.
+   */
+  steps?: string[];
   createdAt: string;
 }
 
@@ -35,6 +40,7 @@ export interface TaskPlan {
   date?: string;
   reminder?: string;
   category?: string;
+  steps?: string[];
 }
 
 /** false = one-time, true = every day, a number = that many times per week. */
@@ -115,6 +121,18 @@ export interface GameState {
   seasonClaims?: { month: string; date: string }[];
   /** Lucky wheel spins, oldest first (see wheel.ts). */
   wheelSpins?: WheelSpin[];
+  /** Steps of long tasks ticked off on the way (see steps.ts). */
+  stepTicks?: StepTick[];
+}
+
+export interface StepTick {
+  taskId: string;
+  /** Index into the task's steps. */
+  step: number;
+  date: string;
+  xp: number;
+  /** One-off tasks keep their steps across days; repeating tasks start over each day. */
+  oneOff?: boolean;
 }
 
 export interface WheelSpin {
@@ -290,8 +308,22 @@ export function totalXp(state: GameState): number {
     state.completions.reduce((sum, c) => sum + c.xp, 0) +
     state.claims.reduce((sum, c) => sum + c.xp, 0) +
     state.achievementClaims.reduce((sum, c) => sum + c.xp, 0) +
-    wheelXp(state)
+    wheelXp(state) +
+    stepXp(state)
   );
+}
+
+/**
+ * A step's XP is an advance on the task: once the task is finished, the
+ * completion pays the task's full XP and the step's share is part of it.
+ */
+export function stepAbsorbed(tick: StepTick, completions: Completion[]): boolean {
+  return completions.some((c) => c.taskId === tick.taskId && (tick.oneOff || c.date === tick.date));
+}
+
+/** XP from steps of tasks not finished (yet). */
+export function stepXp(state: Pick<GameState, 'stepTicks' | 'completions'>): number {
+  return (state.stepTicks ?? []).reduce((sum, t) => sum + (stepAbsorbed(t, state.completions) ? 0 : t.xp), 0);
 }
 
 /** XP won on the lucky wheel. It counts for levels but doesn't earn wheel tickets. */
@@ -516,6 +548,19 @@ export function upcomingTasks(state: GameState, today: string): Task[] {
     .sort((a, b) => (a.date! < b.date! ? -1 : a.date! > b.date! ? 1 : 0));
 }
 
+/** Most steps one task can have. */
+export const MAX_STEPS = 6;
+/** Longest step name. */
+export const MAX_STEP_LENGTH = 40;
+
+/** Trimmed, non-empty step names, at most MAX_STEPS. */
+export function cleanSteps(steps: string[]): string[] {
+  return steps
+    .map((st) => st.trim().slice(0, MAX_STEP_LENGTH))
+    .filter(Boolean)
+    .slice(0, MAX_STEPS);
+}
+
 export function addTask(
   state: GameState,
   title: string,
@@ -541,6 +586,7 @@ export function addTask(
   }
   if (plan.reminder && /^([01]\d|2[0-3]):[0-5]\d$/.test(plan.reminder)) task.reminder = plan.reminder;
   if (plan.category) task.category = plan.category;
+  if (plan.steps) task.steps = cleanSteps(plan.steps);
   return { ...state, tasks: [...state.tasks, task] };
 }
 
