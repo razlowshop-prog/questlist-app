@@ -72,6 +72,8 @@ export function TodayScreen({
   /** Chosen by the user; otherwise guessed from the title. */
   const [category, setCategory] = useState<string | undefined>();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  // Groups just ticked stay open while the tick celebrates, then fold away.
+  const [holdOpen, setHoldOpen] = useState<Record<string, number>>({});
   const quote = quoteOfTheDay(today);
   const typed = title.trim();
   const suggestions = useMemo(
@@ -130,10 +132,10 @@ export function TodayScreen({
         const all = groups.get(id)!;
         const done = all.filter((t) => isDoneToday(state, t, today)).length;
         // A finished group folds away on its own unless opened.
-        const isCollapsed = collapsed[id] ?? (done === all.length && all.length > 0);
+        const isCollapsed = collapsed[id] ?? (done === all.length && all.length > 0 && !holdOpen[id]);
         return { id, done, total: all.length, collapsed: isCollapsed, data: isCollapsed ? [] : all };
       });
-  }, [tasks, state, today, collapsed]);
+  }, [tasks, state, today, collapsed, holdOpen]);
   const doneCount = sections.reduce((n, sec) => n + sec.done, 0);
 
   return (
@@ -307,13 +309,23 @@ export function TodayScreen({
           state={state}
           today={today}
           done={isDoneToday(state, item, today)}
-          onToggle={() => onToggle(item)}
+          onToggle={() => {
+            const id = taskCategory(item);
+            const at = Date.now();
+            setHoldOpen((m) => ({ ...m, [id]: at }));
+            // Only the latest tick in the group closes it again.
+            setTimeout(() => setHoldOpen((m) => (m[id] === at ? { ...m, [id]: 0 } : m)), HOLD_OPEN_MS);
+            return onToggle(item);
+          }}
           onDelete={() => onDelete(item)}
         />
       )}
     />
   );
 }
+
+/** How long a just-finished group stays open: the tick's "+XP" takes about 2.4 s. */
+const HOLD_OPEN_MS = 2600;
 
 const makeStyles = themed((c) => ({
   content: { padding: 20, paddingTop: 12, paddingBottom: 48, maxWidth: 640, width: '100%', alignSelf: 'center' },
