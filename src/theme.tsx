@@ -6,6 +6,10 @@ type NamedStyles = { [key: string]: ViewStyle | TextStyle | ImageStyle };
 export interface Palette {
   dark: boolean;
   bg: string;
+  /** A gradient over the whole screen behind everything (fixed, it doesn't scroll); bg is its solid fallback. */
+  bgImage?: string;
+  /** Background of the bottom tab bar. */
+  tabBar: string;
   surface: string;
   surfaceAlt: string;
   text: string;
@@ -109,6 +113,8 @@ const heading = (serif: string, serifItalic: string): ThemeFonts => ({ ...FONTS,
 
 interface ThemeSpec {
   light?: boolean;
+  bgImage?: string;
+  tabBar?: string;
   /** bg / card / card2 / line / text / muted / faint / outline / accent / onAccent */
   colors: [string, string, string, string, string, string, string, string, string, string];
   fonts?: ThemeFonts;
@@ -135,6 +141,8 @@ function palette(spec: ThemeSpec): Palette {
   return {
     dark: !light,
     bg,
+    bgImage: spec.bgImage,
+    tabBar: spec.tabBar ?? bg,
     surface,
     surfaceAlt,
     text,
@@ -174,13 +182,26 @@ function palette(spec: ThemeSpec): Palette {
 const CORMORANT = heading('CormorantGaramond_500Medium', 'CormorantGaramond_500Medium_Italic');
 
 /**
- * Nine small designs from the design thread (board "Succedo · 9 reward themes").
- * Dusk is the default, from the Razlow shop. Ids and reward labels are stored
+ * Small designs from the design thread (board "Succedo · 9 reward themes").
+ * Indigo is the default (home variant F "Kühl"): it took over the 'classic'
+ * id so everyone on the default moves to it; Dusk, the first default from the
+ * Razlow shop, is still free to pick. Other ids and reward labels are stored
  * in settings and achievements: don't change them.
  */
 export const THEMES: ThemeDef[] = [
   {
     id: 'classic',
+    name: 'Indigo',
+    palette: palette({
+      colors: ['12151f', '1b2030', '262c40', '2f3650', 'eef1fa', 'b6bdd2', '8f97ae', '59607a', 'a3b3ea', '12151f'],
+      bgImage: 'linear-gradient(165deg, #13213a 0%, #12151f 48%, #1f1636 100%)',
+      tabBar: 'rgba(28,20,50,0.85)',
+      radius: 4, listStyle: 'cards', check: 'circle', lineWeight: 2, tip: true,
+      eyebrowCaps: true, logoRule: true, italicAccent: true, headingUpper: false,
+    }),
+  },
+  {
+    id: 'dusk',
     name: 'Dusk',
     palette: palette({
       colors: ['1c1815', '28221e', '322a25', '4a423a', 'f4f0e9', 'c4bbaf', 'a0968a', '6e6458', 'd4b27a', '1c1815'],
@@ -306,7 +327,7 @@ export const THEMES: ThemeDef[] = [
   },
 ];
 
-const DUSK = THEMES[0].palette;
+const DEFAULT = THEMES[0].palette;
 
 function bodyFont(f: ThemeFonts, weight: unknown): string {
   const w = Number(weight === 'bold' ? 700 : weight ?? 400);
@@ -357,7 +378,7 @@ export function themeById(id: string | undefined): ThemeDef {
 /** The native animation driver isn't available on web. */
 export const nativeDriver = Platform.OS !== 'web';
 
-const ThemeContext = createContext<Palette>(DUSK);
+const ThemeContext = createContext<Palette>(DEFAULT);
 
 export function ThemeProvider({ palette, children }: { palette: Palette; children: ReactNode }) {
   return <ThemeContext.Provider value={palette}>{children}</ThemeContext.Provider>;

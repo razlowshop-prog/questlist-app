@@ -103,7 +103,7 @@ export function LibraryModal({
 }
 
 const makeStyles = themed((c) => ({
-  safe: { flex: 1, backgroundColor: c.bg },
+  safe: { flex: 1, backgroundColor: c.bg, ...(c.bgImage && { backgroundImage: c.bgImage }) },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',

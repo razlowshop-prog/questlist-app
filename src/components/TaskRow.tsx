@@ -18,8 +18,8 @@ import { FIRE_COLORS } from './Fire';
 import { CoinCheck, HoloBorder } from './Fortuna';
 import { stepStatus } from '../steps';
 import { taskCategory } from '../library';
-import { categoryLook, midColor, MYTHIC } from '../vivid';
-import { fill, GradientText } from './Vivid';
+import { brandLine, categoryLook, midColor, MYTHIC } from '../vivid';
+import { fill, GradientText, Sticker } from './Vivid';
 
 /** The tick celebration the player has equipped. */
 export const CelebrationContext = createContext<CelebrationId>('classic');
@@ -183,7 +183,7 @@ export function TaskRow({
       <View style={[s.edge, fill(cat, 180)]} pointerEvents="none" />
       <View style={s.top}>
       <Pressable onPress={press} style={s.main} accessibilityRole="checkbox" accessibilityState={{ checked: done }}>
-        <Text style={s.num}>{String(index + 1).padStart(2, '0')}</Text>
+        <Sticker grad={cat} glyph={cat.glyph} size={26} flat />
         <View style={{ flex: 1 }}>
           <Text style={[s.title, done && s.titleDone]}>{task.title}</Text>
           {locked ? (
@@ -226,7 +226,7 @@ export function TaskRow({
             </Pressable>
           )}
         </View>
-        <Text style={s.xp}>{taskXp(task)} XP</Text>
+        <Text style={s.xp}>+{taskXp(task)}</Text>
         <View style={s.checkWrap}>
           <Animated.View style={[s.ring, ringStyle]} pointerEvents="none" />
           {particles.list.map((p, i) => (
@@ -267,7 +267,7 @@ export function TaskRow({
             </Animated.View>
           ) : (
             <Animated.View
-              style={[s.checkbox, { borderColor: catLine }, done && { ...fill(cat), borderColor: 'transparent', boxShadow: `0px 2px 8px ${cat.c2}88` }, locked && s.checkboxLocked, { transform: [{ scale: pop }, ...rotate] }]}
+              style={[s.checkbox, { borderColor: catLine }, done && { ...fill(cat), borderColor: 'transparent' }, locked && s.checkboxLocked, { transform: [{ scale: pop }, ...rotate] }]}
             >
               {done && <Text style={[s.checkmark, { color: cat.ink }, c.check === 'diamond' && s.checkmarkDiamond]}>✓</Text>}
             </Animated.View>
@@ -462,14 +462,13 @@ const makeStyles = themed((c) => ({
       : { position: 'absolute', left: 0, top: 12, bottom: 12, width: 3, borderRadius: 2 },
   top: { flexDirection: 'row', alignItems: 'center' },
   main: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 64, paddingVertical: 10 },
-  num: { fontFamily: FONTS.serif, fontStyle: 'italic', color: c.accent, fontSize: 16, width: 24, fontVariant: ['lining-nums'] },
   title: { color: c.text, fontSize: 16, fontWeight: '600' },
   titleDone: { color: c.faint, textDecorationLine: 'line-through', textDecorationColor: c.accent },
   meta: { color: c.faint, fontSize: 13, marginTop: 2 },
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 8 },
   reminder: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
   wait: { color: c.flame, fontWeight: '600' },
-  xp: { color: c.muted, fontSize: 13, fontVariant: ['tabular-nums'] },
+  xp: { color: brandLine(c.dark), fontFamily: 'Vivid_800ExtraBold', fontSize: 14, fontVariant: ['tabular-nums'] },
   checkWrap: { width: c.check === 'coin' ? 30 : 24, height: c.check === 'coin' ? 30 : 24, alignItems: 'center', justifyContent: 'center' },
   ring: {
     position: 'absolute',
@@ -477,7 +476,7 @@ const makeStyles = themed((c) => ({
     height: 48,
     borderRadius: c.check === 'circle' || c.check === 'coin' ? 24 : c.check === 'square' ? Math.min(c.radius * 2, 12) : 4,
     borderWidth: 2,
-    borderColor: '#FFB547',
+    borderColor: brandLine(c.dark),
   },
   checkbox: {
     width: c.check === 'diamond' ? 20 : 24,

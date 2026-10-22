@@ -39,7 +39,19 @@ export function flameGrad(tier: number, style: FlameStyleId): Grad | undefined {
  * Twin, Glow and Crackle add a second flame, a bigger glow or sparks.
  * No fire yet (tier 0) = a faint, unlit flame.
  */
-export function Fire({ tier, size, look }: { tier: number; size: number; /** Overrides the equipped style, for previews. */ look?: FlameStyleId }) {
+export function Fire({
+  tier,
+  size,
+  look,
+  still,
+}: {
+  tier: number;
+  size: number;
+  /** Overrides the equipped style, for previews. */
+  look?: FlameStyleId;
+  /** No flicker and no glow, for the calm home screen. */
+  still?: boolean;
+}) {
   const c = useTheme();
   const equipped = useContext(FlameStyleContext);
   const style = look ?? equipped;
@@ -49,7 +61,7 @@ export function Fire({ tier, size, look }: { tier: number; size: number; /** Ove
   const lit = !!grad;
 
   useEffect(() => {
-    if (!lit || reduce || size < 16) return;
+    if (!lit || reduce || still || size < 16) return;
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(flicker, { toValue: 1, duration: 800, easing: Easing.inOut(Easing.sin), useNativeDriver: nativeDriver }),
@@ -58,7 +70,7 @@ export function Fire({ tier, size, look }: { tier: number; size: number; /** Ove
     );
     loop.start();
     return () => loop.stop();
-  }, [lit, reduce, size]);
+  }, [lit, reduce, still, size]);
 
   if (!grad) {
     return (
@@ -70,7 +82,7 @@ export function Fire({ tier, size, look }: { tier: number; size: number; /** Ove
     );
   }
 
-  const flame = <FlameShape grad={grad} size={size} glow={style === 'glow' ? 0.75 : 0.45} />;
+  const flame = <FlameShape grad={grad} size={size} glow={still ? 0 : style === 'glow' ? 0.75 : 0.45} />;
   const flick = {
     transform: [
       { translateY: flicker.interpolate({ inputRange: [0, 1], outputRange: [0, -size * 0.05] }) },
@@ -103,7 +115,7 @@ export function Fire({ tier, size, look }: { tier: number; size: number; /** Ove
                 width: spark,
                 height: spark,
                 backgroundColor: grad.c1,
-                boxShadow: `0px 0px 6px ${grad.c2}`,
+                ...(!still && { boxShadow: `0px 0px 6px ${grad.c2}` }),
                 transform: [{ rotate: '45deg' }],
               }}
             />
@@ -129,7 +141,7 @@ function FlameShape({ grad, size, glow }: { grad: Grad; size: number; glow: numb
           <Stop offset="1" stopColor={grad.c2} stopOpacity={0} />
         </RadialGradient>
       </Defs>
-      <Circle cx={128} cy={150} r={150} fill={`url(#${halo})`} />
+      {glow > 0 && <Circle cx={128} cy={150} r={150} fill={`url(#${halo})`} />}
       <Circle cx={128} cy={182} r={38} fill={mixHex(grad.c1, '#FFFFFF', 0.6)} />
       <Path d={GLYPHS.Flame} fill={`url(#${body})`} />
     </Svg>

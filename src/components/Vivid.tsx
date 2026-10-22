@@ -1,15 +1,15 @@
 import * as Haptics from 'expo-haptics';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Animated, Easing, Platform, Pressable, Switch, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
-import Svg, { Circle, Defs, LinearGradient, Path, Polygon, RadialGradient, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, LinearGradient, Path, Polygon, Stop } from 'react-native-svg';
 import { GLYPHS, type GlyphName } from '../glyphs';
 import { nativeDriver, useTheme } from '../theme';
-import { BADGE_RED, GOLD, KEYLINE, levelBand, linear, MYTHIC, PRISM, RARITY, textGradient, textSolid, type Grad, type Rarity } from '../vivid';
+import { BADGE_RED, BRAND, brandGlow, KEYLINE, levelBand, linear, MYTHIC, PRISM, RARITY, textGradient, textSolid, type Grad, type Rarity } from '../vivid';
 import { useReduceMotion } from './FireAura';
 
 // The vivid layer's building blocks (design thread, "vivid-app-wide-spec"):
-// gradient fills, glossy stickers, gradient text, the gold button, badges,
-// rings and the drifting colour blobs behind every screen.
+// gradient fills, glossy stickers, gradient text, the brand button, badges
+// and rings.
 
 /** The vivid font: Assistant, loaded on every theme under its own names (fonts.ts VIVID_FONTS). */
 export const VIVID_BOLD = 'Vivid_700Bold';
@@ -32,17 +32,19 @@ export function conic(colors: string[]): ViewStyle {
   return { backgroundColor: colors[0], backgroundImage: `conic-gradient(from 0deg, ${[...colors, colors[0]].join(', ')})` };
 }
 
-/** The gold brand fill with its glow and top gloss: primary buttons, selected chips, the plus button. */
-export const GOLD_FILL: ViewStyle = {
-  ...fill(GOLD),
-  boxShadow: '0px 8px 24px rgba(255,122,0,0.45), inset 0px 2px 0px rgba(255,255,255,0.5)',
+/** The brand fill with a soft glow and top gloss: primary buttons, the plus button. */
+export const BRAND_FILL: ViewStyle = {
+  ...fill(BRAND),
+  boxShadow: `0px 4px 14px ${brandGlow(0.3)}, inset 0px 2px 0px rgba(255,255,255,0.35)`,
 };
-/** A smaller glow for small gold things. */
-export const GOLD_FILL_SMALL: ViewStyle = {
-  ...fill(GOLD),
-  boxShadow: '0px 3px 10px rgba(255,122,0,0.4), inset 0px 1.5px 0px rgba(255,255,255,0.5)',
+/** Small brand things (selected chips, claim buttons): no glow. */
+export const BRAND_FILL_SMALL: ViewStyle = {
+  ...fill(BRAND),
+  boxShadow: 'inset 0px 1.5px 0px rgba(255,255,255,0.35)',
 };
-export const GOLD_INK = GOLD.ink;
+export const BRAND_INK = BRAND.ink;
+/** White text on the light end of the brand gradient needs a soft shadow to stay readable. */
+export const BRAND_TEXT_SHADOW: TextStyle = { textShadowColor: 'rgba(24,18,70,0.45)', textShadowRadius: 3, textShadowOffset: { width: 0, height: 1 } };
 
 /** A filled glyph (Phosphor "fill"), in one colour or a top-to-bottom gradient. */
 export function Glyph({ name, size, color = '#FFFFFF', grad, style }: { name: GlyphName; size: number; color?: string; grad?: { c1: string; c2: string }; style?: StyleProp<ViewStyle> }) {
@@ -72,6 +74,7 @@ export function Sticker({
   glyph,
   size,
   dim,
+  flat,
   children,
   style,
 }: {
@@ -81,6 +84,8 @@ export function Sticker({
   size: number;
   /** Faint and without glow: not won yet. */
   dim?: boolean;
+  /** Without the coloured glow underneath, for quiet lists. */
+  flat?: boolean;
   children?: ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
@@ -99,8 +104,8 @@ export function Sticker({
           alignItems: 'center',
           justifyContent: 'center',
           ...(mythic ? conic(MYTHIC) : fill([colors.c1, colors.c2], 145)),
-          boxShadow: dim
-            ? 'inset 0px 2px 0px rgba(255,255,255,0.3)'
+          boxShadow: dim || flat
+            ? `inset 0px 2px 0px rgba(255,255,255,${flat ? 0.45 : 0.3})`
             : `0px ${shadow}px ${Math.round(size * 0.32)}px ${glow}80, inset 0px 2px 0px rgba(255,255,255,0.45), inset 0px -3px 0px rgba(0,0,0,0.18)`,
         },
         dim && { opacity: 0.38 },
@@ -175,8 +180,8 @@ export function LevelBadge({ level, size }: { level: number; size: number }) {
 
 /**
  * Big numbers in gradient text. Browsers clip the gradient to the letters;
- * phones show a solid colour. Bright gold with a glow on dark themes, deep
- * orange on light ones so it stays readable.
+ * phones show a solid colour. Ice blue to violet on dark themes, a deep
+ * blue-violet on light ones so it stays readable.
  */
 export function GradientText({ style, children, numberOfLines }: { style?: StyleProp<TextStyle>; children: ReactNode; numberOfLines?: number }) {
   const c = useTheme();
@@ -207,8 +212,8 @@ export function tapHaptic() {
 }
 
 /**
- * The app's buttons. Primary: the gold gradient with dark ink, a glow and a
- * top gloss. Secondary: the theme's card with a thin Prism border. Both shrink
+ * The app's buttons. Primary: the blue-violet brand gradient with white
+ * text, a soft glow and a top gloss. Secondary: the theme's card with a thin Prism border. Both shrink
  * a little while pressed.
  */
 export function VividButton({
@@ -240,8 +245,9 @@ export function VividButton({
   const text: TextStyle = {
     fontFamily: VIVID_HEAVY,
     fontSize: compact ? 14 : 17,
-    color: primary ? GOLD_INK : c.text,
+    color: primary ? BRAND_INK : c.text,
     textAlign: 'center',
+    ...(primary && BRAND_TEXT_SHADOW),
   };
   const inner = (
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
@@ -266,7 +272,7 @@ export function VividButton({
         accessibilityLabel={accessibilityLabel}
         style={
           primary
-            ? { ...(compact ? GOLD_FILL_SMALL : GOLD_FILL), minHeight: height, borderRadius: radius, paddingHorizontal: compact ? 14 : 22, justifyContent: 'center' }
+            ? { ...(compact ? BRAND_FILL_SMALL : BRAND_FILL), minHeight: height, borderRadius: radius, paddingHorizontal: compact ? 14 : 22, justifyContent: 'center' }
             : { ...fill(PRISM, 90), borderRadius: radius, padding: 1.5 }
         }
       >
@@ -280,14 +286,14 @@ export function VividButton({
   );
 }
 
-/** A switch: gold track when on, the theme's line colour when off, white knob. */
+/** A switch: violet track when on, the theme's line colour when off, white knob. */
 export function VividSwitch({ value, onValueChange, accessibilityLabel }: { value: boolean; onValueChange: (v: boolean) => void; accessibilityLabel?: string }) {
   const c = useTheme();
   return (
     <Switch
       value={value}
       onValueChange={onValueChange}
-      trackColor={{ true: '#FF9A1F', false: c.border }}
+      trackColor={{ true: '#6A5BFF', false: c.border }}
       thumbColor="#FFFFFF"
       ios_backgroundColor={c.border}
       // react-native-web paints the 'on' thumb teal unless told otherwise
@@ -398,61 +404,6 @@ export function StickerHeading({ glyph, grad, mythic, children, right, style }: 
   );
 }
 
-/**
- * Two big soft colour blobs behind every screen, violet at the top left and
- * orange at the bottom right, drifting slowly. Fainter on light themes.
- */
-export function AmbientBlobs() {
-  const c = useTheme();
-  const reduce = useReduceMotion();
-  const drift = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    if (reduce) return;
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(drift, { toValue: 1, duration: 10000, easing: Easing.inOut(Easing.sin), useNativeDriver: nativeDriver }),
-        Animated.timing(drift, { toValue: 0, duration: 10000, easing: Easing.inOut(Easing.sin), useNativeDriver: nativeDriver }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [reduce]);
-  const opacity = c.dark ? 0.14 : 0.08;
-  const move = (dx: number, dy: number) => ({
-    transform: [
-      { translateX: drift.interpolate({ inputRange: [0, 1], outputRange: [-dx, dx] }) },
-      { translateY: drift.interpolate({ inputRange: [0, 1], outputRange: [-dy, dy] }) },
-    ],
-  });
-  return (
-    <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, overflow: 'hidden' }} pointerEvents="none">
-      <Animated.View style={[{ position: 'absolute', left: -150, top: -150, opacity }, move(30, 20)]}>
-        <Blob color="#A45CFF" id="blobViolet" />
-      </Animated.View>
-      <Animated.View style={[{ position: 'absolute', right: -150, bottom: -60, opacity }, move(-25, -30)]}>
-        <Blob color="#FF7A00" id="blobOrange" />
-      </Animated.View>
-    </View>
-  );
-}
-
-/** A 360 px blob blurred by about 80 px, drawn as a soft radial gradient (blur filters don't work everywhere). */
-function Blob({ color, id }: { color: string; id: string }) {
-  const size = 520;
-  return (
-    <Svg width={size} height={size}>
-      <Defs>
-        <RadialGradient id={id} cx="50%" cy="50%" r="50%">
-          <Stop offset="0" stopColor={color} stopOpacity={1} />
-          <Stop offset="0.45" stopColor={color} stopOpacity={0.85} />
-          <Stop offset="1" stopColor={color} stopOpacity={0} />
-        </RadialGradient>
-      </Defs>
-      <Circle cx={size / 2} cy={size / 2} r={size / 2} fill={`url(#${id})`} />
-    </Svg>
-  );
-}
-
 const CONFETTI = Array.from({ length: 18 }, (_, i) => ({
   angle: (i / 18) * Math.PI * 2 + (i % 2 ? 0.15 : -0.1),
   dist: 60 + ((i * 37) % 50),
@@ -518,8 +469,8 @@ export function EmptyState({ glyph, grad, mythic, before, word, after, body }: {
 }
 
 /**
- * The XP bar: 10 px, the Prism gradient slowly flowing, a white light sweeping
- * across every 3.6 s and a glowing white dot at the tip. `ghost` = where the
+ * The XP bar: 8 px, the Prism gradient slowly flowing and a white dot at the
+ * tip (home variant F: no light sweep). `ghost` = where the
  * bar is heading while it fills.
  */
 export function PrismBar({ progress, ghost }: { progress: number; ghost: number }) {
@@ -527,15 +478,11 @@ export function PrismBar({ progress, ghost }: { progress: number; ghost: number 
   const reduce = useReduceMotion();
   const [width, setWidth] = useState(0);
   const flow = useRef(new Animated.Value(0)).current;
-  const sweep = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     if (reduce) return;
-    const loops = [
-      Animated.loop(Animated.timing(flow, { toValue: 1, duration: 6000, easing: Easing.linear, useNativeDriver: nativeDriver })),
-      Animated.loop(Animated.sequence([Animated.delay(1200), Animated.timing(sweep, { toValue: 1, duration: 2400, easing: Easing.inOut(Easing.quad), useNativeDriver: nativeDriver })])),
-    ];
-    loops.forEach((l) => l.start());
-    return () => loops.forEach((l) => l.stop());
+    const loop = Animated.loop(Animated.timing(flow, { toValue: 1, duration: 6000, easing: Easing.linear, useNativeDriver: nativeDriver }));
+    loop.start();
+    return () => loop.stop();
   }, [reduce]);
   const p = Math.max(0, Math.min(1, progress));
   const fillW = p * width;
@@ -548,9 +495,9 @@ export function PrismBar({ progress, ghost }: { progress: number; ghost: number 
       accessibilityRole="progressbar"
       accessibilityValue={{ min: 0, max: 100, now: Math.round(p * 100) }}
     >
-      <View style={{ height: 10, borderRadius: 5, backgroundColor: c.surfaceAlt, overflow: 'hidden', borderWidth: c.dark ? 0 : 1, borderColor: c.border }}>
-        <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${Math.max(0, Math.min(1, ghost)) * 100}%`, backgroundColor: '#A45CFF', opacity: 0.22, borderRadius: 5 }} />
-        <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: fillW, borderRadius: 5, overflow: 'hidden' }}>
+      <View style={{ height: 8, borderRadius: 4, backgroundColor: c.surfaceAlt, overflow: 'hidden', borderWidth: c.dark ? 0 : 1, borderColor: c.border }}>
+        <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${Math.max(0, Math.min(1, ghost)) * 100}%`, backgroundColor: '#A45CFF', opacity: 0.22, borderRadius: 4 }} />
+        <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: fillW, borderRadius: 4, overflow: 'hidden' }}>
           {width > 0 && (
             <Animated.View
               style={{
@@ -564,17 +511,6 @@ export function PrismBar({ progress, ghost }: { progress: number; ghost: number 
               }}
             />
           )}
-          <Animated.View
-            style={{
-              position: 'absolute',
-              top: 0,
-              bottom: 0,
-              width: 36,
-              backgroundColor: '#FFFFFF',
-              opacity: reduce ? 0 : 0.5,
-              transform: [{ translateX: sweep.interpolate({ inputRange: [0, 1], outputRange: [-40, Math.max(width, 80)] }) }, { skewX: '-20deg' }],
-            }}
-          />
         </View>
       </View>
       {width > 0 && p > 0 && (
@@ -589,7 +525,7 @@ export function PrismBar({ progress, ghost }: { progress: number; ghost: number 
             backgroundColor: '#FFFFFF',
             borderWidth: c.dark ? 0 : 1,
             borderColor: '#A45CFF',
-            boxShadow: '0px 0px 10px #A45CFF',
+            boxShadow: `0px 0px 10px #A45CFF, 0px 0px 0px 1.5px ${KEYLINE}`,
           }}
         />
       )}

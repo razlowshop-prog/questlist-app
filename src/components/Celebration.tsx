@@ -5,8 +5,8 @@ import { eyebrow, FONTS, nativeDriver, themed, useStyles, useTheme } from '../th
 import { CoinShower } from './Fortuna';
 import { TOKEN_INFO } from '../tokens';
 import { RewardPicture } from './RewardPicture';
-import { ConfettiBurst, GOLD_FILL, GOLD_INK, LevelBadge, VIVID_HEAVY } from './Vivid';
-import { MYTHIC } from '../vivid';
+import { ConfettiBurst, BRAND_FILL, BRAND_INK, LevelBadge, VIVID_HEAVY, BRAND_TEXT_SHADOW } from './Vivid';
+import { brandGlow, brandLine, MYTHIC } from '../vivid';
 
 export interface CelebrationEvent {
   level: number;
@@ -212,8 +212,8 @@ const makeStyles = themed((c) => ({
   backdrop: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: c.bg, opacity: 0.94 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, padding: 24 },
   rays: { position: 'absolute', width: 520, height: 520, alignItems: 'center', justifyContent: 'center' },
-  ray: { position: 'absolute', width: 2, height: 520, backgroundColor: '#FFB547', opacity: c.dark ? 0.13 : 0.2 },
-  ring: { position: 'absolute', width: 180, height: 180, borderRadius: 90, borderWidth: 3, borderColor: '#FFB547', boxShadow: '0px 0px 18px rgba(255,138,0,0.5)' },
+  ray: { position: 'absolute', width: 2, height: 520, backgroundColor: brandLine(c.dark), opacity: c.dark ? 0.13 : 0.2 },
+  ring: { position: 'absolute', width: 180, height: 180, borderRadius: 90, borderWidth: 3, borderColor: brandLine(c.dark), boxShadow: `0px 0px 18px ${brandGlow(0.5)}` },
   eyebrow: { ...eyebrow(c, 13), color: c.label, letterSpacing: 4 },
   rank: { fontFamily: FONTS.serifItalic, color: c.text, fontSize: 22 },
   hint: { color: c.faint, fontSize: 13, marginTop: 28 },
@@ -226,9 +226,9 @@ const makeStyles = themed((c) => ({
     gap: 10,
     backgroundColor: c.surface,
     borderWidth: 1.5,
-    borderColor: '#FFB547',
+    borderColor: brandLine(c.dark),
     borderRadius: c.radius + 4,
-    boxShadow: '0px 0px 40px rgba(255,138,0,0.4)',
+    boxShadow: `0px 0px 40px ${brandGlow(0.4)}`,
   },
   itemIcon: {
     width: 104,
@@ -243,6 +243,6 @@ const makeStyles = themed((c) => ({
   itemDesc: { color: c.muted, fontSize: 13, lineHeight: 18, textAlign: 'center', marginTop: 6, marginBottom: 2 },
   spark: { position: 'absolute', width: 9, height: 9 },
   sparkSmall: { width: 6, height: 6 },
-  collect: { ...GOLD_FILL, minHeight: 54, minWidth: 220, paddingHorizontal: 32, justifyContent: 'center', alignItems: 'center', borderRadius: 14 },
-  collectText: { fontFamily: VIVID_HEAVY, fontSize: 17, color: GOLD_INK },
+  collect: { ...BRAND_FILL, minHeight: 54, minWidth: 220, paddingHorizontal: 32, justifyContent: 'center', alignItems: 'center', borderRadius: 14 },
+  collectText: { fontFamily: VIVID_HEAVY, fontSize: 17, color: BRAND_INK, ...BRAND_TEXT_SHADOW },
 }));

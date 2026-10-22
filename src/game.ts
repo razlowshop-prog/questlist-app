@@ -177,6 +177,8 @@ export interface Settings {
   askedNotifications?: boolean;
   /** Opt-in: friends may see this player's activity once accounts exist. Off unless turned on. */
   shareActivity?: boolean;
+  /** Who may find the profile once accounts exist. Friends only unless changed. */
+  profileVisibility?: 'public' | 'friends';
   /** Title shown under the name, one the player has won. */
   title?: string;
   /** Equipped looks from the inventory; each only shows while the player owns it. */
@@ -335,7 +337,10 @@ export function wheelXp(state: Pick<GameState, 'wheelSpins'>): number {
 
 // ---------- streaks ----------
 
-/** Weekly task XP needed for each fire tier, reached at the end of a week. */
+/**
+ * Weekly task XP needed for each fire tier, reached at the end of a week.
+ * Flame also lights right away, the day a streak has earned its weekXp.
+ */
 export const STREAK_TIERS = [
   { tier: 1, name: 'Flame', weekXp: 100 },
   { tier: 2, name: 'Blaze', weekXp: 200 },
@@ -355,6 +360,8 @@ export interface StreakStatus {
   best: number;
   /** Task XP earned this week, counting towards next Monday's tier. */
   weekXp: number;
+  /** Task XP earned since the current streak started (0 without a streak). */
+  streakXp: number;
   /** The tier this week's XP reaches so far (0 = none). */
   weekTier: number;
   /** Nothing done yet today while a streak is running. */
@@ -381,7 +388,8 @@ export interface StreakChange {
  * Replays every day since the first completion. A day with at least one task
  * done keeps the streak going. A missed day costs a tier (Blaze -> Flame,
  * Inferno -> Blaze) and the days counted so far survive; on Flame or Spark a
- * missed day ends the streak. Each Monday, last week's task XP raises the
+ * missed day ends the streak. Flame lights the moment a streak has earned
+ * 100 XP, today included. Each Monday, last week's task XP raises the
  * tier to whatever threshold it reached (never lowers it). Today only counts
  * against the streak once it is over.
  */
@@ -399,6 +407,7 @@ export function streakStatus(completions: Completion[], today: string, restDays:
   const rest = new Set(restDays);
   const first = [...xpByDay.keys()].sort()[0];
   let days = 0;
+  let streakXp = 0;
   let tier = 0;
   let best = 0;
   let infernoRun = 0;
@@ -418,6 +427,11 @@ export function streakStatus(completions: Completion[], today: string, restDays:
       if (xpByDay.has(d)) {
         days++;
         best = Math.max(best, days);
+        streakXp += xpByDay.get(d) ?? 0;
+        if (tier === 0 && streakXp >= STREAK_TIERS[0].weekXp) {
+          tier = 1;
+          history.push({ date: d, change: 'up', tier, days });
+        }
       } else if (rest.has(d)) {
         // A rest day keeps everything as it is.
       } else if (d !== today) {
@@ -427,12 +441,13 @@ export function streakStatus(completions: Completion[], today: string, restDays:
         } else {
           if (days > 0) history.push({ date: d, change: 'lost', tier: 0, days });
           days = 0;
+          streakXp = 0;
           tier = 0;
         }
       }
     }
   }
-  return { days, tier, best, weekXp, weekTier: tierFor(weekXp), atRisk: days > 0 && !xpByDay.has(today) && !rest.has(today), bestInfernoWeeks, history };
+  return { days, tier, best, weekXp, streakXp, weekTier: tierFor(weekXp), atRisk: days > 0 && !xpByDay.has(today) && !rest.has(today), bestInfernoWeeks, history };
 }
 
 /**

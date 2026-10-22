@@ -3,7 +3,7 @@ import { streakTierName } from '../game';
 import { card, eyebrow, FONTS, headingCase, themed, useStyles } from '../theme';
 import type { RestOffer } from '../tokens';
 import { Fire } from './Fire';
-import { GOLD_FILL, GOLD_INK, VIVID_HEAVY } from './Vivid';
+import { BRAND_FILL, BRAND_INK, VIVID_HEAVY, BRAND_TEXT_SHADOW } from './Vivid';
 
 /**
  * The one-time free save, the first time a missed day would end the streak
@@ -51,8 +51,8 @@ const makeStyles = themed((c) => ({
   title: { fontFamily: FONTS.serif, color: c.text, fontSize: 30, lineHeight: 36, textAlign: 'center', ...headingCase(c) },
   body: { color: c.text, fontSize: 15, lineHeight: 22, textAlign: 'center' },
   note: { color: c.faint, fontSize: 12, lineHeight: 17, textAlign: 'center' },
-  primary: { ...GOLD_FILL, minHeight: 54, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 6 },
-  primaryText: { color: GOLD_INK, fontFamily: VIVID_HEAVY, fontSize: 17 },
+  primary: { ...BRAND_FILL, minHeight: 54, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 6 },
+  primaryText: { color: BRAND_INK, fontFamily: VIVID_HEAVY, fontSize: 17, ...BRAND_TEXT_SHADOW },
   secondary: { minHeight: 42, alignItems: 'center', justifyContent: 'center' },
   secondaryText: { color: c.muted, fontWeight: '600' },
 }));

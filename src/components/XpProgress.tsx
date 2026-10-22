@@ -1,37 +1,20 @@
-import { Backpack } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, Text, View } from 'react-native';
 import { nextLevelReward } from '../achievements';
-import { levelInfo, type xpMultiplier } from '../game';
-import { FONTS, headingCase, themed, useStyles, useTheme } from '../theme';
+import { levelInfo } from '../game';
+import { eyebrow, themed, useStyles, useTheme } from '../theme';
 import { ShimmerBar } from './Fortuna';
-import { LogoMark } from './LogoMark';
-import { MultiplierPill } from './MultiplierPill';
 import { RewardPicture } from './RewardPicture';
-import { CountBadge, GradientText, LevelBadge, PrismBar, VIVID_HEAVY } from './Vivid';
+import { GradientText, PrismBar, VIVID_HEAVY } from './Vivid';
 
 /**
- * Always-visible header: centred wordmark with the inventory bag at the right, level badge with the XP multiplier, and the XP bar. Gained XP
- * counts up: a light "ghost" bar jumps ahead to the new total, the solid bar
- * fills after it, the numbers tick up and the bar glows. A level-up runs the
- * bar to the end and continues from zero on the new level.
+ * Level progress at the top of Today: "Level 8 → 9", the XP into the level and
+ * the bar, then the next reward. Gained XP counts up: a light "ghost" bar
+ * jumps ahead to the new total, the solid bar fills after it, the numbers tick
+ * up and "+N XP" floats by. A level-up runs the bar to the end and continues
+ * from zero on the new level. Tapping it opens the level details.
  */
-export function XpHeader({
-  totalXp,
-  multiplier,
-  onPressLevel,
-  onOpenBag,
-  bagCount,
-}: {
-  totalXp: number;
-  /** What the next task today is multiplied by; shown as a gold pill while above 1. */
-  multiplier: ReturnType<typeof xpMultiplier>;
-  onPressLevel: () => void;
-  /** Opens the inventory from the bag at the top right. */
-  onOpenBag: () => void;
-  /** Tokens held, shown small on the bag. */
-  bagCount: number;
-}) {
+export function XpProgress({ totalXp, onPress }: { totalXp: number; onPress: () => void }) {
   const s = useStyles(makeStyles);
   const c = useTheme();
   const real = levelInfo(totalXp);
@@ -86,61 +69,36 @@ export function XpHeader({
     transform: [{ translateY: gainAnim.interpolate({ inputRange: [0, 1], outputRange: [4, -8] }) }],
   };
 
-  const badgeScale = glow.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] });
-
   return (
     <View style={s.wrap}>
-      <View style={s.inner}>
-        <View style={s.top}>
-          <LogoMark textStyle={s.wordmark} ruleWidth={22} />
-          <Pressable
-            onPress={onOpenBag}
-            hitSlop={10}
-            style={s.bag}
-            accessibilityRole="button"
-            accessibilityLabel={`Inventory${bagCount ? `, ${bagCount} tokens` : ''}`}
-          >
-            <Backpack size={20} color={c.muted} strokeWidth={1.5} aria-hidden />
-            <CountBadge count={bagCount} style={s.bagBadge} />
-          </Pressable>
-        </View>
-        <Pressable onPress={onPressLevel} style={s.levelRow} accessibilityRole="button" accessibilityLabel={`Level ${shown.level}, ${shown.rank}. Show level details`}>
-          <Animated.View style={{ transform: [{ scale: badgeScale }] }}>
-            <LevelBadge level={shown.level} size={54} />
-          </Animated.View>
-          <View style={{ flex: 1, gap: 8 }}>
-            <View style={s.labels}>
-              <View style={s.rankRow}>
-                <Text style={s.rank}>{shown.rank}</Text>
-                {multiplier.total > 1 && <MultiplierPill multiplier={multiplier} size="small" />}
-              </View>
-              <View style={s.xpWrap}>
-                {gain > 0 && (
-                  <Animated.View style={gainStyle}>
-                    <GradientText style={s.gain}>+{gain} XP</GradientText>
-                  </Animated.View>
-                )}
-                {shown.maxed ? (
-                  <GradientText style={s.xpNumbers}>Max level</GradientText>
-                ) : (
-                  <Text style={s.xpText}>
-                    <GradientText style={s.xpNumbers}>
-                      {shown.xpIntoLevel} / {shown.xpForLevel}
-                    </GradientText>{' '}
-                    XP
-                  </Text>
-                )}
-              </View>
-            </View>
-            {c.bar.kind === 'shimmer' ? (
-              <ShimmerBar progress={shown.progress} ghost={ghost} glow={gain > 0 ? glowColor : undefined} />
-            ) : (
-              <PrismBar progress={shown.progress} ghost={ghost} />
+      <Pressable
+        onPress={onPress}
+        style={s.press}
+        accessibilityRole="button"
+        accessibilityLabel={`Level ${shown.level}, ${shown.rank}. ${shown.maxed ? 'Max level' : `${shown.xpIntoLevel} of ${shown.xpForLevel} XP to level ${shown.level + 1}`}. Show level details`}
+      >
+        <View style={s.labels}>
+          <Text style={s.level}>{shown.maxed ? `Level ${shown.level} · max` : `Level ${shown.level} → ${shown.level + 1}`}</Text>
+          <View style={s.xpWrap}>
+            {gain > 0 && (
+              <Animated.View style={gainStyle}>
+                <GradientText style={s.gain}>+{gain} XP</GradientText>
+              </Animated.View>
+            )}
+            {!shown.maxed && (
+              <GradientText style={s.xpNumbers}>
+                {shown.xpIntoLevel} / {shown.xpForLevel} XP
+              </GradientText>
             )}
           </View>
-        </Pressable>
-        <NextReward totalXp={totalXp} />
-      </View>
+        </View>
+        {c.bar.kind === 'shimmer' ? (
+          <ShimmerBar progress={shown.progress} ghost={ghost} glow={gain > 0 ? glowColor : undefined} />
+        ) : (
+          <PrismBar progress={shown.progress} ghost={ghost} />
+        )}
+      </Pressable>
+      <NextReward totalXp={totalXp} />
     </View>
   );
 }
@@ -179,29 +137,25 @@ function NextReward({ totalXp }: { totalXp: number }) {
       <Text style={s.nextLabel} numberOfLines={1}>
         Lvl {milestone.level} · {label}
       </Text>
-      <Text style={s.nextXp}>
-        {next.xpInto.toLocaleString()} / {next.xpNeeded.toLocaleString()} XP
-      </Text>
+      {/* When the reward is the very next level, the bar above already shows these numbers. */}
+      {levels.length > 1 && (
+        <Text style={s.nextXp}>
+          {next.xpInto.toLocaleString()} / {next.xpNeeded.toLocaleString()} XP
+        </Text>
+      )}
     </View>
   );
 }
 
 const makeStyles = themed((c) => ({
-  wrap: { backgroundColor: 'transparent', paddingHorizontal: 20, paddingTop: 14, paddingBottom: 16 },
-  inner: { maxWidth: 640, width: '100%', alignSelf: 'center', gap: 12 },
-  top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 2 },
-  bag: { position: 'absolute', right: 0, top: -4, width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  bagBadge: { position: 'absolute', top: -3, right: -6 },
-  wordmark: { fontFamily: FONTS.serif, color: c.text, fontSize: 15, letterSpacing: 3.6 },
-  levelRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  rankRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
-  rank: { fontFamily: FONTS.serif, color: c.text, fontSize: 19, ...headingCase(c) },
+  wrap: { gap: 10, marginTop: 14 },
+  press: { gap: 8 },
   labels: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
-  xpText: { color: c.muted, fontSize: 13, fontVariant: ['tabular-nums'] },
+  level: { ...eyebrow(c, 12), color: c.muted },
   xpWrap: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
   gain: { fontFamily: VIVID_HEAVY, fontSize: 14 },
-  xpNumbers: { fontFamily: VIVID_HEAVY, fontSize: 14, fontVariant: ['tabular-nums'] },
-  next: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: -2 },
+  xpNumbers: { fontFamily: VIVID_HEAVY, fontSize: 15, fontVariant: ['tabular-nums'] },
+  next: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   slots: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   slot: { width: 10, height: 10, borderRadius: 5, borderWidth: 1, borderColor: c.outline },
   slotNext: { borderColor: c.muted },

@@ -1,11 +1,14 @@
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { TIER_NAMES, type AchievementStatus, type Reward } from '../achievements';
 import { card, themed, useStyles, FONTS, headingCase } from '../theme';
-import { fill, GOLD_FILL_SMALL, GOLD_INK, GradientText, Sticker, StickerHeading, VIVID_HEAVY } from '../components/Vivid';
-import { achievementTierLook, ICON_GLYPHS, RARITY } from '../vivid';
+import { fill, BRAND_FILL_SMALL, BRAND_INK, GradientText, Sticker, StickerHeading, VIVID_HEAVY, BRAND_TEXT_SHADOW } from './Vivid';
+import { achievementTierLook, brandGlow, brandLine, ICON_GLYPHS, RARITY } from '../vivid';
 
-
-export function AchievementsScreen({
+/**
+ * Achievement tiers to reach and claim, claimable ones first, then the rewards
+ * won so far. Part of the Awards page on the profile.
+ */
+export function Achievements({
   achievements,
   rewards,
   onClaim,
@@ -25,7 +28,7 @@ export function AchievementsScreen({
   );
 
   return (
-    <ScrollView contentContainerStyle={s.content}>
+    <View>
       <StickerHeading glyph="Medal" grad={RARITY.legendary}>
         <Text style={s.heading}>Achievements</Text>
       </StickerHeading>
@@ -110,23 +113,22 @@ export function AchievementsScreen({
         </View>
       )}
       <Text style={[s.sub, { marginTop: 10 }]}>Tokens are in your bag at the top right, where you can also wear your looks.</Text>
-    </ScrollView>
+    </View>
   );
 }
 
 const makeStyles = themed((c) => ({
-  content: { padding: 20, paddingBottom: 48, maxWidth: 640, width: '100%', alignSelf: 'center' },
-  heading: { fontFamily: FONTS.serif, color: c.text, fontSize: 30, lineHeight: 36, ...headingCase(c) },
-  subHeading: { fontSize: 22, lineHeight: 28, marginTop: 22 },
+  heading: { fontFamily: FONTS.serif, color: c.text, fontSize: 19, lineHeight: 24, ...headingCase(c) },
+  subHeading: { fontSize: 19, lineHeight: 24, marginTop: 22 },
   sub: { color: c.muted, fontSize: 14, marginTop: 4, marginBottom: 16 },
   card: { ...card(c), padding: 14, marginBottom: 10, gap: 10 },
-  cardClaimable: { borderWidth: 1.5, borderColor: '#FFB547', boxShadow: '0px 0px 16px rgba(255,138,0,0.3)' },
+  cardClaimable: { borderWidth: 1.5, borderColor: brandLine(c.dark), boxShadow: `0px 0px 16px ${brandGlow(0.3)}` },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   title: { color: c.text, fontSize: 16, fontWeight: '700' },
   desc: { color: c.muted, fontSize: 13, marginTop: 2 },
   reward: { fontFamily: VIVID_HEAVY, fontSize: 14 },
-  claim: { ...GOLD_FILL_SMALL, paddingHorizontal: 14, minHeight: 38, justifyContent: 'center', borderRadius: 12 },
-  claimText: { color: GOLD_INK, fontFamily: VIVID_HEAVY, fontSize: 13 },
+  claim: { ...BRAND_FILL_SMALL, paddingHorizontal: 14, minHeight: 38, justifyContent: 'center', borderRadius: 12 },
+  claimText: { color: BRAND_INK, fontFamily: VIVID_HEAVY, fontSize: 13, ...BRAND_TEXT_SHADOW },
   tiers: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
   tierDot: {
     minWidth: 34,
@@ -144,6 +146,6 @@ const makeStyles = themed((c) => ({
   progress: { color: c.muted, fontSize: 12, marginTop: -4 },
   unlock: { color: c.gold, fontSize: 12, fontWeight: '700' },
   rewards: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
-  rewardChip: { ...card(c), borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, borderColor: '#FFB547', borderWidth: 1.5 },
+  rewardChip: { ...card(c), borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, borderColor: brandLine(c.dark), borderWidth: 1.5 },
   rewardChipText: { color: c.text, fontSize: 13, fontWeight: '600' },
 }));

@@ -108,7 +108,10 @@ export function spendAdFree(state: GameState, today: string): GameState {
   return { ...state, adFreeDays: [...(state.adFreeDays ?? []), today] };
 }
 
-/** Streaks shorter than this (without a fire) aren't worth the one free save; it waits for a bigger one. */
+/**
+ * Streaks shorter than this aren't worth the one free save, even with a fire
+ * (Flame can light on day one); it waits for a bigger one.
+ */
 export const RECOVERY_MIN_DAYS = 3;
 
 /**
@@ -119,7 +122,7 @@ export const RECOVERY_MIN_DAYS = 3;
 export function recoveryOffer(state: GameState, today: string): RestOffer | undefined {
   if (state.recovery) return undefined;
   const offer = missedDayOffer(state, today);
-  if (!offer || (offer.keeps < RECOVERY_MIN_DAYS && offer.tier === 0)) return undefined;
+  if (!offer || offer.keeps < RECOVERY_MIN_DAYS) return undefined;
   return offer;
 }
 

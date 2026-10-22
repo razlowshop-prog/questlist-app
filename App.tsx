@@ -1,12 +1,14 @@
 import { loadAsync } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
-import { Activity, Award, FerrisWheel, Sun, Target, User, type LucideIcon } from 'lucide-react-native';
+import { FerrisWheel, ListChecks, Menu, Trophy, type LucideIcon } from 'lucide-react-native';
 import type { GlyphName } from './src/glyphs';
-import { AmbientBlobs, CountBadge, Glyph, VIVID_HEAVY } from './src/components/Vivid';
-import { GOLD } from './src/vivid';
+import { CountBadge, Glyph, VIVID_HEAVY } from './src/components/Vivid';
+import { BRAND, brandGlow, brandLine } from './src/vivid';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
-import { XpHeader } from './src/components/XpHeader';
+import { Animated, BackHandler, Easing, Platform, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { activitySummary } from './src/activity';
+import { BackBar, TopBar } from './src/components/TopBar';
+import { XpProgress } from './src/components/XpProgress';
 import {
   addTask,
   claimChallenge,
@@ -44,9 +46,13 @@ import {
 } from './src/achievements';
 import { Celebration, type CelebrationEvent } from './src/components/Celebration';
 import { LevelDetails } from './src/components/LevelDetails';
-import { AchievementsScreen } from './src/screens/AchievementsScreen';
 import { ActivityScreen } from './src/screens/ActivityScreen';
 import { ChallengesScreen } from './src/screens/ChallengesScreen';
+import { FriendsScreen } from './src/screens/FriendsScreen';
+import { ConnectedAppsScreen, HelpScreen, LegalScreen } from './src/screens/InfoScreens';
+import { InventoryScreen } from './src/screens/InventoryScreen';
+import { MenuScreen, type MenuPage } from './src/screens/MenuScreen';
+import { SettingsScreen } from './src/screens/SettingsScreen';
 import { LibraryModal } from './src/screens/LibraryModal';
 import { SetupScreen, type SetupPick } from './src/screens/SetupScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
@@ -61,7 +67,6 @@ import { withEstimatedTimes } from './src/estimate';
 import { answerRecovery, recoveryOffer, spendAdFree, spendDoubleXp, spendRestDay, swapChallenge, tokenCounts } from './src/tokens';
 import { TokenStrip } from './src/components/TokenStrip';
 import { GoldDust } from './src/components/Fortuna';
-import { Inventory } from './src/components/Inventory';
 import { RecoveryModal } from './src/components/RecoveryModal';
 import { FlameStyleContext } from './src/components/Fire';
 import { AvatarDiscContext } from './src/components/ProfileFrame';
@@ -72,7 +77,7 @@ import { claimSeason, seasonStatus } from './src/seasons';
 import { frameName } from './src/cosmetics';
 import { askReminderPermission, REMINDERS_SUPPORTED, syncReminders } from './src/reminders';
 import { loadState, saveState } from './src/storage';
-import { eyebrow, nativeDriver, themeById, themed, ThemeProvider, THEMES, withFonts } from './src/theme';
+import { nativeDriver, themeById, themed, ThemeProvider, THEMES, withFonts } from './src/theme';
 
 /** The Spin tab always wears the Fortuna look. */
 const FORTUNA = themeById('fortune').palette;
@@ -80,28 +85,44 @@ const FORTUNA = themeById('fortune').palette;
 /** Browser previews are built with this on so every theme and look can be tried without unlocking it. */
 const PREVIEW_ALL_THEMES = process.env.EXPO_PUBLIC_UNLOCK_THEMES === '1';
 
-type Tab = 'today' | 'challenges' | 'spin' | 'activity' | 'awards' | 'profile';
+type Tab = 'today' | 'challenges' | 'spin' | 'menu';
+/** Pages opened from the header or the Menu. They sit above the tab they were opened from, which stays lit in the tab bar. */
+type Page = 'inventory' | 'profile' | MenuPage;
 
-/** Inactive tabs: the theme's muted line icon. Active: a filled glyph in the gold gradient with a glow. */
-const TABS: { key: Tab; label: string; Icon: LucideIcon; glyph: GlyphName }[] = [
-  { key: 'today', label: 'Today', Icon: Sun, glyph: 'Sun' },
-  { key: 'challenges', label: 'Challenges', Icon: Target, glyph: 'Target' },
+/**
+ * Inactive tabs: the theme's muted line icon. Active: a filled glyph in the
+ * brand gradient with a soft glow; Menu's three lines have no filled glyph, so
+ * they are drawn bolder in the brand colour instead.
+ */
+const TABS: { key: Tab; label: string; Icon: LucideIcon; glyph?: GlyphName }[] = [
+  { key: 'today', label: 'Today', Icon: ListChecks, glyph: 'ListChecks' },
+  { key: 'challenges', label: 'Challenges', Icon: Trophy, glyph: 'Trophy' },
   { key: 'spin', label: 'Spin', Icon: FerrisWheel, glyph: 'Pinwheel' },
-  { key: 'activity', label: 'Activity', Icon: Activity, glyph: 'Pulse' },
-  { key: 'awards', label: 'Awards', Icon: Award, glyph: 'Trophy' },
-  { key: 'profile', label: 'Profile', Icon: User, glyph: 'User' },
+  { key: 'menu', label: 'Menu', Icon: Menu },
 ];
+
+const PAGE_TITLES: Record<Page, string> = {
+  inventory: 'Inventory',
+  profile: 'Profile',
+  activity: 'Activity',
+  friends: 'Friends',
+  leaderboard: 'Leaderboard',
+  settings: 'Settings',
+  apps: 'Connected apps',
+  help: 'Contact & help',
+  legal: 'Legal',
+};
 
 export default function App() {
   const [state, setState] = useState<GameState>(emptyState);
   const [loaded, setLoaded] = useState(false);
   const [tab, setTab] = useState<Tab>('today');
+  const [page, setPage] = useState<Page | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [redoSetup, setRedoSetup] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const toastAnim = useRef(new Animated.Value(0)).current;
   const [levelOpen, setLevelOpen] = useState(false);
-  const [bagOpen, setBagOpen] = useState(false);
   const [draft, setDraft] = useState<LibraryTask | undefined>();
   const [celebration, setCelebration] = useState<CelebrationEvent | null>(null);
   const bestLevel = useRef<number | null>(null);
@@ -143,6 +164,7 @@ export default function App() {
   const tokens = tokenCounts(state);
   const awardsToClaim = claimableCount(state, today);
   const addedTitles = useMemo(() => new Set(state.tasks.map((t) => t.title)), [state.tasks]);
+  const week = useMemo(() => activitySummary(state, today), [state, today]);
   const rewards = useMemo(() => unlockedRewards(state), [state.achievementClaims, state.levelRewards, state.wheelSpins]);
   const unlockedThemes = useMemo(() => {
     const labels = new Set(rewards.map((r) => r.label));
@@ -155,6 +177,8 @@ export default function App() {
   const emblems = useMemo(() => emblemStatuses(state), [state.completions, state.tasks]);
   const recovery = loaded ? recoveryOffer(state, today) : undefined;
   const bagCount = Object.values(tokens).reduce((sum, n) => sum + Math.max(0, n), 0);
+  const level = levelInfo(xp);
+  const initials = state.profile.name.trim().slice(0, 2).toUpperCase() || '?';
   const wantedTheme = themeById(unlockedThemes.has(state.settings.theme) ? state.settings.theme : 'classic');
   const theme = themeById(shownThemeId ?? wantedTheme.id);
   const c = theme.palette;
@@ -171,6 +195,21 @@ export default function App() {
     };
   }, [loaded, wantedTheme.id]);
   const styles = useMemo(() => StyleSheet.create(withFonts(makeStyles(c), c.fonts)), [c]);
+
+  // Android's back button closes an open page before it leaves the app.
+  useEffect(() => {
+    if (!page) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      setPage(null);
+      return true;
+    });
+    return () => sub.remove();
+  }, [page]);
+
+  function openTab(next: Tab) {
+    setPage(null);
+    setTab(next);
+  }
   const statusBar = c.dark ? 'light' : 'dark';
 
   function addFromLibrary(s: GameState, t: LibraryTask, perWeek = t.perWeek): GameState {
@@ -184,7 +223,7 @@ export default function App() {
     }
     setState(next);
     setRedoSetup(false);
-    setTab('today');
+    openTab('today');
     if (picks.length) setTimeout(() => showToast(`${picks.length} ${picks.length === 1 ? 'task' : 'tasks'} added. Let's begin.`), 300);
   }
 
@@ -289,7 +328,7 @@ export default function App() {
     showToast(`${tierName} trophy · +${tier.xp} XP${tier.reward ? ` · ${tier.reward.label} unlocked` : ''}`);
   }
 
-  const badges: Record<Tab, number> = { today: 0, challenges: readyToClaim, spin: tickets.tickets, activity: 0, awards: awardsToClaim, profile: 0 };
+  const badges: Record<Tab, number> = { today: 0, challenges: readyToClaim, spin: tickets.tickets, menu: 0 };
 
   const toastStyle = {
     opacity: toastAnim,
@@ -323,23 +362,94 @@ export default function App() {
           <AvatarDiscContext.Provider value={state.settings.avatar}>
           <SafeAreaView style={styles.safe}>
             <StatusBar style={statusBar} />
-            <AmbientBlobs />
-            {c.backdrop === 'dust' && tab !== 'spin' && <GoldDust />}
-            <XpHeader
-              totalXp={xp}
-              multiplier={multiplier}
-              onPressLevel={() => setLevelOpen(true)}
-              onOpenBag={() => setBagOpen(true)}
-              bagCount={bagCount}
-            />
+            {c.backdrop === 'dust' && (tab !== 'spin' || page) && <GoldDust />}
+            {page ? (
+              <BackBar backTo={TABS.find((t) => t.key === tab)!.label} title={PAGE_TITLES[page]} onBack={() => setPage(null)} />
+            ) : (
+              <TopBar
+                level={level.level}
+                progress={level.progress}
+                initials={initials}
+                bagCount={bagCount}
+                toClaim={awardsToClaim}
+                onInventory={() => setPage('inventory')}
+                onProfile={() => setPage('profile')}
+              />
+            )}
 
             <View style={{ flex: 1 }}>
-              {tab === 'today' && (
+              {page === 'activity' && <ActivityScreen state={state} today={today} />}
+              {page === 'inventory' && (
+                <InventoryScreen
+                  state={state}
+                  today={today}
+                  level={level.level}
+                  fireTier={streakInfo.tier}
+                  initials={initials}
+                  owned={owned}
+                  season={season}
+                  tickets={tickets.tickets}
+                  unlockedThemes={unlockedThemes}
+                  onOpenSpin={() => openTab('spin')}
+                  onRest={takeRestDay}
+                  onDouble={() => {
+                    setState(spendDoubleXp(state, today));
+                    showToast('Double XP is on for the rest of today');
+                  }}
+                  onAdFree={() => {
+                    setState(spendAdFree(state, today));
+                    showToast('No ads for the rest of today');
+                  }}
+                  onOpenChallenges={() => openTab('challenges')}
+                  onEquip={(changes) => setState(updateSettings(state, changes))}
+                />
+              )}
+              {page === 'profile' && (
+                <ProfileScreen
+                  name={state.profile.name}
+                  stats={profileStats(state, today)}
+                  trophies={trophies}
+                  joinedAt={state.joinedAt}
+                  settings={state.settings}
+                  title={looks.title}
+                  frame={looks.frame}
+                  emblems={emblems}
+                  multiplier={multiplier}
+                  achievements={achievements}
+                  rewards={rewards}
+                  toClaim={awardsToClaim}
+                  week={week}
+                  today={today}
+                  onClaimAchievement={onClaimAchievement}
+                  onRename={(name) => setState(setName(state, name))}
+                  onSettings={(changes) => setState(updateSettings(state, changes))}
+                />
+              )}
+              {(page === 'friends' || page === 'leaderboard') && (
+                <FriendsScreen
+                  view={page}
+                  name={state.profile.name}
+                  level={level.level}
+                  streak={streakInfo.days}
+                  totalXp={xp}
+                  shareActivity={state.settings.shareActivity === true}
+                  onShareActivity={(share) => setState(updateSettings(state, { shareActivity: share }))}
+                />
+              )}
+              {page === 'settings' && (
+                <SettingsScreen settings={state.settings} onSettings={(changes) => setState(updateSettings(state, changes))} onRedoSetup={() => setRedoSetup(true)} />
+              )}
+              {page === 'apps' && <ConnectedAppsScreen />}
+              {page === 'help' && <HelpScreen />}
+              {page === 'legal' && <LegalScreen />}
+              {!page && tab === 'today' && (
                 <TodayScreen
                   state={state}
                   tasks={tasks}
                   upcoming={upcoming}
                   streak={streakInfo}
+                  multiplier={multiplier}
+                  xpProgress={<XpProgress totalXp={xp} onPress={() => setLevelOpen(true)} />}
                   onOpenStreak={() => setLevelOpen(true)}
                   tokenStrip={
                     <TokenStrip
@@ -367,7 +477,7 @@ export default function App() {
                   onDelete={(task) => setState(deleteTask(state, task.id))}
                 />
               )}
-              {tab === 'challenges' && (
+              {!page && tab === 'challenges' && (
                 <ChallengesScreen
                   challenges={challenges}
                   today={today}
@@ -387,7 +497,7 @@ export default function App() {
                   }}
                 />
               )}
-              {tab === 'spin' && (
+              {!page && tab === 'spin' && (
                 <ThemeProvider palette={FORTUNA}>
                   <SpinScreen
                     tickets={tickets}
@@ -402,53 +512,25 @@ export default function App() {
                   />
                 </ThemeProvider>
               )}
-              {tab === 'activity' && (
-                <ActivityScreen state={state} today={today} onShareActivity={(share) => setState(updateSettings(state, { shareActivity: share }))} />
-              )}
-              {tab === 'awards' && (
-                <AchievementsScreen
-                  achievements={achievements}
-                  rewards={rewards}
-                  onClaim={onClaimAchievement}
-                />
-              )}
-              {tab === 'profile' && (
-                <ProfileScreen
-                  name={state.profile.name}
-                  stats={profileStats(state, today)}
-                  trophies={trophies}
-                  joinedAt={state.joinedAt}
-                  settings={state.settings}
-                  unlockedThemes={unlockedThemes}
-                  title={looks.title}
-                  frame={looks.frame}
-                  emblems={emblems}
-                  multiplier={multiplier}
-                  onOpenBag={() => setBagOpen(true)}
-                  onRename={(name) => setState(setName(state, name))}
-                  onSettings={(changes) => setState(updateSettings(state, changes))}
-                  onRedoSetup={() => setRedoSetup(true)}
-                />
-              )}
+              {!page && tab === 'menu' && <MenuScreen onOpen={setPage} />}
             </View>
 
             <View style={styles.tabBar}>
               {TABS.map((t) => (
                 <Pressable
                   key={t.key}
-                  onPress={() => setTab(t.key)}
+                  onPress={() => openTab(t.key)}
                   style={styles.tab}
                   accessibilityRole="tab"
                   accessibilityState={{ selected: tab === t.key }}
                 >
                   {tab === t.key ? (
-                    <View style={styles.tabGlyph}>
-                      <View style={styles.tabGlow} />
-                      <Glyph name={t.glyph} size={23} grad={GOLD} />
+                    <View style={[styles.tabGlyph, styles.tabGlow]}>
+                      {t.glyph ? <Glyph name={t.glyph} size={24} grad={BRAND} /> : <t.Icon size={24} color={brandLine(c.dark)} strokeWidth={2.5} aria-hidden />}
                     </View>
                   ) : (
                     <View style={styles.tabGlyph}>
-                      <t.Icon size={20} color={c.muted} strokeWidth={1.5} aria-hidden />
+                      <t.Icon size={22} color={c.muted} strokeWidth={1.5} aria-hidden />
                     </View>
                   )}
                   <Text style={[styles.tabLabel, tab === t.key && styles.tabLabelActive]} numberOfLines={1}>
@@ -466,7 +548,7 @@ export default function App() {
                 // Picked tasks open in the add form, so days and frequency can be set first.
                 setDraft(t);
                 setLibraryOpen(false);
-                setTab('today');
+                openTab('today');
               }}
               onClose={() => setLibraryOpen(false)}
             />
@@ -478,32 +560,6 @@ export default function App() {
             )}
 
             <LevelDetails visible={levelOpen} totalXp={xp} streak={streakInfo} onClose={() => setLevelOpen(false)} />
-
-            <Inventory
-              visible={bagOpen}
-              state={state}
-              today={today}
-              level={levelInfo(xp).level}
-              fireTier={streakInfo.tier}
-              initials={state.profile.name.trim().slice(0, 2).toUpperCase() || '?'}
-              owned={owned}
-              season={season}
-              onClose={() => setBagOpen(false)}
-              onRest={takeRestDay}
-              onDouble={() => {
-                setState(spendDoubleXp(state, today));
-                showToast('Double XP is on for the rest of today');
-              }}
-              onAdFree={() => {
-                setState(spendAdFree(state, today));
-                showToast('No ads for the rest of today');
-              }}
-              onOpenChallenges={() => {
-                setBagOpen(false);
-                setTab('challenges');
-              }}
-              onEquip={(changes) => setState(updateSettings(state, changes))}
-            />
 
             {recovery && !celebration && (
               <RecoveryModal
@@ -536,21 +592,22 @@ export default function App() {
 }
 
 const makeStyles = themed((c) => ({
-  safe: { flex: 1, backgroundColor: c.bg },
+  safe: { flex: 1, backgroundColor: c.bg, ...(c.bgImage && { backgroundImage: c.bgImage }) },
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: c.bg,
+    backgroundColor: c.tabBar,
+    ...(c.tabBar !== c.bg && Platform.OS === 'web' && ({ backdropFilter: 'blur(12px)' } as object)),
     paddingTop: 10,
     paddingBottom: 10,
+    paddingHorizontal: 12,
     borderTopWidth: 1,
     borderTopColor: c.border,
   },
   tab: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 44, gap: 4 },
-  // Six tabs share a phone's width, so the spaced capitals are tightened.
-  tabLabel: { ...eyebrow(c, 9), letterSpacing: c.eyebrowCaps ? 0.6 : 0.2, color: c.muted },
-  tabLabelActive: { color: '#FFB547', fontFamily: VIVID_HEAVY, ...(!c.dark && { color: '#C2410C' }) },
-  tabGlyph: { width: 26, height: 24, alignItems: 'center', justifyContent: 'center' },
-  tabGlow: { position: 'absolute', width: 22, height: 22, borderRadius: 11, backgroundColor: '#FF7A00', opacity: 0.28, boxShadow: '0px 0px 10px #FF7A00' },
+  tabLabel: { fontSize: 11, fontWeight: '600', color: c.muted },
+  tabLabelActive: { color: brandLine(c.dark), fontFamily: VIVID_HEAVY },
+  tabGlyph: { width: 28, height: 26, alignItems: 'center', justifyContent: 'center' },
+  tabGlow: { filter: `drop-shadow(0px 0px 6px ${brandGlow(0.7)})` },
   dot: { position: 'absolute', top: -4, right: '18%' },
   toast: {
     position: 'absolute',
@@ -558,8 +615,8 @@ const makeStyles = themed((c) => ({
     alignSelf: 'center',
     backgroundColor: c.surface,
     borderWidth: 1.5,
-    borderColor: '#FFB547',
-    boxShadow: '0px 6px 20px rgba(255,122,0,0.3)',
+    borderColor: brandLine(c.dark),
+    boxShadow: `0px 6px 20px ${brandGlow(0.3)}`,
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: c.radius,

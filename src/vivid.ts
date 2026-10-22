@@ -17,8 +17,19 @@ export interface Grad {
 
 const g = (c1: string, c2: string, ink = '#FFFFFF'): Grad => ({ c1, c2, ink });
 
-/** The main brand gradient, as on the app icon: buttons, chips, toggles, the active tab. */
-export const GOLD: Grad = g('#FFE066', '#FF7A00', '#2a1300');
+/**
+ * The brand gradient (home variant F "Kühl"): buttons, chips, toggles, the
+ * active tab. Blue to violet with white text; rewards keep their own colours.
+ */
+export const BRAND: Grad = g('#7FD6FF', '#6A5BFF');
+
+/** One solid brand colour for outlines, highlighted cards and the active tab label. */
+export function brandLine(dark: boolean): string {
+  return dark ? '#9FB4FF' : '#4A3BD6';
+}
+
+/** The brand glow, at a given strength (0-1). */
+export const brandGlow = (alpha: number) => `rgba(106,91,255,${alpha})`;
 
 /** The progress gradient: the XP bar. */
 export const PRISM = ['#5BF0D2', '#4DB8FF', '#A45CFF', '#FF3D9A'];
@@ -32,14 +43,14 @@ export const KEYLINE = '#0e0b12';
 /** Notification and counter badges. White on it is 4.4:1. */
 export const BADGE_RED = '#E0335F';
 
-/** Big numbers in gradient text: bright gold with a glow on dark themes, a deeper orange (4.5:1 or better) on light ones. */
+/** Big numbers in gradient text: ice blue to violet on dark themes, a deep blue-violet (4.5:1 or better) on light ones. No glow. */
 export function textGradient(dark: boolean): { c1: string; c2: string; glow?: string } {
-  return dark ? { c1: '#FFF1A8', c2: '#FF8A00', glow: 'rgba(255,138,0,0.45)' } : { c1: '#FF8A00', c2: '#C2410C' };
+  return dark ? { c1: '#C6F4FF', c2: '#8F7BFF' } : { c1: '#3F4FD8', c2: '#4A3BD6' };
 }
 
 /** Solid fallback for gradient text where a gradient can't be clipped to letters (phones). */
 export function textSolid(dark: boolean): string {
-  return dark ? '#FFC24D' : '#C2410C';
+  return dark ? '#A9B8FF' : '#4A3BD6';
 }
 
 export type Rarity = 'common' | 'rare' | 'epic' | 'legendary' | 'mythic';

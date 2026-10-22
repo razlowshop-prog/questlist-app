@@ -14,6 +14,7 @@ import { card, eyebrow, FONTS, headingCase, themed, useStyles, useTheme } from '
 import { Fire, fireColor } from './Fire';
 import { FireAura } from './FireAura';
 import { RewardPicture } from './RewardPicture';
+import { brandLine, brandGlow } from '../vivid';
 
 /** Opened by tapping the level: XP, the streak multiplier and fire tiers, the next reward. */
 export function LevelDetails({
@@ -82,13 +83,14 @@ export function LevelDetails({
                   <FireAura tier={t.tier} id={`tier-${t.tier}`} />
                   <Fire tier={t.tier} size={18} />
                   <Text style={[s.tierName, { color: fireColor(t.tier, c) }]}>{t.name}</Text>
-                  <Text style={s.muted}>{t.weekXp} XP a week</Text>
+                  <Text style={s.muted}>{t.tier === 1 ? `${t.weekXp} XP, instantly` : `${t.weekXp} XP a week`}</Text>
                   {streak.tier >= t.tier && <Check size={14} color={c.accent} strokeWidth={2} aria-hidden />}
                 </View>
               ))}
               <Text style={s.note}>
-                This week: {streak.weekXp} XP. Reach a threshold and your fire moves up on Monday. Keep it going with one task
-                a day: a missed day costs a tier, and on Flame or below it ends the streak.
+                This week: {streak.weekXp} XP. Flame lights the moment your streak earns {STREAK_TIERS[0].weekXp} XP. For Blaze and
+                Inferno, reach the threshold in a week and your fire moves up on Monday. Keep it going with one task a day: a
+                missed day costs a tier, and on Flame or below it ends the streak.
               </Text>
             </View>
 
@@ -128,7 +130,7 @@ const makeStyles = themed((c) => ({
   small: { ...eyebrow(c, 11), color: c.muted },
   steps: { flexDirection: 'row', gap: 8 },
   step: { flex: 1, alignItems: 'center', gap: 2, paddingVertical: 8, borderRadius: c.radius, borderWidth: 1, borderColor: c.border },
-  stepOn: { borderColor: '#FFB547', backgroundColor: c.surface, boxShadow: '0px 0px 10px rgba(255,138,0,0.3)' },
+  stepOn: { borderColor: brandLine(c.dark), backgroundColor: c.surface, boxShadow: `0px 0px 10px ${brandGlow(0.3)}` },
   stepValue: { fontFamily: FONTS.serif, color: c.muted, fontSize: 18, fontVariant: ['lining-nums'] },
   tierRow: {
     flexDirection: 'row',
