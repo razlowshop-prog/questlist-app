@@ -1,6 +1,6 @@
 import { loadAsync } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
-import { Activity, Award, Sun, Target, User, type LucideIcon } from 'lucide-react-native';
+import { Activity, Award, FerrisWheel, Sun, Target, User, type LucideIcon } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { XpHeader } from './src/components/XpHeader';
@@ -18,7 +18,6 @@ import {
   limitMessage,
   profileStats,
   setName,
-  streakBonus,
   toggleTask,
   totalXp,
   updateSettings,
@@ -26,6 +25,7 @@ import {
   visibleTasks,
   withDefaults,
   weeklyChallenges,
+  xpMultiplier,
   type GameState,
   type Task,
 } from './src/game';
@@ -47,13 +47,16 @@ import { ChallengesScreen } from './src/screens/ChallengesScreen';
 import { LibraryModal } from './src/screens/LibraryModal';
 import { SetupScreen, type SetupPick } from './src/screens/SetupScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
+import { SpinScreen } from './src/screens/SpinScreen';
 import { TodayScreen } from './src/screens/TodayScreen';
+import { ownsWheelTheme, spinsToPity, spinWheel, ticketStatus } from './src/wheel';
 import type { LibraryTask } from './src/library';
-import { fontFilesFor } from './src/fonts';
+import { fontFilesFor, WHEEL_FONTS } from './src/fonts';
 import { trophyStatuses } from './src/trophies';
 import { withEstimatedTimes } from './src/estimate';
 import { answerRecovery, recoveryOffer, spendAdFree, spendDoubleXp, spendRestDay, swapChallenge, tokenCounts } from './src/tokens';
 import { TokenStrip } from './src/components/TokenStrip';
+import { GoldDust } from './src/components/Fortuna';
 import { Inventory } from './src/components/Inventory';
 import { RecoveryModal } from './src/components/RecoveryModal';
 import { FlameStyleContext } from './src/components/Fire';
@@ -66,14 +69,18 @@ import { askReminderPermission, REMINDERS_SUPPORTED, syncReminders } from './src
 import { loadState, saveState } from './src/storage';
 import { eyebrow, nativeDriver, themeById, themed, ThemeProvider, THEMES, withFonts } from './src/theme';
 
+/** The Spin tab always wears the Fortuna look. */
+const FORTUNA = themeById('fortune').palette;
+
 /** Browser previews are built with this on so every theme and look can be tried without unlocking it. */
 const PREVIEW_ALL_THEMES = process.env.EXPO_PUBLIC_UNLOCK_THEMES === '1';
 
-type Tab = 'today' | 'challenges' | 'activity' | 'awards' | 'profile';
+type Tab = 'today' | 'challenges' | 'spin' | 'activity' | 'awards' | 'profile';
 
 const TABS: { key: Tab; label: string; Icon: LucideIcon }[] = [
   { key: 'today', label: 'Today', Icon: Sun },
   { key: 'challenges', label: 'Challenges', Icon: Target },
+  { key: 'spin', label: 'Spin', Icon: FerrisWheel },
   { key: 'activity', label: 'Activity', Icon: Activity },
   { key: 'awards', label: 'Awards', Icon: Award },
   { key: 'profile', label: 'Profile', Icon: User },
@@ -120,7 +127,7 @@ export default function App() {
 
   const xp = totalXp(state);
   const streakInfo = useMemo(() => streakStatus(state.completions, today, restDaysOf(state)), [state.completions, state.restDays, state.recovery, today]);
-  const streak = streakInfo.days;
+  const multiplier = useMemo(() => xpMultiplier(state, today), [state, today]);
   const tasks = useMemo(() => visibleTasks(state, today), [state, today]);
   const upcoming = useMemo(() => upcomingTasks(state, today), [state.tasks, today]);
   const challenges = useMemo(() => weeklyChallenges(state, today), [state, today]);
@@ -130,12 +137,13 @@ export default function App() {
   const tokens = tokenCounts(state);
   const awardsToClaim = claimableCount(state, today);
   const addedTitles = useMemo(() => new Set(state.tasks.map((t) => t.title)), [state.tasks]);
-  const rewards = useMemo(() => unlockedRewards(state), [state.achievementClaims, state.levelRewards]);
+  const rewards = useMemo(() => unlockedRewards(state), [state.achievementClaims, state.levelRewards, state.wheelSpins]);
   const unlockedThemes = useMemo(() => {
     const labels = new Set(rewards.map((r) => r.label));
     return new Set(THEMES.filter((t) => !t.reward || labels.has(t.reward) || PREVIEW_ALL_THEMES).map((t) => t.id));
   }, [rewards]);
-  const owned = useMemo(() => ownedLooks(state, PREVIEW_ALL_THEMES), [state.achievementClaims, state.levelRewards, state.seasonClaims]);
+  const owned = useMemo(() => ownedLooks(state, PREVIEW_ALL_THEMES), [state.achievementClaims, state.levelRewards, state.seasonClaims, state.wheelSpins]);
+  const tickets = ticketStatus(state, xp);
   const looks = equippedLooks(state.settings, owned);
   const season = useMemo(() => seasonStatus(state, today), [state.completions, state.tasks, state.seasonClaims, today]);
   const emblems = useMemo(() => emblemStatuses(state), [state.completions, state.tasks]);
@@ -149,7 +157,7 @@ export default function App() {
     if (!loaded) return;
     let current = true;
     // A font that fails to load falls back to the system font; the theme still applies.
-    loadAsync(fontFilesFor(wantedTheme.palette.fonts))
+    loadAsync({ ...fontFilesFor(wantedTheme.palette.fonts), ...WHEEL_FONTS })
       .catch((e) => console.warn('Fonts failed to load', e))
       .finally(() => current && setShownThemeId(wantedTheme.id));
     return () => {
@@ -242,6 +250,18 @@ export default function App() {
     return { xp: gained, note: limited ? limitMessage(limited) : undefined };
   }
 
+  /**
+   * Spends a ticket on the wheel. The spin is saved straight away, so closing
+   * the app mid-spin can't undo it; the prize is handed out (and the XP bar
+   * moves) only when the wheel stops and shows it.
+   */
+  function onSpin() {
+    const { state: next, prize } = spinWheel(state, xp, today, Math.random());
+    if (!prize) return undefined;
+    saveState(next);
+    return { prize, finish: () => apply(next) };
+  }
+
   function onClaim(id: string) {
     const gained = apply(claimChallenge(state, id, today));
     if (gained > 0) showToast(`Challenge complete · +${gained} XP`);
@@ -254,6 +274,8 @@ export default function App() {
     apply(next);
     showToast(`${tierName} trophy · +${tier.xp} XP${tier.reward ? ` · ${tier.reward.label} unlocked` : ''}`);
   }
+
+  const badges: Record<Tab, number> = { today: 0, challenges: readyToClaim, spin: tickets.tickets, activity: 0, awards: awardsToClaim, profile: 0 };
 
   const toastStyle = {
     opacity: toastAnim,
@@ -286,9 +308,10 @@ export default function App() {
         <CelebrationContext.Provider value={looks.celebration}>
           <SafeAreaView style={styles.safe}>
             <StatusBar style={statusBar} />
+            {c.backdrop === 'dust' && tab !== 'spin' && <GoldDust />}
             <XpHeader
               totalXp={xp}
-              bonus={streakBonus(streak)}
+              multiplier={multiplier}
               onPressLevel={() => setLevelOpen(true)}
               onOpenBag={() => setBagOpen(true)}
               bagCount={bagCount}
@@ -347,6 +370,21 @@ export default function App() {
                   }}
                 />
               )}
+              {tab === 'spin' && (
+                <ThemeProvider palette={FORTUNA}>
+                  <SpinScreen
+                    tickets={tickets}
+                    pity={spinsToPity(state)}
+                    ownsTheme={ownsWheelTheme(state)}
+                    spins={state.wheelSpins ?? []}
+                    onSpin={onSpin}
+                    onWearTheme={() => {
+                      setState(updateSettings(state, { theme: 'fortune' }));
+                      showToast('Fortuna is on. Good luck!');
+                    }}
+                  />
+                </ThemeProvider>
+              )}
               {tab === 'activity' && (
                 <ActivityScreen state={state} today={today} onShareActivity={(share) => setState(updateSettings(state, { shareActivity: share }))} />
               )}
@@ -368,6 +406,7 @@ export default function App() {
                   title={looks.title}
                   frame={looks.frame}
                   emblems={emblems}
+                  multiplier={multiplier}
                   onOpenBag={() => setBagOpen(true)}
                   onRename={(name) => setState(setName(state, name))}
                   onSettings={(changes) => setState(updateSettings(state, changes))}
@@ -390,9 +429,9 @@ export default function App() {
                     {t.label}
                   </Text>
                   <View style={[styles.tabMark, tab === t.key && styles.tabMarkActive]} />
-                  {(t.key === 'challenges' ? readyToClaim : t.key === 'awards' ? awardsToClaim : 0) > 0 && (
+                  {badges[t.key] > 0 && (
                     <View style={styles.dot}>
-                      <Text style={styles.dotText}>{t.key === 'challenges' ? readyToClaim : awardsToClaim}</Text>
+                      <Text style={styles.dotText}>{badges[t.key] > 99 ? '99+' : badges[t.key]}</Text>
                     </View>
                   )}
                 </Pressable>
@@ -485,8 +524,8 @@ const makeStyles = themed((c) => ({
     borderTopColor: c.border,
   },
   tab: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 44, gap: 4 },
-  // Five tabs share a phone's width, so the spaced capitals are tightened a little.
-  tabLabel: { ...eyebrow(c, 9), ...(c.eyebrowCaps && { letterSpacing: 1.1 }), color: c.muted },
+  // Six tabs share a phone's width, so the spaced capitals are tightened.
+  tabLabel: { ...eyebrow(c, 9), letterSpacing: c.eyebrowCaps ? 0.6 : 0.2, color: c.muted },
   tabLabelActive: { color: c.dark ? c.accent : c.text },
   tabMark: { width: 5, height: 5, transform: [{ rotate: '45deg' }], backgroundColor: 'transparent' },
   tabMarkActive: { backgroundColor: c.accent },

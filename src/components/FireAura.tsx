@@ -119,7 +119,7 @@ function Ember({ left, size, delay, duration, color }: EmberSpec & { color: stri
   return <Animated.View style={[{ position: 'absolute', bottom: 4 }, style]} />;
 }
 
-function useReduceMotion(): boolean {
+export function useReduceMotion(): boolean {
   const [reduce, setReduce] = useState(false);
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled?.().then(setReduce).catch(() => {});

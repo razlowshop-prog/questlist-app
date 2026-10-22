@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, Text, View } from 'react-native';
 import type { LevelMilestone } from '../achievements';
-import { eyebrow, FONTS, nativeDriver, themed, useStyles } from '../theme';
+import { eyebrow, FONTS, nativeDriver, themed, useStyles, useTheme } from '../theme';
+import { CoinShower } from './Fortuna';
 import { TOKEN_INFO } from '../tokens';
 import { RewardPicture } from './RewardPicture';
 
@@ -31,6 +32,7 @@ export function Celebration({
   onClose: () => void;
 }) {
   const s = useStyles(makeStyles);
+  const c = useTheme();
   const [phase, setPhase] = useState<'level' | 'reward'>('level');
   const backdrop = useRef(new Animated.Value(0)).current;
   const spin = useRef(new Animated.Value(0)).current;
@@ -88,6 +90,8 @@ export function Celebration({
     <Animated.View style={[s.overlay, { opacity: backdrop }]}>
       <Pressable style={s.fill} onPress={phase === 'level' ? next : undefined} accessibilityRole="button" accessibilityLabel={phase === 'level' ? 'Continue' : undefined}>
         <View style={s.backdrop} />
+        {/* Fortuna: a shower of gold coins on every level-up. */}
+        {c.check === 'coin' && <CoinShower />}
         <View style={s.center} pointerEvents="box-none">
           <Animated.View style={[s.rays, { transform: [{ rotate }] }]} pointerEvents="none">
             {RAYS.map((deg) => (

@@ -3,6 +3,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import { APP_NAME } from '../brand';
 import { type Ornament, useTheme } from '../theme';
 import { BrassRule } from './BrassRule';
+import { StarRule } from './Fortuna';
 
 /**
  * The wordmark dressed for the current theme: the rule with diamond
@@ -20,6 +21,17 @@ export function LogoMark({ textStyle, ruleWidth }: { textStyle: TextStyle; ruleW
         <DoubleRule color={c.accent} style={rule} />
         {word}
         <DoubleRule color={c.accent} style={rule} />
+      </>
+    );
+  }
+  if (c.logoRule && c.ornament === 'star4') {
+    // Star rules sized like the brass ones: the 10 px star plus the line.
+    const starRule = ruleWidth ? { width: ruleWidth + 15 } : { flex: 1 };
+    return (
+      <>
+        <StarRule end="left" style={starRule} />
+        {word}
+        <StarRule end="right" style={starRule} />
       </>
     );
   }
@@ -83,6 +95,7 @@ export function OrnamentIcon({ kind, color }: { kind: Ornament; color: string })
           <Path d="M2 10.5h24" {...stroke} strokeWidth={1} />
         </>
       )}
+      {kind === 'star4' && <Path d="M14 1l1.9 6.1L22 9l-6.1 1.9L14 17l-1.9-6.1L6 9l6.1-1.9z" fill={color} />}
       {kind === 'moon' && (
         <>
           <Path d="M13 3.5a6 6 0 1 0 6 8.5 5 5 0 0 1-6-8.5z" {...stroke} />

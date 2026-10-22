@@ -2,26 +2,29 @@ import { Backpack } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, Text, View } from 'react-native';
 import { nextLevelReward } from '../achievements';
-import { levelInfo } from '../game';
+import { levelInfo, type xpMultiplier } from '../game';
 import { eyebrow, FONTS, headingCase, themed, useStyles, useTheme, type BarStyle } from '../theme';
+import { ShimmerBar } from './Fortuna';
 import { LogoMark } from './LogoMark';
+import { MultiplierPill } from './MultiplierPill';
 import { RewardPicture } from './RewardPicture';
 
 /**
- * Always-visible header: centred wordmark with the inventory bag at the right, level badge with the streak multiplier, and the XP bar. Gained XP
+ * Always-visible header: centred wordmark with the inventory bag at the right, level badge with the XP multiplier, and the XP bar. Gained XP
  * counts up: a light "ghost" bar jumps ahead to the new total, the solid bar
  * fills after it, the numbers tick up and the bar glows. A level-up runs the
  * bar to the end and continues from zero on the new level.
  */
 export function XpHeader({
   totalXp,
-  bonus,
+  multiplier,
   onPressLevel,
   onOpenBag,
   bagCount,
 }: {
   totalXp: number;
-  bonus: number;
+  /** What the next task today is multiplied by; shown as a gold pill while above 1. */
+  multiplier: ReturnType<typeof xpMultiplier>;
   onPressLevel: () => void;
   /** Opens the inventory from the bag at the top right. */
   onOpenBag: () => void;
@@ -113,11 +116,7 @@ export function XpHeader({
             <View style={s.labels}>
               <View style={s.rankRow}>
                 <Text style={s.rank}>{shown.rank}</Text>
-                {bonus > 0 && (
-                  <View style={s.multiplier}>
-                    <Text style={s.multiplierText}>{(1 + bonus).toFixed(1)}x XP</Text>
-                  </View>
-                )}
+                {multiplier.total > 1 && <MultiplierPill multiplier={multiplier} size="small" />}
               </View>
               <View style={s.xpWrap}>
                 {gain > 0 && <Animated.Text style={[s.gain, gainStyle]}>+{gain}</Animated.Text>}
@@ -130,6 +129,8 @@ export function XpHeader({
                 <Animated.View style={[s.fill, { width: `${shown.progress * 100}%`, backgroundColor: glowColor }]} />
                 {c.tip && <Animated.View style={[s.tip, { left: `${shown.progress * 100}%`, backgroundColor: glowColor }]} />}
               </View>
+            ) : c.bar.kind === 'shimmer' ? (
+              <ShimmerBar progress={shown.progress} ghost={ghost} glow={gain > 0 ? glowColor : undefined} />
             ) : (
               <StepBar style={c.bar} progress={shown.progress} ghost={ghost} />
             )}
@@ -183,7 +184,7 @@ function NextReward({ totalXp }: { totalXp: number }) {
 }
 
 /** XP bar made of segments or dots; they light up one by one, the ones about to fill shown faintly. */
-function StepBar({ style, progress, ghost }: { style: Exclude<BarStyle, { kind: 'line' }>; progress: number; ghost: number }) {
+function StepBar({ style, progress, ghost }: { style: Exclude<BarStyle, { kind: 'line' } | { kind: 'shimmer' }>; progress: number; ghost: number }) {
   const c = useTheme();
   const filled = Math.round(progress * style.count);
   const coming = Math.round(ghost * style.count);
@@ -216,7 +217,7 @@ function StepBar({ style, progress, ghost }: { style: Exclude<BarStyle, { kind: 
 }
 
 const makeStyles = themed((c) => ({
-  wrap: { backgroundColor: c.bg, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 16 },
+  wrap: { backgroundColor: c.backdrop === 'dust' ? 'transparent' : c.bg, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 16 },
   inner: { maxWidth: 640, width: '100%', alignSelf: 'center', gap: 12 },
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 2 },
   bag: { position: 'absolute', right: 0, top: -4, width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
@@ -240,7 +241,7 @@ const makeStyles = themed((c) => ({
   badge: {
     width: 58,
     height: 58,
-    borderRadius: c.check === 'circle' ? 29 : c.check === 'square' ? Math.min(c.radius + 4, 16) : 6,
+    borderRadius: c.check === 'circle' || c.check === 'coin' ? 29 : c.check === 'square' ? Math.min(c.radius + 4, 16) : 6,
     borderWidth: 2,
     borderColor: c.accent,
     backgroundColor: c.accentSoft,
@@ -251,8 +252,6 @@ const makeStyles = themed((c) => ({
   badgeNumber: { fontFamily: FONTS.serif, color: c.accent, fontSize: 26, lineHeight: 30, fontVariant: ['lining-nums'] },
   rankRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
   rank: { fontFamily: FONTS.serif, color: c.text, fontSize: 19, ...headingCase(c) },
-  multiplier: { borderRadius: 999, backgroundColor: c.accent, paddingHorizontal: 8, paddingVertical: 2 },
-  multiplierText: { color: c.onAccent, fontSize: 11, fontWeight: '700', fontVariant: ['tabular-nums'] },
   labels: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
   xpText: { color: c.muted, fontSize: 13, fontVariant: ['tabular-nums'] },
   xpWrap: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },

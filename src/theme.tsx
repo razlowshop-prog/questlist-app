@@ -32,8 +32,8 @@ export interface Palette {
   radius: number;
   /** 'lines' = tasks as rows split by hairlines, 'cards' = each task in its own card. */
   listStyle: 'lines' | 'cards';
-  /** Shape of the task checkbox. */
-  check: 'circle' | 'square' | 'diamond';
+  /** Shape of the task checkbox; 'coin' = a gold coin that flips when ticked (Fortuna). */
+  check: 'circle' | 'square' | 'diamond' | 'coin';
   /** Thickness of progress lines (XP bar, challenges, achievements). */
   lineWeight: number;
   /** Diamond tip at the end of the XP line. */
@@ -54,14 +54,19 @@ export interface Palette {
   label: string;
   /** Font files for this theme; keys of FONT_FILES registered in App.tsx. */
   fonts: ThemeFonts;
+  /** Fortuna extras: drifting rainbow borders on task cards, and rising gold dust behind everything. */
+  holo: boolean;
+  backdrop: 'none' | 'dust';
 }
 
-export type Ornament = 'none' | 'leaf' | 'wave' | 'sun' | 'bolt' | 'peak' | 'dots' | 'double' | 'moon';
+export type Ornament = 'none' | 'leaf' | 'wave' | 'sun' | 'bolt' | 'peak' | 'dots' | 'double' | 'moon' | 'star4';
 
 export type BarStyle =
   | { kind: 'line' }
   | { kind: 'segments'; count: number; radius: number; gap: number }
-  | { kind: 'dots'; count: number; size: number; glow: boolean };
+  | { kind: 'dots'; count: number; size: number; glow: boolean }
+  /** A gold gradient bar with a light sweeping across and a twinkling star at the tip (Fortuna). */
+  | { kind: 'shimmer' };
 
 export interface ThemeFonts {
   serif: string;
@@ -118,6 +123,8 @@ interface ThemeSpec {
   bar?: BarStyle;
   italicAccent: boolean;
   headingUpper: boolean;
+  holo?: boolean;
+  backdrop?: Palette['backdrop'];
 }
 
 /** Builds a palette from a design-thread spec line. */
@@ -159,6 +166,8 @@ function palette(spec: ThemeSpec): Palette {
     italicAccent: spec.italicAccent,
     headingUpper: spec.headingUpper,
     fonts: spec.fonts ?? FONTS,
+    holo: spec.holo ?? false,
+    backdrop: spec.backdrop ?? 'none',
   };
 }
 
@@ -280,6 +289,19 @@ export const THEMES: ThemeDef[] = [
       radius: 18, listStyle: 'cards', check: 'circle', lineWeight: 4, tip: false,
       eyebrowCaps: false, logoRule: false, ornament: 'moon', italicAccent: true, headingUpper: false,
       bar: { kind: 'dots', count: 10, size: 7, glow: true },
+    }),
+  },
+  {
+    // Only won on the lucky wheel (design thread, "Fortuna theme and wheel spec").
+    id: 'fortune',
+    name: 'Fortuna',
+    reward: 'Fortuna theme',
+    palette: palette({
+      colors: ['120a1f', '1f1530', '2a1d40', '3d2d5c', 'fbf6ea', 'cfc3e0', 'a596bf', '7a66a2', 'f2c55c', '2a1600'],
+      fonts: heading('Cinzel_700Bold', 'Cinzel_700Bold'),
+      radius: 14, listStyle: 'cards', check: 'coin', lineWeight: 6, tip: false,
+      eyebrowCaps: true, logoRule: true, ornament: 'star4', italicAccent: false, headingUpper: true,
+      bar: { kind: 'shimmer' }, holo: true, backdrop: 'dust',
     }),
   },
 ];

@@ -15,6 +15,7 @@ import {
 import type { CelebrationId } from '../cosmetics';
 import { card, FONTS, nativeDriver, themed, useStyles, useTheme, type Palette } from '../theme';
 import { FIRE_COLORS } from './Fire';
+import { CoinCheck, HoloBorder } from './Fortuna';
 
 /** The tick celebration the player has equipped. */
 export const CelebrationContext = createContext<CelebrationId>('classic');
@@ -50,6 +51,8 @@ export function TaskRow({
   const look = useContext(CelebrationContext);
   const particles = useMemo(() => particlesFor(look, c), [look, c]);
   const pop = useRef(new Animated.Value(1)).current;
+  // The Fortuna coin flips over when it turns gold.
+  const flip = useRef(new Animated.Value(0)).current;
   const float = useRef(new Animated.Value(0)).current;
   const ring = useRef(new Animated.Value(1)).current;
   const burst = useRef(new Animated.Value(1)).current;
@@ -81,6 +84,10 @@ export function TaskRow({
     if (wasDone) return;
     setLabel(xp > 0 ? { text: `+${xp} XP`, warn: false } : { text: note ?? '+0 XP', warn: true });
     if (xp > 0) celebrate();
+    if (c.check === 'coin') {
+      flip.setValue(0);
+      Animated.timing(flip, { toValue: 1, duration: 600, easing: Easing.out(Easing.cubic), useNativeDriver: nativeDriver }).start();
+    }
     animate(xp > 0);
   }
 
@@ -132,8 +139,8 @@ export function TaskRow({
   };
   const locked = waitLeft > 0 && !done;
 
-  return (
-    <View style={[s.row, label && { zIndex: 2 }]}>
+  const row = (
+    <View style={[s.row, label && !c.holo && { zIndex: 2 }]}>
       <Animated.View style={[s.flash, flashStyle]} pointerEvents="none" />
       <Pressable onPress={press} style={s.main} accessibilityRole="checkbox" accessibilityState={{ checked: done }}>
         <Text style={s.num}>{String(index + 1).padStart(2, '0')}</Text>
@@ -182,9 +189,26 @@ export function TaskRow({
               }}
             />
           ))}
-          <Animated.View style={[s.checkbox, done && s.checkboxDone, locked && s.checkboxLocked, { transform: [{ scale: pop }, ...rotate] }]}>
-            {done && <Text style={[s.checkmark, c.check === 'diamond' && s.checkmarkDiamond]}>✓</Text>}
-          </Animated.View>
+          {c.check === 'coin' ? (
+            <Animated.View
+              style={[
+                locked && s.checkboxLocked,
+                {
+                  transform: [
+                    { perspective: 400 },
+                    { rotateY: flip.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) },
+                    { scale: flip.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 1.25, 1] }) },
+                  ],
+                },
+              ]}
+            >
+              <CoinCheck done={done} size={30} />
+            </Animated.View>
+          ) : (
+            <Animated.View style={[s.checkbox, done && s.checkboxDone, locked && s.checkboxLocked, { transform: [{ scale: pop }, ...rotate] }]}>
+              {done && <Text style={[s.checkmark, c.check === 'diamond' && s.checkmarkDiamond]}>✓</Text>}
+            </Animated.View>
+          )}
         </View>
       </Pressable>
       <Pressable onPress={onDelete} hitSlop={10} style={s.deleteWrap} accessibilityLabel={`Delete ${task.title}`}>
@@ -196,6 +220,14 @@ export function TaskRow({
         </Animated.Text>
       )}
     </View>
+  );
+  // Fortuna draws a drifting holo border around each card.
+  return c.holo ? (
+    <HoloBorder radius={c.radius} style={[{ marginBottom: 10 }, label && { zIndex: 2 }]}>
+      {row}
+    </HoloBorder>
+  ) : (
+    row
   );
 }
 
@@ -319,7 +351,7 @@ function particlesFor(look: CelebrationId, c: Palette): { duration: number; list
 const makeStyles = themed((c) => ({
   row:
     c.listStyle === 'cards'
-      ? { ...card(c), flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, marginBottom: 10 }
+      ? { ...card(c), flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, marginBottom: c.holo ? 0 : 10, ...(c.holo && { borderWidth: 0 }) }
       : { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: c.border },
   main: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 64, paddingVertical: 10 },
   num: { fontFamily: FONTS.serif, fontStyle: 'italic', color: c.accent, fontSize: 16, width: 24, fontVariant: ['lining-nums'] },
@@ -330,12 +362,12 @@ const makeStyles = themed((c) => ({
   reminder: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
   wait: { color: c.flame, fontWeight: '600' },
   xp: { color: c.muted, fontSize: 13, fontVariant: ['tabular-nums'] },
-  checkWrap: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
+  checkWrap: { width: c.check === 'coin' ? 30 : 24, height: c.check === 'coin' ? 30 : 24, alignItems: 'center', justifyContent: 'center' },
   ring: {
     position: 'absolute',
     width: 48,
     height: 48,
-    borderRadius: c.check === 'circle' ? 24 : c.check === 'square' ? Math.min(c.radius * 2, 12) : 4,
+    borderRadius: c.check === 'circle' || c.check === 'coin' ? 24 : c.check === 'square' ? Math.min(c.radius * 2, 12) : 4,
     borderWidth: 1.5,
     borderColor: c.accent,
   },
