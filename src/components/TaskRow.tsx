@@ -1,5 +1,5 @@
 import { Bell } from 'lucide-react-native';
-import { useEffect, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, Text, View } from 'react-native';
 import {
   doneThisWeek,
@@ -12,11 +12,16 @@ import {
   type GameState,
   type Task,
 } from '../game';
-import { card, FONTS, nativeDriver, themed, useStyles, useTheme } from '../theme';
+import type { CelebrationId } from '../cosmetics';
+import { card, FONTS, nativeDriver, themed, useStyles, useTheme, type Palette } from '../theme';
+import { FIRE_COLORS } from './Fire';
+
+/** The tick celebration the player has equipped. */
+export const CelebrationContext = createContext<CelebrationId>('classic');
 
 /**
  * One task, as a numbered line. Completing it pops the check, sends a ring
- * and a burst of sparks out of it, flashes the row and lets a big "+XP"
+ * and a burst out of it (sparks, or the celebration look the player equipped), flashes the row and lets a big "+XP"
  * figure bounce in, hang for a moment and rise away. When a limit cut the
  * XP, a short note shows instead.
  * A freshly added task counts down until it may be ticked.
@@ -42,6 +47,8 @@ export function TaskRow({
 }) {
   const s = useStyles(makeStyles);
   const c = useTheme();
+  const look = useContext(CelebrationContext);
+  const particles = useMemo(() => particlesFor(look, c), [look, c]);
   const pop = useRef(new Animated.Value(1)).current;
   const float = useRef(new Animated.Value(0)).current;
   const ring = useRef(new Animated.Value(1)).current;
@@ -83,7 +90,7 @@ export function TaskRow({
     flash.setValue(0);
     Animated.parallel([
       Animated.timing(ring, { toValue: 1, duration: 900, easing: Easing.out(Easing.quad), useNativeDriver: nativeDriver }),
-      Animated.timing(burst, { toValue: 1, duration: 750, easing: Easing.out(Easing.cubic), useNativeDriver: nativeDriver }),
+      Animated.timing(burst, { toValue: 1, duration: particles.duration, easing: Easing.out(Easing.cubic), useNativeDriver: nativeDriver }),
       Animated.sequence([
         Animated.timing(flash, { toValue: 1, duration: 120, useNativeDriver: nativeDriver }),
         Animated.timing(flash, { toValue: 0, duration: 900, easing: Easing.out(Easing.quad), useNativeDriver: nativeDriver }),
@@ -155,22 +162,24 @@ export function TaskRow({
         <Text style={s.xp}>{taskXp(task)} XP</Text>
         <View style={s.checkWrap}>
           <Animated.View style={[s.ring, ringStyle]} pointerEvents="none" />
-          {SPARKS.map((angle, i) => (
+          {particles.list.map((p, i) => (
             <Animated.View
-              key={i}
+              key={`${look}-${i}`}
               pointerEvents="none"
-              style={[
-                s.spark,
-                i % 2 === 1 && s.sparkSmall,
-                {
-                  opacity: burst.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 1, 0] }),
-                  transform: [
-                    { translateX: burst.interpolate({ inputRange: [0, 1], outputRange: [0, Math.cos(angle) * (i % 2 ? 26 : 36)] }) },
-                    { translateY: burst.interpolate({ inputRange: [0, 1], outputRange: [0, Math.sin(angle) * (i % 2 ? 26 : 36)] }) },
-                    { rotate: '45deg' },
-                  ],
-                },
-              ]}
+              style={{
+                position: 'absolute',
+                width: p.w,
+                height: p.h,
+                borderRadius: p.round ? p.w / 2 : 0,
+                backgroundColor: p.color,
+                opacity: burst.interpolate({ inputRange: [0, 0.12, p.fadeFrom, 1], outputRange: [0, 1, 1, 0] }),
+                transform: [
+                  { translateX: burst.interpolate({ inputRange: [0, 0.5, 1], outputRange: [p.x[0], p.x[1], p.x[2]] }) },
+                  { translateY: burst.interpolate({ inputRange: [0, 0.5, 1], outputRange: [p.y[0], p.y[1], p.y[2]] }) },
+                  { scale: burst.interpolate({ inputRange: [0, 1], outputRange: [p.scale[0], p.scale[1]] }) },
+                  { rotate: burst.interpolate({ inputRange: [0, 1], outputRange: [`${p.spin[0]}deg`, `${p.spin[1]}deg`] }) },
+                ],
+              }}
             />
           ))}
           <Animated.View style={[s.checkbox, done && s.checkboxDone, locked && s.checkboxLocked, { transform: [{ scale: pop }, ...rotate] }]}>
@@ -190,8 +199,122 @@ export function TaskRow({
   );
 }
 
-/** Directions of the sparks that fly out of the check. */
-const SPARKS = Array.from({ length: 10 }, (_, i) => (i / 10) * Math.PI * 2 - Math.PI / 2);
+interface Particle {
+  w: number;
+  h: number;
+  round?: boolean;
+  color: string;
+  /** Positions at the start, middle and end of the burst. */
+  x: [number, number, number];
+  y: [number, number, number];
+  scale: [number, number];
+  spin: [number, number];
+  /** Point of the burst (0-1) from which it fades out. */
+  fadeFrom: number;
+}
+
+/** The pieces that fly out of the check for each celebration look. */
+function particlesFor(look: CelebrationId, c: Palette): { duration: number; list: Particle[] } {
+  const around = (n: number, i: number) => (i / n) * Math.PI * 2 - Math.PI / 2;
+  const fire = FIRE_COLORS[c.dark ? 'dark' : 'light'];
+  switch (look) {
+    case 'confetti': {
+      const colors = [c.accent, fire[1], fire[2], fire[3], c.xp, c.gold];
+      return {
+        duration: 1100,
+        list: Array.from({ length: 14 }, (_, i) => {
+          const a = around(14, i);
+          const r = 22 + (i % 3) * 7;
+          // Out, then drifting down as it falls.
+          return {
+            w: 6,
+            h: 3,
+            color: colors[i % colors.length],
+            x: [0, Math.cos(a) * r, Math.cos(a) * r * 1.15],
+            y: [0, Math.sin(a) * r - 6, Math.sin(a) * r + 14],
+            scale: [1, 0.9],
+            spin: [0, (i % 2 ? 1 : -1) * (180 + i * 25)],
+            fadeFrom: 0.6,
+          };
+        }),
+      };
+    }
+    case 'ink':
+      return {
+        duration: 1300,
+        list: Array.from({ length: 7 }, (_, i) => {
+          const a = around(7, i) + 0.3;
+          const r = 16 + (i % 2) * 8;
+          return {
+            w: 9 - (i % 3) * 2,
+            h: 9 - (i % 3) * 2,
+            round: true,
+            color: i % 2 ? c.accent : c.muted,
+            x: [0, Math.cos(a) * r * 0.8, Math.cos(a) * r],
+            y: [0, Math.sin(a) * r * 0.8, Math.sin(a) * r],
+            scale: [0.4, 1.6],
+            spin: [0, 0],
+            fadeFrom: 0.45,
+          };
+        }),
+      };
+    case 'embers':
+      return {
+        duration: 1400,
+        list: Array.from({ length: 9 }, (_, i) => {
+          const dx = (i - 4) * 5;
+          return {
+            w: i % 3 ? 3 : 4,
+            h: i % 3 ? 3 : 4,
+            round: true,
+            color: fire[1 + (i % 2)],
+            x: [0, dx * 0.8, dx + (i % 2 ? 6 : -6)],
+            y: [4, -18 - (i % 4) * 5, -38 - (i % 4) * 7],
+            scale: [1, 0.5],
+            spin: [0, 0],
+            fadeFrom: 0.55,
+          };
+        }),
+      };
+    case 'starfall':
+      return {
+        duration: 1200,
+        list: Array.from({ length: 7 }, (_, i) => {
+          const dx = (i - 3) * 11;
+          // Each from its own height, falling and shrinking as it twinkles out.
+          const top = -26 - ((i * 5) % 4) * 9;
+          return {
+            w: i % 2 ? 4 : 6,
+            h: i % 2 ? 4 : 6,
+            color: i % 2 ? c.xp : c.gold,
+            x: [dx * 0.6, dx * 0.85, dx],
+            y: [top, top + 26, top + 48],
+            scale: [1.2, 0.3],
+            spin: [45, 225],
+            fadeFrom: 0.45,
+          };
+        }),
+      };
+    default:
+      return {
+        duration: 750,
+        list: Array.from({ length: 10 }, (_, i) => {
+          const a = around(10, i);
+          const r = i % 2 ? 26 : 36;
+          return {
+            w: i % 2 ? 4 : 6,
+            h: i % 2 ? 4 : 6,
+            color: i % 2 ? c.xp : c.accent,
+            x: [0, Math.cos(a) * r * 0.5, Math.cos(a) * r],
+            y: [0, Math.sin(a) * r * 0.5, Math.sin(a) * r],
+            scale: [1, 1],
+            spin: [45, 45],
+            fadeFrom: 0.15,
+          };
+        }),
+      };
+  }
+}
 
 const makeStyles = themed((c) => ({
   row:
@@ -241,8 +364,6 @@ const makeStyles = themed((c) => ({
     backgroundColor: c.accentSoft,
     borderRadius: c.listStyle === 'cards' ? c.radius : 0,
   },
-  spark: { position: 'absolute', width: 6, height: 6, backgroundColor: c.accent },
-  sparkSmall: { width: 4, height: 4, backgroundColor: c.xp },
   float: {
     position: 'absolute',
     right: 64,

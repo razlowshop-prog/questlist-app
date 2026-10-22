@@ -1,10 +1,14 @@
-import { Lock } from 'lucide-react-native';
+import { Backpack, ChevronRight, Lock } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { APP_NAME } from '../brand';
+import { AppIcon } from '../components/AppIcon';
+import { ProfileFrame } from '../components/ProfileFrame';
 import { TrophyCabinet } from '../components/TrophyCabinet';
 import { STREAK_REMINDER_HOUR, type profileStats, type Settings } from '../game';
+import { EMBLEM_TIERS, type EmblemStatus } from '../emblems';
 import type { TrophyStatus } from '../trophies';
+import { tierColor } from '../achievements';
 import { card, eyebrow, THEMES, themed, useStyles, useTheme, FONTS, headingCase } from '../theme';
 
 export function ProfileScreen({
@@ -14,6 +18,10 @@ export function ProfileScreen({
   joinedAt,
   settings,
   unlockedThemes,
+  title,
+  frame,
+  emblems,
+  onOpenBag,
   onRename,
   onSettings,
   onRedoSetup,
@@ -25,6 +33,11 @@ export function ProfileScreen({
   settings: Settings;
   /** Ids of themes the player may use. */
   unlockedThemes: Set<string>;
+  /** The equipped title and frame, if the player owns them. */
+  title?: string;
+  frame?: string;
+  emblems: EmblemStatus[];
+  onOpenBag: () => void;
   onRename: (name: string) => void;
   onSettings: (s: Partial<Settings>) => void;
   onRedoSetup: () => void;
@@ -48,9 +61,11 @@ export function ProfileScreen({
   return (
     <ScrollView contentContainerStyle={s.content}>
       <View style={s.hero}>
-        <View style={s.avatar}>
-          <Text style={s.avatarText}>{initials}</Text>
-        </View>
+        <ProfileFrame frame={frame} size={88}>
+          <View style={[s.avatar, frame ? s.avatarFramed : null]}>
+            <Text style={s.avatarText}>{initials}</Text>
+          </View>
+        </ProfileFrame>
         {editing ? (
           <TextInput
             value={draft}
@@ -74,6 +89,7 @@ export function ProfileScreen({
             </Text>
           </Pressable>
         )}
+        {title ? <Text style={s.title}>{title}</Text> : null}
         <View style={s.levelPill}>
           <Text style={s.levelPillText}>
             Level {stats.level} · {stats.rank}
@@ -98,6 +114,23 @@ export function ProfileScreen({
         </Text>
       </View>
       <TrophyCabinet trophies={trophies} />
+
+      <View style={s.sectionRow}>
+        <Text style={s.section}>Emblems</Text>
+        <Text style={s.small}>
+          {EMBLEM_TIERS.map((t) => `${t.name} ${t.goal}`).join(' · ')} tasks
+        </Text>
+      </View>
+      <Emblems emblems={emblems} />
+
+      <Pressable onPress={onOpenBag} style={s.bagLink} accessibilityRole="button">
+        <Backpack size={20} color={c.accent} strokeWidth={1.5} aria-hidden />
+        <View style={{ flex: 1 }}>
+          <Text style={s.settingTitle}>Inventory</Text>
+          <Text style={s.small}>Use tokens and pick your title, frame, flame and tick celebration.</Text>
+        </View>
+        <ChevronRight size={18} color={c.muted} strokeWidth={1.5} aria-hidden />
+      </Pressable>
 
       <Text style={s.section}>Theme</Text>
       <View style={s.themes}>
@@ -188,6 +221,41 @@ export function ProfileScreen({
   );
 }
 
+/** Earned emblems in their metal; the rest faint, with how far along they are. */
+function Emblems({ emblems }: { emblems: EmblemStatus[] }) {
+  const s = useStyles(makeStyles);
+  const c = useTheme();
+  const [open, setOpen] = useState<string | null>(null);
+  const picked = emblems.find((e) => e.category === open);
+  return (
+    <View style={{ gap: 10 }}>
+      <View style={s.emblems}>
+        {emblems.map((e) => {
+          const color = e.tier ? tierColor(e.tier - 1, c.dark) : c.faint;
+          return (
+            <Pressable
+              key={e.category}
+              onPress={() => setOpen(open === e.category ? null : e.category)}
+              style={[s.emblem, { borderColor: e.tier ? color : c.border }, open === e.category && s.emblemOpen, !e.tier && { opacity: 0.55 }]}
+              accessibilityRole="button"
+              accessibilityLabel={`${e.label}: ${e.done} tasks${e.tier ? `, ${EMBLEM_TIERS[e.tier - 1].name}` : ''}`}
+            >
+              <AppIcon name={e.icon} size={20} color={color} />
+            </Pressable>
+          );
+        })}
+      </View>
+      {picked && (
+        <Text style={s.small}>
+          {picked.label}: {picked.done} {picked.done === 1 ? 'task' : 'tasks'}
+          {picked.tier ? ` · ${EMBLEM_TIERS[picked.tier - 1].name} emblem` : ''}
+          {picked.next ? ` · ${picked.next - picked.done} more for ${EMBLEM_TIERS[picked.tier].name}` : ' · all emblems earned'}
+        </Text>
+      )}
+    </View>
+  );
+}
+
 function Stat({ label, value, color }: { label: string; value: string; color?: string }) {
   const s = useStyles(makeStyles);
   return (
@@ -212,8 +280,15 @@ const makeStyles = themed((c) => ({
     borderWidth: 4,
     borderColor: c.accentSoft,
   },
+  /** Inside a frame the soft outer ring would crowd it, and the frame adds its own space. */
+  avatarFramed: { borderWidth: 0, marginBottom: 0 },
   avatarText: { color: c.onAccent, fontSize: 30, fontWeight: '700' },
+  emblems: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  emblem: { width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  emblemOpen: { backgroundColor: c.accentSoft },
+  bagLink: { ...card(c), flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, marginTop: 22 },
   name: { fontFamily: FONTS.serif, color: c.text, fontSize: 28, ...headingCase(c) },
+  title: { fontFamily: FONTS.serifItalic, color: c.accent, fontSize: 17, marginTop: -2 },
   edit: { color: c.muted, fontSize: 16 },
   nameInput: {
     color: c.text,
