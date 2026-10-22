@@ -14,6 +14,7 @@ import { card, eyebrow, FONTS, headingCase, themed, useStyles, useTheme } from '
 import { Fire, fireColor } from './Fire';
 import { FireAura } from './FireAura';
 import { RewardPicture } from './RewardPicture';
+import { brandLine, brandGlow } from '../vivid';
 
 /** Opened by tapping the level: XP, the streak multiplier and fire tiers, the next reward. */
 export function LevelDetails({
@@ -128,7 +129,7 @@ const makeStyles = themed((c) => ({
   small: { ...eyebrow(c, 11), color: c.muted },
   steps: { flexDirection: 'row', gap: 8 },
   step: { flex: 1, alignItems: 'center', gap: 2, paddingVertical: 8, borderRadius: c.radius, borderWidth: 1, borderColor: c.border },
-  stepOn: { borderColor: '#FFB547', backgroundColor: c.surface, boxShadow: '0px 0px 10px rgba(255,138,0,0.3)' },
+  stepOn: { borderColor: brandLine(c.dark), backgroundColor: c.surface, boxShadow: `0px 0px 10px ${brandGlow(0.3)}` },
   stepValue: { fontFamily: FONTS.serif, color: c.muted, fontSize: 18, fontVariant: ['lining-nums'] },
   tierRow: {
     flexDirection: 'row',

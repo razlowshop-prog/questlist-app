@@ -9,6 +9,8 @@ import {
   ACHIEVEMENT_TIER_LOOKS,
   avatarDisc,
   AVATAR_DISCS,
+  BRAND,
+  brandLine,
   CATEGORY_LOOKS,
   categoryLook,
   CELEBRATION_GLYPHS,
@@ -119,4 +121,26 @@ test('week dots: done days, rest days, today, missed and days still to come', ()
   // Days before joining don't count as missed.
   assert.deepEqual(weekDots({ ...state, completions: [], restDays: [], joinedAt: today }, today).slice(0, 4), ['future', 'future', 'future', 'today']);
   assert.equal(weekDots({ ...state, restDays: [] }, today)[1], 'missed');
+});
+
+test('the default theme is Indigo with its blue-violet fade, and Dusk can still be picked', () => {
+  const src = readFileSync(new URL('./theme.tsx', import.meta.url), 'utf8');
+  const first = src.slice(src.indexOf('export const THEMES'));
+  const ids = [...first.matchAll(/\bid: '(\w+)',\s*name: '(\w+)',(\s*reward:)?/g)].map((m) => [m[1], m[2], !!m[3]]);
+  assert.deepEqual(ids[0], ['classic', 'Indigo', false], 'everyone on the default moves to Indigo');
+  assert.deepEqual(ids[1], ['dusk', 'Dusk', false], 'Dusk stays free to pick');
+  assert.equal(new Set(ids.map((i) => i[0])).size, ids.length, 'theme ids are unique');
+  assert.match(first, /bgImage: 'linear-gradient\(165deg, #13213a 0%, #12151f 48%, #1f1636 100%\)'/);
+});
+
+test('blue-violet brand colours stay readable', () => {
+  const indigo = { bg: '#12151F', card: '#1B2030' };
+  // White button text on the violet end of the brand gradient.
+  assert.ok(contrast('#FFFFFF', BRAND.c2) >= 4.5);
+  // Gradient-number fallback, outlines and the active tab label on the Indigo background and cards.
+  for (const bg of [indigo.bg, indigo.card]) {
+    assert.ok(contrast(textSolid(true), bg) >= 4.5, `numbers on ${bg}`);
+    assert.ok(contrast(brandLine(true), bg) >= 4.5, `label on ${bg}`);
+  }
+  assert.ok(contrast(brandLine(false), '#FFFFFF') >= 4.5, 'label on light cards');
 });

@@ -5,8 +5,8 @@ import { frameName } from '../cosmetics';
 import { CATEGORIES } from '../library';
 import type { SeasonStatus } from '../seasons';
 import { card, themed, useStyles, useTheme, FONTS, headingCase } from '../theme';
-import { fill, Glyph, GOLD_FILL_SMALL, GOLD_INK, GradientText, ProgressRing, StickerHeading, VIVID_HEAVY } from '../components/Vivid';
-import { challengeRarity, ICON_GLYPHS, RARITY, SEASON_PILL } from '../vivid';
+import { fill, Glyph, BRAND_FILL_SMALL, BRAND_INK, GradientText, ProgressRing, StickerHeading, VIVID_HEAVY, BRAND_TEXT_SHADOW } from '../components/Vivid';
+import { brandGlow, brandLine, challengeRarity, ICON_GLYPHS, RARITY, SEASON_PILL } from '../vivid';
 
 export function ChallengesScreen({
   challenges,
@@ -158,14 +158,14 @@ const makeStyles = themed((c) => ({
   subHeading: { fontSize: 22, lineHeight: 28, marginTop: 24 },
   sub: { color: c.muted, fontSize: 14, marginTop: 4, marginBottom: 16 },
   card: { ...card(c), flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, marginBottom: 10 },
-  cardHighlight: { borderWidth: 1.5, borderColor: '#FFB547', boxShadow: '0px 0px 16px rgba(255,138,0,0.3)' },
+  cardHighlight: { borderWidth: 1.5, borderColor: brandLine(c.dark), boxShadow: `0px 0px 16px ${brandGlow(0.3)}` },
   title: { color: c.text, fontSize: 15, fontWeight: '700' },
   track: { height: c.lineWeight, borderRadius: c.lineWeight / 2, backgroundColor: c.border, overflow: 'hidden' },
   fill: { height: '100%', borderRadius: 3 },
   progress: { color: c.muted, fontSize: 12 },
   reward: { fontFamily: VIVID_HEAVY, fontSize: 14 },
-  claim: { ...GOLD_FILL_SMALL, paddingHorizontal: 14, minHeight: 38, justifyContent: 'center', borderRadius: 12 },
-  claimText: { color: GOLD_INK, fontFamily: VIVID_HEAVY, fontSize: 13 },
+  claim: { ...BRAND_FILL_SMALL, paddingHorizontal: 14, minHeight: 38, justifyContent: 'center', borderRadius: 12 },
+  claimText: { color: BRAND_INK, fontFamily: VIVID_HEAVY, fontSize: 13, ...BRAND_TEXT_SHADOW },
   claimed: { color: c.dark ? '#34E3C4' : '#0B7C8C', fontWeight: '700', fontSize: 13 },
   swap: { color: c.accent, fontWeight: '600', fontSize: 13, marginTop: 8, textDecorationLine: 'underline' },
   event: { alignItems: 'flex-start' },

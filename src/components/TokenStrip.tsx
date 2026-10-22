@@ -4,7 +4,7 @@ import { COMEBACK_BONUS, comebackDaysLeft, streakTierName, type GameState } from
 import { card, themed, useStyles, useTheme } from '../theme';
 import { doubleXpActive, restOffer } from '../tokens';
 import { TOKEN_ICONS } from './RewardPicture';
-import { GOLD_FILL_SMALL, GOLD_INK } from './Vivid';
+import { BRAND_FILL_SMALL, BRAND_INK } from './Vivid';
 
 /**
  * Boosts that matter today, under the streak card: a rest day offer when one
@@ -36,8 +36,8 @@ export function TokenStrip({ state, today, onRest }: { state: GameState; today: 
         <View style={s.row}>
           {double && (
             <View style={[s.pill, s.pillActive]}>
-              <TOKEN_ICONS.double size={14} color={GOLD_INK} strokeWidth={2} aria-hidden />
-              <Text style={[s.pillText, { color: GOLD_INK }]}>2x XP today</Text>
+              <TOKEN_ICONS.double size={14} color={BRAND_INK} strokeWidth={2} aria-hidden />
+              <Text style={[s.pillText, { color: BRAND_INK }]}>2x XP today</Text>
             </View>
           )}
           {comeback > 0 && (
@@ -74,7 +74,7 @@ const makeStyles = themed((c) => ({
     borderColor: c.border,
     backgroundColor: c.surface,
   },
-  pillActive: { ...GOLD_FILL_SMALL, borderColor: 'transparent' },
+  pillActive: { ...BRAND_FILL_SMALL, borderColor: 'transparent' },
   pillText: { color: c.text, fontSize: 13, fontWeight: '600' },
   pillCount: { color: c.muted, fontSize: 13, fontVariant: ['tabular-nums'] },
 }));

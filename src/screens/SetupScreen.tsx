@@ -5,9 +5,9 @@ import { Stepper } from '../components/Stepper';
 import { durationLabel, maxPerWeek, xpFor } from '../game';
 import { CATEGORIES, categoryOf, suggestionsFor, type LibraryTask } from '../library';
 import { eyebrow, themed, useStyles, useTheme, FONTS, headingCase } from '../theme';
-import { GOLD_FILL, GOLD_FILL_SMALL, GOLD_INK, VIVID_HEAVY } from '../components/Vivid';
+import { BRAND_FILL, BRAND_FILL_SMALL, BRAND_INK, VIVID_HEAVY, BRAND_TEXT_SHADOW } from '../components/Vivid';
 import { Sticker } from '../components/Vivid';
-import { categoryLook } from '../vivid';
+import { brandGlow, brandLine, categoryLook } from '../vivid';
 
 export interface SetupPick {
   task: LibraryTask;
@@ -82,7 +82,7 @@ export function SetupScreen({
       <View style={styles.top}>
         <View style={styles.dots}>
           {[0, 1, 2].map((i) => (
-            <View key={i} style={[styles.dot, i <= step && GOLD_FILL_SMALL]} />
+            <View key={i} style={[styles.dot, i <= step && BRAND_FILL_SMALL]} />
           ))}
         </View>
         <Pressable onPress={onSkip} hitSlop={10} accessibilityRole="button">
@@ -225,7 +225,7 @@ export function SetupScreen({
 }
 
 const makeStyles = themed((c) => ({
-  safe: { flex: 1, backgroundColor: c.bg },
+  safe: { flex: 1, backgroundColor: c.bg, ...(c.bgImage && { backgroundImage: c.bgImage }) },
   top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16 },
   dots: { flexDirection: 'row', gap: 6 },
   dot: { width: 28, height: 6, borderRadius: 3, backgroundColor: c.border },
@@ -256,11 +256,11 @@ const makeStyles = themed((c) => ({
     borderColor: 'transparent',
     gap: 4,
   },
-  goalOn: { borderColor: '#FFB547', backgroundColor: c.surface, boxShadow: '0px 0px 12px rgba(255,138,0,0.3)' },
+  goalOn: { borderColor: brandLine(c.dark), backgroundColor: c.surface, boxShadow: `0px 0px 12px ${brandGlow(0.3)}` },
   goalLabel: { color: c.text, fontSize: 14, fontWeight: '700' },
   section: { ...eyebrow(c), color: c.muted, marginBottom: 10 },
   taskCard: { backgroundColor: c.surface, borderRadius: c.radius, marginBottom: 6, borderWidth: 1, borderColor: 'transparent' },
-  taskCardOn: { borderColor: '#FFB547' },
+  taskCardOn: { borderColor: brandLine(c.dark) },
   taskMain: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 },
   check: {
     width: 24,
@@ -271,8 +271,8 @@ const makeStyles = themed((c) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkOn: { ...GOLD_FILL_SMALL, borderColor: 'transparent' },
-  checkMark: { color: GOLD_INK, fontWeight: '700', fontSize: 14 },
+  checkOn: { ...BRAND_FILL_SMALL, borderColor: 'transparent' },
+  checkMark: { color: BRAND_INK, fontWeight: '700', fontSize: 14, ...BRAND_TEXT_SHADOW },
   taskTitle: { color: c.text, fontSize: 15, fontWeight: '600' },
   taskMeta: { color: c.muted, fontSize: 12, marginTop: 1 },
   freq: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12, paddingBottom: 12 },
@@ -281,6 +281,6 @@ const makeStyles = themed((c) => ({
   footer: { flexDirection: 'row', gap: 10, padding: 16, borderTopWidth: 1, borderTopColor: c.border },
   back: { paddingHorizontal: 20, minHeight: 48, justifyContent: 'center', borderRadius: c.radius, borderWidth: 1, borderColor: c.outline },
   backText: { color: c.text, fontWeight: '700', fontSize: 15 },
-  next: { flex: 1, ...GOLD_FILL, minHeight: 54, justifyContent: 'center', borderRadius: 14, alignItems: 'center' },
-  nextText: { color: GOLD_INK, fontFamily: VIVID_HEAVY, fontSize: 17 },
+  next: { flex: 1, ...BRAND_FILL, minHeight: 54, justifyContent: 'center', borderRadius: 14, alignItems: 'center' },
+  nextText: { color: BRAND_INK, fontFamily: VIVID_HEAVY, fontSize: 17, ...BRAND_TEXT_SHADOW },
 }));

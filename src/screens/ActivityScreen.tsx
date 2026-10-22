@@ -7,9 +7,9 @@ import { Fire, fireColor } from '../components/Fire';
 import { TOKEN_ICONS } from '../components/RewardPicture';
 import { durationLabel, streakTierName, type GameState } from '../game';
 import { card, eyebrow, FONTS, headingCase, themed, useStyles, useTheme } from '../theme';
-import { VividSwitch } from '../components/Vivid';
-import { fill, GOLD_FILL_SMALL, GOLD_INK, GradientText, VIVID_HEAVY } from '../components/Vivid';
-import { GOLD } from '../vivid';
+import { VividSwitch, BRAND_TEXT_SHADOW } from '../components/Vivid';
+import { fill, BRAND_FILL_SMALL, BRAND_INK, GradientText, VIVID_HEAVY } from '../components/Vivid';
+import { BRAND } from '../vivid';
 
 /** Days shown before "Show older"; each tap adds this many more. */
 const PAGE = 10;
@@ -271,9 +271,9 @@ const makeStyles = themed((c) => ({
   heading: { fontFamily: FONTS.serif, color: c.text, fontSize: 30, lineHeight: 36, marginTop: 4, ...headingCase(c) },
   segment: { flexDirection: 'row', gap: 6, marginTop: 14, marginBottom: 16 },
   segmentItem: { paddingHorizontal: 16, minHeight: 36, justifyContent: 'center', borderRadius: c.radius, borderWidth: 1, borderColor: c.border },
-  segmentActive: { ...GOLD_FILL_SMALL, borderColor: 'transparent' },
+  segmentActive: { ...BRAND_FILL_SMALL, borderColor: 'transparent' },
   segmentText: { color: c.muted, fontWeight: '600', fontSize: 14 },
-  segmentTextActive: { color: GOLD_INK, fontFamily: VIVID_HEAVY },
+  segmentTextActive: { color: BRAND_INK, fontFamily: VIVID_HEAVY, ...BRAND_TEXT_SHADOW },
   card: { ...card(c), padding: 16, gap: 10, marginBottom: 18 },
   cardEyebrow: { ...eyebrow(c, 11), color: c.muted },
   stats: { flexDirection: 'row' },
@@ -285,7 +285,7 @@ const makeStyles = themed((c) => ({
   barCol: { flex: 1, alignItems: 'center', gap: 6 },
   barTrack: { flex: 1, width: '100%', justifyContent: 'flex-end', alignItems: 'center' },
   bar: { width: '70%', maxWidth: 22, borderTopLeftRadius: 4, borderTopRightRadius: 4, ...fill(['#FF3D9A', '#A45CFF', '#4DB8FF', '#5BF0D2'], 180), opacity: 0.75 },
-  barToday: { ...fill(GOLD, 180), opacity: 1, boxShadow: '0px 0px 10px rgba(255,138,0,0.45)' },
+  barToday: { ...fill(BRAND, 180), opacity: 1 },
   barEmpty: { width: '70%', maxWidth: 22, height: 2, backgroundColor: c.border },
   barFuture: { opacity: 0.4 },
   barLabel: { color: c.faint, fontSize: 11, fontWeight: '600' },

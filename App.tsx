@@ -2,10 +2,10 @@ import { loadAsync } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import { Activity, Award, FerrisWheel, Sun, Target, User, type LucideIcon } from 'lucide-react-native';
 import type { GlyphName } from './src/glyphs';
-import { AmbientBlobs, CountBadge, Glyph, VIVID_HEAVY } from './src/components/Vivid';
-import { GOLD } from './src/vivid';
+import { CountBadge, Glyph, VIVID_HEAVY } from './src/components/Vivid';
+import { BRAND, brandGlow, brandLine } from './src/vivid';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Platform, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { XpHeader } from './src/components/XpHeader';
 import {
   addTask,
@@ -82,7 +82,7 @@ const PREVIEW_ALL_THEMES = process.env.EXPO_PUBLIC_UNLOCK_THEMES === '1';
 
 type Tab = 'today' | 'challenges' | 'spin' | 'activity' | 'awards' | 'profile';
 
-/** Inactive tabs: the theme's muted line icon. Active: a filled glyph in the gold gradient with a glow. */
+/** Inactive tabs: the theme's muted line icon. Active: a filled glyph in the brand gradient with a soft glow. */
 const TABS: { key: Tab; label: string; Icon: LucideIcon; glyph: GlyphName }[] = [
   { key: 'today', label: 'Today', Icon: Sun, glyph: 'Sun' },
   { key: 'challenges', label: 'Challenges', Icon: Target, glyph: 'Target' },
@@ -323,7 +323,6 @@ export default function App() {
           <AvatarDiscContext.Provider value={state.settings.avatar}>
           <SafeAreaView style={styles.safe}>
             <StatusBar style={statusBar} />
-            <AmbientBlobs />
             {c.backdrop === 'dust' && tab !== 'spin' && <GoldDust />}
             <XpHeader
               totalXp={xp}
@@ -442,9 +441,8 @@ export default function App() {
                   accessibilityState={{ selected: tab === t.key }}
                 >
                   {tab === t.key ? (
-                    <View style={styles.tabGlyph}>
-                      <View style={styles.tabGlow} />
-                      <Glyph name={t.glyph} size={23} grad={GOLD} />
+                    <View style={[styles.tabGlyph, styles.tabGlow]}>
+                      <Glyph name={t.glyph} size={23} grad={BRAND} />
                     </View>
                   ) : (
                     <View style={styles.tabGlyph}>
@@ -536,10 +534,11 @@ export default function App() {
 }
 
 const makeStyles = themed((c) => ({
-  safe: { flex: 1, backgroundColor: c.bg },
+  safe: { flex: 1, backgroundColor: c.bg, ...(c.bgImage && { backgroundImage: c.bgImage }) },
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: c.bg,
+    backgroundColor: c.tabBar,
+    ...(c.tabBar !== c.bg && Platform.OS === 'web' && ({ backdropFilter: 'blur(12px)' } as object)),
     paddingTop: 10,
     paddingBottom: 10,
     borderTopWidth: 1,
@@ -548,9 +547,9 @@ const makeStyles = themed((c) => ({
   tab: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 44, gap: 4 },
   // Six tabs share a phone's width, so the spaced capitals are tightened.
   tabLabel: { ...eyebrow(c, 9), letterSpacing: c.eyebrowCaps ? 0.6 : 0.2, color: c.muted },
-  tabLabelActive: { color: '#FFB547', fontFamily: VIVID_HEAVY, ...(!c.dark && { color: '#C2410C' }) },
+  tabLabelActive: { color: brandLine(c.dark), fontFamily: VIVID_HEAVY },
   tabGlyph: { width: 26, height: 24, alignItems: 'center', justifyContent: 'center' },
-  tabGlow: { position: 'absolute', width: 22, height: 22, borderRadius: 11, backgroundColor: '#FF7A00', opacity: 0.28, boxShadow: '0px 0px 10px #FF7A00' },
+  tabGlow: { filter: `drop-shadow(0px 0px 6px ${brandGlow(0.7)})` },
   dot: { position: 'absolute', top: -4, right: '18%' },
   toast: {
     position: 'absolute',
@@ -558,8 +557,8 @@ const makeStyles = themed((c) => ({
     alignSelf: 'center',
     backgroundColor: c.surface,
     borderWidth: 1.5,
-    borderColor: '#FFB547',
-    boxShadow: '0px 6px 20px rgba(255,122,0,0.3)',
+    borderColor: brandLine(c.dark),
+    boxShadow: `0px 6px 20px ${brandGlow(0.3)}`,
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: c.radius,

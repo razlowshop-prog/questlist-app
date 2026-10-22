@@ -9,8 +9,8 @@ import { card, eyebrow, FONTS, headingCase, themed, useStyles, useTheme } from '
 import { adFreeActive, doubleXpActive, restOffer, TOKEN_INFO, tokenCounts } from '../tokens';
 import { Fire } from './Fire';
 import { Avatar as Disc, ProfileFrame } from './ProfileFrame';
-import { GOLD_FILL_SMALL, GOLD_INK, Sticker, VIVID_HEAVY } from './Vivid';
-import { CELEBRATION_GLYPHS, CELEBRATION_LOOKS, TOKEN_LOOKS } from '../vivid';
+import { BRAND_FILL_SMALL, BRAND_INK, Sticker, VIVID_HEAVY, BRAND_TEXT_SHADOW } from './Vivid';
+import { brandGlow, brandLine, CELEBRATION_GLYPHS, CELEBRATION_LOOKS, TOKEN_LOOKS } from '../vivid';
 
 const TOKENS: TokenKind[] = ['rest', 'double', 'reroll', 'adfree'];
 
@@ -261,13 +261,13 @@ const makeStyles = themed((c) => ({
   token: { ...card(c), flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 },
   tokenName: { color: c.text, fontSize: 15, fontWeight: '700' },
   count: { color: c.muted, fontWeight: '600', fontVariant: ['tabular-nums'] },
-  use: { ...GOLD_FILL_SMALL, borderRadius: 12, paddingHorizontal: 12, minHeight: 36, justifyContent: 'center' },
-  useText: { color: GOLD_INK, fontFamily: VIVID_HEAVY, fontSize: 13 },
+  use: { ...BRAND_FILL_SMALL, borderRadius: 12, paddingHorizontal: 12, minHeight: 36, justifyContent: 'center' },
+  useText: { color: BRAND_INK, fontFamily: VIVID_HEAVY, fontSize: 13, ...BRAND_TEXT_SHADOW },
   wrapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   choice: { paddingHorizontal: 13, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: c.border },
   choiceText: { color: c.muted, fontSize: 13, fontWeight: '600' },
-  choiceActive: { ...GOLD_FILL_SMALL, borderColor: 'transparent' },
-  choiceTextActive: { color: GOLD_INK, fontFamily: VIVID_HEAVY },
+  choiceActive: { ...BRAND_FILL_SMALL, borderColor: 'transparent' },
+  choiceTextActive: { color: BRAND_INK, fontFamily: VIVID_HEAVY, ...BRAND_TEXT_SHADOW },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   // Four to a row: (100% - 3 gaps of 8) / 4 stays above 23% from phone width up.
   tile: {
@@ -280,7 +280,7 @@ const makeStyles = themed((c) => ({
     borderWidth: 1,
     borderColor: c.border,
   },
-  tileActive: { borderColor: '#FFB547', borderWidth: 1.5, backgroundColor: c.surface, boxShadow: '0px 0px 12px rgba(255,138,0,0.35)' },
+  tileActive: { borderColor: brandLine(c.dark), borderWidth: 1.5, backgroundColor: c.surface, boxShadow: `0px 0px 12px ${brandGlow(0.35)}` },
   tilePic: { height: 46, alignItems: 'center', justifyContent: 'center' },
   tileLabel: { color: c.text, fontSize: 11, fontWeight: '600', textAlign: 'center' },
   lockRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },

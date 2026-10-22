@@ -10,7 +10,7 @@ import { EMBLEM_TIERS, type EmblemStatus } from '../emblems';
 import type { TrophyStatus } from '../trophies';
 import { card, eyebrow, THEMES, themed, useStyles, useTheme, FONTS, headingCase } from '../theme';
 import { GradientText, LevelBadge, Sticker, StickerHeading, VIVID_HEAVY, VividButton, VividSwitch } from '../components/Vivid';
-import { AVATAR_DISCS, CATEGORY_LOOKS, EMBLEM_METALS, RARITY, categoryLook } from '../vivid';
+import { AVATAR_DISCS, brandLine, CATEGORY_LOOKS, categoryLook, EMBLEM_METALS, RARITY } from '../vivid';
 
 export function ProfileScreen({
   name,
@@ -283,10 +283,10 @@ const makeStyles = themed((c) => ({
   hero: { alignItems: 'center', gap: 8, marginBottom: 22 },
   discs: { flexDirection: 'row', gap: 10, marginTop: 6 },
   disc: { padding: 2, borderRadius: 16, borderWidth: 1.5, borderColor: 'transparent' },
-  discActive: { borderColor: '#FFB547' },
+  discActive: { borderColor: brandLine(c.dark) },
   emblems: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   emblem: { width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'transparent' },
-  emblemOpen: { borderColor: '#FFB547' },
+  emblemOpen: { borderColor: brandLine(c.dark) },
   bagLink: { ...card(c), flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, marginTop: 22 },
   name: { fontFamily: FONTS.serif, color: c.text, fontSize: 28, ...headingCase(c) },
   title: { fontFamily: FONTS.serifItalic, color: c.accent, fontSize: 17, marginTop: -2 },

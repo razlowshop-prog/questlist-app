@@ -4,7 +4,8 @@ import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { nextStreakBonus, type xpMultiplier } from '../game';
 import { card, eyebrow, FONTS, themed, useStyles, useTheme } from '../theme';
 import { GOLD } from './Fortuna';
-import { GOLD_FILL, GOLD_INK, VIVID_HEAVY } from './Vivid';
+import { BRAND } from '../vivid';
+import { BRAND_FILL, BRAND_INK, BRAND_TEXT_SHADOW, VIVID_HEAVY } from './Vivid';
 
 type Multiplier = ReturnType<typeof xpMultiplier>;
 
@@ -14,21 +15,21 @@ export function fmtX(x: number): string {
 }
 
 /**
- * The XP multiplier as a gold pill ("× 1.5 XP"). Tapping it opens what it's
- * made of and the next streak step. Fortuna uses its own gold; every other
- * theme the legendary orange-gold of the rewards layer, so it always stands out.
+ * The XP multiplier as a pill ("× 1.5 XP"). Tapping it opens what it's made
+ * of and the next streak step. Fortuna uses its own gold; every other theme
+ * the blue-violet brand gradient with white text.
  */
 export function MultiplierPill({ multiplier, size = 'normal' }: { multiplier: Multiplier; size?: 'small' | 'normal' }) {
   const s = useStyles(makeStyles);
   const c = useTheme();
   const [open, setOpen] = useState(false);
   const fortuna = c.check === 'coin';
-  const colors = fortuna ? [GOLD.light, GOLD.mid, GOLD.deep] : ['#FFE066', '#FFB020', '#FF7A00'];
-  const ink = fortuna ? GOLD.ink : '#4A2600';
+  const colors = fortuna ? [GOLD.light, GOLD.mid, GOLD.deep] : [BRAND.c1, BRAND.c2];
+  const ink = fortuna ? GOLD.ink : BRAND.ink;
   const boosted = multiplier.total > 1;
   const next = nextStreakBonus(multiplier.streak);
   const small = size === 'small';
-  const id = `pill-${fortuna ? 'gold' : 'legendary'}`;
+  const id = `pill-${fortuna ? 'gold' : 'brand'}`;
 
   return (
     <>
@@ -49,7 +50,7 @@ export function MultiplierPill({ multiplier, size = 'normal' }: { multiplier: Mu
           </Defs>
           <Rect width={100} height={20} fill={`url(#${id})`} />
         </Svg>
-        <Text style={[s.pillText, small && s.pillTextSmall, { color: ink }]}>× {fmtX(multiplier.total)} XP</Text>
+        <Text style={[s.pillText, small && s.pillTextSmall, { color: ink }, !fortuna && BRAND_TEXT_SHADOW]}>× {fmtX(multiplier.total)} XP</Text>
       </Pressable>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
@@ -86,7 +87,7 @@ export function MultiplierPill({ multiplier, size = 'normal' }: { multiplier: Mu
 }
 
 const makeStyles = themed((c) => ({
-  pill: { borderRadius: 999, overflow: 'hidden', paddingHorizontal: 10, paddingVertical: 3, boxShadow: '0px 2px 10px rgba(255,170,40,0.35)' },
+  pill: { borderRadius: 999, overflow: 'hidden', paddingHorizontal: 10, paddingVertical: 3, boxShadow: '0px 0px 0px 1.5px #0e0b12' },
   pillSmall: { paddingHorizontal: 8, paddingVertical: 2 },
   pillText: { fontFamily: FONTS.bodyExtraBold, fontSize: 13, fontVariant: ['tabular-nums'] },
   pillTextSmall: { fontSize: 11 },
@@ -100,6 +101,6 @@ const makeStyles = themed((c) => ({
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   rowLabel: { color: c.text, fontSize: 15 },
   rowValue: { color: c.text, fontSize: 15, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  button: { marginTop: 6, minHeight: 50, borderRadius: 14, ...GOLD_FILL, alignItems: 'center', justifyContent: 'center' },
-  buttonText: { color: GOLD_INK, fontFamily: VIVID_HEAVY, fontSize: 16 },
+  button: { marginTop: 6, minHeight: 50, borderRadius: 14, ...BRAND_FILL, alignItems: 'center', justifyContent: 'center' },
+  buttonText: { color: BRAND_INK, fontFamily: VIVID_HEAVY, fontSize: 16, ...BRAND_TEXT_SHADOW },
 }));

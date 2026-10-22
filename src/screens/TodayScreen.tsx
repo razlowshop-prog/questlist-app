@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronUp, Plus, Sparkles, X } from 'lucide-react-native';
-import { Pressable, ScrollView, SectionList, Text, TextInput, View } from 'react-native';
+import { Plus, Sparkles, X } from 'lucide-react-native';
+import { FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { Chip } from '../components/Chip';
-import { EmptyState, GOLD_FILL, GOLD_FILL_SMALL, GOLD_INK, GradientText, Sticker, VIVID_HEAVY, VividButton } from '../components/Vivid';
-import { categoryLook, RARITY } from '../vivid';
+import { EmptyState, BRAND_FILL, BRAND_FILL_SMALL, BRAND_INK, BRAND_TEXT_SHADOW, GradientText, VIVID_HEAVY, VividButton } from '../components/Vivid';
+import { RARITY } from '../vivid';
 import { LibraryRow } from '../components/LibraryRow';
 import { defaultSchedule, scheduleProblem, SchedulePicker, scheduleToTask, type Schedule } from '../components/SchedulePicker';
 import { StreakCard } from '../components/StreakCard';
@@ -22,7 +22,7 @@ import {
   type TaskPlan,
   weekDots,
 } from '../game';
-import { CATEGORIES, categoryOf, FEATURED, guessCategory, librarySteps, OTHER_CATEGORY, searchLibrary, taskCategory, type LibraryTask } from '../library';
+import { CATEGORIES, FEATURED, guessCategory, librarySteps, OTHER_CATEGORY, searchLibrary, taskCategory, type LibraryTask } from '../library';
 import { STEP_SHARE, suggestedSteps } from '../steps';
 import { estimateMinutes } from '../estimate';
 import { quoteOfTheDay } from '../quotes';
@@ -81,9 +81,8 @@ export function TodayScreen({
   /** Steps the user edited; undefined = the suggested ones. */
   const [stepDraft, setStepDraft] = useState<string[] | undefined>();
   const [newStep, setNewStep] = useState('');
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  // Groups just ticked stay open while the tick celebrates, then fold away.
-  const [holdOpen, setHoldOpen] = useState<Record<string, number>>({});
+  /** The add sheet: the task form, quick picks and the quote of the day. */
+  const [adding, setAdding] = useState(false);
   const quote = quoteOfTheDay(today);
   const typed = title.trim();
   const suggestions = useMemo(
@@ -125,6 +124,7 @@ export function TodayScreen({
   useEffect(() => {
     if (!draft) return;
     prefill(draft);
+    setAdding(true);
     onDraftUsed();
   }, [draft]);
 
@@ -143,61 +143,101 @@ export function TodayScreen({
     const steps = stepDraft ?? (librarySteps(typed) || !suggested.length ? undefined : suggested);
     onAdd(typed, repeat, chosenMinutes, { ...plan, category: chosenCategory, ...(steps && { steps }) });
     reset();
+    setAdding(false);
   }
 
-  /** Keeps a task's group open while its tick celebrates; only the latest tick in the group closes it again. */
-  function holdGroupOpen(task: Task) {
-    const id = taskCategory(task);
-    const at = Date.now();
-    setHoldOpen((m) => ({ ...m, [id]: at }));
-    setTimeout(() => setHoldOpen((m) => (m[id] === at ? { ...m, [id]: 0 } : m)), HOLD_OPEN_MS);
+  function closeSheet() {
+    reset();
+    setAdding(false);
   }
 
-  // Today's tasks grouped by category, in the library's order, "Other" last.
-  const sections = useMemo(() => {
+  // Today's tasks in one list, sorted by category in the library's order ("Other" last), so related tasks sit together.
+  const sorted = useMemo(() => {
     const order = [...CATEGORIES.map((cat) => cat.id), OTHER_CATEGORY];
-    const groups = new Map<string, Task[]>();
-    for (const t of tasks) {
-      const id = taskCategory(t);
-      groups.set(id, [...(groups.get(id) ?? []), t]);
-    }
-    return order
-      .filter((id) => groups.has(id))
-      .map((id) => {
-        const all = groups.get(id)!;
-        const done = all.filter((t) => isDoneToday(state, t, today)).length;
-        // A finished group folds away on its own unless opened.
-        const isCollapsed = collapsed[id] ?? (done === all.length && all.length > 0 && !holdOpen[id]);
-        return { id, done, total: all.length, collapsed: isCollapsed, data: isCollapsed ? [] : all };
-      });
-  }, [tasks, state, today, collapsed, holdOpen]);
-  const doneCount = sections.reduce((n, sec) => n + sec.done, 0);
+    return tasks.map((t, i) => ({ t, i, rank: order.indexOf(taskCategory(t)) })).sort((x, y) => x.rank - y.rank || x.i - y.i).map((x) => x.t);
+  }, [tasks]);
+  const doneCount = tasks.filter((t) => isDoneToday(state, t, today)).length;
 
   return (
-    <SectionList
-      sections={sections}
-      keyExtractor={(t) => t.id}
-      contentContainerStyle={s.content}
-      keyboardShouldPersistTaps="handled"
-      stickySectionHeadersEnabled={false}
-      ListHeaderComponent={
-        <>
-          <Text style={s.date}>
-            {new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}
-          </Text>
-          <Text style={s.greeting}>
-            Good <Text style={s.greetingEm}>{partOfDay(new Date().getHours())}</Text>, {state.profile.name}.
-          </Text>
+    <>
+      <FlatList
+        data={sorted}
+        keyExtractor={(t) => t.id}
+        contentContainerStyle={s.content}
+        keyboardShouldPersistTaps="handled"
+        ListHeaderComponent={
+          <>
+            <Text style={s.greeting}>
+              Good <Text style={s.greetingEm}>{partOfDay(new Date().getHours())}</Text>, {state.profile.name}.
+            </Text>
 
-          <StreakCard streak={streak} week={weekDots(state, today)} onPress={onOpenStreak} />
-          {tokenStrip}
+            <StreakCard streak={streak} week={weekDots(state, today)} onPress={onOpenStreak} />
+            {tokenStrip}
 
-          <View style={s.quote}>
-            <Text style={s.quoteText}>“{quote.text}”</Text>
-            <Text style={s.quoteAuthor}>{quote.author}</Text>
-          </View>
+            <View style={s.sectionRow}>
+              <Text style={s.sectionTitle}>Today's tasks</Text>
+              {tasks.length > 0 && (
+                <Text style={s.sectionCount}>
+                  <GradientText style={s.sectionCountStrong}>{doneCount}</GradientText> / {tasks.length}
+                </Text>
+              )}
+            </View>
+            {tasks.length > 0 && doneCount === tasks.length && (
+              <EmptyState glyph="Trophy" grad={RARITY.legendary} before="All " word="done" after=" for today" body="Every task is ticked off. Enjoy the rest of your day." />
+            )}
+          </>
+        }
+        ListEmptyComponent={
+          loaded ? (
+            <EmptyState glyph="Sparkle" mythic before="A " word="fresh" after=" start" body="No tasks for today. Add one below or pick some from the library." />
+          ) : undefined
+        }
+        ListFooterComponent={
+          <>
+            <Pressable onPress={() => setAdding(true)} style={s.addOpen} accessibilityRole="button">
+              <Plus size={20} color={BRAND_INK} strokeWidth={2.5} aria-hidden />
+              <Text style={s.addOpenText}>Add a task</Text>
+            </Pressable>
+            {upcoming.length > 0 && (
+              <View style={s.upcoming}>
+                <Text style={s.upcomingHeading}>Coming up</Text>
+                {upcoming.map((t) => (
+                  <View key={t.id} style={s.upcomingRow}>
+                    <Text style={s.upcomingTitle} numberOfLines={1}>
+                      {t.title}
+                    </Text>
+                    <Text style={s.upcomingDay}>{dayLabel(t.date!)}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </>
+        }
+        renderItem={({ item, index }) => (
+          <TaskRow
+            index={index}
+            task={item}
+            state={state}
+            today={today}
+            done={isDoneToday(state, item, today)}
+            onToggle={() => onToggle(item)}
+            onStep={(step) => onStep(item, step)}
+            onDelete={() => onDelete(item)}
+          />
+        )}
+      />
 
-          <View style={s.addCard}>
+      <Modal visible={adding} transparent animationType="slide" onRequestClose={closeSheet}>
+        <Pressable style={s.backdrop} onPress={closeSheet} accessibilityLabel="Close" />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.sheetWrap} pointerEvents="box-none">
+          <View style={s.sheet}>
+            <View style={s.sheetHead}>
+              <Text style={s.sheetTitle}>Add a task</Text>
+              <Pressable onPress={closeSheet} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close">
+                <X size={20} color={c.muted} strokeWidth={1.75} />
+              </Pressable>
+            </View>
+            <ScrollView contentContainerStyle={s.sheetBody} keyboardShouldPersistTaps="handled">
             <View style={s.inputRow}>
               <TextInput
                 value={title}
@@ -215,7 +255,7 @@ export function TodayScreen({
                 accessibilityRole="button"
                 accessibilityLabel="Add task"
               >
-                <Plus size={22} color={GOLD_INK} strokeWidth={2.5} />
+                <Plus size={22} color={BRAND_INK} strokeWidth={2.5} />
               </Pressable>
             </View>
 
@@ -318,109 +358,66 @@ export function TodayScreen({
                   </Text>
                 </Pressable>
                 <Pressable onPress={reset} style={s.cancel} accessibilityRole="button">
-                  <Text style={s.cancelText}>Cancel</Text>
+                  <Text style={s.cancelText}>Start over</Text>
                 </Pressable>
               </>
             )}
 
-            {typed.length === 0 && <VividButton label="Browse the task library" kind="secondary" compact onPress={onOpenLibrary} />}
-          </View>
+            {typed.length === 0 && (
+              <VividButton
+                label="Browse the task library"
+                kind="secondary"
+                compact
+                onPress={() => {
+                  closeSheet();
+                  onOpenLibrary();
+                }}
+              />
+            )}
 
-          <View style={s.sectionRow}>
-            <Text style={s.sectionTitle}>Today</Text>
-            <Text style={s.sectionCount}>
-              <GradientText style={s.sectionCountStrong}>{doneCount}</GradientText> of {tasks.length} done
-            </Text>
+              {typed.length === 0 && (
+                <View style={s.quote}>
+                  <Text style={s.quoteText}>“{quote.text}”</Text>
+                  <Text style={s.quoteAuthor}>{quote.author}</Text>
+                </View>
+              )}
+            </ScrollView>
           </View>
-          {tasks.length > 0 && doneCount === tasks.length && (
-            <EmptyState glyph="Trophy" grad={RARITY.legendary} before="All " word="done" after=" for today" body="Every task is ticked off. Enjoy the rest of your day." />
-          )}
-        </>
-      }
-      renderSectionHeader={({ section }) => {
-        const cat = categoryOf(section.id);
-        return (
-          <Pressable
-            onPress={() => setCollapsed((m) => ({ ...m, [section.id]: !section.collapsed }))}
-            style={s.groupHeader}
-            accessibilityRole="button"
-            accessibilityState={{ expanded: !section.collapsed }}
-          >
-            <Sticker grad={categoryLook(section.id)} glyph={categoryLook(section.id).glyph} size={28} />
-            <Text style={s.groupTitle}>{cat?.label ?? 'Other'}</Text>
-            {section.done === section.total ? (
-              <GradientText style={s.groupCountDone}>
-                {section.done}/{section.total}
-              </GradientText>
-            ) : (
-              <Text style={s.groupCount}>
-                {section.done}/{section.total}
-              </Text>
-            )}
-            {section.collapsed ? (
-              <ChevronDown size={16} color={c.muted} strokeWidth={1.5} />
-            ) : (
-              <ChevronUp size={16} color={c.muted} strokeWidth={1.5} />
-            )}
-          </Pressable>
-        );
-      }}
-      ListEmptyComponent={
-        loaded ? (
-          <EmptyState glyph="Sparkle" mythic before="A " word="fresh" after=" start" body="No tasks for today. Add one above or pick some from the library." />
-        ) : undefined
-      }
-      ListFooterComponent={
-        upcoming.length > 0 ? (
-          <View style={s.upcoming}>
-            <Text style={s.sectionTitle}>Coming up</Text>
-            {upcoming.map((t) => (
-              <View key={t.id} style={s.upcomingRow}>
-                <Text style={s.upcomingTitle} numberOfLines={1}>
-                  {t.title}
-                </Text>
-                <Text style={s.upcomingDay}>{dayLabel(t.date!)}</Text>
-              </View>
-            ))}
-          </View>
-        ) : undefined
-      }
-      renderItem={({ item, index }) => (
-        <TaskRow
-          index={index}
-          task={item}
-          state={state}
-          today={today}
-          done={isDoneToday(state, item, today)}
-          onToggle={() => {
-            holdGroupOpen(item);
-            return onToggle(item);
-          }}
-          onStep={(step) => {
-            holdGroupOpen(item);
-            return onStep(item, step);
-          }}
-          onDelete={() => onDelete(item)}
-        />
-      )}
-    />
+        </KeyboardAvoidingView>
+      </Modal>
+    </>
   );
 }
 
-/** How long a just-finished group stays open: the tick's "+XP" takes about 2.4 s. */
-const HOLD_OPEN_MS = 2600;
 
 const makeStyles = themed((c) => ({
   content: { padding: 20, paddingTop: 12, paddingBottom: 48, maxWidth: 640, width: '100%', alignSelf: 'center' },
-  date: { ...eyebrow(c), color: c.label, marginBottom: 10 },
-  greeting: { fontFamily: FONTS.serif, color: c.text, fontSize: 34, lineHeight: 40, ...headingCase(c) },
+  greeting: { fontFamily: FONTS.serif, color: c.text, fontSize: 26, lineHeight: 32, ...headingCase(c) },
   greetingEm: c.italicAccent ? { fontFamily: FONTS.serifItalic, color: c.accent } : { fontFamily: FONTS.serif, color: c.text },
-  quote: { marginTop: 18, marginBottom: 22, gap: 8 },
-  quoteText: { fontFamily: FONTS.serif, fontStyle: 'italic', color: c.muted, fontSize: 16, lineHeight: 24 },
+  quote: { marginTop: 4, gap: 6 },
+  quoteText: { fontFamily: FONTS.serif, fontStyle: 'italic', color: c.muted, fontSize: 15, lineHeight: 22 },
   quoteAuthor: { ...eyebrow(c, 11), color: c.label },
-  addCard: { ...card(c), padding: 14, gap: 12, marginBottom: 28 },
+  addOpen: { ...BRAND_FILL, flexDirection: 'row', gap: 8, minHeight: 54, justifyContent: 'center', borderRadius: 14, alignItems: 'center', marginTop: 8 },
+  addOpenText: { fontFamily: VIVID_HEAVY, fontSize: 17, color: BRAND_INK, ...BRAND_TEXT_SHADOW },
+  backdrop: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.55)' },
+  sheetWrap: { flex: 1, justifyContent: 'flex-end' },
+  sheet: {
+    ...card(c),
+    backgroundColor: c.surface,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    borderTopLeftRadius: Math.max(c.radius, 16),
+    borderTopRightRadius: Math.max(c.radius, 16),
+    maxHeight: '88%',
+    width: '100%',
+    maxWidth: 640,
+    alignSelf: 'center',
+  },
+  sheetHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingTop: 16, paddingBottom: 6 },
+  sheetTitle: { fontFamily: FONTS.serif, color: c.text, fontSize: 22, ...headingCase(c) },
+  sheetBody: { padding: 18, paddingTop: 8, gap: 12, paddingBottom: 32 },
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  plus: { width: 46, height: 46, borderRadius: 14, ...GOLD_FILL_SMALL, alignItems: 'center', justifyContent: 'center' },
+  plus: { width: 46, height: 46, borderRadius: 14, ...BRAND_FILL_SMALL, alignItems: 'center', justifyContent: 'center' },
   quickRow: { gap: 8, paddingRight: 4 },
   quick: {
     flexDirection: 'row',
@@ -435,11 +432,8 @@ const makeStyles = themed((c) => ({
   quickText: { color: c.text, fontSize: 13, fontWeight: '600' },
   cancel: { alignItems: 'center', paddingVertical: 4 },
   cancelText: { ...eyebrow(c, 11), color: c.muted },
-  groupHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 18, paddingBottom: 8 },
-  groupTitle: { flex: 1, color: c.text, fontSize: 15, fontWeight: '700' },
-  groupCount: { color: c.muted, fontSize: 13, fontVariant: ['tabular-nums'] },
-  groupCountDone: { fontFamily: VIVID_HEAVY, fontSize: 14, fontVariant: ['tabular-nums'] },
   upcoming: { marginTop: 28, gap: 2 },
+  upcomingHeading: { ...eyebrow(c), color: c.muted, marginBottom: 4 },
   upcomingRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.border },
   upcomingTitle: { flex: 1, color: c.text, fontSize: 15 },
   upcomingDay: { color: c.muted, fontSize: 13 },
@@ -463,18 +457,19 @@ const makeStyles = themed((c) => ({
   estimateText: { color: c.text, fontSize: 14 },
   estimateStrong: { fontWeight: '700' },
   estimateNote: { color: c.faint, fontSize: 12 },
-  addButton: { ...GOLD_FILL, minHeight: 54, justifyContent: 'center', borderRadius: 14, alignItems: 'center' },
-  addButtonText: { fontFamily: VIVID_HEAVY, fontSize: 17, color: GOLD_INK },
+  addButton: { ...BRAND_FILL, minHeight: 54, justifyContent: 'center', borderRadius: 14, alignItems: 'center' },
+  addButtonText: { fontFamily: VIVID_HEAVY, fontSize: 17, color: BRAND_INK, ...BRAND_TEXT_SHADOW },
   sectionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'baseline',
+    marginTop: 24,
     paddingBottom: 10,
-    marginBottom: c.listStyle === 'cards' ? 10 : 0,
+    marginBottom: c.listStyle === 'cards' ? 2 : 0,
     borderBottomWidth: c.listStyle === 'lines' ? 1 : 0,
     borderBottomColor: c.border,
   },
-  sectionTitle: { ...eyebrow(c), color: c.muted },
-  sectionCount: { color: c.muted, fontSize: 13 },
+  sectionTitle: { fontFamily: FONTS.serif, color: c.text, fontSize: 20, ...headingCase(c) },
+  sectionCount: { color: c.faint, fontSize: 13 },
   sectionCountStrong: { fontFamily: VIVID_HEAVY, fontSize: 15 },
 }));
