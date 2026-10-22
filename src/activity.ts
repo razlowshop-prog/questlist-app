@@ -8,6 +8,7 @@ import {
   levelInfo,
   rankFor,
   restDaysOf,
+  stepAbsorbed,
   streakStatus,
   weekStart,
   type GameState,
@@ -24,7 +25,8 @@ export type ActivityEvent =
   | { kind: 'fire'; change: 'up' | 'down' | 'lost'; tier: number; days: number }
   | { kind: 'token'; token: 'rest' | 'double' | 'adfree' | 'recovery' }
   | { kind: 'season'; frame: string }
-  | { kind: 'wheel'; prize: string; rarity: Rarity; xp: number };
+  | { kind: 'wheel'; prize: string; rarity: Rarity; xp: number }
+  | { kind: 'steps'; title: string; count: number; xp: number };
 
 export interface ActivityTask {
   title: string;
@@ -116,6 +118,25 @@ export function activityTimeline(state: GameState, today: string): ActivityDay[]
     day.xp += s.xp ?? 0;
     day.events.push({ kind: 'wheel', prize: prize?.label ?? 'Prize', rarity: prize?.rarity ?? 'common', xp: s.xp ?? 0 });
     if (s.xp) items.push({ date: s.date, xp: s.xp });
+  }
+
+  // Steps of tasks not finished (yet); a finished task's steps are part of its XP.
+  const steps = new Map<string, Extract<ActivityEvent, { kind: 'steps' }>>();
+  for (const t of state.stepTicks ?? []) {
+    if (t.date > today || stepAbsorbed(t, state.completions)) continue;
+    const day = dayOf(t.date);
+    day.xp += t.xp;
+    if (t.xp) items.push({ date: t.date, xp: t.xp });
+    const key = `${t.date}|${t.taskId}`;
+    const event = steps.get(key);
+    if (event) {
+      event.count++;
+      event.xp += t.xp;
+    } else {
+      const created = { kind: 'steps' as const, title: state.tasks.find((task) => task.id === t.taskId)?.title ?? 'a task', count: 1, xp: t.xp };
+      steps.set(key, created);
+      day.events.push(created);
+    }
   }
 
   // Replay the XP day by day to find the days a new level was reached.

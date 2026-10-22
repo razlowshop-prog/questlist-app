@@ -5,6 +5,8 @@ import { eyebrow, FONTS, nativeDriver, themed, useStyles, useTheme } from '../th
 import { CoinShower } from './Fortuna';
 import { TOKEN_INFO } from '../tokens';
 import { RewardPicture } from './RewardPicture';
+import { ConfettiBurst, GOLD_FILL, GOLD_INK, LevelBadge, VIVID_HEAVY } from './Vivid';
+import { MYTHIC } from '../vivid';
 
 export interface CelebrationEvent {
   level: number;
@@ -119,12 +121,22 @@ export function Celebration({
               >
                 Level up
               </Animated.Text>
-              <Animated.Text
-                style={[s.level, { opacity: intro, transform: [{ scale: intro.interpolate({ inputRange: [0, 1], outputRange: [0.2, 1] }) }] }]}
+              <Animated.View
+                style={{
+                  opacity: intro,
+                  marginVertical: 8,
+                  transform: [
+                    { perspective: 800 },
+                    { rotateY: intro.interpolate({ inputRange: [0, 1], outputRange: ['180deg', '0deg'] }) },
+                    { scale: intro.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }) },
+                  ],
+                }}
+                accessible
                 accessibilityLabel={`Level ${event.level}`}
               >
-                {event.level}
-              </Animated.Text>
+                <ConfettiBurst scale={2.2} />
+                <LevelBadge level={event.level} size={132} />
+              </Animated.View>
               <Animated.Text style={[s.rank, { opacity: intro }]}>
                 {event.newRank ? `New rank · ${event.rank}` : event.rank}
               </Animated.Text>
@@ -142,6 +154,7 @@ export function Celebration({
                       style={[
                         s.spark,
                         i % 2 === 1 && s.sparkSmall,
+                        { backgroundColor: MYTHIC[i % MYTHIC.length], boxShadow: `0px 0px 8px ${MYTHIC[i % MYTHIC.length]}` },
                         {
                           opacity: sparks.interpolate({ inputRange: [0, 0.1, 1], outputRange: [0, 1, 0] }),
                           transform: [
@@ -167,7 +180,7 @@ export function Celebration({
                     ]}
                   >
                     <View style={s.itemIcon}>
-                      <RewardPicture milestone={milestone} size={milestone.reward?.kind === 'theme' ? 72 : 56} />
+                      <RewardPicture milestone={milestone} size={72} />
                     </View>
                     <Text style={s.itemName}>{milestone.reward?.label ?? `+${milestone.bonusXp} XP bonus`}</Text>
                     {milestone.reward?.token && <Text style={s.itemDesc}>{TOKEN_INFO[milestone.reward.token].description}</Text>}
@@ -199,19 +212,9 @@ const makeStyles = themed((c) => ({
   backdrop: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: c.bg, opacity: 0.94 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, padding: 24 },
   rays: { position: 'absolute', width: 520, height: 520, alignItems: 'center', justifyContent: 'center' },
-  ray: { position: 'absolute', width: 2, height: 520, backgroundColor: c.accent, opacity: c.dark ? 0.1 : 0.16 },
-  ring: { position: 'absolute', width: 180, height: 180, borderRadius: 90, borderWidth: 2, borderColor: c.accent },
+  ray: { position: 'absolute', width: 2, height: 520, backgroundColor: '#FFB547', opacity: c.dark ? 0.13 : 0.2 },
+  ring: { position: 'absolute', width: 180, height: 180, borderRadius: 90, borderWidth: 3, borderColor: '#FFB547', boxShadow: '0px 0px 18px rgba(255,138,0,0.5)' },
   eyebrow: { ...eyebrow(c, 13), color: c.label, letterSpacing: 4 },
-  level: {
-    fontFamily: FONTS.serif,
-    color: c.accent,
-    fontSize: 120,
-    lineHeight: 132,
-    fontVariant: ['lining-nums'],
-    textShadowColor: c.accent,
-    textShadowRadius: 30,
-    textShadowOffset: { width: 0, height: 0 },
-  },
   rank: { fontFamily: FONTS.serifItalic, color: c.text, fontSize: 22 },
   hint: { color: c.faint, fontSize: 13, marginTop: 28 },
   itemWrap: { alignItems: 'center', justifyContent: 'center', marginVertical: 18 },
@@ -223,16 +226,14 @@ const makeStyles = themed((c) => ({
     gap: 10,
     backgroundColor: c.surface,
     borderWidth: 1.5,
-    borderColor: c.accent,
+    borderColor: '#FFB547',
     borderRadius: c.radius + 4,
-    boxShadow: `0px 0px 40px ${c.accent}66`,
+    boxShadow: '0px 0px 40px rgba(255,138,0,0.4)',
   },
   itemIcon: {
     width: 104,
     height: 104,
     borderRadius: 52,
-    borderWidth: 1,
-    borderColor: c.outline,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 6,
@@ -240,8 +241,8 @@ const makeStyles = themed((c) => ({
   itemName: { fontFamily: FONTS.serif, color: c.text, fontSize: 22, textAlign: 'center' },
   itemMeta: { ...eyebrow(c, 11), color: c.muted, textAlign: 'center' },
   itemDesc: { color: c.muted, fontSize: 13, lineHeight: 18, textAlign: 'center', marginTop: 6, marginBottom: 2 },
-  spark: { position: 'absolute', width: 8, height: 8, backgroundColor: c.accent },
-  sparkSmall: { width: 5, height: 5, backgroundColor: c.xp },
-  collect: { backgroundColor: c.accent, minHeight: 50, minWidth: 200, paddingHorizontal: 32, justifyContent: 'center', alignItems: 'center', borderRadius: c.radius },
-  collectText: { ...eyebrow(c, 14), fontWeight: '700', color: c.onAccent },
+  spark: { position: 'absolute', width: 9, height: 9 },
+  sparkSmall: { width: 6, height: 6 },
+  collect: { ...GOLD_FILL, minHeight: 54, minWidth: 220, paddingHorizontal: 32, justifyContent: 'center', alignItems: 'center', borderRadius: 14 },
+  collectText: { fontFamily: VIVID_HEAVY, fontSize: 17, color: GOLD_INK },
 }));

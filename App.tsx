@@ -1,6 +1,9 @@
 import { loadAsync } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import { Activity, Award, FerrisWheel, Sun, Target, User, type LucideIcon } from 'lucide-react-native';
+import type { GlyphName } from './src/glyphs';
+import { AmbientBlobs, CountBadge, Glyph, VIVID_HEAVY } from './src/components/Vivid';
+import { GOLD } from './src/vivid';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { XpHeader } from './src/components/XpHeader';
@@ -50,8 +53,9 @@ import { ProfileScreen } from './src/screens/ProfileScreen';
 import { SpinScreen } from './src/screens/SpinScreen';
 import { TodayScreen } from './src/screens/TodayScreen';
 import { ownsWheelTheme, spinsToPity, spinWheel, ticketStatus } from './src/wheel';
+import { tickStep } from './src/steps';
 import type { LibraryTask } from './src/library';
-import { fontFilesFor, WHEEL_FONTS } from './src/fonts';
+import { fontFilesFor, VIVID_FONTS, WHEEL_FONTS } from './src/fonts';
 import { trophyStatuses } from './src/trophies';
 import { withEstimatedTimes } from './src/estimate';
 import { answerRecovery, recoveryOffer, spendAdFree, spendDoubleXp, spendRestDay, swapChallenge, tokenCounts } from './src/tokens';
@@ -60,6 +64,7 @@ import { GoldDust } from './src/components/Fortuna';
 import { Inventory } from './src/components/Inventory';
 import { RecoveryModal } from './src/components/RecoveryModal';
 import { FlameStyleContext } from './src/components/Fire';
+import { AvatarDiscContext } from './src/components/ProfileFrame';
 import { CelebrationContext } from './src/components/TaskRow';
 import { emblemStatuses } from './src/emblems';
 import { equippedLooks, ownedLooks } from './src/inventory';
@@ -77,13 +82,14 @@ const PREVIEW_ALL_THEMES = process.env.EXPO_PUBLIC_UNLOCK_THEMES === '1';
 
 type Tab = 'today' | 'challenges' | 'spin' | 'activity' | 'awards' | 'profile';
 
-const TABS: { key: Tab; label: string; Icon: LucideIcon }[] = [
-  { key: 'today', label: 'Today', Icon: Sun },
-  { key: 'challenges', label: 'Challenges', Icon: Target },
-  { key: 'spin', label: 'Spin', Icon: FerrisWheel },
-  { key: 'activity', label: 'Activity', Icon: Activity },
-  { key: 'awards', label: 'Awards', Icon: Award },
-  { key: 'profile', label: 'Profile', Icon: User },
+/** Inactive tabs: the theme's muted line icon. Active: a filled glyph in the gold gradient with a glow. */
+const TABS: { key: Tab; label: string; Icon: LucideIcon; glyph: GlyphName }[] = [
+  { key: 'today', label: 'Today', Icon: Sun, glyph: 'Sun' },
+  { key: 'challenges', label: 'Challenges', Icon: Target, glyph: 'Target' },
+  { key: 'spin', label: 'Spin', Icon: FerrisWheel, glyph: 'Pinwheel' },
+  { key: 'activity', label: 'Activity', Icon: Activity, glyph: 'Pulse' },
+  { key: 'awards', label: 'Awards', Icon: Award, glyph: 'Trophy' },
+  { key: 'profile', label: 'Profile', Icon: User, glyph: 'User' },
 ];
 
 export default function App() {
@@ -157,7 +163,7 @@ export default function App() {
     if (!loaded) return;
     let current = true;
     // A font that fails to load falls back to the system font; the theme still applies.
-    loadAsync({ ...fontFilesFor(wantedTheme.palette.fonts), ...WHEEL_FONTS })
+    loadAsync({ ...fontFilesFor(wantedTheme.palette.fonts), ...WHEEL_FONTS, ...VIVID_FONTS })
       .catch((e) => console.warn('Fonts failed to load', e))
       .finally(() => current && setShownThemeId(wantedTheme.id));
     return () => {
@@ -262,6 +268,14 @@ export default function App() {
     return { prize, finish: () => apply(next) };
   }
 
+  function onStep(task: Task, step: number): { xp: number; finished: boolean; note?: string } {
+    const { state: next, finished } = tickStep(state, task.id, step, today, Date.now());
+    if (next === state) return { xp: 0, finished: false };
+    const gained = apply(next);
+    const limited = finished ? next.completions[next.completions.length - 1].limited : undefined;
+    return { xp: gained, finished, note: limited ? limitMessage(limited) : undefined };
+  }
+
   function onClaim(id: string) {
     const gained = apply(claimChallenge(state, id, today));
     if (gained > 0) showToast(`Challenge complete · +${gained} XP`);
@@ -306,8 +320,10 @@ export default function App() {
     <ThemeProvider palette={c}>
       <FlameStyleContext.Provider value={looks.flameStyle}>
         <CelebrationContext.Provider value={looks.celebration}>
+          <AvatarDiscContext.Provider value={state.settings.avatar}>
           <SafeAreaView style={styles.safe}>
             <StatusBar style={statusBar} />
+            <AmbientBlobs />
             {c.backdrop === 'dust' && tab !== 'spin' && <GoldDust />}
             <XpHeader
               totalXp={xp}
@@ -347,6 +363,7 @@ export default function App() {
                   onDraftUsed={() => setDraft(undefined)}
                   onOpenLibrary={() => setLibraryOpen(true)}
                   onToggle={onToggle}
+                  onStep={onStep}
                   onDelete={(task) => setState(deleteTask(state, task.id))}
                 />
               )}
@@ -424,16 +441,20 @@ export default function App() {
                   accessibilityRole="tab"
                   accessibilityState={{ selected: tab === t.key }}
                 >
-                  <t.Icon size={20} color={tab === t.key ? c.accent : c.muted} strokeWidth={1.5} aria-hidden />
+                  {tab === t.key ? (
+                    <View style={styles.tabGlyph}>
+                      <View style={styles.tabGlow} />
+                      <Glyph name={t.glyph} size={23} grad={GOLD} />
+                    </View>
+                  ) : (
+                    <View style={styles.tabGlyph}>
+                      <t.Icon size={20} color={c.muted} strokeWidth={1.5} aria-hidden />
+                    </View>
+                  )}
                   <Text style={[styles.tabLabel, tab === t.key && styles.tabLabelActive]} numberOfLines={1}>
                     {t.label}
                   </Text>
-                  <View style={[styles.tabMark, tab === t.key && styles.tabMarkActive]} />
-                  {badges[t.key] > 0 && (
-                    <View style={styles.dot}>
-                      <Text style={styles.dotText}>{badges[t.key] > 99 ? '99+' : badges[t.key]}</Text>
-                    </View>
-                  )}
+                  <CountBadge count={badges[t.key]} style={styles.dot} />
                 </Pressable>
               ))}
             </View>
@@ -507,6 +528,7 @@ export default function App() {
               />
             )}
           </SafeAreaView>
+          </AvatarDiscContext.Provider>
         </CelebrationContext.Provider>
       </FlameStyleContext.Provider>
     </ThemeProvider>
@@ -526,29 +548,18 @@ const makeStyles = themed((c) => ({
   tab: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 44, gap: 4 },
   // Six tabs share a phone's width, so the spaced capitals are tightened.
   tabLabel: { ...eyebrow(c, 9), letterSpacing: c.eyebrowCaps ? 0.6 : 0.2, color: c.muted },
-  tabLabelActive: { color: c.dark ? c.accent : c.text },
-  tabMark: { width: 5, height: 5, transform: [{ rotate: '45deg' }], backgroundColor: 'transparent' },
-  tabMarkActive: { backgroundColor: c.accent },
-  dot: {
-    position: 'absolute',
-    top: -4,
-    right: '20%',
-    backgroundColor: c.accent,
-    borderRadius: 9,
-    minWidth: 18,
-    height: 18,
-    paddingHorizontal: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dotText: { color: c.onAccent, fontSize: 11, fontWeight: '700' },
+  tabLabelActive: { color: '#FFB547', fontFamily: VIVID_HEAVY, ...(!c.dark && { color: '#C2410C' }) },
+  tabGlyph: { width: 26, height: 24, alignItems: 'center', justifyContent: 'center' },
+  tabGlow: { position: 'absolute', width: 22, height: 22, borderRadius: 11, backgroundColor: '#FF7A00', opacity: 0.28, boxShadow: '0px 0px 10px #FF7A00' },
+  dot: { position: 'absolute', top: -4, right: '18%' },
   toast: {
     position: 'absolute',
     bottom: 96,
     alignSelf: 'center',
     backgroundColor: c.surface,
-    borderWidth: 1,
-    borderColor: c.accent,
+    borderWidth: 1.5,
+    borderColor: '#FFB547',
+    boxShadow: '0px 6px 20px rgba(255,122,0,0.3)',
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: c.radius,

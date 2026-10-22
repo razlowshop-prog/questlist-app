@@ -26,6 +26,11 @@ export interface Task {
   reminder?: string;
   /** Library category id, for grouping the day. */
   category?: string;
+  /**
+   * Steps on the way to finishing a long task, each paying a little XP (see
+   * steps.ts). Missing = the library's steps for this title, if any; [] = none.
+   */
+  steps?: string[];
   createdAt: string;
 }
 
@@ -35,6 +40,7 @@ export interface TaskPlan {
   date?: string;
   reminder?: string;
   category?: string;
+  steps?: string[];
 }
 
 /** false = one-time, true = every day, a number = that many times per week. */
@@ -115,6 +121,18 @@ export interface GameState {
   seasonClaims?: { month: string; date: string }[];
   /** Lucky wheel spins, oldest first (see wheel.ts). */
   wheelSpins?: WheelSpin[];
+  /** Steps of long tasks ticked off on the way (see steps.ts). */
+  stepTicks?: StepTick[];
+}
+
+export interface StepTick {
+  taskId: string;
+  /** Index into the task's steps. */
+  step: number;
+  date: string;
+  xp: number;
+  /** One-off tasks keep their steps across days; repeating tasks start over each day. */
+  oneOff?: boolean;
 }
 
 export interface WheelSpin {
@@ -165,6 +183,8 @@ export interface Settings {
   frame?: string;
   flameStyle?: FlameStyleId;
   celebration?: CelebrationId;
+  /** Which of the five avatar gradients (vivid.ts AVATAR_DISCS) the profile picture uses. */
+  avatar?: number;
 }
 
 /** Evening time of the "your streak is about to end" notification. */
@@ -290,8 +310,22 @@ export function totalXp(state: GameState): number {
     state.completions.reduce((sum, c) => sum + c.xp, 0) +
     state.claims.reduce((sum, c) => sum + c.xp, 0) +
     state.achievementClaims.reduce((sum, c) => sum + c.xp, 0) +
-    wheelXp(state)
+    wheelXp(state) +
+    stepXp(state)
   );
+}
+
+/**
+ * A step's XP is an advance on the task: once the task is finished, the
+ * completion pays the task's full XP and the step's share is part of it.
+ */
+export function stepAbsorbed(tick: StepTick, completions: Completion[]): boolean {
+  return completions.some((c) => c.taskId === tick.taskId && (tick.oneOff || c.date === tick.date));
+}
+
+/** XP from steps of tasks not finished (yet). */
+export function stepXp(state: Pick<GameState, 'stepTicks' | 'completions'>): number {
+  return (state.stepTicks ?? []).reduce((sum, t) => sum + (stepAbsorbed(t, state.completions) ? 0 : t.xp), 0);
 }
 
 /** XP won on the lucky wheel. It counts for levels but doesn't earn wheel tickets. */
@@ -516,6 +550,19 @@ export function upcomingTasks(state: GameState, today: string): Task[] {
     .sort((a, b) => (a.date! < b.date! ? -1 : a.date! > b.date! ? 1 : 0));
 }
 
+/** Most steps one task can have. */
+export const MAX_STEPS = 6;
+/** Longest step name. */
+export const MAX_STEP_LENGTH = 40;
+
+/** Trimmed, non-empty step names, at most MAX_STEPS. */
+export function cleanSteps(steps: string[]): string[] {
+  return steps
+    .map((st) => st.trim().slice(0, MAX_STEP_LENGTH))
+    .filter(Boolean)
+    .slice(0, MAX_STEPS);
+}
+
 export function addTask(
   state: GameState,
   title: string,
@@ -541,6 +588,7 @@ export function addTask(
   }
   if (plan.reminder && /^([01]\d|2[0-3]):[0-5]\d$/.test(plan.reminder)) task.reminder = plan.reminder;
   if (plan.category) task.category = plan.category;
+  if (plan.steps) task.steps = cleanSteps(plan.steps);
   return { ...state, tasks: [...state.tasks, task] };
 }
 
@@ -630,6 +678,27 @@ export function weekStart(day: string): string {
   const [y, m, d] = day.split('-').map(Number);
   const weekday = (new Date(y, m - 1, d, 12).getDay() + 6) % 7; // Monday = 0
   return addDays(day, -weekday);
+}
+
+/** One day of this week on the streak card. */
+export type WeekDot = 'done' | 'rest' | 'missed' | 'today' | 'future';
+
+/**
+ * Monday to Sunday of today's week: done (a task finished), rest (covered by a
+ * rest day), today (nothing yet), missed, or future (still to come, or before
+ * the player joined).
+ */
+export function weekDots(state: Pick<GameState, 'completions' | 'restDays' | 'recovery' | 'joinedAt'>, today: string): WeekDot[] {
+  const active = new Set(state.completions.map((c) => c.date));
+  const rest = new Set(restDaysOf(state));
+  const monday = weekStart(today);
+  return Array.from({ length: 7 }, (_, i) => {
+    const day = addDays(monday, i);
+    if (active.has(day)) return 'done';
+    if (day > today || (state.joinedAt && day < state.joinedAt)) return 'future';
+    if (rest.has(day)) return 'rest';
+    return day === today ? 'today' : 'missed';
+  });
 }
 
 export interface WeekStats {

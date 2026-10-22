@@ -1,9 +1,10 @@
-import { Switch, Text, TextInput, View } from 'react-native';
+import {  Text, TextInput, View } from 'react-native';
 import { addDays, dayLabel, maxPerWeek, WEEKDAYS, type Repeat, type TaskPlan } from '../game';
 import { REMINDERS_SUPPORTED } from '../reminders';
-import { eyebrow, themed, useStyles, useTheme } from '../theme';
+import { eyebrow, themed, useStyles } from '../theme';
 import { Chip } from './Chip';
 import { Stepper } from './Stepper';
+import { VividSwitch } from './Vivid';
 
 export interface Schedule {
   repeat: boolean;
@@ -89,7 +90,6 @@ export function SchedulePicker({
   today: string;
 }) {
   const s = useStyles(makeStyles);
-  const c = useTheme();
   const max = maxPerWeek(title);
   const set = (patch: Partial<Schedule>) => onChange({ ...value, ...patch });
   const n = timesOf(value, title);
@@ -167,13 +167,9 @@ export function SchedulePicker({
               : 'Reminders arrive as notifications in the phone app.'}
           </Text>
         </View>
-        <Switch
+        <VividSwitch
           value={value.remind}
           onValueChange={(v) => set({ remind: v })}
-          trackColor={{ true: c.accent, false: c.border }}
-          thumbColor={c.surface}
-          // react-native-web paints the 'on' thumb teal unless told otherwise
-          {...({ activeThumbColor: c.surface } as object)}
           accessibilityLabel="Remind me"
         />
       </View>

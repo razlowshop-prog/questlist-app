@@ -1,29 +1,30 @@
 // Looks that are won from levels and can be equipped in the inventory:
 // frames around the profile picture and styles for the streak flame.
-// Pure data; the drawing lives in ProfileFrame.tsx and Fire.tsx.
+// Pure data; the looks are in vivid.ts, the drawing in ProfileFrame.tsx and Fire.tsx.
+// Ids are stored in settings and must not change; names may.
 
 export type FrameId = 'ring' | 'double' | 'dotted' | 'hex' | 'rays' | 'laurel' | 'stars' | 'diamond' | 'ember' | 'crown';
 export type FlameStyleId = 'classic' | 'outline' | 'solid' | 'kindling' | 'twin' | 'glow' | 'sparks';
 
 export const FRAMES: { id: FrameId; name: string }[] = [
-  { id: 'ring', name: 'Brass ring' },
-  { id: 'double', name: 'Double ring' },
-  { id: 'dotted', name: 'Pearl ring' },
-  { id: 'hex', name: 'Hexagon' },
-  { id: 'rays', name: 'Sunburst' },
-  { id: 'laurel', name: 'Laurel' },
-  { id: 'stars', name: 'Starlit' },
-  { id: 'diamond', name: 'Diamond' },
-  { id: 'ember', name: 'Ember ring' },
-  { id: 'crown', name: 'Crown' },
+  { id: 'ring', name: 'Bronze' },
+  { id: 'double', name: 'Silver' },
+  { id: 'dotted', name: 'Gold' },
+  { id: 'hex', name: 'Emerald' },
+  { id: 'rays', name: 'Sapphire' },
+  { id: 'laurel', name: 'Ruby' },
+  { id: 'stars', name: 'Amethyst' },
+  { id: 'diamond', name: 'Neon' },
+  { id: 'ember', name: 'Inferno' },
+  { id: 'crown', name: 'Aurora' },
 ];
 
 /** classic is everyone's from the start; the others are won. */
 export const FLAME_STYLES: { id: FlameStyleId; name: string }[] = [
   { id: 'classic', name: 'Classic' },
-  { id: 'outline', name: 'Outline' },
-  { id: 'solid', name: 'Solid' },
-  { id: 'kindling', name: 'Kindling' },
+  { id: 'outline', name: 'Toxic' },
+  { id: 'solid', name: 'Solar' },
+  { id: 'kindling', name: 'Phantom' },
   { id: 'twin', name: 'Twin' },
   { id: 'glow', name: 'Glow' },
   { id: 'sparks', name: 'Crackle' },
@@ -33,7 +34,7 @@ export const FLAME_STYLES: { id: FlameStyleId; name: string }[] = [
 export type CelebrationId = 'classic' | 'confetti' | 'ink' | 'embers' | 'starfall';
 
 export const CELEBRATIONS: { id: CelebrationId; name: string; description: string }[] = [
-  { id: 'classic', name: 'Sparks', description: 'Brass sparks fly out of the tick.' },
+  { id: 'classic', name: 'Sparks', description: 'Rainbow sparks burst out of the tick.' },
   { id: 'confetti', name: 'Confetti', description: 'A little burst of colourful paper.' },
   { id: 'ink', name: 'Ink', description: 'Drops of ink spread out slowly.' },
   { id: 'embers', name: 'Embers', description: 'Glowing embers drift upwards.' },

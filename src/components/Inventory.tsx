@@ -8,8 +8,9 @@ import type { SeasonStatus } from '../seasons';
 import { card, eyebrow, FONTS, headingCase, themed, useStyles, useTheme } from '../theme';
 import { adFreeActive, doubleXpActive, restOffer, TOKEN_INFO, tokenCounts } from '../tokens';
 import { Fire } from './Fire';
-import { ProfileFrame } from './ProfileFrame';
-import { CELEBRATION_ICONS, TOKEN_ICONS } from './RewardPicture';
+import { Avatar as Disc, ProfileFrame } from './ProfileFrame';
+import { GOLD_FILL_SMALL, GOLD_INK, Sticker, VIVID_HEAVY } from './Vivid';
+import { CELEBRATION_GLYPHS, CELEBRATION_LOOKS, TOKEN_LOOKS } from '../vivid';
 
 const TOKENS: TokenKind[] = ['rest', 'double', 'reroll', 'adfree'];
 
@@ -94,14 +95,11 @@ export function Inventory({
           <ScrollView contentContainerStyle={{ gap: 10, paddingBottom: 4 }}>
             <Text style={s.section}>Tokens</Text>
             {TOKENS.map((k) => {
-              const Icon = TOKEN_ICONS[k];
               const action = tokenAction(k);
               const none = counts[k] <= 0;
               return (
                 <View key={k} style={[s.token, none && { opacity: 0.6 }]}>
-                  <View style={s.tokenIcon}>
-                    <Icon size={18} color={c.accent} strokeWidth={1.75} aria-hidden />
-                  </View>
+                  <Sticker grad={TOKEN_LOOKS[k]} glyph={TOKEN_LOOKS[k].glyph} size={46} dim={none} />
                   <View style={{ flex: 1, gap: 2 }}>
                     <Text style={s.tokenName}>
                       {TOKEN_INFO[k].name} <Text style={s.count}>×{Math.max(0, counts[k])}</Text>
@@ -176,7 +174,6 @@ export function Inventory({
             <View style={s.grid}>
               {CELEBRATIONS.map((cel) => {
                 const has = owned.celebrations.includes(cel.id);
-                const Icon = CELEBRATION_ICONS[cel.id];
                 return (
                   <Tile
                     key={cel.id}
@@ -185,7 +182,7 @@ export function Inventory({
                     lockedLabel={has ? undefined : `Lvl ${levelForLook('celebration', cel.id)}`}
                     onPress={has ? () => onEquip({ celebration: cel.id as CelebrationId }) : undefined}
                   >
-                    <Icon size={26} color={c.accent} strokeWidth={1.5} aria-hidden />
+                    <Sticker grad={CELEBRATION_LOOKS[cel.id]} glyph={CELEBRATION_GLYPHS[cel.id]} size={36} />
                   </Tile>
                 );
               })}
@@ -199,13 +196,7 @@ export function Inventory({
 }
 
 function Avatar({ initials, small }: { initials: string; small?: boolean }) {
-  const s = useStyles(makeStyles);
-  const size = small ? 30 : 40;
-  return (
-    <View style={[s.avatar, { width: size, height: size, borderRadius: size / 2 }]}>
-      <Text style={[s.avatarText, { fontSize: small ? 11 : 14 }]}>{initials}</Text>
-    </View>
-  );
+  return <Disc initials={initials} size={small ? 30 : 40} />;
 }
 
 function Tile({
@@ -251,7 +242,7 @@ function Tile({
 function Choice({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
   const s = useStyles(makeStyles);
   return (
-    <Pressable onPress={onPress} style={[s.choice, active && s.tileActive]} accessibilityRole="radio" accessibilityState={{ checked: active }}>
+    <Pressable onPress={onPress} style={[s.choice, active && s.choiceActive]} accessibilityRole="radio" accessibilityState={{ checked: active }}>
       <Text style={[s.choiceText, active && s.choiceTextActive]}>{label}</Text>
     </Pressable>
   );
@@ -268,15 +259,15 @@ const makeStyles = themed((c) => ({
   muted: { color: c.muted, fontSize: 13, lineHeight: 18 },
   note: { color: c.faint, fontSize: 12, lineHeight: 17 },
   token: { ...card(c), flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 },
-  tokenIcon: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: c.accent, alignItems: 'center', justifyContent: 'center' },
   tokenName: { color: c.text, fontSize: 15, fontWeight: '700' },
   count: { color: c.muted, fontWeight: '600', fontVariant: ['tabular-nums'] },
-  use: { backgroundColor: c.accent, borderRadius: c.radius, paddingHorizontal: 12, minHeight: 36, justifyContent: 'center' },
-  useText: { color: c.onAccent, fontWeight: '700', fontSize: 13 },
+  use: { ...GOLD_FILL_SMALL, borderRadius: 12, paddingHorizontal: 12, minHeight: 36, justifyContent: 'center' },
+  useText: { color: GOLD_INK, fontFamily: VIVID_HEAVY, fontSize: 13 },
   wrapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   choice: { paddingHorizontal: 13, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: c.border },
   choiceText: { color: c.muted, fontSize: 13, fontWeight: '600' },
-  choiceTextActive: { color: c.accent },
+  choiceActive: { ...GOLD_FILL_SMALL, borderColor: 'transparent' },
+  choiceTextActive: { color: GOLD_INK, fontFamily: VIVID_HEAVY },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   // Four to a row: (100% - 3 gaps of 8) / 4 stays above 23% from phone width up.
   tile: {
@@ -289,11 +280,9 @@ const makeStyles = themed((c) => ({
     borderWidth: 1,
     borderColor: c.border,
   },
-  tileActive: { borderColor: c.accent, backgroundColor: c.accentSoft },
+  tileActive: { borderColor: '#FFB547', borderWidth: 1.5, backgroundColor: c.surface, boxShadow: '0px 0px 12px rgba(255,138,0,0.35)' },
   tilePic: { height: 46, alignItems: 'center', justifyContent: 'center' },
   tileLabel: { color: c.text, fontSize: 11, fontWeight: '600', textAlign: 'center' },
   lockRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   lockText: { color: c.faint, fontSize: 11, fontWeight: '600' },
-  avatar: { backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: c.onAccent, fontWeight: '700' },
 }));

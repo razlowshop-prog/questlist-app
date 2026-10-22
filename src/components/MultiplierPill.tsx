@@ -4,6 +4,7 @@ import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { nextStreakBonus, type xpMultiplier } from '../game';
 import { card, eyebrow, FONTS, themed, useStyles, useTheme } from '../theme';
 import { GOLD } from './Fortuna';
+import { GOLD_FILL, GOLD_INK, VIVID_HEAVY } from './Vivid';
 
 type Multiplier = ReturnType<typeof xpMultiplier>;
 
@@ -99,6 +100,6 @@ const makeStyles = themed((c) => ({
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   rowLabel: { color: c.text, fontSize: 15 },
   rowValue: { color: c.text, fontSize: 15, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  button: { marginTop: 6, minHeight: 44, borderRadius: c.radius, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' },
-  buttonText: { color: c.onAccent, fontWeight: '700', fontSize: 15 },
+  button: { marginTop: 6, minHeight: 50, borderRadius: 14, ...GOLD_FILL, alignItems: 'center', justifyContent: 'center' },
+  buttonText: { color: GOLD_INK, fontFamily: VIVID_HEAVY, fontSize: 16 },
 }));

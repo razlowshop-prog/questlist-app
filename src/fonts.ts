@@ -66,3 +66,10 @@ export function fontFilesFor(fonts: ThemeFonts): Record<string, number> {
 
 /** Cinzel for the Spin tab, which always wears the Fortuna look whatever the theme. */
 export const WHEEL_FONTS: Record<string, number> = { Cinzel_700Bold, Cinzel_800ExtraBold };
+
+/**
+ * Assistant for the vivid buttons, badges and numbers, which look the same on
+ * every theme. Registered under their own names, so theme font swapping
+ * (withFonts) leaves them alone.
+ */
+export const VIVID_FONTS: Record<string, number> = { Vivid_700Bold: Assistant_700Bold, Vivid_800ExtraBold: Assistant_800ExtraBold };

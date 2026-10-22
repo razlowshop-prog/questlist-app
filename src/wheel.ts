@@ -51,20 +51,20 @@ export const RARITY_NAMES: Record<Rarity, string> = {
 };
 
 /**
- * The wheel's slices in order, clockwise from the top. Each slice's size is
- * its real chance, so what you see is what you get: the jackpot really is
- * that thin rainbow sliver.
+ * The wheel's slices in order, clockwise from the top. All slices are the
+ * same size; the chances live in WHEEL_PRIZES and are shown behind the "?"
+ * on the Spin tab.
  */
 export const WHEEL_SEGMENTS: { prize: string; share: number }[] = [
-  { prize: 'xp20', share: 40 },
-  { prize: 'xp50', share: 20 },
-  { prize: 'double', share: 9 },
-  { prize: 'xp100', share: 8 },
-  { prize: 'rest', share: 9 },
-  { prize: 'reroll', share: 8 },
-  { prize: 'adfree', share: 5 },
-  { prize: 'theme', share: 1 },
-];
+  'xp20',
+  'double',
+  'xp50',
+  'adfree',
+  'xp100',
+  'rest',
+  'theme',
+  'reroll',
+].map((prize) => ({ prize, share: 100 / 8 }));
 
 export function prizeById(id: string): WheelPrize {
   return id === JACKPOT.id ? JACKPOT : WHEEL_PRIZES.find((p) => p.id === id)!;

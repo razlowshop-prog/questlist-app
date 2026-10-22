@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronUp, Plus, Sparkles } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, Plus, Sparkles, X } from 'lucide-react-native';
 import { Pressable, ScrollView, SectionList, Text, TextInput, View } from 'react-native';
 import { Chip } from '../components/Chip';
-import { AppIcon } from '../components/AppIcon';
+import { EmptyState, GOLD_FILL, GOLD_FILL_SMALL, GOLD_INK, GradientText, Sticker, VIVID_HEAVY, VividButton } from '../components/Vivid';
+import { categoryLook, RARITY } from '../vivid';
 import { LibraryRow } from '../components/LibraryRow';
 import { defaultSchedule, scheduleProblem, SchedulePicker, scheduleToTask, type Schedule } from '../components/SchedulePicker';
 import { StreakCard } from '../components/StreakCard';
@@ -11,14 +12,18 @@ import {
   dayLabel,
   durationLabel,
   isDoneToday,
+  MAX_STEP_LENGTH,
+  MAX_STEPS,
   xpFor,
   type GameState,
   type Repeat,
   type StreakStatus,
   type Task,
   type TaskPlan,
+  weekDots,
 } from '../game';
-import { CATEGORIES, categoryOf, FEATURED, guessCategory, OTHER_CATEGORY, searchLibrary, taskCategory, type LibraryTask } from '../library';
+import { CATEGORIES, categoryOf, FEATURED, guessCategory, librarySteps, OTHER_CATEGORY, searchLibrary, taskCategory, type LibraryTask } from '../library';
+import { STEP_SHARE, suggestedSteps } from '../steps';
 import { estimateMinutes } from '../estimate';
 import { quoteOfTheDay } from '../quotes';
 import { card, eyebrow, FONTS, themed, useStyles, useTheme, headingCase } from '../theme';
@@ -45,6 +50,7 @@ export function TodayScreen({
   onAdd,
   onOpenLibrary,
   onToggle,
+  onStep,
   onDelete,
 }: {
   state: GameState;
@@ -63,6 +69,7 @@ export function TodayScreen({
   onAdd: (title: string, repeat: Repeat, minutes: number, plan: TaskPlan) => void;
   onOpenLibrary: () => void;
   onToggle: (task: Task) => { xp: number; note?: string };
+  onStep: (task: Task, step: number) => { xp: number; finished: boolean; note?: string };
   onDelete: (task: Task) => void;
 }) {
   const s = useStyles(makeStyles);
@@ -71,6 +78,9 @@ export function TodayScreen({
   const [schedule, setSchedule] = useState<Schedule>(() => defaultSchedule(today));
   /** Chosen by the user; otherwise guessed from the title. */
   const [category, setCategory] = useState<string | undefined>();
+  /** Steps the user edited; undefined = the suggested ones. */
+  const [stepDraft, setStepDraft] = useState<string[] | undefined>();
+  const [newStep, setNewStep] = useState('');
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   // Groups just ticked stay open while the tick celebrates, then fold away.
   const [holdOpen, setHoldOpen] = useState<Record<string, number>>({});
@@ -91,12 +101,25 @@ export function TodayScreen({
   const chosenMinutes = estimate.minutes;
   const problem = typed ? scheduleProblem(shownSchedule, typed) : undefined;
   const canAdd = typed.length > 0 && chosenMinutes > 0 && !problem;
+  const suggested = useMemo(() => suggestedSteps(typed, chosenMinutes), [typed, chosenMinutes]);
+  const shownSteps = stepDraft ?? suggested;
+  // Steps are offered for longer tasks, or whenever some are already there.
+  const offerSteps = typed.length > 0 && (shownSteps.length > 0 || chosenMinutes >= 30);
+  const stepXp = shownSteps.length ? Math.max(1, Math.round((xpFor(chosenMinutes) * STEP_SHARE) / shownSteps.length)) : 0;
+
+  function addStep() {
+    const name = newStep.trim();
+    if (!name || shownSteps.length >= MAX_STEPS) return;
+    setStepDraft([...shownSteps, name.slice(0, MAX_STEP_LENGTH)]);
+    setNewStep('');
+  }
 
   /** Fills the form from a library task so its days and frequency can be picked before adding. */
   function prefill(t: LibraryTask) {
     setTitle(t.title);
     setSchedule({ ...defaultSchedule(today), repeat: t.perWeek > 0, perWeek: t.perWeek > 0 ? t.perWeek : 3 });
     setCategory(t.category);
+    setStepDraft(undefined);
   }
 
   useEffect(() => {
@@ -109,13 +132,25 @@ export function TodayScreen({
     setTitle('');
     setSchedule(defaultSchedule(today));
     setCategory(undefined);
+    setStepDraft(undefined);
+    setNewStep('');
   }
 
   function add() {
     if (!canAdd) return;
     const { repeat, plan } = scheduleToTask(shownSchedule, typed, today);
-    onAdd(typed, repeat, chosenMinutes, { ...plan, category: chosenCategory });
+    // Library steps follow the library; anything else is saved with the task.
+    const steps = stepDraft ?? (librarySteps(typed) || !suggested.length ? undefined : suggested);
+    onAdd(typed, repeat, chosenMinutes, { ...plan, category: chosenCategory, ...(steps && { steps }) });
     reset();
+  }
+
+  /** Keeps a task's group open while its tick celebrates; only the latest tick in the group closes it again. */
+  function holdGroupOpen(task: Task) {
+    const id = taskCategory(task);
+    const at = Date.now();
+    setHoldOpen((m) => ({ ...m, [id]: at }));
+    setTimeout(() => setHoldOpen((m) => (m[id] === at ? { ...m, [id]: 0 } : m)), HOLD_OPEN_MS);
   }
 
   // Today's tasks grouped by category, in the library's order, "Other" last.
@@ -154,7 +189,7 @@ export function TodayScreen({
             Good <Text style={s.greetingEm}>{partOfDay(new Date().getHours())}</Text>, {state.profile.name}.
           </Text>
 
-          <StreakCard streak={streak} onPress={onOpenStreak} />
+          <StreakCard streak={streak} week={weekDots(state, today)} onPress={onOpenStreak} />
           {tokenStrip}
 
           <View style={s.quote}>
@@ -180,7 +215,7 @@ export function TodayScreen({
                 accessibilityRole="button"
                 accessibilityLabel="Add task"
               >
-                <Plus size={22} color={c.onAccent} strokeWidth={2} />
+                <Plus size={22} color={GOLD_INK} strokeWidth={2.5} />
               </Pressable>
             </View>
 
@@ -225,6 +260,47 @@ export function TodayScreen({
                   <Text style={s.estimateNote}>{estimate.source === 'default' ? 'standard time' : 'estimated from the title'}</Text>
                 </View>
                 <SchedulePicker value={shownSchedule} onChange={setSchedule} title={typed} today={today} />
+                {offerSteps && (
+                  <View style={{ gap: 8 }}>
+                    <Text style={s.small}>Steps</Text>
+                    <Text style={s.stepsHint}>
+                      {shownSteps.length
+                        ? `+${stepXp} XP for each step, the rest when you finish. The last step finishes the task.`
+                        : 'Split a long task into steps to earn a little XP on the way.'}
+                    </Text>
+                    {shownSteps.map((st, i) => (
+                      <View key={`${i}-${st}`} style={s.stepRow}>
+                        <Text style={s.stepNum}>{i + 1}</Text>
+                        <Text style={s.stepName}>{st}</Text>
+                        <Pressable
+                          onPress={() => setStepDraft(shownSteps.filter((_, j) => j !== i))}
+                          hitSlop={8}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Remove step ${st}`}
+                        >
+                          <X size={16} color={c.muted} strokeWidth={1.75} />
+                        </Pressable>
+                      </View>
+                    ))}
+                    {shownSteps.length < MAX_STEPS && (
+                      <View style={s.stepRow}>
+                        <TextInput
+                          value={newStep}
+                          onChangeText={setNewStep}
+                          onSubmitEditing={addStep}
+                          placeholder="Add a step"
+                          placeholderTextColor={c.muted}
+                          maxLength={MAX_STEP_LENGTH}
+                          style={s.stepInput}
+                          returnKeyType="done"
+                        />
+                        <Pressable onPress={addStep} disabled={!newStep.trim()} hitSlop={8} style={!newStep.trim() && { opacity: 0.35 }} accessibilityRole="button" accessibilityLabel="Add step">
+                          <Plus size={18} color={c.accent} strokeWidth={2} />
+                        </Pressable>
+                      </View>
+                    )}
+                  </View>
+                )}
                 <Text style={s.small}>Category</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.quickRow}>
                   {[...CATEGORIES, { id: OTHER_CATEGORY, label: 'Other' }].map((cat) => (
@@ -247,19 +323,18 @@ export function TodayScreen({
               </>
             )}
 
-            {typed.length === 0 && (
-              <Pressable onPress={onOpenLibrary} style={s.libraryButton} accessibilityRole="button">
-                <Text style={s.libraryText}>Browse the task library</Text>
-              </Pressable>
-            )}
+            {typed.length === 0 && <VividButton label="Browse the task library" kind="secondary" compact onPress={onOpenLibrary} />}
           </View>
 
           <View style={s.sectionRow}>
             <Text style={s.sectionTitle}>Today</Text>
             <Text style={s.sectionCount}>
-              {doneCount} of {tasks.length}
+              <GradientText style={s.sectionCountStrong}>{doneCount}</GradientText> of {tasks.length} done
             </Text>
           </View>
+          {tasks.length > 0 && doneCount === tasks.length && (
+            <EmptyState glyph="Trophy" grad={RARITY.legendary} before="All " word="done" after=" for today" body="Every task is ticked off. Enjoy the rest of your day." />
+          )}
         </>
       }
       renderSectionHeader={({ section }) => {
@@ -271,11 +346,17 @@ export function TodayScreen({
             accessibilityRole="button"
             accessibilityState={{ expanded: !section.collapsed }}
           >
-            {cat ? <AppIcon name={cat.icon} size={18} color={section.done === section.total ? c.accent : c.muted} /> : null}
+            <Sticker grad={categoryLook(section.id)} glyph={categoryLook(section.id).glyph} size={28} />
             <Text style={s.groupTitle}>{cat?.label ?? 'Other'}</Text>
-            <Text style={[s.groupCount, section.done === section.total && { color: c.accent }]}>
-              {section.done}/{section.total}
-            </Text>
+            {section.done === section.total ? (
+              <GradientText style={s.groupCountDone}>
+                {section.done}/{section.total}
+              </GradientText>
+            ) : (
+              <Text style={s.groupCount}>
+                {section.done}/{section.total}
+              </Text>
+            )}
             {section.collapsed ? (
               <ChevronDown size={16} color={c.muted} strokeWidth={1.5} />
             ) : (
@@ -285,7 +366,9 @@ export function TodayScreen({
         );
       }}
       ListEmptyComponent={
-        loaded ? <Text style={s.empty}>No tasks for today. Add one above or pick some from the library.</Text> : undefined
+        loaded ? (
+          <EmptyState glyph="Sparkle" mythic before="A " word="fresh" after=" start" body="No tasks for today. Add one above or pick some from the library." />
+        ) : undefined
       }
       ListFooterComponent={
         upcoming.length > 0 ? (
@@ -310,12 +393,12 @@ export function TodayScreen({
           today={today}
           done={isDoneToday(state, item, today)}
           onToggle={() => {
-            const id = taskCategory(item);
-            const at = Date.now();
-            setHoldOpen((m) => ({ ...m, [id]: at }));
-            // Only the latest tick in the group closes it again.
-            setTimeout(() => setHoldOpen((m) => (m[id] === at ? { ...m, [id]: 0 } : m)), HOLD_OPEN_MS);
+            holdGroupOpen(item);
             return onToggle(item);
+          }}
+          onStep={(step) => {
+            holdGroupOpen(item);
+            return onStep(item, step);
           }}
           onDelete={() => onDelete(item)}
         />
@@ -337,7 +420,7 @@ const makeStyles = themed((c) => ({
   quoteAuthor: { ...eyebrow(c, 11), color: c.label },
   addCard: { ...card(c), padding: 14, gap: 12, marginBottom: 28 },
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  plus: { width: 46, height: 46, borderRadius: c.radius, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' },
+  plus: { width: 46, height: 46, borderRadius: 14, ...GOLD_FILL_SMALL, alignItems: 'center', justifyContent: 'center' },
   quickRow: { gap: 8, paddingRight: 4 },
   quick: {
     flexDirection: 'row',
@@ -352,9 +435,10 @@ const makeStyles = themed((c) => ({
   quickText: { color: c.text, fontSize: 13, fontWeight: '600' },
   cancel: { alignItems: 'center', paddingVertical: 4 },
   cancelText: { ...eyebrow(c, 11), color: c.muted },
-  groupHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 18, paddingBottom: 8 },
+  groupHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 18, paddingBottom: 8 },
   groupTitle: { flex: 1, color: c.text, fontSize: 15, fontWeight: '700' },
   groupCount: { color: c.muted, fontSize: 13, fontVariant: ['tabular-nums'] },
+  groupCountDone: { fontFamily: VIVID_HEAVY, fontSize: 14, fontVariant: ['tabular-nums'] },
   upcoming: { marginTop: 28, gap: 2 },
   upcomingRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.border },
   upcomingTitle: { flex: 1, color: c.text, fontSize: 15 },
@@ -369,22 +453,18 @@ const makeStyles = themed((c) => ({
     backgroundColor: c.surfaceAlt,
   },
   small: { ...eyebrow(c, 11), color: c.muted },
+  stepsHint: { color: c.muted, fontSize: 13, lineHeight: 18 },
+  stepRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 36, borderBottomWidth: 1, borderBottomColor: c.border },
+  stepNum: { fontFamily: FONTS.serif, fontStyle: 'italic', color: c.accent, fontSize: 14, width: 16, fontVariant: ['lining-nums'] },
+  stepName: { flex: 1, color: c.text, fontSize: 14 },
+  stepInput: { flex: 1, color: c.text, fontSize: 14, paddingVertical: 8 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
   estimate: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: 8, rowGap: 2 },
   estimateText: { color: c.text, fontSize: 14 },
   estimateStrong: { fontWeight: '700' },
   estimateNote: { color: c.faint, fontSize: 12 },
-  addButton: { backgroundColor: c.accent, minHeight: 48, justifyContent: 'center', borderRadius: c.radius, alignItems: 'center' },
-  addButtonText: { ...eyebrow(c, 13), fontWeight: '700', color: c.onAccent },
-  libraryButton: {
-    minHeight: 44,
-    justifyContent: 'center',
-    borderRadius: c.radius,
-    borderWidth: 1,
-    borderColor: c.outline,
-    alignItems: 'center',
-  },
-  libraryText: { ...eyebrow(c, 12), fontWeight: '700', color: c.text },
+  addButton: { ...GOLD_FILL, minHeight: 54, justifyContent: 'center', borderRadius: 14, alignItems: 'center' },
+  addButtonText: { fontFamily: VIVID_HEAVY, fontSize: 17, color: GOLD_INK },
   sectionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -396,5 +476,5 @@ const makeStyles = themed((c) => ({
   },
   sectionTitle: { ...eyebrow(c), color: c.muted },
   sectionCount: { color: c.muted, fontSize: 13 },
-  empty: { color: c.muted, fontSize: 14, textAlign: 'center', marginTop: 24 },
+  sectionCountStrong: { fontFamily: VIVID_HEAVY, fontSize: 15 },
 }));

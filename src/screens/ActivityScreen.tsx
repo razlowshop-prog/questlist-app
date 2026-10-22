@@ -1,12 +1,15 @@
-import { Crown, FerrisWheel, Sparkles, Users } from 'lucide-react-native';
+import { Crown, FerrisWheel, ListChecks, Sparkles, Users } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import { Pressable, ScrollView,  Text, View } from 'react-native';
 import { activityDayLabel, activitySummary, activityTimeline, type ActivityDay, type ActivityEvent, type WeekTotals } from '../activity';
 import { AppIcon } from '../components/AppIcon';
 import { Fire, fireColor } from '../components/Fire';
 import { TOKEN_ICONS } from '../components/RewardPicture';
 import { durationLabel, streakTierName, type GameState } from '../game';
 import { card, eyebrow, FONTS, headingCase, themed, useStyles, useTheme } from '../theme';
+import { VividSwitch } from '../components/Vivid';
+import { fill, GOLD_FILL_SMALL, GOLD_INK, GradientText, VIVID_HEAVY } from '../components/Vivid';
+import { GOLD } from '../vivid';
 
 /** Days shown before "Show older"; each tap adds this many more. */
 const PAGE = 10;
@@ -28,7 +31,6 @@ export function ActivityScreen({
   onShareActivity: (share: boolean) => void;
 }) {
   const s = useStyles(makeStyles);
-  const c = useTheme();
   const [view, setView] = useState<'you' | 'friends'>('you');
   const [shown, setShown] = useState(PAGE);
   const days = useMemo(() => activityTimeline(state, today), [state, today]);
@@ -56,7 +58,7 @@ export function ActivityScreen({
       {view === 'friends' ? (
         <View style={s.card}>
           <View style={s.friendsIcon}>
-            <Users size={26} color={c.accent} strokeWidth={1.5} aria-hidden />
+            <Users size={26} color="#FFFFFF" strokeWidth={2} aria-hidden />
           </View>
           <Text style={s.friendsTitle}>Friends' activity is coming</Text>
           <Text style={s.body}>
@@ -68,13 +70,9 @@ export function ActivityScreen({
               <Text style={s.shareTitle}>Share my activity with friends</Text>
               <Text style={s.small}>Off unless you turn it on. Only friends you add will see it.</Text>
             </View>
-            <Switch
+            <VividSwitch
               value={state.settings.shareActivity === true}
               onValueChange={onShareActivity}
-              trackColor={{ true: c.accent, false: c.border }}
-              thumbColor={c.surface}
-              // react-native-web paints the 'on' thumb teal unless told otherwise
-              {...({ activeThumbColor: c.surface } as object)}
               accessibilityLabel="Share my activity with friends"
             />
           </View>
@@ -136,7 +134,7 @@ function Stat({ label, value, delta }: { label: string; value: string; delta: nu
   const shownDelta = label === 'Time' ? durationLabel(Math.abs(delta)) : String(Math.abs(delta));
   return (
     <View style={s.stat}>
-      <Text style={s.statValue}>{value}</Text>
+      <GradientText style={s.statValue}>{value}</GradientText>
       <Text style={s.statLabel}>{label}</Text>
       {delta !== 0 && (
         <Text style={[s.statDelta, { color: delta > 0 ? c.xp : c.faint }]}>
@@ -156,7 +154,7 @@ function DayCard({ day, today }: { day: ActivityDay; today: string }) {
     <View style={s.day}>
       <View style={s.dayHead}>
         <Text style={s.dayLabel}>{activityDayLabel(day.date, today)}</Text>
-        {day.xp > 0 && <Text style={s.dayXp}>+{day.xp} XP</Text>}
+        {day.xp > 0 && <GradientText style={s.dayXp}>+{day.xp} XP</GradientText>}
       </View>
       {day.taskCount > 0 && (
         <Text style={s.small}>
@@ -229,6 +227,11 @@ function EventRow({ event }: { event: ActivityEvent }) {
       title = `Lucky wheel: ${event.prize}`;
       xp = event.xp || undefined;
       break;
+    case 'steps':
+      icon = <ListChecks size={18} color={c.muted} strokeWidth={1.5} aria-hidden />;
+      title = `${event.count} ${event.count === 1 ? 'step' : 'steps'} of ${event.title}`;
+      xp = event.xp || undefined;
+      break;
     case 'season':
       icon = <Sparkles size={18} color={c.accent} strokeWidth={1.5} aria-hidden />;
       title = `Monthly event won: ${event.frame} frame`;
@@ -268,21 +271,21 @@ const makeStyles = themed((c) => ({
   heading: { fontFamily: FONTS.serif, color: c.text, fontSize: 30, lineHeight: 36, marginTop: 4, ...headingCase(c) },
   segment: { flexDirection: 'row', gap: 6, marginTop: 14, marginBottom: 16 },
   segmentItem: { paddingHorizontal: 16, minHeight: 36, justifyContent: 'center', borderRadius: c.radius, borderWidth: 1, borderColor: c.border },
-  segmentActive: { borderColor: c.accent, backgroundColor: c.accentSoft },
+  segmentActive: { ...GOLD_FILL_SMALL, borderColor: 'transparent' },
   segmentText: { color: c.muted, fontWeight: '600', fontSize: 14 },
-  segmentTextActive: { color: c.accent },
+  segmentTextActive: { color: GOLD_INK, fontFamily: VIVID_HEAVY },
   card: { ...card(c), padding: 16, gap: 10, marginBottom: 18 },
   cardEyebrow: { ...eyebrow(c, 11), color: c.muted },
   stats: { flexDirection: 'row' },
   stat: { flex: 1 },
-  statValue: { fontFamily: FONTS.serif, color: c.text, fontSize: 26, lineHeight: 30, fontVariant: ['lining-nums'] },
+  statValue: { fontFamily: VIVID_HEAVY, fontSize: 26, lineHeight: 30, fontVariant: ['lining-nums'] },
   statLabel: { color: c.muted, fontSize: 12 },
   statDelta: { fontSize: 12, fontWeight: '600', marginTop: 2 },
   chart: { flexDirection: 'row', gap: 8, height: 92, marginTop: 4 },
   barCol: { flex: 1, alignItems: 'center', gap: 6 },
   barTrack: { flex: 1, width: '100%', justifyContent: 'flex-end', alignItems: 'center' },
-  bar: { width: '70%', maxWidth: 22, backgroundColor: c.accentSoft, borderTopLeftRadius: 3, borderTopRightRadius: 3, borderWidth: 1, borderColor: c.accent },
-  barToday: { backgroundColor: c.accent },
+  bar: { width: '70%', maxWidth: 22, borderTopLeftRadius: 4, borderTopRightRadius: 4, ...fill(['#FF3D9A', '#A45CFF', '#4DB8FF', '#5BF0D2'], 180), opacity: 0.75 },
+  barToday: { ...fill(GOLD, 180), opacity: 1, boxShadow: '0px 0px 10px rgba(255,138,0,0.45)' },
   barEmpty: { width: '70%', maxWidth: 22, height: 2, backgroundColor: c.border },
   barFuture: { opacity: 0.4 },
   barLabel: { color: c.faint, fontSize: 11, fontWeight: '600' },
@@ -293,7 +296,7 @@ const makeStyles = themed((c) => ({
   day: { borderTopWidth: 1, borderTopColor: c.border, paddingTop: 14, paddingBottom: 16, gap: 8 },
   dayHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
   dayLabel: { fontFamily: FONTS.serif, color: c.text, fontSize: 20 },
-  dayXp: { color: c.accent, fontWeight: '700', fontSize: 14, fontVariant: ['tabular-nums'] },
+  dayXp: { fontFamily: VIVID_HEAVY, fontSize: 14, fontVariant: ['tabular-nums'] },
   event: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   eventIcon: {
     width: 32,
@@ -313,7 +316,7 @@ const makeStyles = themed((c) => ({
   showAll: { color: c.accent, fontSize: 13, fontWeight: '600', paddingLeft: 15 },
   more: { alignSelf: 'center', paddingHorizontal: 18, minHeight: 40, justifyContent: 'center', borderRadius: c.radius, borderWidth: 1, borderColor: c.border, marginTop: 8 },
   moreText: { color: c.text, fontWeight: '600' },
-  friendsIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: c.accentSoft, alignItems: 'center', justifyContent: 'center' },
+  friendsIcon: { width: 52, height: 52, borderRadius: 26, borderWidth: 1.5, borderColor: '#0e0b12', ...fill(['#FF84DC', '#FF3D9A']), alignItems: 'center', justifyContent: 'center' },
   friendsTitle: { fontFamily: FONTS.serif, color: c.text, fontSize: 22 },
   shareRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: 1, borderTopColor: c.border, paddingTop: 12, marginTop: 4 },
   shareTitle: { color: c.text, fontSize: 15, fontWeight: '600' },

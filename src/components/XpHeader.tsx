@@ -3,11 +3,12 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, Text, View } from 'react-native';
 import { nextLevelReward } from '../achievements';
 import { levelInfo, type xpMultiplier } from '../game';
-import { eyebrow, FONTS, headingCase, themed, useStyles, useTheme, type BarStyle } from '../theme';
+import { FONTS, headingCase, themed, useStyles, useTheme } from '../theme';
 import { ShimmerBar } from './Fortuna';
 import { LogoMark } from './LogoMark';
 import { MultiplierPill } from './MultiplierPill';
 import { RewardPicture } from './RewardPicture';
+import { CountBadge, GradientText, LevelBadge, PrismBar, VIVID_HEAVY } from './Vivid';
 
 /**
  * Always-visible header: centred wordmark with the inventory bag at the right, level badge with the XP multiplier, and the XP bar. Gained XP
@@ -100,17 +101,12 @@ export function XpHeader({
             accessibilityLabel={`Inventory${bagCount ? `, ${bagCount} tokens` : ''}`}
           >
             <Backpack size={20} color={c.muted} strokeWidth={1.5} aria-hidden />
-            {bagCount > 0 && (
-              <View style={s.bagBadge}>
-                <Text style={s.bagBadgeText}>{bagCount > 99 ? '99+' : bagCount}</Text>
-              </View>
-            )}
+            <CountBadge count={bagCount} style={s.bagBadge} />
           </Pressable>
         </View>
         <Pressable onPress={onPressLevel} style={s.levelRow} accessibilityRole="button" accessibilityLabel={`Level ${shown.level}, ${shown.rank}. Show level details`}>
-          <Animated.View style={[s.badge, { transform: [{ scale: badgeScale }] }]}>
-            <Text style={s.badgeLabel}>Lvl</Text>
-            <Text style={s.badgeNumber}>{shown.level}</Text>
+          <Animated.View style={{ transform: [{ scale: badgeScale }] }}>
+            <LevelBadge level={shown.level} size={54} />
           </Animated.View>
           <View style={{ flex: 1, gap: 8 }}>
             <View style={s.labels}>
@@ -119,20 +115,27 @@ export function XpHeader({
                 {multiplier.total > 1 && <MultiplierPill multiplier={multiplier} size="small" />}
               </View>
               <View style={s.xpWrap}>
-                {gain > 0 && <Animated.Text style={[s.gain, gainStyle]}>+{gain}</Animated.Text>}
-                <Text style={s.xpText}>{shown.maxed ? 'Max level' : `${shown.xpIntoLevel} / ${shown.xpForLevel} XP`}</Text>
+                {gain > 0 && (
+                  <Animated.View style={gainStyle}>
+                    <GradientText style={s.gain}>+{gain} XP</GradientText>
+                  </Animated.View>
+                )}
+                {shown.maxed ? (
+                  <GradientText style={s.xpNumbers}>Max level</GradientText>
+                ) : (
+                  <Text style={s.xpText}>
+                    <GradientText style={s.xpNumbers}>
+                      {shown.xpIntoLevel} / {shown.xpForLevel}
+                    </GradientText>{' '}
+                    XP
+                  </Text>
+                )}
               </View>
             </View>
-            {c.bar.kind === 'line' ? (
-              <View style={s.track} accessibilityRole="progressbar">
-                <View style={[s.ghost, { width: `${ghost * 100}%` }]} />
-                <Animated.View style={[s.fill, { width: `${shown.progress * 100}%`, backgroundColor: glowColor }]} />
-                {c.tip && <Animated.View style={[s.tip, { left: `${shown.progress * 100}%`, backgroundColor: glowColor }]} />}
-              </View>
-            ) : c.bar.kind === 'shimmer' ? (
+            {c.bar.kind === 'shimmer' ? (
               <ShimmerBar progress={shown.progress} ghost={ghost} glow={gain > 0 ? glowColor : undefined} />
             ) : (
-              <StepBar style={c.bar} progress={shown.progress} ghost={ghost} />
+              <PrismBar progress={shown.progress} ghost={ghost} />
             )}
           </View>
         </Pressable>
@@ -183,82 +186,21 @@ function NextReward({ totalXp }: { totalXp: number }) {
   );
 }
 
-/** XP bar made of segments or dots; they light up one by one, the ones about to fill shown faintly. */
-function StepBar({ style, progress, ghost }: { style: Exclude<BarStyle, { kind: 'line' } | { kind: 'shimmer' }>; progress: number; ghost: number }) {
-  const c = useTheme();
-  const filled = Math.round(progress * style.count);
-  const coming = Math.round(ghost * style.count);
-  const color = (i: number) => (i < filled ? c.accent : i < coming ? c.accentSoft : c.border);
-  if (style.kind === 'segments') {
-    return (
-      <View style={{ flexDirection: 'row', gap: style.gap }} accessibilityRole="progressbar">
-        {Array.from({ length: style.count }, (_, i) => (
-          <View key={i} style={{ flex: 1, height: c.lineWeight, borderRadius: style.radius, backgroundColor: color(i) }} />
-        ))}
-      </View>
-    );
-  }
-  return (
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }} accessibilityRole="progressbar">
-      {Array.from({ length: style.count }, (_, i) => (
-        <View
-          key={i}
-          style={{
-            width: style.size,
-            height: style.size,
-            borderRadius: style.size / 2,
-            backgroundColor: color(i),
-            ...(i < filled && style.glow ? { boxShadow: `0px 0px 6px ${c.accent}` } : {}),
-          }}
-        />
-      ))}
-    </View>
-  );
-}
-
 const makeStyles = themed((c) => ({
-  wrap: { backgroundColor: c.backdrop === 'dust' ? 'transparent' : c.bg, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 16 },
+  wrap: { backgroundColor: 'transparent', paddingHorizontal: 20, paddingTop: 14, paddingBottom: 16 },
   inner: { maxWidth: 640, width: '100%', alignSelf: 'center', gap: 12 },
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 2 },
   bag: { position: 'absolute', right: 0, top: -4, width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  bagBadge: {
-    position: 'absolute',
-    top: 0,
-    right: -4,
-    minWidth: 15,
-    height: 15,
-    borderRadius: 8,
-    paddingHorizontal: 3,
-    backgroundColor: c.accentSoft,
-    borderWidth: 1,
-    borderColor: c.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bagBadgeText: { color: c.accent, fontSize: 9, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  bagBadge: { position: 'absolute', top: -3, right: -6 },
   wordmark: { fontFamily: FONTS.serif, color: c.text, fontSize: 15, letterSpacing: 3.6 },
   levelRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  badge: {
-    width: 58,
-    height: 58,
-    borderRadius: c.check === 'circle' || c.check === 'coin' ? 29 : c.check === 'square' ? Math.min(c.radius + 4, 16) : 6,
-    borderWidth: 2,
-    borderColor: c.accent,
-    backgroundColor: c.accentSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeLabel: { ...eyebrow(c, 9), color: c.label, marginBottom: -2 },
-  badgeNumber: { fontFamily: FONTS.serif, color: c.accent, fontSize: 26, lineHeight: 30, fontVariant: ['lining-nums'] },
   rankRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
   rank: { fontFamily: FONTS.serif, color: c.text, fontSize: 19, ...headingCase(c) },
   labels: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
   xpText: { color: c.muted, fontSize: 13, fontVariant: ['tabular-nums'] },
   xpWrap: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
-  gain: { fontFamily: FONTS.serif, fontStyle: 'italic', color: c.accent, fontSize: 15 },
-  ghost: { position: 'absolute', left: 0, top: 0, bottom: 0, backgroundColor: c.accent, opacity: 0.3, borderRadius: Math.max(c.lineWeight, 6) / 2 },
-  track: { height: Math.max(c.lineWeight, 6), borderRadius: Math.max(c.lineWeight, 6) / 2, backgroundColor: c.border, justifyContent: 'center' },
-  fill: { position: 'absolute', left: 0, top: 0, bottom: 0, borderRadius: Math.max(c.lineWeight, 6) / 2 },
+  gain: { fontFamily: VIVID_HEAVY, fontSize: 14 },
+  xpNumbers: { fontFamily: VIVID_HEAVY, fontSize: 14, fontVariant: ['tabular-nums'] },
   next: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: -2 },
   slots: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   slot: { width: 10, height: 10, borderRadius: 5, borderWidth: 1, borderColor: c.outline },
@@ -267,5 +209,4 @@ const makeStyles = themed((c) => ({
   gap: { color: c.faint, fontSize: 11, letterSpacing: 1 },
   nextLabel: { flex: 1, color: c.muted, fontSize: 12 },
   nextXp: { color: c.muted, fontSize: 12, fontVariant: ['tabular-nums'] },
-  tip: { position: 'absolute', width: 12, height: 12, marginLeft: -6, transform: [{ rotate: '45deg' }] },
 }));
