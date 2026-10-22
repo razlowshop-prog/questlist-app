@@ -23,11 +23,14 @@ export function StreakCard({ streak, week, onPress }: { streak: StreakStatus; /*
   // The next fire this week can still earn, if any.
   const target = STREAK_TIERS.find((t) => t.tier > streak.tier && streak.weekXp < t.weekXp) ?? STREAK_TIERS.find((t) => t.tier > streak.tier);
   const reached = streak.weekTier > streak.tier ? STREAK_TIERS[streak.weekTier - 1] : undefined;
-  const pct = target ? Math.min(1, streak.weekXp / target.weekXp) : 1;
+  // Flame lights as soon as the streak has earned its XP, so it counts streak XP, not the week's.
+  const firstFire = streak.tier === 0 && !reached;
+  const pct = target ? Math.min(1, (firstFire ? streak.streakXp : streak.weekXp) / target.weekXp) : 1;
   const targetGrad = target ? tierFlame(target.tier) : undefined;
 
   let weekLine: string;
   if (!target) weekLine = 'Inferno, the hottest fire. Keep it burning.';
+  else if (firstFire) weekLine = `${target.weekXp - streak.streakXp} XP more to light ${target.name}`;
   else if (reached && streak.weekXp >= target.weekXp) weekLine = `${reached.name} reached. It lights up on Monday.`;
   else weekLine = `${target.weekXp - streak.weekXp} XP more this week for ${target.name}${reached ? ` · ${reached.name} already reached` : ''}`;
 

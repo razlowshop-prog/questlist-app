@@ -82,13 +82,14 @@ export function LevelDetails({
                   <FireAura tier={t.tier} id={`tier-${t.tier}`} />
                   <Fire tier={t.tier} size={18} />
                   <Text style={[s.tierName, { color: fireColor(t.tier, c) }]}>{t.name}</Text>
-                  <Text style={s.muted}>{t.weekXp} XP a week</Text>
+                  <Text style={s.muted}>{t.tier === 1 ? `${t.weekXp} XP, instantly` : `${t.weekXp} XP a week`}</Text>
                   {streak.tier >= t.tier && <Check size={14} color={c.accent} strokeWidth={2} aria-hidden />}
                 </View>
               ))}
               <Text style={s.note}>
-                This week: {streak.weekXp} XP. Reach a threshold and your fire moves up on Monday. Keep it going with one task
-                a day: a missed day costs a tier, and on Flame or below it ends the streak.
+                This week: {streak.weekXp} XP. Flame lights the moment your streak earns {STREAK_TIERS[0].weekXp} XP. For Blaze and
+                Inferno, reach the threshold in a week and your fire moves up on Monday. Keep it going with one task a day: a
+                missed day costs a tier, and on Flame or below it ends the streak.
               </Text>
             </View>
 

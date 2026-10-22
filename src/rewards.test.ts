@@ -71,10 +71,10 @@ test('an ad-free token covers the rest of today, once', () => {
 });
 
 test('the free recovery is offered once, for a streak worth saving', () => {
-  // A 5-day streak until two days ago: yesterday was missed and ended it.
+  // A 5-day streak (and its Flame) until two days ago: yesterday was missed and ended it.
   const missed = player(1, { completions: run(5, addDays(TODAY, -2)) });
   const offer = recoveryOffer(missed, TODAY)!;
-  assert.deepEqual(offer, { day: addDays(TODAY, -1), keeps: 5, missed: true, tier: 0, streakLost: true });
+  assert.deepEqual(offer, { day: addDays(TODAY, -1), keeps: 5, missed: true, tier: 1, streakLost: true });
   // No rest token needed.
   assert.equal(restOffer(missed, TODAY), undefined);
 
@@ -95,6 +95,8 @@ test('the free recovery is offered once, for a streak worth saving', () => {
 
   // Too short to be worth it: waits for a bigger streak.
   assert.equal(recoveryOffer(player(1, { completions: run(2, addDays(TODAY, -2)) }), TODAY), undefined);
+  // Also with a Flame lit on day two.
+  assert.equal(recoveryOffer(player(1, { completions: run(2, addDays(TODAY, -2), 60) }), TODAY), undefined);
   // Nothing missed: nothing offered.
   assert.equal(recoveryOffer(player(1, { completions: run(5, addDays(TODAY, -1)) }), TODAY), undefined);
 });

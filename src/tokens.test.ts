@@ -40,7 +40,7 @@ test('level rewards are handed out once and add up to tokens', () => {
 test('a rest day keeps a streak through today, or saves a missed yesterday', () => {
   // Streak until yesterday, nothing yet today: offer today.
   let s = withLevel(2, { completions: streak(5, addDays(TODAY, -1)) });
-  assert.deepEqual(restOffer(s, TODAY), { day: TODAY, keeps: 5, missed: false, tier: 0, streakLost: false });
+  assert.deepEqual(restOffer(s, TODAY), { day: TODAY, keeps: 5, missed: false, tier: 1, streakLost: false });
   s = spendRestDay(s, TODAY, TODAY);
   assert.equal(streakStatus(s.completions, TODAY, s.restDays).atRisk, false);
   assert.equal(tokenCounts(s).rest, 0);
