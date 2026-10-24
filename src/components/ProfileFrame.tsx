@@ -1,19 +1,33 @@
 import { createContext, useContext, useEffect, useRef, type ReactNode } from 'react';
-import { Animated, Easing, Platform, Text, View } from 'react-native';
+import { Animated, Easing, Image, Platform, Text, View } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 import type { FrameId } from '../cosmetics';
 import { nativeDriver } from '../theme';
-import { avatarDisc, FRAME_LOOKS, KEYLINE, mixHex, SEASON_FRAME, SEASON_PILL, type FrameLook } from '../vivid';
+import { avatarDisc, FRAME_LOOKS, KEYLINE, mixHex, SEASON_FRAME, SEASON_PILL, type FrameArt as FrameArtKind, type FrameLook } from '../vivid';
 import { useReduceMotion } from './FireAura';
+import { FrameArt } from './FrameArt';
 import { fill, useSvgId, VIVID_HEAVY } from './Vivid';
 
 /** The avatar gradient the player picked (Settings.avatar), for every avatar in the app. */
 export const AvatarDiscContext = createContext<number | undefined>(undefined);
+/** The player's own photo (a data URI), shown instead of the initials disc. */
+export const AvatarPhotoContext = createContext<string | undefined>(undefined);
 
 /** The profile picture: white initials on the player's gradient disc, with a dark keyline. */
 export function Avatar({ initials, size, disc }: { initials: string; size: number; /** Overrides the picked disc, for the picker. */ disc?: number }) {
   const picked = useContext(AvatarDiscContext);
+  const photo = useContext(AvatarPhotoContext);
   const grad = avatarDisc(disc ?? picked);
+  // The colour pickers always show discs, even with a photo set.
+  if (photo && disc === undefined) {
+    return (
+      <Image
+        source={{ uri: photo }}
+        style={{ width: size, height: size, borderRadius: size / 2, borderWidth: size >= 40 ? 2 : 1.5, borderColor: KEYLINE }}
+        accessibilityIgnoresInvertColors
+      />
+    );
+  }
   return (
     <View
       style={{
@@ -35,6 +49,15 @@ export function Avatar({ initials, size, disc }: { initials: string; size: numbe
       ) : null}
     </View>
   );
+}
+
+/** How far past its box a frame's drawing reaches (flame tongues, rays, planets), as a share of the box. */
+const REACH: Partial<Record<FrameArtKind, number>> = { flames: 0.2, sunrise: 0.14, orbit: 0.08, laurel: 0.08, crystal: 0.05 };
+
+/** Room to leave round a frame of a picture `size` wide so its drawing doesn't run into what's next to it. */
+export function frameReach(frame: string | undefined, size: number): number {
+  const art = frame ? FRAME_LOOKS[frame as FrameId]?.art : undefined;
+  return art ? (REACH[art] ?? 0) * size * 1.3 : 0;
 }
 
 const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
@@ -65,7 +88,13 @@ export function ProfileFrame({
   const box = size * 1.3;
   return (
     <View style={{ width: box, height: box, alignItems: 'center', justifyContent: 'center' }}>
-      <Ring look={look} size={size} box={box} locked={locked} blur={!!season} />
+      {look.art ? (
+        <View style={{ position: 'absolute', left: 0, top: 0, width: box, height: box, opacity: locked ? 0.35 : 1 }} pointerEvents="none">
+          <FrameArt look={{ ...look, art: look.art }} box={box} locked={locked} />
+        </View>
+      ) : (
+        <Ring look={look} size={size} box={box} locked={locked} blur={!!season} />
+      )}
       {children}
       {season && (
         <View

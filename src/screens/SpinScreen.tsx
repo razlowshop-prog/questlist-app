@@ -1,11 +1,12 @@
 import * as Haptics from 'expo-haptics';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Modal, Platform, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
-import Reanimated, { Easing as REasing, useAnimatedReaction, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { Animated, Easing, Modal, PanResponder, Platform, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
+import Reanimated, { cancelAnimation, Easing as REasing, useAnimatedReaction, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import Svg, { Circle, Defs, G, LinearGradient, Mask, Path, RadialGradient, Rect, Stop, Text as SvgText } from 'react-native-svg';
 import { CoinCheck, CoinShower, GOLD, GoldDust, GoldText, HOLO, HoloBorder, ShimmerBar, Star4, StarRule, TicketStub } from '../components/Fortuna';
-import { KEYLINE, MYTHIC, PrizeSticker, RARITY_COLORS } from '../components/PrizeSticker';
+import { KEYLINE, MYTHIC, prizeIcon, PrizeSticker, RARITY_COLORS } from '../components/PrizeSticker';
+import { TOKEN_INFO } from '../tokens';
 import { useReduceMotion } from '../components/FireAura';
 import { eyebrow, FONTS, headingCase, themed, useStyles } from '../theme';
 import {
@@ -23,6 +24,10 @@ import {
 import type { WheelSpin } from '../game';
 
 const TURNS = 6;
+/** A swipe spins between these many turns, more for a faster flick. */
+const SWIPE_TURNS = [3, 9];
+/** Slowest flick that still spins the wheel, in radians per millisecond. */
+const MIN_FLICK = 0.003;
 const SPIN_MS = 5200;
 const BULBS = 24;
 /** At most one haptic tick per this many ms. */
@@ -30,15 +35,22 @@ const TICK_MS = 40;
 const CINZEL = 'Cinzel_800ExtraBold';
 
 /** Each slice's colour and label (design thread, "Fortuna theme and wheel spec"). The theme slice is a rainbow. */
-const SLICES: Record<string, { color: string; ink: string; font: number }> = {
-  xp20: { color: '#34E3C4', ink: '#063a33', font: 24 },
-  xp50: { color: '#1FC7AE', ink: '#063a33', font: 24 },
-  double: { color: '#4A7BFF', ink: '#FFFFFF', font: 22 },
-  xp100: { color: '#0E9BB0', ink: '#FFFFFF', font: 20 },
-  rest: { color: '#3557FF', ink: '#FFFFFF', font: 16 },
-  reroll: { color: '#2E46C8', ink: '#FFFFFF', font: 16 },
-  adfree: { color: '#C03CE0', ink: '#FFFFFF', font: 13 },
+const SLICES: Record<string, { color: string; ink: string; font: number; lines: string[] }> = {
+  xp20: { color: '#34E3C4', ink: '#063a33', font: 16, lines: ['20 XP'] },
+  xp50: { color: '#1FC7AE', ink: '#063a33', font: 16, lines: ['50 XP'] },
+  double: { color: '#4A7BFF', ink: '#FFFFFF', font: 16, lines: ['2× XP'] },
+  xp100: { color: '#0E9BB0', ink: '#FFFFFF', font: 14, lines: ['100 XP'] },
+  rest: { color: '#3557FF', ink: '#FFFFFF', font: 13, lines: ['REST', 'DAY'] },
+  reroll: { color: '#2E46C8', ink: '#FFFFFF', font: 9.5, lines: ['CHALLENGE', 'SWAP'] },
+  adfree: { color: '#C03CE0', ink: '#FFFFFF', font: 11, lines: ['AD-FREE', 'DAY'] },
 };
+
+/** What a slice gives, for the note under the wheel when it is tapped. */
+function prizeAbout(prize: WheelPrize, ownsTheme: boolean): string {
+  if (prize.theme) return ownsTheme ? 'You own Fortuna, so this slice now pays a big XP jackpot.' : 'The Fortuna theme: a gold and violet look for the whole app. The rarest slice.';
+  if (prize.token) return `${TOKEN_INFO[prize.token].description} It goes into your bag until you use it.`;
+  return `${prize.xp} XP straight onto your level bar. Wheel XP doesn’t earn new tickets.`;
+}
 
 /** A prize's colour on the wheel, for dots and rays; the theme (and its jackpot) is rainbow. */
 function prizeColor(prize: WheelPrize): string {
@@ -83,6 +95,8 @@ export function SpinScreen({
   const [spinning, setSpinning] = useState(false);
   const [won, setWon] = useState<WheelPrize | null>(null);
   const [oddsOpen, setOddsOpen] = useState(false);
+  /** The slice the player tapped, explained under the wheel. */
+  const [about, setAbout] = useState<WheelPrize | null>(null);
   const lastTick = useRef(0);
   // The prize hand-out of a spin still turning. Run when it lands, or at once if the screen closes first.
   const pending = useRef<(() => void) | null>(null);
@@ -125,26 +139,76 @@ export function SpinScreen({
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
   }
 
-  function spin() {
+  /**
+   * Spends a ticket and turns the wheel onto the prize. The prize is drawn
+   * here, by chance, exactly like the button: a swipe only picks the
+   * direction (-1 = anticlockwise) and how many turns it takes.
+   */
+  function spin(direction: 1 | -1 = 1, turns = TURNS) {
     if (spinning || !has) return;
     const result = onSpin();
     if (!result) return;
     const { prize, finish } = result;
+    setAbout(null);
     const { at } = segmentFor(prize.id, Math.random());
-    // The pointer is at the top; the wheel turns clockwise until `at` is under it.
+    // The pointer is at the top; the wheel turns until `at` is under it.
     const from = angle.current;
     const wanted = (360 - at * 360) % 360;
-    const to = from + (reduceMotion ? 0 : TURNS * 360) + ((wanted - (from % 360) + 360) % 360);
+    const ahead = (wanted - (from % 360) + 360) % 360;
+    const whole = reduceMotion ? 0 : turns * 360;
+    const to = direction === 1 ? from + whole + ahead : from - whole - ((360 - ahead) % 360);
     angle.current = to;
     pending.current = finish;
     setSpinning(true);
     rotation.value = withTiming(
       to,
-      // Fast start, long slow-down: the last slices crawl past.
-      { duration: reduceMotion ? 400 : SPIN_MS, easing: REasing.bezier(0.12, 0.72, 0.08, 1) },
+      // Fast start, long slow-down: the last slices crawl past. More turns take a little longer.
+      { duration: reduceMotion ? 400 : SPIN_MS + (turns - TURNS) * 300, easing: REasing.bezier(0.12, 0.72, 0.08, 1) },
       () => scheduleOnRN(landed, prize),
     );
   }
+
+  // Latest values for the touch handler, which is created once.
+  const live = useRef({ spin, spinning, has, size, ownsTheme });
+  live.current = { spin, spinning, has, size, ownsTheme };
+
+  /**
+   * Touches on the wheel face: a flick around the centre spins it that way,
+   * a faster flick for longer; a tap explains the slice under the finger.
+   */
+  const touch = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onPanResponderRelease: (e, g) => {
+          const { spin, spinning, has, size, ownsTheme } = live.current;
+          if (spinning) return;
+          // Where the touch started, relative to the centre.
+          const rx = e.nativeEvent.locationX - g.dx - size / 2;
+          const ry = e.nativeEvent.locationY - g.dy - size / 2;
+          const moved = Math.hypot(g.dx, g.dy);
+          if (moved < 8) {
+            const tx = rx + g.dx;
+            const ty = ry + g.dy;
+            if (Math.hypot(tx, ty) < size * 0.14) return;
+            // The tapped spot's angle, clockwise from the top, then back onto the unturned face.
+            const tapped = (Math.atan2(tx, -ty) * 180) / Math.PI;
+            const seg = WHEEL_SEGMENTS[segmentAt(angle.current - tapped)];
+            const prize = prizeById(seg.prize);
+            setAbout((a) => (a?.id === prize.id ? null : ownsTheme && prize.theme ? JACKPOT : prize));
+            return;
+          }
+          // Spin speed around the centre: the sideways part of the flick over the distance from the centre.
+          const r2 = Math.max(rx * rx + ry * ry, (size * 0.15) ** 2);
+          const omega = (rx * g.vy - ry * g.vx) / r2;
+          if (!has || Math.abs(omega) < MIN_FLICK) return;
+          const [least, most] = SWIPE_TURNS;
+          const turns = Math.round(Math.min(most, Math.max(least, least + (Math.abs(omega) - MIN_FLICK) * 600)));
+          spin(omega > 0 ? 1 : -1, turns);
+        },
+      }),
+    [],
+  );
 
   const wheelStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${rotation.value}deg` }] }));
   const pointerStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${-20 * kick.value}deg` }] }));
@@ -190,9 +254,16 @@ export function SpinScreen({
           <Rim size={size} spinning={spinning && !reduceMotion} />
           <Reanimated.View style={[{ position: 'absolute', width: size, height: size }, wheelStyle]}>
             <WheelFace size={size} ownsTheme={ownsTheme} />
+            {!ownsTheme && <ThemeSliceLive size={size} still={reduceMotion} />}
           </Reanimated.View>
+          {/* Doesn't turn, so touch positions stay simple; the hub coin sits above it. */}
+          <View
+            {...touch.panHandlers}
+            style={{ position: 'absolute', width: size, height: size, borderRadius: size / 2 }}
+            accessibilityHint="Swipe around the wheel to spin it, or tap a slice to see what it gives"
+          />
           <Pressable
-            onPress={spin}
+            onPress={() => spin()}
             disabled={spinning || !has}
             style={{ width: 64 * k, height: 64 * k, borderRadius: 32 * k, boxShadow: '0px 4px 14px rgba(0,0,0,0.5)' }}
             accessibilityRole="button"
@@ -208,7 +279,15 @@ export function SpinScreen({
           </Reanimated.View>
         </View>
 
-        <SpinButton label={spinning ? 'Good luck…' : has ? 'Spin · 1 ticket' : 'No tickets yet'} disabled={!has || spinning} off={!has && !spinning} onPress={spin} />
+        {about && !spinning ? (
+          <>
+            <SliceNote prize={about} ownsTheme={ownsTheme} onClose={() => setAbout(null)} />
+            {about.theme && !ownsTheme && <ThemePreview />}
+          </>
+        ) : (
+          <Text style={s.hint}>{has ? 'Swipe the wheel or tap Spin · tap a slice to see what it gives' : 'Tap a slice to see what it gives'}</Text>
+        )}
+        <SpinButton label={spinning ? 'Good luck…' : has ? 'Spin · 1 ticket' : 'No tickets yet'} disabled={!has || spinning} off={!has && !spinning} onPress={() => spin()} />
         {pity !== undefined && (
           <Text style={s.small}>
             {pity <= 1 ? 'Lucky meter: your next spin wins Fortuna for sure.' : `Lucky meter: ${pity} spins left until Fortuna is guaranteed.`}
@@ -266,6 +345,22 @@ export function SpinScreen({
 }
 
 /** The chances of each prize, behind the "?" next to the heading. */
+/** What a tapped slice gives: its sticker, name, rarity and a line on how it works. */
+function SliceNote({ prize, ownsTheme, onClose }: { prize: WheelPrize; ownsTheme: boolean; onClose: () => void }) {
+  const s = useStyles(makeStyles);
+  return (
+    <Pressable onPress={onClose} style={s.note} accessibilityRole="button" accessibilityLabel={`${prize.label}, ${RARITY_NAMES[prize.rarity]}. ${prizeAbout(prize, ownsTheme)} Tap to close`}>
+      <PrizeSticker prize={prize} size={40} />
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text style={s.noteTitle}>
+          {prize.label} <Text style={[s.noteRarity, { color: RARITY_COLORS[prize.rarity].c1 }]}>· {RARITY_NAMES[prize.rarity]}</Text>
+        </Text>
+        <Text style={s.noteBody}>{prizeAbout(prize, ownsTheme)}</Text>
+      </View>
+    </Pressable>
+  );
+}
+
 function OddsSheet({ ownsTheme, onClose }: { ownsTheme: boolean; onClose: () => void }) {
   const s = useStyles(makeStyles);
   return (
@@ -414,6 +509,64 @@ function star(x: number, y: number, r: number): string {
   return `M${pts.join(' L')} Z`;
 }
 
+/** Where the Fortuna slice sits on the disc: its middle, in degrees. */
+const THEME_SLICE_MID = (() => {
+  let at = 0;
+  for (const seg of WHEEL_SEGMENTS) {
+    if (prizeById(seg.prize).theme) return (at + seg.share / 2) * 3.6;
+    at += seg.share;
+  }
+  return 0;
+})();
+
+/**
+ * A tiny live preview of Fortuna on its slice: a gold coin turning over and
+ * glints twinkling round it, as on the theme. Turns with the wheel.
+ */
+function ThemeSliceLive({ size, still }: { size: number; still: boolean }) {
+  const k = size / 320;
+  const [x, y] = point(THEME_SLICE_MID, FACE * 0.84);
+  const t = useSharedValue(0);
+  useEffect(() => {
+    if (still) return;
+    t.value = withRepeat(withTiming(1, { duration: 2400, easing: REasing.linear }), -1, false);
+    return () => cancelAnimation(t);
+  }, [still]);
+  const coin = useAnimatedStyle(() => ({ transform: [{ scaleX: still ? 1 : Math.max(0.08, Math.abs(Math.cos(Math.PI * t.value))) }] }));
+  const glint = (phase: number) => {
+    'worklet';
+    const p = (t.value + phase) % 1;
+    return 0.15 + 0.85 * Math.max(0, Math.sin(Math.PI * 2 * p));
+  };
+  const g1 = useAnimatedStyle(() => ({ opacity: still ? 0.8 : glint(0) }));
+  const g2 = useAnimatedStyle(() => ({ opacity: still ? 0.6 : glint(0.45) }));
+  const coinSize = 30 * k;
+  return (
+    <View pointerEvents="none" style={{ position: 'absolute', left: x * k - coinSize / 2, top: y * k - coinSize / 2, width: coinSize, height: coinSize, transform: [{ rotate: `${THEME_SLICE_MID}deg` }] }}>
+      <Reanimated.View style={[{ width: coinSize, height: coinSize }, coin]}>
+        <Svg width={coinSize} height={coinSize} viewBox="0 0 26 26">
+          <Defs>
+            <LinearGradient id="sliceCoin" x1="0" y1="0" x2="1" y2="1">
+              <Stop offset="0" stopColor={GOLD.light} />
+              <Stop offset="0.55" stopColor={GOLD.mid} />
+              <Stop offset="1" stopColor={GOLD.deep} />
+            </LinearGradient>
+          </Defs>
+          <Circle cx={13} cy={13} r={12} fill="url(#sliceCoin)" stroke={KEYLINE} strokeWidth={1.2} />
+          <Circle cx={13} cy={13} r={8.5} fill="none" stroke="#FFF1B8" strokeOpacity={0.7} strokeWidth={1} />
+          <Path d={star(13, 13, 5)} fill="#FFF8D6" />
+        </Svg>
+      </Reanimated.View>
+      <Reanimated.View style={[{ position: 'absolute', left: -7 * k, top: -6 * k }, g1]}>
+        <Star4 size={9 * k} color="#FFF1B8" />
+      </Reanimated.View>
+      <Reanimated.View style={[{ position: 'absolute', right: -8 * k, bottom: -5 * k }, g2]}>
+        <Star4 size={7 * k} color={HOLO[1]} />
+      </Reanimated.View>
+    </View>
+  );
+}
+
 /** The turning disc: one slice per prize, sized by its chance, labelled along the radius. */
 // Memoised: the disc only turns, so it never needs to redraw while spinning.
 const WheelFace = memo(function WheelFace({ size, ownsTheme }: { size: number; ownsTheme: boolean }) {
@@ -432,11 +585,30 @@ const WheelFace = memo(function WheelFace({ size, ownsTheme }: { size: number; o
           <Stop offset="0.55" stopColor="#000000" stopOpacity={0} />
           <Stop offset="1" stopColor="#000000" stopOpacity={0.22} />
         </RadialGradient>
+        <RadialGradient id="fortunaSlice" cx={C} cy={C} r={FACE} fx={C} fy={C} gradientUnits="userSpaceOnUse">
+          <Stop offset="0.3" stopColor="#120a1f" />
+          <Stop offset="0.75" stopColor="#3d2d5c" />
+          <Stop offset="1" stopColor="#5a3f8a" />
+        </RadialGradient>
       </Defs>
       {slices.map((sl) => {
         const mid = (sl.from + sl.to) / 2;
+        if (sl.prize.theme && !ownsTheme) {
+          // Fortuna's own colours, deep violet with a gold rim and its name; its live coin turns on top (ThemeSliceLive).
+          const [lx, ly] = point(mid, FACE * 0.55);
+          const turn = mid <= 180 ? mid - 90 : mid + 90;
+          return (
+            <G key={sl.i}>
+              <Path d={wedge(sl.from, sl.to, FACE)} fill="url(#fortunaSlice)" stroke="#120a1f" strokeWidth={1.5} strokeLinejoin="round" />
+              <Path d={wedge(sl.from + 1, sl.to - 1, FACE - 4)} fill="none" stroke={GOLD.mid} strokeWidth={2} strokeLinejoin="round" />
+              <SvgText x={lx} y={ly + 4} fill={GOLD.light} fontFamily={CINZEL} fontSize={12} letterSpacing={0.6} textAnchor="middle" transform={`rotate(${turn} ${lx} ${ly})`}>
+                FORTUNA
+              </SvgText>
+            </G>
+          );
+        }
         if (sl.prize.theme) {
-          // Six rainbow stripes and a big glowing star.
+          // Owned: the jackpot, six rainbow stripes and a big glowing star.
           const step = (sl.to - sl.from) / MYTHIC.length;
           const [sx, sy] = point(mid, FACE * 0.66);
           return (
@@ -451,24 +623,34 @@ const WheelFace = memo(function WheelFace({ size, ownsTheme }: { size: number; o
           );
         }
         const look = SLICES[sl.prize.id];
-        const [lx, ly] = point(mid, FACE * 0.64);
+        const Icon = prizeIcon(sl.prize);
+        const [lx, ly] = point(mid, FACE * 0.58);
+        const [ix, iy] = point(mid, FACE * 0.86);
         // Labels run along the radius, turned so none reads upside down at rest.
         const turn = mid <= 180 ? mid - 90 : mid + 90;
+        const lineGap = look.font * 1.1;
         return (
           <G key={sl.i}>
             <Path d={wedge(sl.from, sl.to, FACE)} fill={look.color} stroke="#120a1f" strokeWidth={1.5} strokeLinejoin="round" />
-            <SvgText
-              x={lx}
-              y={ly + look.font * 0.36}
-              fill={look.ink}
-              fontFamily={CINZEL}
-              fontSize={look.font}
-              letterSpacing={look.font < 14 ? 0.6 : 0}
-              textAnchor="middle"
-              transform={`rotate(${turn} ${lx} ${ly})`}
-            >
-              {sl.prize.short}
-            </SvgText>
+            {look.lines.map((line, j) => (
+              <SvgText
+                key={line}
+                x={lx}
+                y={ly + look.font * 0.36 + (j - (look.lines.length - 1) / 2) * lineGap}
+                fill={look.ink}
+                fontFamily={CINZEL}
+                fontSize={look.font}
+                letterSpacing={look.font < 14 ? 0.4 : 0}
+                textAnchor="middle"
+                transform={`rotate(${turn} ${lx} ${ly})`}
+              >
+                {line}
+              </SvgText>
+            ))}
+            {/* The prize's icon near the rim, upright towards the outside. */}
+            <G transform={`rotate(${mid} ${ix} ${iy}) translate(${ix - 8} ${iy - 8})`}>
+              <Icon size={16} color={look.ink} strokeWidth={2.4} />
+            </G>
           </G>
         );
       })}
@@ -752,6 +934,11 @@ const makeStyles = themed((c) => ({
   spinText: { fontFamily: CINZEL, color: GOLD.ink, fontSize: 16, letterSpacing: 1.5 },
   spinTextOff: { color: '#a596bf' },
   small: { color: c.muted, fontSize: 12, textAlign: 'center', marginTop: 12 },
+  hint: { color: c.muted, fontSize: 12, textAlign: 'center', marginTop: 16, minHeight: 16 },
+  note: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 14, padding: 12, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,224,102,0.25)' },
+  noteTitle: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
+  noteRarity: { fontSize: 12, fontWeight: '700' },
+  noteBody: { color: c.muted, fontSize: 12, lineHeight: 17 },
   section: { ...eyebrow(c), color: c.label, marginTop: 30, marginBottom: 12 },
   panel: { backgroundColor: c.surface, borderRadius: 14, borderWidth: 1, borderColor: c.border, padding: 14, gap: 12 },
   oddsRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -800,9 +987,10 @@ const makeStyles = themed((c) => ({
   },
   revealSecondary: { minHeight: 40, alignItems: 'center', justifyContent: 'center' },
   revealSecondaryText: { color: c.muted, fontWeight: '700' },
-  preview: { alignSelf: 'stretch', backgroundColor: c.bg, borderRadius: 12, padding: 12, gap: 8, marginTop: 8, borderWidth: 1, borderColor: c.border },
+  // Fortuna's own colours, whatever theme is worn.
+  preview: { alignSelf: 'stretch', backgroundColor: '#120a1f', borderRadius: 12, padding: 12, gap: 8, marginTop: 8, borderWidth: 1, borderColor: '#3d2d5c' },
   previewTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
-  previewWord: { fontFamily: FONTS.serif, color: c.text, fontSize: 11, letterSpacing: 3 },
-  previewTask: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.surface, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8 },
-  previewTaskText: { color: c.text, fontSize: 13, fontWeight: '600' },
+  previewWord: { fontFamily: CINZEL, color: '#fbf6ea', fontSize: 11, letterSpacing: 3 },
+  previewTask: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#1f1530', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8 },
+  previewTaskText: { color: '#fbf6ea', fontSize: 13, fontWeight: '600' },
 }));

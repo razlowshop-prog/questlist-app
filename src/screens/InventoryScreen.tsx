@@ -1,75 +1,76 @@
-import { Lock } from 'lucide-react-native';
+import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
-import { levelForLook, type TokenKind } from '../achievements';
-import { CELEBRATIONS, FLAME_STYLES, FRAMES, frameName, type CelebrationId, type FlameStyleId } from '../cosmetics';
-import type { GameState, Settings } from '../game';
-import { equippedLooks, nextTokenLevel, type OwnedLooks } from '../inventory';
-import type { SeasonStatus } from '../seasons';
-import { card, eyebrow, THEMES, themed, useStyles, useTheme } from '../theme';
+import { bagCapacity, layoutBag, nextSlotLevel, STACK_SIZE, type BagItem, type BagStack } from '../bag';
+import type { GameState } from '../game';
+import { nextTokenLevel } from '../inventory';
+import { card, eyebrow, themed, useStyles, useTheme } from '../theme';
 import { adFreeActive, doubleXpActive, restOffer, TOKEN_INFO, tokenCounts } from '../tokens';
-import { Fire } from '../components/Fire';
-import { Avatar as Disc, ProfileFrame } from '../components/ProfileFrame';
-import { BRAND_FILL_SMALL, BRAND_INK, GradientText, Sticker, VIVID_HEAVY, BRAND_TEXT_SHADOW } from '../components/Vivid';
-import { brandGlow, brandLine, CELEBRATION_GLYPHS, CELEBRATION_LOOKS, RARITY, TOKEN_LOOKS } from '../vivid';
+import { XP_PER_TICKET } from '../wheel';
+import { Sheet } from '../components/Sheet';
+import { BRAND_FILL_SMALL, BRAND_INK, BRAND_TEXT_SHADOW, Sticker, VIVID_HEAVY } from '../components/Vivid';
+import type { GlyphName } from '../glyphs';
+import { brandLine, RARITY, TOKEN_LOOKS, type Grad } from '../vivid';
 
-const TOKENS: TokenKind[] = ['rest', 'double', 'reroll', 'adfree'];
+const PER_ROW = 5;
+
+const ITEM_INFO: Record<BagItem, { name: string; description: string }> = {
+  ticket: { name: 'Wheel ticket', description: `One spin of the lucky wheel. You get a ticket for every ${XP_PER_TICKET} XP.` },
+  ...TOKEN_INFO,
+};
+
+function itemLook(item: BagItem): { grad: Grad; glyph: GlyphName } {
+  return item === 'ticket' ? { grad: RARITY.legendary, glyph: 'Ticket' } : { grad: TOKEN_LOOKS[item], glyph: TOKEN_LOOKS[item].glyph };
+}
 
 /**
- * The inventory page, opened from the bag in the header: tickets and tokens
- * at the top, then every look to wear (theme, profile frame, flame, title,
- * tick celebration). Looks not won yet show where they come from.
+ * The bag, opened from the header: wheel tickets and tokens in slots, five of
+ * a kind to a slot. When the slots are full the rest waits in a tray below and
+ * can still be used. Tap a slot to see what it does and use it. The looks to
+ * wear live on the profile.
  */
 export function InventoryScreen({
   state,
   today,
   level,
-  fireTier,
-  initials,
-  owned,
-  season,
   tickets,
-  unlockedThemes,
   onOpenSpin,
   onRest,
   onDouble,
   onAdFree,
   onOpenChallenges,
-  onEquip,
+  onOpenProfile,
 }: {
   state: GameState;
   today: string;
   level: number;
-  /** Current streak fire tier, so flame previews match the player's own fire. */
-  fireTier: number;
-  initials: string;
-  owned: OwnedLooks;
-  season: SeasonStatus;
   /** Wheel tickets ready to spend. */
   tickets: number;
-  /** Ids of themes the player may use. */
-  unlockedThemes: Set<string>;
   onOpenSpin: () => void;
   onRest: (day: string) => void;
   onDouble: () => void;
   onAdFree: () => void;
   onOpenChallenges: () => void;
-  onEquip: (looks: Partial<Settings>) => void;
+  onOpenProfile: () => void;
 }) {
   const s = useStyles(makeStyles);
-  const counts = tokenCounts(state);
-  const tokenTotal = TOKENS.reduce((sum, k) => sum + Math.max(0, counts[k]), 0);
-  const equipped = equippedLooks(state.settings, owned);
+  const [open, setOpen] = useState<BagItem | null>(null);
+  const counts: Record<BagItem, number> = { ticket: tickets, ...tokenCounts(state) };
+  const capacity = bagCapacity(level);
+  const { slots, waiting } = layoutBag(counts, capacity);
+  const nextSlots = nextSlotLevel(level);
   const offer = restOffer(state, today);
-  const ownedSeasonal = owned.frames.filter((f) => f.startsWith('season-'));
-  // This month's event frame shows locked until it's won.
-  const seasonal = ownedSeasonal.includes(season.frame) ? ownedSeasonal : [...ownedSeasonal, season.frame];
+  const rows: (BagStack | undefined)[][] = [];
+  for (let i = 0; i < capacity; i += PER_ROW) rows.push(Array.from({ length: PER_ROW }, (_, j) => slots[i + j]));
 
-  function tokenAction(k: TokenKind): { label: string; onPress?: () => void; note?: string } {
-    if (counts[k] <= 0) {
-      const next = nextTokenLevel(k, level);
-      return { label: '', note: next ? `Next one at level ${next}` : 'None left' };
+  function action(item: BagItem): { label: string; onPress?: () => void; note?: string } {
+    if (counts[item] <= 0) {
+      if (item === 'ticket') return { label: '', note: `Earn ${XP_PER_TICKET} XP for your next ticket.` };
+      const next = nextTokenLevel(item, level);
+      return { label: '', note: next ? `Next one at level ${next}, or win one on the wheel.` : 'Win more on the wheel.' };
     }
-    switch (k) {
+    switch (item) {
+      case 'ticket':
+        return { label: 'Spin the wheel', onPress: onOpenSpin };
       case 'rest':
         return offer
           ? { label: offer.missed ? 'Save yesterday' : 'Take today off', onPress: () => onRest(offer.day) }
@@ -83,231 +84,119 @@ export function InventoryScreen({
     }
   }
 
+  const picked = open ? action(open) : undefined;
+
   return (
     <ScrollView contentContainerStyle={s.content}>
-      <View style={s.tiles}>
-        <Pressable onPress={onOpenSpin} style={s.tileBig} accessibilityRole="button" accessibilityLabel={`${tickets} ${tickets === 1 ? 'ticket' : 'tickets'} for the lucky wheel. Open Spin`}>
-          <Sticker grad={RARITY.legendary} glyph="Ticket" size={34} flat />
-          <GradientText style={s.tileValue}>{tickets}</GradientText>
-          <Text style={s.muted}>{tickets === 1 ? 'ticket' : 'tickets'} for the wheel</Text>
-        </Pressable>
-        <View style={s.tileBig} accessible accessibilityLabel={`${tokenTotal} ${tokenTotal === 1 ? 'token' : 'tokens'} to use`}>
-          <Sticker grad={RARITY.epic} glyph="Backpack" size={34} flat />
-          <GradientText style={s.tileValue}>{tokenTotal}</GradientText>
-          <Text style={s.muted}>{tokenTotal === 1 ? 'token' : 'tokens'} to use</Text>
-        </View>
+      <View style={s.head}>
+        <Text style={s.section}>Bag</Text>
+        <Text style={s.note}>
+          {slots.length} of {capacity} slots{nextSlots ? ` · 5 more at level ${nextSlots}` : ''}
+        </Text>
       </View>
 
-      <Text style={s.section}>Tokens</Text>
-      {TOKENS.map((k) => {
-        const action = tokenAction(k);
-        const none = counts[k] <= 0;
-        return (
-          <View key={k} style={[s.token, none && { opacity: 0.6 }]}>
-            <Sticker grad={TOKEN_LOOKS[k]} glyph={TOKEN_LOOKS[k].glyph} size={46} dim={none} />
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text style={s.tokenName}>
-                {TOKEN_INFO[k].name} <Text style={s.count}>×{Math.max(0, counts[k])}</Text>
-              </Text>
-              <Text style={s.muted}>{TOKEN_INFO[k].description}</Text>
-              {action.note && <Text style={s.note}>{action.note}</Text>}
-            </View>
-            {action.onPress && (
-              <Pressable onPress={action.onPress} style={s.use} accessibilityRole="button" accessibilityLabel={`${action.label}: ${TOKEN_INFO[k].name}`}>
-                <Text style={s.useText}>{action.label}</Text>
+      <View style={s.slots}>
+        {rows.map((row, r) => (
+          <View key={r} style={s.row}>
+            {row.map((stack, j) =>
+              stack ? (
+                <Slot key={j} stack={stack} onPress={() => setOpen(stack.item)} />
+              ) : (
+                <View key={j} style={[s.slot, s.slotEmpty]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" />
+              ),
+            )}
+          </View>
+        ))}
+      </View>
+      {slots.length === 0 && <Text style={s.muted}>Empty for now. Every {XP_PER_TICKET} XP gives you a wheel ticket, and levels bring tokens.</Text>}
+
+      {waiting.length > 0 && (
+        <View style={s.tray}>
+          <Text style={s.section}>Rewards waiting</Text>
+          <Text style={s.muted}>Your bag is full, so these wait here. You can still use every one of them.</Text>
+          <View style={s.trayRow}>
+            {waiting.map((w) => (
+              <Pressable key={w.item} onPress={() => setOpen(w.item)} style={s.trayItem} accessibilityRole="button" accessibilityLabel={`${w.count} more ${ITEM_INFO[w.item].name}`}>
+                <Sticker {...itemLook(w.item)} size={30} flat />
+                <Text style={s.trayCount}>×{w.count}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      )}
+
+      <Pressable onPress={onOpenProfile} style={s.looksLink} accessibilityRole="button">
+        <Text style={s.muted}>Themes, frames, flames and titles are on your profile.</Text>
+        <Text style={s.linkText}>Open profile</Text>
+      </Pressable>
+
+      <Sheet visible={open !== null} onClose={() => setOpen(null)} eyebrow="In your bag" title={open ? ITEM_INFO[open].name : ''}>
+        {open && picked && (
+          <View style={s.detail}>
+            <Sticker {...itemLook(open)} size={64} />
+            <Text style={s.detailCount}>×{Math.max(0, counts[open])}</Text>
+            <Text style={[s.muted, { textAlign: 'center' }]}>{ITEM_INFO[open].description}</Text>
+            {picked.note && <Text style={[s.note, { textAlign: 'center' }]}>{picked.note}</Text>}
+            {picked.onPress && (
+              <Pressable
+                onPress={() => {
+                  setOpen(null);
+                  picked.onPress!();
+                }}
+                style={s.use}
+                accessibilityRole="button"
+              >
+                <Text style={s.useText}>{picked.label}</Text>
               </Pressable>
             )}
           </View>
-        );
-      })}
-
-      <Text style={s.section}>Theme</Text>
-      <View style={s.grid}>
-        {THEMES.map((t) => {
-          const has = unlockedThemes.has(t.id);
-          return (
-            <Tile
-              key={t.id}
-              label={t.name}
-              active={state.settings.theme === t.id}
-              lockedLabel={has ? undefined : t.id === 'fortune' ? 'Wheel' : 'Trophy'}
-              onPress={has ? () => onEquip({ theme: t.id }) : undefined}
-            >
-              <View style={[s.swatch, { backgroundColor: t.palette.bg }, t.palette.bgImage ? { backgroundImage: t.palette.bgImage } : null]}>
-                <View style={[s.swatchDot, { backgroundColor: t.palette.accent }]} />
-                <View style={[s.swatchBar, { backgroundColor: t.palette.xp }]} />
-              </View>
-            </Tile>
-          );
-        })}
-      </View>
-      <Text style={s.note}>Themes are won with trophy tiers. Fortuna is only won on the lucky wheel.</Text>
-
-      <Text style={s.section}>Profile frame</Text>
-      <View style={s.grid}>
-        <Tile label="None" active={!equipped.frame} onPress={() => onEquip({ frame: undefined })}>
-          <Avatar initials={initials} />
-        </Tile>
-        {[...FRAMES.map((f) => f.id as string), ...seasonal].map((id) => {
-          const has = owned.frames.includes(id);
-          const isEvent = id === season.frame && !has;
-          return (
-            <Tile
-              key={id}
-              label={frameName(id)}
-              active={equipped.frame === id}
-              lockedLabel={has ? undefined : isEvent ? 'Event' : `Lvl ${levelForLook('frame', id)}`}
-              onPress={has ? () => onEquip({ frame: id }) : undefined}
-            >
-              <ProfileFrame frame={id} size={34} locked={!has}>
-                <Avatar initials={initials} small />
-              </ProfileFrame>
-            </Tile>
-          );
-        })}
-      </View>
-
-      <Text style={s.section}>Flame</Text>
-      <View style={s.grid}>
-        {FLAME_STYLES.map((f) => {
-          const has = owned.flames.includes(f.id);
-          return (
-            <Tile
-              key={f.id}
-              label={f.name}
-              active={equipped.flameStyle === f.id}
-              lockedLabel={has ? undefined : `Lvl ${levelForLook('flame', f.id)}`}
-              onPress={has ? () => onEquip({ flameStyle: f.id as FlameStyleId }) : undefined}
-            >
-              <Fire tier={Math.max(1, fireTier)} size={30} look={f.id} />
-            </Tile>
-          );
-        })}
-      </View>
-
-      <Text style={s.section}>Title</Text>
-      {owned.titles.length ? (
-        <View style={s.wrapRow}>
-          <Choice label="None" active={!equipped.title} onPress={() => onEquip({ title: undefined })} />
-          {owned.titles.map((t) => (
-            <Choice key={t} label={t} active={equipped.title === t} onPress={() => onEquip({ title: t })} />
-          ))}
-        </View>
-      ) : (
-        <Text style={s.muted}>Reach level 5 for your first title.</Text>
-      )}
-
-      <Text style={s.section}>Tick celebration</Text>
-      <View style={s.grid}>
-        {CELEBRATIONS.map((cel) => {
-          const has = owned.celebrations.includes(cel.id);
-          return (
-            <Tile
-              key={cel.id}
-              label={cel.name}
-              active={equipped.celebration === cel.id}
-              lockedLabel={has ? undefined : `Lvl ${levelForLook('celebration', cel.id)}`}
-              onPress={has ? () => onEquip({ celebration: cel.id as CelebrationId }) : undefined}
-            >
-              <Sticker grad={CELEBRATION_LOOKS[cel.id]} glyph={CELEBRATION_GLYPHS[cel.id]} size={36} />
-            </Tile>
-          );
-        })}
-      </View>
-      <Text style={s.note}>Plays when you tick off a task.</Text>
+        )}
+      </Sheet>
     </ScrollView>
   );
 }
 
-function Avatar({ initials, small }: { initials: string; small?: boolean }) {
-  return <Disc initials={initials} size={small ? 30 : 40} />;
-}
-
-function Tile({
-  label,
-  active,
-  lockedLabel,
-  onPress,
-  children,
-}: {
-  label: string;
-  active: boolean;
-  /** Shown instead of the name while the look isn't won yet. */
-  lockedLabel?: string;
-  onPress?: () => void;
-  children: React.ReactNode;
-}) {
+function Slot({ stack, onPress }: { stack: BagStack; onPress: () => void }) {
   const s = useStyles(makeStyles);
   const c = useTheme();
+  const full = stack.count >= STACK_SIZE;
   return (
-    <Pressable
-      onPress={onPress}
-      disabled={!onPress}
-      style={[s.tile, active && s.tileActive]}
-      accessibilityRole="radio"
-      accessibilityState={{ checked: active, disabled: !onPress }}
-      accessibilityLabel={lockedLabel ? `${label}, unlocks at ${lockedLabel}` : label}
-    >
-      <View style={[s.tilePic, lockedLabel ? { opacity: 0.45 } : null]}>{children}</View>
-      {lockedLabel ? (
-        <View style={s.lockRow}>
-          <Lock size={10} color={c.faint} strokeWidth={1.75} aria-hidden />
-          <Text style={s.lockText}>{lockedLabel}</Text>
-        </View>
-      ) : (
-        <Text style={[s.tileLabel, active && { color: c.accent }]} numberOfLines={1}>
-          {label}
-        </Text>
-      )}
-    </Pressable>
-  );
-}
-
-function Choice({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
-  const s = useStyles(makeStyles);
-  return (
-    <Pressable onPress={onPress} style={[s.choice, active && s.choiceActive]} accessibilityRole="radio" accessibilityState={{ checked: active }}>
-      <Text style={[s.choiceText, active && s.choiceTextActive]}>{label}</Text>
+    <Pressable onPress={onPress} style={[s.slot, full && { borderColor: brandLine(c.dark) }]} accessibilityRole="button" accessibilityLabel={`${ITEM_INFO[stack.item].name}, ${stack.count}`}>
+      <Sticker {...itemLook(stack.item)} size={34} flat />
+      {stack.count > 1 && <Text style={s.slotCount}>{stack.count}</Text>}
     </Pressable>
   );
 }
 
 const makeStyles = themed((c) => ({
   content: { padding: 20, paddingTop: 8, paddingBottom: 48, gap: 10, maxWidth: 640, width: '100%', alignSelf: 'center' },
-  tiles: { flexDirection: 'row', gap: 10 },
-  tileBig: { ...card(c), flex: 1, padding: 12, gap: 2 },
-  tileValue: { fontFamily: VIVID_HEAVY, fontSize: 22, lineHeight: 26, marginTop: 6, fontVariant: ['lining-nums'] },
-  swatch: { width: 46, height: 40, borderRadius: c.radius, padding: 6, justifyContent: 'space-between', borderWidth: 1, borderColor: c.border },
-  swatchDot: { width: 10, height: 10, borderRadius: 5 },
-  swatchBar: { height: 4, borderRadius: 2, width: '70%' },
-  section: { ...eyebrow(c, 11), color: c.muted, marginTop: 12 },
+  head: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginTop: 4 },
+  section: { ...eyebrow(c, 11), color: c.muted },
   muted: { color: c.muted, fontSize: 13, lineHeight: 18 },
   note: { color: c.faint, fontSize: 12, lineHeight: 17 },
-  token: { ...card(c), flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 },
-  tokenName: { color: c.text, fontSize: 15, fontWeight: '700' },
-  count: { color: c.muted, fontWeight: '600', fontVariant: ['tabular-nums'] },
-  use: { ...BRAND_FILL_SMALL, borderRadius: 12, paddingHorizontal: 12, minHeight: 36, justifyContent: 'center' },
-  useText: { color: BRAND_INK, fontFamily: VIVID_HEAVY, fontSize: 13, ...BRAND_TEXT_SHADOW },
-  wrapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  choice: { paddingHorizontal: 13, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: c.border },
-  choiceText: { color: c.muted, fontSize: 13, fontWeight: '600' },
-  choiceActive: { ...BRAND_FILL_SMALL, borderColor: 'transparent' },
-  choiceTextActive: { color: BRAND_INK, fontFamily: VIVID_HEAVY, ...BRAND_TEXT_SHADOW },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  // Three to a row: (100% - 2 gaps of 8) / 3 stays above 31% from phone width up.
-  tile: {
-    width: '31%',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-    borderRadius: c.radius,
-    borderWidth: 1,
-    borderColor: c.border,
+  slots: { gap: 8 },
+  row: { flexDirection: 'row', gap: 8 },
+  slot: { ...card(c), flex: 1, aspectRatio: 1, alignItems: 'center', justifyContent: 'center', padding: 0 },
+  slotEmpty: { backgroundColor: 'transparent', borderStyle: 'dashed', boxShadow: 'none' },
+  slotCount: {
+    position: 'absolute',
+    right: 5,
+    bottom: 3,
+    color: c.text,
+    fontFamily: VIVID_HEAVY,
+    fontSize: 13,
+    fontVariant: ['tabular-nums'],
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowRadius: 3,
   },
-  tileActive: { borderColor: brandLine(c.dark), borderWidth: 1.5, backgroundColor: c.surface, boxShadow: `0px 0px 12px ${brandGlow(0.35)}` },
-  tilePic: { height: 46, alignItems: 'center', justifyContent: 'center' },
-  tileLabel: { color: c.text, fontSize: 11, fontWeight: '600', textAlign: 'center' },
-  lockRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  lockText: { color: c.faint, fontSize: 11, fontWeight: '600' },
+  tray: { ...card(c), padding: 14, gap: 8, marginTop: 6 },
+  trayRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  trayItem: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 999, borderWidth: 1, borderColor: c.border },
+  trayCount: { color: c.text, fontFamily: VIVID_HEAVY, fontSize: 14, fontVariant: ['tabular-nums'] },
+  looksLink: { marginTop: 14, gap: 4, alignItems: 'center' },
+  linkText: { color: c.accent, fontSize: 14, fontWeight: '700' },
+  detail: { alignItems: 'center', gap: 8, paddingVertical: 6 },
+  detailCount: { color: c.text, fontFamily: VIVID_HEAVY, fontSize: 22, fontVariant: ['tabular-nums'] },
+  use: { ...BRAND_FILL_SMALL, borderRadius: 14, paddingHorizontal: 18, minHeight: 44, justifyContent: 'center', marginTop: 6 },
+  useText: { color: BRAND_INK, fontFamily: VIVID_HEAVY, fontSize: 15, ...BRAND_TEXT_SHADOW },
 }));
