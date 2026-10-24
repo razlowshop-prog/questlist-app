@@ -1,13 +1,15 @@
+import { useEffect, useRef } from 'react';
 import { View, type ViewStyle } from 'react-native';
-import Animated, { Easing, useAnimatedStyle, type SharedValue } from 'react-native-reanimated';
-import Svg, { Circle, Path } from 'react-native-svg';
+import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
+import Svg, { Circle, Defs, Ellipse, G, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 import type { MascotKind } from '../../themeFx';
 import { useLoop, useLoopsOn } from './hooks';
 
 // The mascots riding on the XP bar, one per theme (themeFx.ts). Each is drawn
-// at `scale` and gets the bar's fill (`live`, 0..1) to react to.
+// at `scale` and gets the bar's fill (`live`, 0..1) to react to, and
+// `gainKey`, which counts up each time XP is added.
 
-export function Mascot({ kind, scale, live }: { kind: MascotKind; scale: number; live: SharedValue<number> }) {
+export function Mascot({ kind, scale, live, gainKey }: { kind: MascotKind; scale: number; live: SharedValue<number>; gainKey: number }) {
   switch (kind) {
     case 'rocket':
       return <Rocket scale={scale} live={live} />;
@@ -15,6 +17,12 @@ export function Mascot({ kind, scale, live }: { kind: MascotKind; scale: number;
       return <Sprout scale={scale} />;
     case 'boat':
       return <Boat scale={scale} />;
+    case 'car':
+      return <Car scale={scale} />;
+    case 'pencil':
+      return <Pencil scale={scale} />;
+    case 'lifter':
+      return <Lifter scale={scale} gainKey={gainKey} />;
   }
 }
 
@@ -87,6 +95,115 @@ function Boat({ scale }: { scale: number }) {
           <Path d="M15 6c-4 3-7 7-7 11h7z" fill="#FFB547" />
           <Path d="M3 20h28l-5 7H8z" fill="#FF6B4A" />
           <Path d="M3 20h28" stroke="#04192a" strokeWidth={1} />
+        </Svg>
+      </Animated.View>
+    </View>
+  );
+}
+
+/** Neon: a hovering car with a cyan glow underneath. */
+function Car({ scale }: { scale: number }) {
+  const on = useLoopsOn();
+  const hover = useLoop(1600, on);
+  const style = useAnimatedStyle(() => ({ transform: [{ translateY: -3 * scale * hover.value }] }));
+  const w = 46 * scale;
+  return (
+    <Animated.View style={[{ width: w, height: 24 * scale }, style]}>
+      <Svg width={w} height={10 * scale} viewBox="0 0 46 10" style={{ position: 'absolute', left: 0, bottom: -5 * scale }}>
+        <Defs>
+          <RadialGradient id="carGlow" cx="50%" cy="50%" rx="50%" ry="50%">
+            <Stop offset="0" stopColor="#22e8ff" stopOpacity={0.9} />
+            <Stop offset="1" stopColor="#22e8ff" stopOpacity={0} />
+          </RadialGradient>
+        </Defs>
+        <Ellipse cx={23} cy={5} rx={19} ry={5} fill="url(#carGlow)" />
+      </Svg>
+      <Svg width={w} height={22 * scale} viewBox="0 0 46 22">
+        <Path d="M4 13c2-6 8-9 16-9h6c6 0 12 3 16 9z" fill="#2a1250" stroke="#22e8ff" strokeWidth={1.4} />
+        <Path d="M14 6h16l5 6H10z" fill="#22e8ff" opacity={0.55} />
+        <Rect x={2} y={12} width={42} height={5} rx={2.5} fill="#ff2bd6" />
+        <Circle cx={43} cy={14.5} r={1.8} fill="#fff" />
+      </Svg>
+    </Animated.View>
+  );
+}
+
+/** Notepad: a pencil drawing the bar, wiggling as it writes. */
+function Pencil({ scale }: { scale: number }) {
+  const on = useLoopsOn();
+  const wig = useLoop(500, on);
+  const style = useAnimatedStyle(() => ({ transform: [{ rotate: `${-6 * wig.value}deg` }, { translateY: -wig.value * scale }] }));
+  const size = 40 * scale;
+  return (
+    <Animated.View style={[{ width: size, height: size, transformOrigin: '20% 95%' } as ViewStyle, style]}>
+      <Svg width={size} height={size} viewBox="0 0 40 40">
+        <G transform="rotate(-38 20 20)">
+          <Rect x={17} y={2} width={7} height={26} fill="#f6c343" stroke="#7a5a10" strokeWidth={1} />
+          <Rect x={17} y={2} width={7} height={5} fill="#e48aa0" />
+          <Rect x={17} y={7} width={7} height={2} fill="#bfc6cf" />
+          <Path d="M17 28h7l-3.5 9z" fill="#f2d7a8" stroke="#7a5a10" strokeWidth={1} />
+          <Path d="M19.5 34.5h2l-1 2.5z" fill="#26324a" />
+        </G>
+      </Svg>
+    </Animated.View>
+  );
+}
+
+/** How long the lifter's pick-up, carry and set-down takes; the bar moves during it (themeFx gym `motion`). */
+const LIFT_MS = 1700;
+
+/**
+ * Gym: a figure standing behind a barbell that lies on the bar. No idle
+ * movement: each time XP is added it squats, lifts the barbell overhead,
+ * carries it while the bar moves on, sets it down and stands up. More XP
+ * mid-lift starts the lift again from where it is.
+ */
+function Lifter({ scale, gainKey }: { scale: number; gainKey: number }) {
+  const reduce = useReducedMotion();
+  const t = useSharedValue(1);
+  // Only XP added while it's on screen makes it lift, not switching to the theme.
+  const seen = useRef(gainKey);
+  useEffect(() => {
+    if (gainKey === seen.current || reduce) return;
+    seen.current = gainKey;
+    t.value = 0;
+    t.value = withTiming(1, { duration: LIFT_MS, easing: Easing.linear });
+  }, [gainKey]);
+  // The board's keyframes, each step eased in and out.
+  const ease = (v: number) => {
+    'worklet';
+    return v < 0.5 ? 2 * v * v : 1 - 2 * (1 - v) * (1 - v);
+  };
+  const frame = (v: number, at: number[], values: number[]) => {
+    'worklet';
+    for (let i = 1; i < at.length; i++) {
+      if (v <= at[i]) return values[i - 1] + (values[i] - values[i - 1]) * ease((v - at[i - 1]) / (at[i] - at[i - 1]));
+    }
+    return values[values.length - 1];
+  };
+  const body = useAnimatedStyle(() => ({ transform: [{ translateY: frame(t.value, [0, 0.12, 0.2, 0.3, 0.78, 0.88, 0.94, 1], [0, 4, 4, 0, 0, 4, 4, 0]) * scale }] }));
+  // Arms hang from the shoulders (y 15 of 44) and swing up overhead when flipped.
+  const arms = useAnimatedStyle(() => ({ transform: [{ scaleY: frame(t.value, [0, 0.12, 0.2, 0.3, 0.78, 0.9, 1], [1, 1.05, 1.05, -0.3, -0.3, 1.05, 1]) }] }));
+  const bar = useAnimatedStyle(() => ({ transform: [{ translateY: frame(t.value, [0, 0.12, 0.2, 0.3, 0.78, 0.9, 1], [0, 0, -2, -34, -34, 0, 0]) * scale }] }));
+  const k = scale;
+  const limb = { position: 'absolute', width: 3 * k, height: 26 * k, top: 15 * k, borderRadius: 1.5 * k, backgroundColor: '#f4f4f2' } as const;
+  return (
+    <View style={{ width: 40 * k, height: 44 * k }}>
+      <Animated.View style={[{ position: 'absolute', left: 0, top: 0, width: 40 * k, height: 44 * k }, body]}>
+        <Svg width={40 * k} height={44 * k} viewBox="0 0 40 44">
+          <Circle cx={20} cy={8} r={4.5} fill="#f4f4f2" />
+          <Path d="M20 13v14M20 27l-6 13M20 27l6 13" stroke="#f4f4f2" strokeWidth={3} strokeLinecap="round" />
+        </Svg>
+        <Animated.View style={[{ position: 'absolute', left: 0, top: 0, width: 40 * k, height: 44 * k, transformOrigin: `${20 * k}px ${15 * k}px` } as ViewStyle, arms]}>
+          <View style={[limb, { left: 11.5 * k }]} />
+          <View style={[limb, { left: 25.5 * k }]} />
+        </Animated.View>
+      </Animated.View>
+      <Animated.View style={[{ position: 'absolute', left: 0, top: 0, width: 40 * k, height: 44 * k }, bar]}>
+        <Svg width={40 * k} height={46 * k} viewBox="0 0 40 46" style={{ overflow: 'visible' }}>
+          <Rect x={3} y={39.6} width={34} height={2.4} rx={1.2} fill="#c9ccd2" />
+          <Rect x={0} y={35.5} width={5} height={10.5} rx={1.2} fill="#FF5A1F" />
+          <Rect x={35} y={35.5} width={5} height={10.5} rx={1.2} fill="#FF5A1F" />
         </Svg>
       </Animated.View>
     </View>

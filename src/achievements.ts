@@ -133,7 +133,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
       { goal: 10, xp: 25 },
       { goal: 50, xp: 60 },
       { goal: 100, xp: 100, reward: theme('Forest') },
-      { goal: 250, xp: 200 },
+      { goal: 250, xp: 200, reward: theme('Notepad') },
       { goal: 500, xp: 350, reward: title('Unstoppable') },
       { goal: 1000, xp: 600, reward: { kind: 'adfree', label: '1 month ad-free' } },
     ],
@@ -207,7 +207,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     tiers: [
       { goal: 3, xp: 20 },
       { goal: 7, xp: 50 },
-      { goal: 14, xp: 100 },
+      { goal: 14, xp: 100, reward: theme('Gym') },
       { goal: 30, xp: 250, reward: theme('Ember') },
       { goal: 100, xp: 750, reward: title('Eternal Flame') },
     ],
@@ -223,7 +223,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     tiers: [
       { goal: 5, xp: 25 },
       { goal: 10, xp: 75, reward: theme('Midnight') },
-      { goal: 25, xp: 200 },
+      { goal: 25, xp: 200, reward: theme('Neon') },
       { goal: 50, xp: 500, reward: { kind: 'premium', label: '1 month Premium for free' } },
       { goal: 100, xp: 2000, reward: title('Immortal') },
     ],

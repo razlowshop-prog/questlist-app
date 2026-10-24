@@ -46,6 +46,7 @@ export function XpProgress({ totalXp, onPress }: { totalXp: number; onPress: () 
   const glow = useSharedValue(0);
   const gainAnim = useSharedValue(0);
   const [gain, setGain] = useState(0);
+  const [gainKey, setGainKey] = useState(0);
   const prevXp = useRef<number | null>(null);
 
   useEffect(() => {
@@ -54,13 +55,19 @@ export function XpProgress({ totalXp, onPress }: { totalXp: number; onPress: () 
     const diff = before === null ? 0 : totalXp - before;
     const to = levelPosition(totalXp);
     const levels = Math.max(0, real.level - levelInfo(before ?? totalXp).level);
-    pos.value = withDelay(
-      before === null ? 350 : 200,
-      // Longer when a level-up runs the bar to the end first.
-      withTiming(to, { duration: before === null ? 1200 : 1100 + Math.min(levels, 3) * 500, easing: Easing.out(Easing.cubic) }),
-    );
+    const motion = fx.bar?.motion;
+    pos.value =
+      motion && before !== null
+        ? // The theme's own pace (Gym: after the lifter has picked the barbell up).
+          withDelay(motion.delay, withTiming(to, { duration: motion.duration + Math.min(levels, 3) * 300, easing: Easing.inOut(Easing.cubic) }))
+        : withDelay(
+            before === null ? 350 : 200,
+            // Longer when a level-up runs the bar to the end first.
+            withTiming(to, { duration: before === null ? 1200 : 1100 + Math.min(levels, 3) * 500, easing: Easing.out(Easing.cubic) }),
+          );
     if (diff > 0) {
       setGain(diff);
+      setGainKey((k) => k + 1);
       glow.value = withSequence(withTiming(1, { duration: 250 }), withTiming(0, { duration: 1100 }));
       gainAnim.value = 0;
       gainAnim.value = withTiming(1, { duration: 1800, easing: Easing.out(Easing.quad) }, (finished) => {
@@ -103,7 +110,7 @@ export function XpProgress({ totalXp, onPress }: { totalXp: number; onPress: () 
         accessibilityLabel={`Level ${real.level}, ${real.rank}. ${real.maxed ? 'Max level' : `${real.xpIntoLevel} of ${real.xpForLevel} XP to level ${real.level + 1}`}. Show level details`}
       >
         {fx.bar ? (
-          <ThemeXpBar spec={fx.bar} mascot={fx.mascot} scale={fx.mascotScale} live={fraction} ghost={ghost} progress={real.progress} />
+          <ThemeXpBar spec={fx.bar} mascot={fx.mascot} scale={fx.mascotScale} live={fraction} ghost={ghost} progress={real.progress} gainKey={gainKey} />
         ) : c.bar.kind === 'shimmer' ? (
           <ShimmerBar progress={real.progress} live={fraction} ghost={ghost} glow={gain > 0 ? glow : undefined} glowFrom={c.xp} glowTo={c.text} />
         ) : (

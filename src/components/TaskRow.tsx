@@ -19,7 +19,7 @@ import { CoinCheck, HoloBorder } from './Fortuna';
 import { stepStatus } from '../steps';
 import { taskCategory } from '../library';
 import { brandLine, categoryLook, midColor, MYTHIC } from '../vivid';
-import { FinishFx, useThemeFx } from './ThemeFx';
+import { FinishFx, RowPulse, useThemeFx } from './ThemeFx';
 import { fill, GradientText, Sticker } from './Vivid';
 
 /** The tick celebration the player has equipped. */
@@ -186,6 +186,7 @@ export function TaskRow({
 
   const row = (
     <View style={[s.row, label && !c.holo && { zIndex: 2 }]}>
+      {fx.rowPulse && c.listStyle === 'cards' && <RowPulse colors={fx.rowPulse} radius={c.radius} />}
       <Animated.View style={[s.flash, flashStyle]} pointerEvents="none" />
       <View style={[s.edge, fill(cat, 180)]} pointerEvents="none" />
       <View style={s.top}>
