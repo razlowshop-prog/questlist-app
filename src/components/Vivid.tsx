@@ -1,6 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Animated, Easing, Platform, Pressable, Switch, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
+import Reanimated, { useAnimatedStyle, useSharedValue, type SharedValue } from 'react-native-reanimated';
 import Svg, { Circle, Defs, LinearGradient, Path, Polygon, Stop } from 'react-native-svg';
 import { GLYPHS, type GlyphName } from '../glyphs';
 import { nativeDriver, useTheme } from '../theme';
@@ -473,7 +474,7 @@ export function EmptyState({ glyph, grad, mythic, before, word, after, body }: {
  * tip (home variant F: no light sweep). `ghost` = where the
  * bar is heading while it fills.
  */
-export function PrismBar({ progress, ghost }: { progress: number; ghost: number }) {
+export function PrismBar({ progress, live, ghost }: { progress: number; /** Moves the fill on the animation thread instead of `progress`. */ live?: SharedValue<number>; ghost: number }) {
   const c = useTheme();
   const reduce = useReduceMotion();
   const [width, setWidth] = useState(0);
@@ -484,8 +485,13 @@ export function PrismBar({ progress, ghost }: { progress: number; ghost: number 
     loop.start();
     return () => loop.stop();
   }, [reduce]);
+  const fraction = useLiveProgress(progress, live);
   const p = Math.max(0, Math.min(1, progress));
-  const fillW = p * width;
+  const fillStyle = useAnimatedStyle(() => ({ width: Math.max(0, Math.min(1, fraction.value)) * width }));
+  const knobStyle = useAnimatedStyle(() => {
+    const f = Math.max(0, Math.min(1, fraction.value));
+    return { opacity: f > 0 ? 1 : 0, left: Math.min(width - 14, Math.max(0, f * width - 7)) };
+  });
   // Two copies of the gradient side by side, so sliding by one bar width loops seamlessly.
   const strip = [...PRISM, ...PRISM.slice(0, -1).reverse()];
   return (
@@ -497,7 +503,7 @@ export function PrismBar({ progress, ghost }: { progress: number; ghost: number 
     >
       <View style={{ height: 8, borderRadius: 4, backgroundColor: c.surfaceAlt, overflow: 'hidden', borderWidth: c.dark ? 0 : 1, borderColor: c.border }}>
         <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${Math.max(0, Math.min(1, ghost)) * 100}%`, backgroundColor: '#A45CFF', opacity: 0.22, borderRadius: 4 }} />
-        <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: fillW, borderRadius: 4, overflow: 'hidden' }}>
+        <Reanimated.View style={[{ position: 'absolute', left: 0, top: 0, bottom: 0, borderRadius: 4, overflow: 'hidden' }, fillStyle]}>
           {width > 0 && (
             <Animated.View
               style={{
@@ -511,24 +517,38 @@ export function PrismBar({ progress, ghost }: { progress: number; ghost: number 
               }}
             />
           )}
-        </View>
+        </Reanimated.View>
       </View>
-      {width > 0 && p > 0 && (
-        <View
-          style={{
-            position: 'absolute',
-            left: Math.min(width - 14, Math.max(0, fillW - 7)),
-            top: 1,
-            width: 14,
-            height: 14,
-            borderRadius: 7,
-            backgroundColor: '#FFFFFF',
-            borderWidth: c.dark ? 0 : 1,
-            borderColor: '#A45CFF',
-            boxShadow: `0px 0px 10px #A45CFF, 0px 0px 0px 1.5px ${KEYLINE}`,
-          }}
+      {width > 0 && (
+        <Reanimated.View
+          style={[
+            {
+              position: 'absolute',
+              top: 1,
+              width: 14,
+              height: 14,
+              borderRadius: 7,
+              backgroundColor: '#FFFFFF',
+              borderWidth: c.dark ? 0 : 1,
+              borderColor: '#A45CFF',
+              boxShadow: `0px 0px 10px #A45CFF, 0px 0px 0px 1.5px ${KEYLINE}`,
+            },
+            knobStyle,
+          ]}
         />
       )}
     </View>
   );
+}
+
+/**
+ * A bar's fill as a shared value: the live one when given (it already moves
+ * on the animation thread), otherwise `progress`, which jumps to new values.
+ */
+export function useLiveProgress(progress: number, live?: SharedValue<number>): SharedValue<number> {
+  const own = useSharedValue(progress);
+  useEffect(() => {
+    own.value = progress;
+  }, [progress]);
+  return live ?? own;
 }

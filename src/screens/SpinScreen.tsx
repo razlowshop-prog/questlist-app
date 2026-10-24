@@ -1,6 +1,8 @@
 import * as Haptics from 'expo-haptics';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Modal, Platform, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
+import Reanimated, { Easing as REasing, useAnimatedReaction, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import Svg, { Circle, Defs, G, LinearGradient, Mask, Path, RadialGradient, Rect, Stop, Text as SvgText } from 'react-native-svg';
 import { CoinCheck, CoinShower, GOLD, GoldDust, GoldText, HOLO, HoloBorder, ShimmerBar, Star4, StarRule, TicketStub } from '../components/Fortuna';
 import { KEYLINE, MYTHIC, PrizeSticker, RARITY_COLORS } from '../components/PrizeSticker';
@@ -74,40 +76,54 @@ export function SpinScreen({
   const { width } = useWindowDimensions();
   const size = Math.min(320, Math.max(240, width - 40));
   const k = size / 320;
-  const rotation = useRef(new Animated.Value(0)).current;
+  // The wheel and pointer turn on the animation thread (Reanimated), so the spin stays smooth.
+  const rotation = useSharedValue(0);
   const angle = useRef(0);
-  const kick = useRef(new Animated.Value(0)).current;
+  const kick = useSharedValue(0);
   const [spinning, setSpinning] = useState(false);
   const [won, setWon] = useState<WheelPrize | null>(null);
   const [oddsOpen, setOddsOpen] = useState(false);
-  const [phase, setPhase] = useState(0);
-  const lastSegment = useRef(-1);
   const lastTick = useRef(0);
+  // The prize hand-out of a spin still turning. Run when it lands, or at once if the screen closes first.
+  const pending = useRef<(() => void) | null>(null);
   const has = tickets.tickets > 0;
 
-  // The bulbs blink alternately while the wheel turns.
-  useEffect(() => {
-    if (reduceMotion || !spinning) return;
-    const id = setInterval(() => setPhase((p) => p + 1), 120);
-    return () => clearInterval(id);
-  }, [spinning, reduceMotion]);
+  useEffect(
+    () => () => {
+      pending.current?.();
+      pending.current = null;
+    },
+    [],
+  );
+
+  function tick() {
+    const now = Date.now();
+    if (Platform.OS !== 'web' && now - lastTick.current >= TICK_MS) {
+      lastTick.current = now;
+      Haptics.selectionAsync().catch(() => {});
+    }
+  }
 
   // The pointer flicks, and the phone ticks, each time a slice edge passes under it.
-  useEffect(() => {
-    const id = rotation.addListener(({ value }) => {
-      const seg = segmentAt(value);
-      if (seg === lastSegment.current) return;
-      lastSegment.current = seg;
-      kick.setValue(1);
-      Animated.timing(kick, { toValue: 0, duration: 140, easing: Easing.out(Easing.quad), useNativeDriver: false }).start();
-      const now = Date.now();
-      if (Platform.OS !== 'web' && now - lastTick.current >= TICK_MS) {
-        lastTick.current = now;
-        Haptics.selectionAsync().catch(() => {});
-      }
-    });
-    return () => rotation.removeListener(id);
-  }, []);
+  useAnimatedReaction(
+    () => segmentAt(rotation.value),
+    (seg, before) => {
+      if (before === null || seg === before) return;
+      kick.value = 1;
+      kick.value = withTiming(0, { duration: 140, easing: REasing.out(REasing.quad) });
+      scheduleOnRN(tick);
+    },
+  );
+
+  function landed(prize: WheelPrize) {
+    const finish = pending.current;
+    if (!finish) return;
+    pending.current = null;
+    setSpinning(false);
+    setWon(prize);
+    finish();
+    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+  }
 
   function spin() {
     if (spinning || !has) return;
@@ -120,23 +136,18 @@ export function SpinScreen({
     const wanted = (360 - at * 360) % 360;
     const to = from + (reduceMotion ? 0 : TURNS * 360) + ((wanted - (from % 360) + 360) % 360);
     angle.current = to;
+    pending.current = finish;
     setSpinning(true);
-    Animated.timing(rotation, {
-      toValue: to,
-      duration: reduceMotion ? 400 : SPIN_MS,
+    rotation.value = withTiming(
+      to,
       // Fast start, long slow-down: the last slices crawl past.
-      easing: Easing.bezier(0.12, 0.72, 0.08, 1),
-      useNativeDriver: false,
-    }).start(() => {
-      setSpinning(false);
-      setWon(prize);
-      finish();
-      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    });
+      { duration: reduceMotion ? 400 : SPIN_MS, easing: REasing.bezier(0.12, 0.72, 0.08, 1) },
+      () => scheduleOnRN(landed, prize),
+    );
   }
 
-  const rotate = rotation.interpolate({ inputRange: [0, 360], outputRange: ['0deg', '360deg'], extrapolate: 'extend' });
-  const pointerRotate = kick.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-20deg'] });
+  const wheelStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${rotation.value}deg` }] }));
+  const pointerStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${-20 * kick.value}deg` }] }));
   const recent = spins.slice(-5).reverse();
   const toGo = XP_PER_TICKET - tickets.progress;
 
@@ -176,10 +187,10 @@ export function SpinScreen({
         </HoloBorder>
 
         <View style={[s.wheelBox, { width: size, height: size, borderRadius: size / 2, marginTop: 34 * k + 14 }]}>
-          <Rim size={size} phase={phase} spinning={spinning} />
-          <Animated.View style={{ position: 'absolute', width: size, height: size, transform: [{ rotate }] }}>
+          <Rim size={size} spinning={spinning && !reduceMotion} />
+          <Reanimated.View style={[{ position: 'absolute', width: size, height: size }, wheelStyle]}>
             <WheelFace size={size} ownsTheme={ownsTheme} />
-          </Animated.View>
+          </Reanimated.View>
           <Pressable
             onPress={spin}
             disabled={spinning || !has}
@@ -189,12 +200,12 @@ export function SpinScreen({
           >
             <HubCoin size={64 * k} />
           </Pressable>
-          <Animated.View
+          <Reanimated.View
             pointerEvents="none"
-            style={{ position: 'absolute', top: -22 * k, width: 34 * k, height: 44 * k, transformOrigin: `${17 * k}px ${16 * k}px`, transform: [{ rotate: pointerRotate }] }}
+            style={[{ position: 'absolute', top: -22 * k, width: 34 * k, height: 44 * k, transformOrigin: `${17 * k}px ${16 * k}px` }, pointerStyle]}
           >
             <Pointer scale={k} />
-          </Animated.View>
+          </Reanimated.View>
         </View>
 
         <SpinButton label={spinning ? 'Good luck…' : has ? 'Spin · 1 ticket' : 'No tickets yet'} disabled={!has || spinning} off={!has && !spinning} onPress={spin} />
@@ -372,6 +383,7 @@ const FACE = 136;
 
 /** The slice under the pointer at a wheel rotation in degrees. */
 function segmentAt(rotation: number): number {
+  'worklet';
   const at = (((-rotation % 360) + 360) % 360) / 3.6;
   let sum = 0;
   for (let i = 0; i < WHEEL_SEGMENTS.length; i++) {
@@ -403,7 +415,8 @@ function star(x: number, y: number, r: number): string {
 }
 
 /** The turning disc: one slice per prize, sized by its chance, labelled along the radius. */
-function WheelFace({ size, ownsTheme }: { size: number; ownsTheme: boolean }) {
+// Memoised: the disc only turns, so it never needs to redraw while spinning.
+const WheelFace = memo(function WheelFace({ size, ownsTheme }: { size: number; ownsTheme: boolean }) {
   const slices = useMemo(() => {
     let at = 0;
     return WHEEL_SEGMENTS.map((seg, i) => {
@@ -463,10 +476,17 @@ function WheelFace({ size, ownsTheme }: { size: number; ownsTheme: boolean }) {
       <Circle cx={C} cy={C} r={42} fill="#1f1530" stroke={GOLD.mid} strokeWidth={1.5} />
     </Svg>
   );
-}
+});
 
 /** The fixed rim: dark violet with two gold rings and 24 bulbs that blink while the wheel turns. */
-function Rim({ size, phase, spinning }: { size: number; phase: number; spinning: boolean }) {
+function Rim({ size, spinning }: { size: number; spinning: boolean }) {
+  // Kept here, so only the rim redraws on each blink.
+  const [phase, setPhase] = useState(0);
+  useEffect(() => {
+    if (!spinning) return;
+    const id = setInterval(() => setPhase((p) => p + 1), 120);
+    return () => clearInterval(id);
+  }, [spinning]);
   return (
     <View style={{ position: 'absolute', width: size, height: size }} pointerEvents="none">
       <Svg width={size} height={size} viewBox="0 0 320 320">
