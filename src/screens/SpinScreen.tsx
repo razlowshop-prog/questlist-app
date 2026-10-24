@@ -1,7 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Modal, PanResponder, Platform, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
-import Reanimated, { Easing as REasing, useAnimatedReaction, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Reanimated, { cancelAnimation, Easing as REasing, useAnimatedReaction, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import Svg, { Circle, Defs, G, LinearGradient, Mask, Path, RadialGradient, Rect, Stop, Text as SvgText } from 'react-native-svg';
 import { CoinCheck, CoinShower, GOLD, GoldDust, GoldText, HOLO, HoloBorder, ShimmerBar, Star4, StarRule, TicketStub } from '../components/Fortuna';
@@ -254,6 +254,7 @@ export function SpinScreen({
           <Rim size={size} spinning={spinning && !reduceMotion} />
           <Reanimated.View style={[{ position: 'absolute', width: size, height: size }, wheelStyle]}>
             <WheelFace size={size} ownsTheme={ownsTheme} />
+            {!ownsTheme && <ThemeSliceLive size={size} still={reduceMotion} />}
           </Reanimated.View>
           {/* Doesn't turn, so touch positions stay simple; the hub coin sits above it. */}
           <View
@@ -279,7 +280,10 @@ export function SpinScreen({
         </View>
 
         {about && !spinning ? (
-          <SliceNote prize={about} ownsTheme={ownsTheme} onClose={() => setAbout(null)} />
+          <>
+            <SliceNote prize={about} ownsTheme={ownsTheme} onClose={() => setAbout(null)} />
+            {about.theme && !ownsTheme && <ThemePreview />}
+          </>
         ) : (
           <Text style={s.hint}>{has ? 'Swipe the wheel or tap Spin · tap a slice to see what it gives' : 'Tap a slice to see what it gives'}</Text>
         )}
@@ -505,6 +509,64 @@ function star(x: number, y: number, r: number): string {
   return `M${pts.join(' L')} Z`;
 }
 
+/** Where the Fortuna slice sits on the disc: its middle, in degrees. */
+const THEME_SLICE_MID = (() => {
+  let at = 0;
+  for (const seg of WHEEL_SEGMENTS) {
+    if (prizeById(seg.prize).theme) return (at + seg.share / 2) * 3.6;
+    at += seg.share;
+  }
+  return 0;
+})();
+
+/**
+ * A tiny live preview of Fortuna on its slice: a gold coin turning over and
+ * glints twinkling round it, as on the theme. Turns with the wheel.
+ */
+function ThemeSliceLive({ size, still }: { size: number; still: boolean }) {
+  const k = size / 320;
+  const [x, y] = point(THEME_SLICE_MID, FACE * 0.84);
+  const t = useSharedValue(0);
+  useEffect(() => {
+    if (still) return;
+    t.value = withRepeat(withTiming(1, { duration: 2400, easing: REasing.linear }), -1, false);
+    return () => cancelAnimation(t);
+  }, [still]);
+  const coin = useAnimatedStyle(() => ({ transform: [{ scaleX: still ? 1 : Math.max(0.08, Math.abs(Math.cos(Math.PI * t.value))) }] }));
+  const glint = (phase: number) => {
+    'worklet';
+    const p = (t.value + phase) % 1;
+    return 0.15 + 0.85 * Math.max(0, Math.sin(Math.PI * 2 * p));
+  };
+  const g1 = useAnimatedStyle(() => ({ opacity: still ? 0.8 : glint(0) }));
+  const g2 = useAnimatedStyle(() => ({ opacity: still ? 0.6 : glint(0.45) }));
+  const coinSize = 30 * k;
+  return (
+    <View pointerEvents="none" style={{ position: 'absolute', left: x * k - coinSize / 2, top: y * k - coinSize / 2, width: coinSize, height: coinSize, transform: [{ rotate: `${THEME_SLICE_MID}deg` }] }}>
+      <Reanimated.View style={[{ width: coinSize, height: coinSize }, coin]}>
+        <Svg width={coinSize} height={coinSize} viewBox="0 0 26 26">
+          <Defs>
+            <LinearGradient id="sliceCoin" x1="0" y1="0" x2="1" y2="1">
+              <Stop offset="0" stopColor={GOLD.light} />
+              <Stop offset="0.55" stopColor={GOLD.mid} />
+              <Stop offset="1" stopColor={GOLD.deep} />
+            </LinearGradient>
+          </Defs>
+          <Circle cx={13} cy={13} r={12} fill="url(#sliceCoin)" stroke={KEYLINE} strokeWidth={1.2} />
+          <Circle cx={13} cy={13} r={8.5} fill="none" stroke="#FFF1B8" strokeOpacity={0.7} strokeWidth={1} />
+          <Path d={star(13, 13, 5)} fill="#FFF8D6" />
+        </Svg>
+      </Reanimated.View>
+      <Reanimated.View style={[{ position: 'absolute', left: -7 * k, top: -6 * k }, g1]}>
+        <Star4 size={9 * k} color="#FFF1B8" />
+      </Reanimated.View>
+      <Reanimated.View style={[{ position: 'absolute', right: -8 * k, bottom: -5 * k }, g2]}>
+        <Star4 size={7 * k} color={HOLO[1]} />
+      </Reanimated.View>
+    </View>
+  );
+}
+
 /** The turning disc: one slice per prize, sized by its chance, labelled along the radius. */
 // Memoised: the disc only turns, so it never needs to redraw while spinning.
 const WheelFace = memo(function WheelFace({ size, ownsTheme }: { size: number; ownsTheme: boolean }) {
@@ -523,11 +585,30 @@ const WheelFace = memo(function WheelFace({ size, ownsTheme }: { size: number; o
           <Stop offset="0.55" stopColor="#000000" stopOpacity={0} />
           <Stop offset="1" stopColor="#000000" stopOpacity={0.22} />
         </RadialGradient>
+        <RadialGradient id="fortunaSlice" cx={C} cy={C} r={FACE} fx={C} fy={C} gradientUnits="userSpaceOnUse">
+          <Stop offset="0.3" stopColor="#120a1f" />
+          <Stop offset="0.75" stopColor="#3d2d5c" />
+          <Stop offset="1" stopColor="#5a3f8a" />
+        </RadialGradient>
       </Defs>
       {slices.map((sl) => {
         const mid = (sl.from + sl.to) / 2;
+        if (sl.prize.theme && !ownsTheme) {
+          // Fortuna's own colours, deep violet with a gold rim and its name; its live coin turns on top (ThemeSliceLive).
+          const [lx, ly] = point(mid, FACE * 0.55);
+          const turn = mid <= 180 ? mid - 90 : mid + 90;
+          return (
+            <G key={sl.i}>
+              <Path d={wedge(sl.from, sl.to, FACE)} fill="url(#fortunaSlice)" stroke="#120a1f" strokeWidth={1.5} strokeLinejoin="round" />
+              <Path d={wedge(sl.from + 1, sl.to - 1, FACE - 4)} fill="none" stroke={GOLD.mid} strokeWidth={2} strokeLinejoin="round" />
+              <SvgText x={lx} y={ly + 4} fill={GOLD.light} fontFamily={CINZEL} fontSize={12} letterSpacing={0.6} textAnchor="middle" transform={`rotate(${turn} ${lx} ${ly})`}>
+                FORTUNA
+              </SvgText>
+            </G>
+          );
+        }
         if (sl.prize.theme) {
-          // Six rainbow stripes and a big glowing star.
+          // Owned: the jackpot, six rainbow stripes and a big glowing star.
           const step = (sl.to - sl.from) / MYTHIC.length;
           const [sx, sy] = point(mid, FACE * 0.66);
           return (
@@ -906,9 +987,10 @@ const makeStyles = themed((c) => ({
   },
   revealSecondary: { minHeight: 40, alignItems: 'center', justifyContent: 'center' },
   revealSecondaryText: { color: c.muted, fontWeight: '700' },
-  preview: { alignSelf: 'stretch', backgroundColor: c.bg, borderRadius: 12, padding: 12, gap: 8, marginTop: 8, borderWidth: 1, borderColor: c.border },
+  // Fortuna's own colours, whatever theme is worn.
+  preview: { alignSelf: 'stretch', backgroundColor: '#120a1f', borderRadius: 12, padding: 12, gap: 8, marginTop: 8, borderWidth: 1, borderColor: '#3d2d5c' },
   previewTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
-  previewWord: { fontFamily: FONTS.serif, color: c.text, fontSize: 11, letterSpacing: 3 },
-  previewTask: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.surface, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8 },
-  previewTaskText: { color: c.text, fontSize: 13, fontWeight: '600' },
+  previewWord: { fontFamily: CINZEL, color: '#fbf6ea', fontSize: 11, letterSpacing: 3 },
+  previewTask: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#1f1530', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8 },
+  previewTaskText: { color: '#fbf6ea', fontSize: 13, fontWeight: '600' },
 }));
