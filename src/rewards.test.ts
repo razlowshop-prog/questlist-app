@@ -12,12 +12,13 @@ import {
   restDaysOf,
   streakStatus,
   toggleTask,
+  totalXp,
   type Completion,
   type GameState,
 } from './game.ts';
 import { equippedLooks, nextTokenLevel, ownedLooks } from './inventory.ts';
 import { CATEGORIES } from './library.ts';
-import { claimSeason, seasonFrames, seasonStatus } from './seasons.ts';
+import { claimSeason, SEASON_XP, seasonFrames, seasonStatus } from './seasons.ts';
 import { adFreeActive, answerRecovery, recoveryOffer, restOffer, spendAdFree, tokenCounts } from './tokens.ts';
 
 const TODAY = '2026-10-21';
@@ -163,8 +164,10 @@ test('the monthly event counts that month only and wins a frame once', () => {
   s = { ...s, completions: [...s.completions, done(TODAY, 'Pay the bills')] };
   status = seasonStatus(s, TODAY);
   assert.equal(status.complete, true);
+  const before = totalXp(s);
   s = claimSeason(s, TODAY);
   assert.deepEqual(seasonFrames(s), ['season-2026-10']);
+  assert.equal(totalXp(s), before + SEASON_XP, 'the event pays its bonus XP once');
   assert.equal(claimSeason(s, TODAY), s);
   assert.equal(frameName('season-2026-10'), 'Harvest 2026');
   assert.ok(ownedLooks(s).frames.includes('season-2026-10'));
