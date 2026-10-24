@@ -37,8 +37,39 @@ export function ChallengesScreen({
 
   return (
     <ScrollView contentContainerStyle={s.content}>
-      <StickerHeading glyph="Target" grad={RARITY.epic}>
-        <Text style={s.heading}>Weekly challenges</Text>
+      <StickerHeading glyph="CalendarStar" grad={SEASON_PILL}>
+        <Text style={[s.heading, s.subHeading, { marginTop: 0 }]}>{monthName} event</Text>
+      </StickerHeading>
+      <Text style={s.sub}>
+        A new event every month · {season.daysLeft === 0 ? 'last day' : `${season.daysLeft} ${season.daysLeft === 1 ? 'day' : 'days'} left`}
+      </Text>
+      <View style={[s.card, s.event, season.complete && !season.claimed && s.cardHighlight]}>
+        <ProfileFrame frame={season.frame} size={44} locked={!season.claimed && !season.complete}>
+          <View style={s.eventDot} />
+        </ProfileFrame>
+        <View style={{ flex: 1, gap: 6 }}>
+          <Text style={s.title}>{season.season.name}</Text>
+          <Text style={s.progress}>{season.season.pitch}</Text>
+          <View style={s.track}>
+            <View style={[s.fill, fill(SEASON_PILL, 90), { width: `${Math.min(100, Math.round((season.progress / season.season.target) * 100))}%` }]} />
+          </View>
+          <Text style={s.progress}>
+            {season.progress} / {season.season.target} tasks from {listOf(counts)}
+          </Text>
+          {season.claimed ? (
+            <Text style={s.claimed}>✓ {frameName(season.frame)} frame won · wear it from your inventory</Text>
+          ) : season.complete ? (
+            <Pressable style={[s.claim, { alignSelf: 'flex-start' }]} onPress={onClaimSeason} accessibilityRole="button">
+              <Text style={s.claimText}>Claim the {frameName(season.frame)} frame</Text>
+            </Pressable>
+          ) : (
+            <Text style={[s.reward, { color: c.accent, fontSize: 13 }]}>Wins the {frameName(season.frame)} frame, only this month</Text>
+          )}
+        </View>
+      </View>
+
+      <StickerHeading glyph="Target" grad={RARITY.epic} style={{ marginTop: 24 }}>
+        <Text style={[s.heading, s.subHeading, { marginTop: 0 }]}>Weekly challenges</Text>
       </StickerHeading>
       <Text style={s.sub}>
         New challenges every Monday · {daysLeft} {daysLeft === 1 ? 'day' : 'days'} left
@@ -76,37 +107,6 @@ export function ChallengesScreen({
         <View style={{ flex: 1 }}>
           <Text style={s.joinTitle}>Join a friend's challenge</Text>
           <Text style={s.progress}>Arrives with friends and accounts</Text>
-        </View>
-      </View>
-
-      <StickerHeading glyph="CalendarStar" grad={SEASON_PILL} style={{ marginTop: 24 }}>
-        <Text style={[s.heading, s.subHeading, { marginTop: 0 }]}>{monthName} event</Text>
-      </StickerHeading>
-      <Text style={s.sub}>
-        A new event every month · {season.daysLeft === 0 ? 'last day' : `${season.daysLeft} ${season.daysLeft === 1 ? 'day' : 'days'} left`}
-      </Text>
-      <View style={[s.card, s.event, season.complete && !season.claimed && s.cardHighlight]}>
-        <ProfileFrame frame={season.frame} size={44} locked={!season.claimed && !season.complete}>
-          <View style={s.eventDot} />
-        </ProfileFrame>
-        <View style={{ flex: 1, gap: 6 }}>
-          <Text style={s.title}>{season.season.name}</Text>
-          <Text style={s.progress}>{season.season.pitch}</Text>
-          <View style={s.track}>
-            <View style={[s.fill, fill(SEASON_PILL, 90), { width: `${Math.min(100, Math.round((season.progress / season.season.target) * 100))}%` }]} />
-          </View>
-          <Text style={s.progress}>
-            {season.progress} / {season.season.target} tasks from {listOf(counts)}
-          </Text>
-          {season.claimed ? (
-            <Text style={s.claimed}>✓ {frameName(season.frame)} frame won · wear it from your inventory</Text>
-          ) : season.complete ? (
-            <Pressable style={[s.claim, { alignSelf: 'flex-start' }]} onPress={onClaimSeason} accessibilityRole="button">
-              <Text style={s.claimText}>Claim the {frameName(season.frame)} frame</Text>
-            </Pressable>
-          ) : (
-            <Text style={[s.reward, { color: c.accent, fontSize: 13 }]}>Wins the {frameName(season.frame)} frame, only this month</Text>
-          )}
         </View>
       </View>
 

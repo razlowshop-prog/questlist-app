@@ -486,12 +486,12 @@ export function xpMultiplier(state: GameState, today: string): { total: number; 
   return { total: parts.reduce((t, p) => t * p.x, 1), parts, streak };
 }
 
-/** Daily-streak XP multiplier steps: from 5 days 1.2x, 10 days 1.4x, 30 days 1.5x, 150 days 1.6x. */
+/** Daily-streak XP multiplier steps: from 5 days 1.1x, 10 days 1.2x, 30 days 1.3x, 150 days 1.5x. */
 export const STREAK_BONUSES = [
-  { days: 5, bonus: 0.2 },
-  { days: 10, bonus: 0.4 },
-  { days: 30, bonus: 0.5 },
-  { days: 150, bonus: 0.6 },
+  { days: 5, bonus: 0.1 },
+  { days: 10, bonus: 0.2 },
+  { days: 30, bonus: 0.3 },
+  { days: 150, bonus: 0.5 },
 ] as const;
 
 /** Streak bonus as a fraction of base XP, e.g. 0.2 = 1.2x. */

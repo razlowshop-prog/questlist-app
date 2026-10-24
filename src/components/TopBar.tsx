@@ -22,6 +22,7 @@ export function TopBar({
   initials,
   bagCount,
   toClaim,
+  onHome,
   onInventory,
   onProfile,
 }: {
@@ -33,6 +34,8 @@ export function TopBar({
   bagCount: number;
   /** Trophy tiers ready to claim on the profile. */
   toClaim: number;
+  /** The wordmark goes back to Today. */
+  onHome: () => void;
   onInventory: () => void;
   onProfile: () => void;
 }) {
@@ -44,10 +47,12 @@ export function TopBar({
 
   return (
     <View style={s.bar}>
-      <View style={s.middle} pointerEvents="none">
-        <GradientText style={s.wordmark} numberOfLines={1}>
-          {APP_NAME.toUpperCase()}
-        </GradientText>
+      <View style={s.middle} pointerEvents="box-none">
+        <Pressable onPress={onHome} hitSlop={8} accessibilityRole="button" accessibilityLabel={`${APP_NAME}, go to Today`}>
+          <GradientText style={s.wordmark} numberOfLines={1}>
+            {APP_NAME.toUpperCase()}
+          </GradientText>
+        </Pressable>
       </View>
       <View style={{ flex: 1 }} />
       <Pressable
