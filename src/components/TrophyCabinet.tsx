@@ -1,7 +1,7 @@
-import { Lock } from 'lucide-react-native';
+import { Lock, Pin } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Modal, Pressable, Text, View } from 'react-native';
-import type { Rarity, TrophyStatus } from '../trophies';
+import { SHOWCASE_SIZE, type Rarity, type TrophyStatus } from '../trophies';
 import { card, eyebrow, FONTS, nativeDriver, themed, useStyles, useTheme } from '../theme';
 import { ICON_GLYPHS, RARITY, rarityLabel, type Rarity as VividRarity } from '../vivid';
 import { useReduceMotion } from './FireAura';
@@ -61,8 +61,11 @@ function Shine({ size }: { size: number }) {
   );
 }
 
-/** The profile's trophy cabinet; tapping a trophy shows how it is earned and how far along you are. */
-export function TrophyCabinet({ trophies }: { trophies: TrophyStatus[] }) {
+/**
+ * The profile's trophy cabinet; tapping a trophy shows how it is earned and
+ * how far along you are, and a won one can be pinned to the profile.
+ */
+export function TrophyCabinet({ trophies, pinned = [], onPin }: { trophies: TrophyStatus[]; /** Trophy ids pinned to the profile. */ pinned?: string[]; onPin?: (id: string) => void }) {
   const s = useStyles(makeStyles);
   const c = useTheme();
   const [open, setOpen] = useState<TrophyStatus | null>(null);
@@ -79,9 +82,14 @@ export function TrophyCabinet({ trophies }: { trophies: TrophyStatus[] }) {
             onPress={() => setOpen(t)}
             style={s.cell}
             accessibilityRole="button"
-            accessibilityLabel={`${t.def.name}, ${t.earned ? 'earned' : 'locked'}. ${t.def.description}`}
+            accessibilityLabel={`${t.def.name}, ${t.earned ? 'earned' : 'locked'}${pinned.includes(t.def.id) && t.earned ? ', pinned to your profile' : ''}. ${t.def.description}`}
           >
             <TrophyBadge trophy={t} size={64} />
+            {pinned.includes(t.def.id) && t.earned && (
+              <View style={s.pin}>
+                <Pin size={11} color={c.text} strokeWidth={2.4} aria-hidden />
+              </View>
+            )}
             <Text style={[s.name, !t.earned && s.nameLocked]} numberOfLines={1}>
               {t.def.name}
             </Text>
@@ -113,7 +121,8 @@ export function TrophyCabinet({ trophies }: { trophies: TrophyStatus[] }) {
                   ? 'Earned'
                   : `${open.value.toLocaleString()} / ${open.def.target.toLocaleString()} ${open.def.unit}`}
               </Text>
-              <VividButton label="Close" kind="secondary" onPress={() => setOpen(null)} style={{ alignSelf: 'stretch', marginTop: 8 }} />
+              {open.earned && onPin && <PinButton id={open.def.id} pinned={pinned} onPin={onPin} />}
+              <VividButton label="Close" kind="secondary" onPress={() => setOpen(null)} style={{ alignSelf: 'stretch', marginTop: open.earned && onPin ? 0 : 8 }} />
             </View>
           </View>
         )}
@@ -122,9 +131,26 @@ export function TrophyCabinet({ trophies }: { trophies: TrophyStatus[] }) {
   );
 }
 
+/** Pins a won trophy to the profile's showcase, or takes it off; says so when the showcase is full. */
+function PinButton({ id, pinned, onPin }: { id: string; pinned: string[]; onPin: (id: string) => void }) {
+  const s = useStyles(makeStyles);
+  const on = pinned.includes(id);
+  if (!on && pinned.length >= SHOWCASE_SIZE) return <Text style={s.progress}>Your showcase is full: unpin one of your {SHOWCASE_SIZE} first.</Text>;
+  return (
+    <VividButton
+      label={on ? 'Unpin from profile' : 'Pin to profile'}
+      kind={on ? 'secondary' : 'primary'}
+      onPress={() => onPin(id)}
+      style={{ alignSelf: 'stretch', marginTop: 8 }}
+      accessibilityLabel={on ? 'Unpin this trophy from your profile' : `Pin this trophy to your profile, ${SHOWCASE_SIZE - pinned.length} of ${SHOWCASE_SIZE} spots free`}
+    />
+  );
+}
+
 const makeStyles = themed((c) => ({
   grid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 18 },
   cell: { width: '33.33%', alignItems: 'center', gap: 6 },
+  pin: { position: 'absolute', top: 0, right: '22%', width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surface, borderWidth: 1, borderColor: c.border },
   name: { color: c.text, fontSize: 12, fontWeight: '700', textAlign: 'center' },
   nameLocked: { color: c.muted },
   rarity: { ...eyebrow(c, 10), fontWeight: '700' },

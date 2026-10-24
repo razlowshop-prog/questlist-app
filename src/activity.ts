@@ -1,5 +1,6 @@
 import { ACHIEVEMENTS, TIER_NAMES } from './achievements.ts';
 import { frameName, seasonFrameId } from './cosmetics.ts';
+import { DAILY_POOL } from './daily.ts';
 import { prizeById, type Rarity } from './wheel.ts';
 import {
   addDays,
@@ -20,7 +21,7 @@ import type { IconName } from './icons.ts';
 
 export type ActivityEvent =
   | { kind: 'level'; level: number; from: number; rank?: string }
-  | { kind: 'challenge'; title: string; icon: IconName; xp: number }
+  | { kind: 'challenge'; title: string; icon: IconName; xp: number; daily?: boolean }
   | { kind: 'achievement'; title: string; tier: string; icon: IconName; xp: number }
   | { kind: 'fire'; change: 'up' | 'down' | 'lost'; tier: number; days: number }
   | { kind: 'token'; token: 'rest' | 'double' | 'adfree' | 'recovery' }
@@ -93,6 +94,15 @@ export function activityTimeline(state: GameState, today: string): ActivityDay[]
     day.xp += c.xp;
     day.events.push({ kind: 'challenge', title: def?.title ?? 'Weekly challenge', icon: def?.icon ?? 'Target', xp: c.xp });
     items.push({ date, xp: c.xp });
+  }
+
+  for (const c of state.dailyClaims ?? []) {
+    if (c.date > today) continue;
+    const def = DAILY_POOL.find((d) => d.id === c.challengeId);
+    const day = dayOf(c.date);
+    day.xp += c.xp;
+    day.events.push({ kind: 'challenge', title: def?.title ?? 'Daily challenge', icon: def?.icon ?? 'Target', xp: c.xp, daily: true });
+    items.push({ date: c.date, xp: c.xp });
   }
 
   for (const c of state.achievementClaims) {

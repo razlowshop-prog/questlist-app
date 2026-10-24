@@ -3,20 +3,39 @@
 // Pure data; the looks are in vivid.ts, the drawing in ProfileFrame.tsx and Fire.tsx.
 // Ids are stored in settings and must not change; names may.
 
-export type FrameId = 'ring' | 'double' | 'dotted' | 'hex' | 'rays' | 'laurel' | 'stars' | 'diamond' | 'ember' | 'crown';
+export type LevelFrameId = 'ring' | 'double' | 'dotted' | 'hex' | 'rays' | 'platinum' | 'laurel' | 'titanium' | 'stars' | 'diamond' | 'ember' | 'crown';
+export type TrophyFrameId = 'ironWill' | 'marathonMind' | 'crystalClear' | 'dawnBreaker' | 'dreamWalker' | 'pathfinder';
+export type FrameId = LevelFrameId | TrophyFrameId;
 export type FlameStyleId = 'classic' | 'outline' | 'solid' | 'kindling' | 'twin' | 'glow' | 'sparks';
 
-export const FRAMES: { id: FrameId; name: string }[] = [
+/** Frames won from levels, in level order. */
+export const FRAMES: { id: LevelFrameId; name: string }[] = [
   { id: 'ring', name: 'Bronze' },
   { id: 'double', name: 'Silver' },
   { id: 'dotted', name: 'Gold' },
   { id: 'hex', name: 'Emerald' },
   { id: 'rays', name: 'Sapphire' },
+  { id: 'platinum', name: 'Platinum' },
   { id: 'laurel', name: 'Ruby' },
+  { id: 'titanium', name: 'Titanium' },
   { id: 'stars', name: 'Amethyst' },
   { id: 'diamond', name: 'Neon' },
   { id: 'ember', name: 'Inferno' },
   { id: 'crown', name: 'Aurora' },
+];
+
+/**
+ * Animated frames, each won only with its trophy (trophies.ts), which also
+ * gives a title. A frame whose trophy isn't in the app yet (it needs screen
+ * time, sleep or step tracking) isn't offered until it is.
+ */
+export const TROPHY_FRAMES: { id: TrophyFrameId; name: string; trophy: string }[] = [
+  { id: 'ironWill', name: 'Iron Will', trophy: 'ironWill' },
+  { id: 'marathonMind', name: 'Marathon Mind', trophy: 'marathonMind' },
+  { id: 'crystalClear', name: 'Crystal Clear', trophy: 'crystalClear' },
+  { id: 'dawnBreaker', name: 'Dawn Breaker', trophy: 'dawnBreaker' },
+  { id: 'dreamWalker', name: 'Dream Walker', trophy: 'dreamWalker' },
+  { id: 'pathfinder', name: 'Pathfinder', trophy: 'pathfinder' },
 ];
 
 /** classic is everyone's from the start; the others are won. */
@@ -83,5 +102,5 @@ export const seasonFrameId = (month: string) => `season-${month}`;
 export function frameName(id: string): string {
   const season = /^season-(\d{4})-(\d{2})$/.exec(id);
   if (season) return `${SEASONS[Number(season[2]) - 1].name} ${season[1]}`;
-  return FRAMES.find((f) => f.id === id)?.name ?? 'Frame';
+  return [...FRAMES, ...TROPHY_FRAMES].find((f) => f.id === id)?.name ?? 'Frame';
 }
