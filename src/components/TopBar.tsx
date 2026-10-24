@@ -10,6 +10,8 @@ import { CountBadge, fill, GradientText, VIVID_HEAVY } from './Vivid';
 /** Avatar size in the header and the ring around it. */
 const RING = 34;
 const STROKE = 3;
+/** The bag is a warm amber sticker, so it stands out from the grey icons. */
+const BAG = ['#FFC94D', '#FF7A1A'];
 
 /**
  * The header on the tab screens (navigation A): the wordmark in the middle,
@@ -61,7 +63,9 @@ export function TopBar({
         accessibilityRole="button"
         accessibilityLabel={`Inventory${bagCount ? `, ${bagCount} tokens` : ''}`}
       >
-        <Backpack size={22} color={c.muted} strokeWidth={1.6} aria-hidden />
+        <View style={[s.bag, fill(BAG, 145)]}>
+          <Backpack size={18} color="#FFFFFF" strokeWidth={2} aria-hidden />
+        </View>
         <CountBadge count={bagCount} style={s.badge} />
       </Pressable>
       <Pressable
@@ -124,6 +128,7 @@ const makeStyles = themed((c) => ({
   middle: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   wordmark: { fontFamily: FONTS.serif, fontSize: 21, letterSpacing: 4.6 },
   icon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', zIndex: 1 },
+  bag: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   badge: { position: 'absolute', top: 0, right: -2 },
   avatarHit: { marginLeft: 4, padding: 3, zIndex: 1 },
   ring: { width: RING, height: RING, alignItems: 'center', justifyContent: 'center' },
