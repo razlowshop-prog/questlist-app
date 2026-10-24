@@ -138,12 +138,12 @@ test('wheel wins show up in the activity timeline', () => {
 
 test('the XP multiplier lists what it is made of, counting today in the streak', () => {
   assert.deepEqual(xpMultiplier(player(0), TODAY), { total: 1, parts: [{ label: 'Streak', x: 1 }], streak: 1 });
-  // Four days done before today: the next task makes it five, so 1.2x.
+  // Four days done before today: the next task makes it five, so 1.1x.
   const run: GameState = { ...player(0), completions: [1, 2, 3, 4].map((i) => done(addDays(TODAY, -i), 20)) };
   const m = xpMultiplier(run, TODAY);
   assert.equal(m.streak, 5);
-  assert.equal(m.total, 1.2);
+  assert.equal(m.total, 1.1);
   const doubled = xpMultiplier({ ...run, doubleDays: [TODAY] }, TODAY);
   assert.deepEqual(doubled.parts.map((p) => p.label), ['Streak', 'Double XP']);
-  assert.equal(doubled.total, 2.4);
+  assert.ok(Math.abs(doubled.total - 2.2) < 1e-9);
 });

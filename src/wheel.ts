@@ -45,9 +45,9 @@ export const JACKPOT: WheelPrize = { id: 'jackpot', label: `${JACKPOT_XP} XP jac
 
 export const RARITY_NAMES: Record<Rarity, string> = {
   common: 'Common',
-  uncommon: 'Less common',
-  rare: 'Rare',
-  legendary: 'Super rare',
+  uncommon: 'Rare',
+  rare: 'Epic',
+  legendary: 'Legendary',
 };
 
 /**

@@ -372,6 +372,7 @@ export default function App() {
                 initials={initials}
                 bagCount={bagCount}
                 toClaim={awardsToClaim}
+                onHome={() => openTab('today')}
                 onInventory={() => setPage('inventory')}
                 onProfile={() => setPage('profile')}
               />

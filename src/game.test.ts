@@ -96,14 +96,15 @@ test('streak breaks after a fully missed day', () => {
 
 test('streak bonus tiers', () => {
   assert.equal(streakBonus(4), 0);
-  assert.equal(streakBonus(5), 0.2);
-  assert.equal(streakBonus(9), 0.2);
-  assert.equal(streakBonus(10), 0.4);
-  assert.equal(streakBonus(30), 0.5);
-  assert.equal(streakBonus(149), 0.5);
-  assert.equal(streakBonus(150), 0.6);
-  assert.equal(streakBonus(1000), 0.6);
-  assert.deepEqual(nextStreakBonus(3), { days: 5, bonus: 0.2, daysLeft: 2 });
+  assert.equal(streakBonus(5), 0.1);
+  assert.equal(streakBonus(9), 0.1);
+  assert.equal(streakBonus(10), 0.2);
+  assert.equal(streakBonus(29), 0.2);
+  assert.equal(streakBonus(30), 0.3);
+  assert.equal(streakBonus(149), 0.3);
+  assert.equal(streakBonus(150), 0.5);
+  assert.equal(streakBonus(1000), 0.5);
+  assert.deepEqual(nextStreakBonus(3), { days: 5, bonus: 0.1, daysLeft: 2 });
   assert.equal(nextStreakBonus(150), undefined);
 });
 
@@ -117,10 +118,10 @@ test('completing a task awards XP and unticking removes it', () => {
 
 test('streak bonus is applied on completion', () => {
   let s = addTask(emptyState, 'Run', true, 't1');
-  // 6 earlier days done, so today makes 7 -> 1.2x
+  // 6 earlier days done, so today makes 7 -> 1.1x
   s = { ...s, completions: streakOf(6, addDays(TODAY, -1)).map((c) => ({ ...c, xp: 0 })) };
   s = toggleTask(s, 't1', TODAY);
-  assert.equal(s.completions.at(-1)!.xp, Math.round(xpFor(DEFAULT_MINUTES) * 1.2));
+  assert.equal(s.completions.at(-1)!.xp, Math.round(xpFor(DEFAULT_MINUTES) * 1.1));
 });
 
 test('daily tasks reset each day, one-off tasks disappear after the day they were done', () => {
