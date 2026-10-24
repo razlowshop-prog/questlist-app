@@ -4,6 +4,9 @@ import type { GameState } from './game.ts';
 
 // This month's seasonal event (see SEASONS in cosmetics.ts).
 
+/** Bonus XP for finishing the monthly event, on top of its frame. */
+export const SEASON_XP = 300;
+
 export interface SeasonStatus {
   season: Season;
   /** "2026-10" */
@@ -38,7 +41,7 @@ export function seasonStatus(state: Pick<GameState, 'completions' | 'tasks' | 's
 export function claimSeason(state: GameState, today: string): GameState {
   const status = seasonStatus(state, today);
   if (!status.complete || status.claimed) return state;
-  return { ...state, seasonClaims: [...(state.seasonClaims ?? []), { month: status.month, date: today }] };
+  return { ...state, seasonClaims: [...(state.seasonClaims ?? []), { month: status.month, date: today, xp: SEASON_XP }] };
 }
 
 /** Seasonal frames the player has won. */

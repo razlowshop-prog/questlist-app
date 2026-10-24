@@ -1,18 +1,25 @@
+import { Cog } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import type { activitySummary } from '../activity';
 import type { AchievementStatus, Reward } from '../achievements';
 import { Achievements } from '../components/Achievements';
 import { MultiplierPill } from '../components/MultiplierPill';
-import { Avatar, ProfileFrame } from '../components/ProfileFrame';
-import { TrophyCabinet } from '../components/TrophyCabinet';
+import { Fire } from '../components/Fire';
+import { CelebrationGrid, FlameGrid, FrameGrid, frameList, LookRow, ThemeGrid, ThemeSwatch, TitleChoices } from '../components/LooksPickers';
+import { Avatar, frameReach, ProfileFrame } from '../components/ProfileFrame';
+import { Sheet } from '../components/Sheet';
+import { CELEBRATIONS } from '../cosmetics';
+import { equippedLooks, type OwnedLooks } from '../inventory';
+import { pickPhoto } from '../photo';
+import { TrophyBadge, TrophyCabinet } from '../components/TrophyCabinet';
 import { type profileStats, type Settings, type xpMultiplier } from '../game';
 import { EMBLEM_TIERS, type EmblemStatus } from '../emblems';
-import type { TrophyStatus } from '../trophies';
-import { card, themed, useStyles, FONTS, headingCase } from '../theme';
+import { showcaseTrophies, toggleShowcase, type TrophyStatus } from '../trophies';
+import { card, eyebrow, themeById, themed, useStyles, useTheme, FONTS, headingCase } from '../theme';
 import { WeekCard } from './ActivityScreen';
 import { BRAND_FILL_SMALL, BRAND_INK, BRAND_TEXT_SHADOW, CountBadge, GradientText, LevelBadge, Sticker, StickerHeading, VIVID_HEAVY } from '../components/Vivid';
-import { AVATAR_DISCS, brandLine, categoryLook, EMBLEM_METALS, RARITY } from '../vivid';
+import { AVATAR_DISCS, brandLine, categoryLook, CELEBRATION_GLYPHS, CELEBRATION_LOOKS, EMBLEM_METALS, RARITY } from '../vivid';
 
 export function ProfileScreen({
   name,
@@ -20,8 +27,11 @@ export function ProfileScreen({
   trophies,
   joinedAt,
   settings,
-  title,
-  frame,
+  owned,
+  unlockedThemes,
+  eventFrame,
+  fireTier,
+  photo,
   emblems,
   multiplier,
   achievements,
@@ -32,15 +42,22 @@ export function ProfileScreen({
   onClaimAchievement,
   onRename,
   onSettings,
+  onPhoto,
 }: {
   name: string;
   stats: ReturnType<typeof profileStats>;
   trophies: TrophyStatus[];
   joinedAt: string;
   settings: Settings;
-  /** The equipped title and frame, if the player owns them. */
-  title?: string;
-  frame?: string;
+  owned: OwnedLooks;
+  /** Ids of themes the player may use. */
+  unlockedThemes: Set<string>;
+  /** This month's event frame, shown locked in the picker until it's won. */
+  eventFrame: string;
+  /** Current streak fire tier, so flame previews match the player's own fire. */
+  fireTier: number;
+  /** The player's own picture, a data URI, if they set one. */
+  photo?: string;
   emblems: EmblemStatus[];
   /** What the next task today is multiplied by. */
   multiplier: ReturnType<typeof xpMultiplier>;
@@ -54,16 +71,30 @@ export function ProfileScreen({
   onClaimAchievement: (id: string) => void;
   onRename: (name: string) => void;
   onSettings: (s: Partial<Settings>) => void;
+  onPhoto: (photo: string | undefined) => void;
 }) {
   const s = useStyles(makeStyles);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(name);
   const [view, setView] = useState<'awards' | 'stats'>('awards');
+  const [sheet, setSheet] = useState<'look' | 'flame' | 'theme' | 'celebration' | null>(null);
+  const [photoError, setPhotoError] = useState<string>();
+  const { title, frame, flameStyle, celebration } = equippedLooks(settings, owned);
+  const themeId = unlockedThemes.has(settings.theme) ? settings.theme : 'classic';
   const earnedTrophies = trophies.filter((t) => t.earned).length;
+  const showcase = showcaseTrophies(trophies, settings.showcase);
   const initials = name.trim().slice(0, 2).toUpperCase() || '?';
   const memberSince = joinedAt
     ? new Date(`${joinedAt}T12:00:00`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
     : '';
+
+  async function choosePhoto(from: 'library' | 'camera') {
+    setPhotoError(undefined);
+    const result = await pickPhoto(from);
+    if (!result) return;
+    if ('error' in result) setPhotoError(result.error);
+    else onPhoto(result.photo);
+  }
 
   function save() {
     if (draft.trim()) onRename(draft.trim());
@@ -73,9 +104,17 @@ export function ProfileScreen({
   return (
     <ScrollView contentContainerStyle={s.content}>
       <View style={s.hero}>
-        <ProfileFrame frame={frame} size={92}>
-          <Avatar initials={initials} size={92} />
-        </ProfileFrame>
+        <Pressable
+          onPress={() => setSheet('look')}
+          style={{ marginVertical: frameReach(frame, 92) }}
+          accessibilityRole="button"
+          accessibilityLabel="Change your photo, colour, frame and title"
+        >
+          <ProfileFrame frame={frame} size={92}>
+            <Avatar initials={initials} size={92} />
+          </ProfileFrame>
+          <Gear style={s.avatarGear} />
+        </Pressable>
         {editing ? (
           <TextInput
             value={draft}
@@ -109,31 +148,37 @@ export function ProfileScreen({
           </View>
           <MultiplierPill multiplier={multiplier} />
         </View>
+        {showcase.length > 0 && (
+          <View style={s.showcase} accessibilityLabel={`Pinned trophies: ${showcase.map((t) => t.def.name).join(', ')}`}>
+            {showcase.map((t) => (
+              <View key={t.def.id} style={s.showcaseItem}>
+                <TrophyBadge trophy={t} size={44} />
+                <Text style={s.showcaseName} numberOfLines={1}>
+                  {t.def.name}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
         {memberSince ? <Text style={s.small}>Member since {memberSince}</Text> : null}
-        <View style={s.discs} accessibilityRole="radiogroup" accessibilityLabel="Avatar colour">
-          {AVATAR_DISCS.map((_, i) => {
-            const active = (settings.avatar ?? 0) === i;
-            return (
-              <Pressable
-                key={i}
-                onPress={() => onSettings({ avatar: i })}
-                hitSlop={4}
-                style={[s.disc, active && s.discActive]}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: active }}
-                accessibilityLabel={`Avatar colour ${i + 1}`}
-              >
-                <Avatar initials="" size={24} disc={i} />
-              </Pressable>
-            );
-          })}
-        </View>
       </View>
 
       <View style={s.grid}>
         <Stat label="Total XP" value={stats.totalXp.toLocaleString()} />
-        <Stat label="Streak" value={String(stats.currentStreak)} />
+        <Stat label="Streak" value={String(stats.currentStreak)} onPress={() => setSheet('flame')} hint="Change your flame">
+          <Fire tier={Math.max(1, fireTier)} size={22} still />
+        </Stat>
         <Stat label="Trophies" value={`${earnedTrophies}/${trophies.length}`} />
+      </View>
+
+      <Text style={s.eyebrow}>Customize my app</Text>
+      <View style={{ gap: 8 }}>
+        <LookRow label="Theme" value={themeById(themeId).name} onPress={() => setSheet('theme')}>
+          <ThemeSwatch id={themeId} />
+        </LookRow>
+        <LookRow label="Tick celebration" value={CELEBRATIONS.find((x) => x.id === celebration)?.name ?? ''} onPress={() => setSheet('celebration')}>
+          <Sticker grad={CELEBRATION_LOOKS[celebration]} glyph={CELEBRATION_GLYPHS[celebration]} size={32} flat />
+        </LookRow>
       </View>
 
       <View style={s.segment} accessibilityRole="tablist">
@@ -157,7 +202,7 @@ export function ProfileScreen({
           <StickerHeading glyph="Trophy" grad={RARITY.legendary} style={s.headingFirst} right={<Text style={s.small}>{earnedTrophies} of {trophies.length} · tap one</Text>}>
             <Text style={s.sectionTitle}>Trophies</Text>
           </StickerHeading>
-          <TrophyCabinet trophies={trophies} />
+          <TrophyCabinet trophies={trophies} pinned={settings.showcase} onPin={(id) => onSettings({ showcase: toggleShowcase(settings.showcase, id) })} />
 
           <StickerHeading glyph="Medal" grad={EMBLEM_METALS[2]} style={s.headingRow}>
             <Text style={s.sectionTitle}>Emblems</Text>
@@ -180,6 +225,58 @@ export function ProfileScreen({
         </>
       )}
 
+      <Sheet visible={sheet === 'look'} onClose={() => setSheet(null)} eyebrow="Your look" title="Profile picture">
+        <View style={[s.photoRow, { paddingVertical: frameReach(frame, 72) }]}>
+          <ProfileFrame frame={frame} size={72}>
+            <Avatar initials={initials} size={72} />
+          </ProfileFrame>
+          <View style={{ flex: 1, gap: 8 }}>
+            <View style={s.photoButtons}>
+              <SmallButton label={photo ? 'New photo' : 'Choose photo'} onPress={() => choosePhoto('library')} />
+              {Platform.OS !== 'web' && <SmallButton label="Take photo" onPress={() => choosePhoto('camera')} />}
+              {photo ? <SmallButton label="Remove" quiet onPress={() => onPhoto(undefined)} /> : null}
+            </View>
+            <Text style={s.small}>Your photo stays on this phone.</Text>
+          </View>
+        </View>
+        {photoError ? <Text style={s.error}>{photoError}</Text> : null}
+        <Text style={s.eyebrow}>Colour{photo ? ' (shown without a photo)' : ''}</Text>
+        <View style={s.discs} accessibilityRole="radiogroup" accessibilityLabel="Avatar colour">
+          {AVATAR_DISCS.map((_, i) => {
+            const active = (settings.avatar ?? 0) === i;
+            return (
+              <Pressable
+                key={i}
+                onPress={() => onSettings({ avatar: i })}
+                hitSlop={4}
+                style={[s.disc, active && s.discActive]}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: active }}
+                accessibilityLabel={`Avatar colour ${i + 1}`}
+              >
+                <Avatar initials="" size={24} disc={i} />
+              </Pressable>
+            );
+          })}
+        </View>
+        <Text style={s.eyebrow}>Frame</Text>
+        <FrameGrid owned={owned.frames} equipped={frame} frames={frameList(owned.frames, eventFrame)} eventFrame={eventFrame} initials={initials} onPick={(id) => onSettings({ frame: id })} />
+        <Text style={s.eyebrow}>Title</Text>
+        <TitleChoices owned={owned.titles} equipped={title} onPick={(t) => onSettings({ title: t })} />
+      </Sheet>
+
+      <Sheet visible={sheet === 'flame'} onClose={() => setSheet(null)} eyebrow="Your streak" title="Flame">
+        <FlameGrid owned={owned.flames} equipped={flameStyle} fireTier={fireTier} onPick={(id) => onSettings({ flameStyle: id })} />
+        <Text style={s.small}>Your fire grows with your streak. The style is yours to pick.</Text>
+      </Sheet>
+
+      <Sheet visible={sheet === 'theme'} onClose={() => setSheet(null)} eyebrow="Customize my app" title="Theme">
+        <ThemeGrid current={themeId} unlocked={unlockedThemes} onPick={(id) => onSettings({ theme: id })} />
+      </Sheet>
+
+      <Sheet visible={sheet === 'celebration'} onClose={() => setSheet(null)} eyebrow="Customize my app" title="Tick celebration">
+        <CelebrationGrid owned={owned.celebrations} equipped={celebration} onPick={(id) => onSettings({ celebration: id })} />
+      </Sheet>
     </ScrollView>
   );
 }
@@ -218,19 +315,53 @@ function Emblems({ emblems }: { emblems: EmblemStatus[] }) {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, onPress, hint, children }: { label: string; value: string; onPress?: () => void; hint?: string; children?: React.ReactNode }) {
+  const s = useStyles(makeStyles);
+  const body = (
+    <>
+      <View style={s.statTop}>
+        {children}
+        <GradientText style={s.statValue}>{value}</GradientText>
+      </View>
+      <Text style={s.statLabel}>{label}</Text>
+      {onPress && <Gear style={s.statGear} small />}
+    </>
+  );
+  return onPress ? (
+    <Pressable onPress={onPress} style={s.stat} accessibilityRole="button" accessibilityLabel={`${label}: ${value}`} accessibilityHint={hint}>
+      {body}
+    </Pressable>
+  ) : (
+    <View style={s.stat}>{body}</View>
+  );
+}
+
+/** The little gear that marks something you can change. */
+function Gear({ style, small }: { style: object; small?: boolean }) {
+  const s = useStyles(makeStyles);
+  const c = useTheme();
+  return (
+    <View style={[s.gear, small && s.gearSmall, style]} pointerEvents="none">
+      <Cog size={small ? 12 : 16} color={c.text} strokeWidth={2} aria-hidden />
+    </View>
+  );
+}
+
+function SmallButton({ label, onPress, quiet }: { label: string; onPress: () => void; quiet?: boolean }) {
   const s = useStyles(makeStyles);
   return (
-    <View style={s.stat}>
-      <GradientText style={s.statValue}>{value}</GradientText>
-      <Text style={s.statLabel}>{label}</Text>
-    </View>
+    <Pressable onPress={onPress} style={[s.smallButton, quiet ? s.smallButtonQuiet : null]} accessibilityRole="button">
+      <Text style={[s.smallButtonText, quiet ? { color: s.small.color } : null]}>{label}</Text>
+    </Pressable>
   );
 }
 
 const makeStyles = themed((c) => ({
   content: { padding: 20, paddingTop: 8, paddingBottom: 48, maxWidth: 640, width: '100%', alignSelf: 'center' },
   hero: { alignItems: 'center', gap: 8, marginBottom: 22 },
+  showcase: { flexDirection: 'row', justifyContent: 'center', gap: 14, marginTop: 4 },
+  showcaseItem: { alignItems: 'center', width: 76, gap: 2 },
+  showcaseName: { color: c.muted, fontSize: 11, fontWeight: '700', textAlign: 'center' },
   discs: { flexDirection: 'row', gap: 10, marginTop: 6 },
   disc: { padding: 2, borderRadius: 16, borderWidth: 1.5, borderColor: 'transparent' },
   discActive: { borderColor: brandLine(c.dark) },
@@ -256,6 +387,18 @@ const makeStyles = themed((c) => ({
   small: { color: c.muted, fontSize: 12 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   stat: { ...card(c), borderRadius: c.radius, flexBasis: '30%', flexGrow: 1, padding: 14, alignItems: 'center' },
+  statTop: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  statGear: { position: 'absolute', top: 6, right: 6 },
+  gear: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surface, borderWidth: 1, borderColor: c.border },
+  gearSmall: { width: 20, height: 20, borderRadius: 10 },
+  avatarGear: { position: 'absolute', right: -2, bottom: -2 },
+  eyebrow: { ...eyebrow(c, 11), color: c.muted, marginTop: 18, marginBottom: 8 },
+  photoRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  photoButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  smallButton: { ...BRAND_FILL_SMALL, borderRadius: 12, paddingHorizontal: 12, minHeight: 36, justifyContent: 'center' },
+  smallButtonQuiet: { backgroundColor: 'transparent', backgroundImage: 'none', borderWidth: 1, borderColor: c.border, boxShadow: 'none' },
+  smallButtonText: { color: BRAND_INK, fontFamily: VIVID_HEAVY, fontSize: 13, ...BRAND_TEXT_SHADOW },
+  error: { color: c.flame, fontSize: 13 },
   statValue: { fontFamily: VIVID_HEAVY, fontSize: 24, fontVariant: ['lining-nums'] },
   statLabel: { color: c.muted, fontSize: 12, marginTop: 2, textAlign: 'center' },
   headingRow: { marginTop: 30, marginBottom: 12 },

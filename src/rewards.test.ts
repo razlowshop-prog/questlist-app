@@ -12,12 +12,13 @@ import {
   restDaysOf,
   streakStatus,
   toggleTask,
+  totalXp,
   type Completion,
   type GameState,
 } from './game.ts';
-import { equippedLooks, nextTokenLevel, ownedLooks } from './inventory.ts';
+import { equippedLooks, nextTokenLevel, ownedLooks, TROPHY_FRAMES_ON } from './inventory.ts';
 import { CATEGORIES } from './library.ts';
-import { claimSeason, seasonFrames, seasonStatus } from './seasons.ts';
+import { claimSeason, SEASON_XP, seasonFrames, seasonStatus } from './seasons.ts';
 import { adFreeActive, answerRecovery, recoveryOffer, restOffer, spendAdFree, tokenCounts } from './tokens.ts';
 
 const TODAY = '2026-10-21';
@@ -54,9 +55,25 @@ test('looks are owned once won, and only owned looks are worn', () => {
 
   // Browser previews can try everything.
   const all = ownedLooks(fresh, true);
-  assert.equal(all.frames.length, FRAMES.length);
+  assert.equal(all.frames.length, FRAMES.length + TROPHY_FRAMES_ON.length);
   assert.equal(all.flames.length, FLAME_STYLES.length);
   assert.ok(all.titles.includes('Legend'));
+});
+
+test('a trophy gives its title and, if it has one, its animated frame', () => {
+  const s = player(16);
+  const won = ownedLooks(s, false, ['ironWill', 'centurion']);
+  assert.deepEqual(won.frames, ['ring', 'double', 'ironWill']);
+  assert.ok(won.titles.includes('Iron Will') && won.titles.includes('Centurion'));
+  assert.equal(equippedLooks({ ...s.settings, frame: 'ironWill', title: 'Iron Will' }, won).frame, 'ironWill');
+  // Without the trophy, neither is worn.
+  assert.deepEqual(equippedLooks({ ...s.settings, frame: 'ironWill', title: 'Iron Will' }, ownedLooks(s)), { title: undefined, frame: undefined, flameStyle: 'classic', celebration: 'classic' });
+  // Frames whose trophy needs tracking the app doesn't have yet aren't offered.
+  assert.deepEqual(
+    TROPHY_FRAMES_ON.map((f) => f.id),
+    ['ironWill', 'marathonMind'],
+  );
+  assert.equal(frameName('marathonMind'), 'Marathon Mind');
 });
 
 test('an ad-free token covers the rest of today, once', () => {
@@ -163,8 +180,10 @@ test('the monthly event counts that month only and wins a frame once', () => {
   s = { ...s, completions: [...s.completions, done(TODAY, 'Pay the bills')] };
   status = seasonStatus(s, TODAY);
   assert.equal(status.complete, true);
+  const before = totalXp(s);
   s = claimSeason(s, TODAY);
   assert.deepEqual(seasonFrames(s), ['season-2026-10']);
+  assert.equal(totalXp(s), before + SEASON_XP, 'the event pays its bonus XP once');
   assert.equal(claimSeason(s, TODAY), s);
   assert.equal(frameName('season-2026-10'), 'Harvest 2026');
   assert.ok(ownedLooks(s).frames.includes('season-2026-10'));
