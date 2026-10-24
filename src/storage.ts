@@ -30,3 +30,26 @@ export async function saveState(state: GameState): Promise<void> {
     // Saving failed (e.g. private browser window). The app keeps working in memory.
   }
 }
+
+const PHOTO_KEY = 'questlist/photo/v1';
+
+/**
+ * The profile photo, as a data URI. Kept apart from the game state so the
+ * picture isn't written again on every tick. It stays on this device.
+ */
+export async function loadPhoto(): Promise<string | undefined> {
+  try {
+    return (await AsyncStorage.getItem(PHOTO_KEY)) ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export async function savePhoto(photo: string | undefined): Promise<void> {
+  try {
+    if (photo) await AsyncStorage.setItem(PHOTO_KEY, photo);
+    else await AsyncStorage.removeItem(PHOTO_KEY);
+  } catch {
+    // Too big or storage blocked: the photo shows until the app is closed.
+  }
+}
