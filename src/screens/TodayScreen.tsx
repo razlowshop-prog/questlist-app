@@ -55,6 +55,9 @@ export function TodayScreen({
   onToggle,
   onStep,
   onDelete,
+  focusBar,
+  focusingId,
+  onFocus,
 }: {
   state: GameState;
   tasks: Task[];
@@ -77,6 +80,11 @@ export function TodayScreen({
   onToggle: (task: Task) => { xp: number; note?: string };
   onStep: (task: Task, step: number) => { xp: number; finished: boolean; note?: string };
   onDelete: (task: Task) => void;
+  /** The running focus timer, when it is hidden. */
+  focusBar?: React.ReactNode;
+  /** The task the focus timer runs for. */
+  focusingId?: string;
+  onFocus: (task: Task) => void;
 }) {
   const s = useStyles(makeStyles);
   const c = useTheme();
@@ -180,6 +188,7 @@ export function TodayScreen({
 
             <StreakCard streak={streak} week={weekDots(state, today)} multiplier={multiplier} onPress={onOpenStreak} />
             {tokenStrip}
+            {focusBar}
 
             <View style={s.sectionRow}>
               <Text style={s.sectionTitle}>Today's tasks</Text>
@@ -235,6 +244,8 @@ export function TodayScreen({
             onToggle={() => onToggle(item)}
             onStep={(step) => onStep(item, step)}
             onDelete={() => onDelete(item)}
+            focusing={focusingId === item.id}
+            onFocus={() => onFocus(item)}
           />
         )}
       />
