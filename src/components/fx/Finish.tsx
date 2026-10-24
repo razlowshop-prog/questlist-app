@@ -12,6 +12,9 @@ import { keyframes, LEAF, stepframes, useLoop, useLoopsOn } from './hooks';
 
 type TimingEasing = NonNullable<NonNullable<Parameters<typeof withTiming>[1]>['easing']>;
 
+/** CSS `ease-in`. */
+const EASE_IN = Easing.bezier(0.42, 0, 1, 1);
+
 const EASING: Record<FinishKind, TimingEasing> = {
   rocket: Easing.bezier(0.6, 0, 0.9, 0.4),
   blow: Easing.bezier(0.5, 0, 0.8, 0.6),
@@ -21,6 +24,11 @@ const EASING: Record<FinishKind, TimingEasing> = {
   // The row waits for the strike-through, so its own ease-in is applied in the frames.
   cross: Easing.linear,
   throw: Easing.bezier(0.4, 0, 0.6, 1),
+  sink: EASE_IN,
+  zap: Easing.linear,
+  up: EASE_IN,
+  burn: EASE_IN,
+  dust: EASE_IN,
   fade: Easing.in(Easing.quad),
 };
 
@@ -103,28 +111,61 @@ export function FinishFx({ kind, ms, leaving, onDone, children }: { kind: Finish
             { scale: keyframes(v, [0, 0.3, 0.45, 1], [1, 1.03, 1.03, 0.6]) },
           ],
         };
+      case 'sink':
+        // Glows up a little, then sinks behind the horizon (the clip below).
+        return { opacity: 1 - v, transform: [{ translateX: 0 }, { translateY: keyframes(v, [0, 0.35, 1], [0, -4, 40]) }, { rotate: '0deg' }, { skewX: '0deg' }] };
+      case 'zap':
+        // Struck: a flash, a jolt each way, then the broken part drops away.
+        return {
+          opacity: stepframes(v, [0, 0.6, 0.8, 1], [1, 0.7, 0.3, 0]),
+          transform: [
+            { translateX: stepframes(v, [0, 0.3, 0.45, 0.6], [0, 3, -3, -8]) },
+            { translateY: stepframes(v, [0, 0.6], [0, 6]) },
+            { rotate: `${stepframes(v, [0, 0.6], [0, -3])}deg` },
+            { skewX: '0deg' },
+          ],
+        };
+      case 'up':
+        // Rises into the clouds.
+        return {
+          opacity: keyframes(v, [0, 0.6, 1], [1, 0.5, 0]),
+          transform: [{ translateX: 0 }, { translateY: -50 * v }, { rotate: '0deg' }, { skewX: '0deg' }, { scale: 1 - 0.08 * v }],
+        };
+      case 'burn':
+        // Catches fire and burns away from the left (the clip below).
+        return { opacity: keyframes(v, [0, 0.6, 1], [1, 0.8, 0]), transform: [{ translateX: 0 }, { translateY: 0 }, { rotate: '0deg' }, { skewX: '0deg' }] };
+      case 'dust':
+        // Brightens and drifts up as it crumbles into stardust.
+        return { opacity: 1 - v, transform: [{ translateX: 0 }, { translateY: -14 * v }, { rotate: '0deg' }, { skewX: '0deg' }] };
       case 'fade':
         return { opacity: 1 - v, transform: [{ translateX: 0 }, { translateY: -8 * v }, { rotate: '0deg' }, { skewX: '0deg' }] };
     }
   });
+  const clip = CLIP[use];
 
   return (
     <Animated.View style={[leaving && { zIndex: 3 }, rowStyle]}>
-      {use === 'glitch' ? (
-        <GlitchClip t={t} leaving={leaving}>
+      {clip ? (
+        <ClipBox t={t} leaving={leaving} insets={clip}>
           {children}
-        </GlitchClip>
+          {leaving && <Tint kind={use} t={t} />}
+        </ClipBox>
       ) : (
-        children
+        <>
+          {children}
+          {leaving && <Tint kind={use} t={t} />}
+        </>
       )}
       {leaving && <Overlay kind={use} t={t} />}
     </Animated.View>
   );
 }
 
+type Insets = [top: number, right: number, bottom: number, left: number];
+
 /** Neon's clip steps: [top, right, bottom, left] cut off, as fractions of the row. */
 const GLITCH_AT = [0, 0.2, 0.3, 0.4, 0.55, 0.7, 0.85, 1];
-const GLITCH_CLIP = [
+const GLITCH_CLIP: Insets[] = [
   [0, 0, 0, 0],
   [0, 0, 0.55, 0],
   [0.4, 0, 0, 0],
@@ -134,35 +175,58 @@ const GLITCH_CLIP = [
   [0.45, 0.8, 0.45, 0.15],
   [0.5, 1, 0.5, 0],
 ];
-const glitchSide = (v: number, side: number) => {
-  'worklet';
-  return stepframes(
-    v,
-    GLITCH_AT,
-    GLITCH_CLIP.map((c) => c[side]),
-  );
+
+/** How much of the row each finish cuts away over time (`v` 0..1). */
+const CLIP: Partial<Record<FinishKind, (v: number) => Insets>> = {
+  // Neon: ever smaller slices.
+  glitch: (v) => {
+    'worklet';
+    let i = 0;
+    while (i + 1 < GLITCH_AT.length && v >= GLITCH_AT[i + 1]) i++;
+    return GLITCH_CLIP[i];
+  },
+  // Sunset: sinks below the horizon, from the bottom up.
+  sink: (v) => {
+    'worklet';
+    return [0, 0, v, 0];
+  },
+  // Thunder: the right part breaks off where the bolt hit.
+  zap: (v) => {
+    'worklet';
+    return [0, v >= 0.45 ? 0.47 : 0, 0, 0];
+  },
+  // Ember: burns away from the left.
+  burn: (v) => {
+    'worklet';
+    return [0, 0, 0, keyframes(v, [0, 0.25, 0.6, 1], [0, 0, 0.45, 1])];
+  },
 };
 
-/**
- * Neon: cuts the row into ever smaller slices as it glitches away, with
- * magenta and cyan ghost outlines. The row keeps its height meanwhile, so
- * the list doesn't jump until it's gone.
- */
-function GlitchClip({ t, leaving, children }: { t: SharedValue<number>; leaving: boolean; children: ReactNode }) {
+/** The 10 px gap under a task card (TaskRow), which overlays on the card leave out. */
+function useCardGap(): number {
   const c = useTheme();
+  return c.listStyle === 'cards' && !c.holo ? 10 : 0;
+}
+
+/**
+ * Cuts the row away as it leaves (`insets` over time). The row keeps its
+ * height meanwhile, so the list doesn't jump until it's gone.
+ */
+function ClipBox({ t, leaving, insets, children }: { t: SharedValue<number>; leaving: boolean; insets: (v: number) => Insets; children: ReactNode }) {
   const [size, setSize] = useState({ w: 0, h: 0 });
   const w = size.w;
   const h = size.h;
   const clipStyle = useAnimatedStyle(() => {
     const v = t.value;
     if (v <= 0 || w === 0) return { width: '100%', height: 'auto', transform: [{ translateX: 0 }, { translateY: 0 }] };
-    const [top, right, bottom, left] = [0, 1, 2, 3].map((i) => glitchSide(v, i));
+    const [top, right, bottom, left] = insets(v);
     return { width: Math.max(0, 1 - left - right) * w, height: Math.max(0, 1 - top - bottom) * h, transform: [{ translateX: left * w }, { translateY: top * h }] };
   });
   const innerStyle = useAnimatedStyle(() => {
     const v = t.value;
     if (v <= 0 || w === 0) return { width: '100%', transform: [{ translateX: 0 }, { translateY: 0 }] };
-    return { width: w, transform: [{ translateX: -glitchSide(v, 3) * w }, { translateY: -glitchSide(v, 0) * h }] };
+    const [top, , , left] = insets(v);
+    return { width: w, transform: [{ translateX: -left * w }, { translateY: -top * h }] };
   });
   return (
     <View
@@ -172,28 +236,52 @@ function GlitchClip({ t, leaving, children }: { t: SharedValue<number>; leaving:
       }}
     >
       <Animated.View style={[leaving && { overflow: 'hidden' }, clipStyle as ViewStyle]}>
-        <Animated.View style={innerStyle as ViewStyle}>
-          {children}
-          {leaving && (
-            <>
-              <GhostOutline t={t} color="#ff2bd6" sign={1} radius={c.radius} />
-              <GhostOutline t={t} color="#22e8ff" sign={-1} radius={c.radius} />
-            </>
-          )}
-        </Animated.View>
+        <Animated.View style={innerStyle as ViewStyle}>{children}</Animated.View>
       </Animated.View>
     </View>
   );
 }
 
+/** Light or colour washed over the card itself while it leaves (cut with it). */
+function Tint({ kind, t }: { kind: FinishKind; t: SharedValue<number> }) {
+  const c = useTheme();
+  const gap = useCardGap();
+  const shape = { borderRadius: c.radius, bottom: gap };
+  switch (kind) {
+    case 'glitch':
+      return (
+        <>
+          <GhostOutline t={t} color="#ff2bd6" sign={1} style={shape} />
+          <GhostOutline t={t} color="#22e8ff" sign={-1} style={shape} />
+        </>
+      );
+    case 'sink':
+      // Turns sunset orange as it goes down.
+      return <Glow t={t} color="#ff8c3c" at={[0, 0.35, 1]} opacity={[0, 0.25, 0.5]} style={shape} />;
+    case 'zap':
+      // The flash of the strike.
+      return <Glow t={t} color="#fff6b0" at={[0, 0.15, 0.3]} opacity={[0, 0.85, 0]} steps style={shape} />;
+    case 'burn':
+      return <Glow t={t} color="#ff7a00" at={[0, 0.25, 0.6]} opacity={[0, 0.35, 0.2]} style={shape} />;
+    case 'dust':
+      return <Glow t={t} color="#ffffff" at={[0, 0.3, 1]} opacity={[0, 0.15, 0.3]} style={shape} />;
+    default:
+      return null;
+  }
+}
+
+function Glow({ t, color, at, opacity, steps, style }: { t: SharedValue<number>; color: string; at: number[]; opacity: number[]; steps?: boolean; style: ViewStyle }) {
+  const anim = useAnimatedStyle(() => ({ opacity: steps ? stepframes(t.value, at, opacity) : keyframes(t.value, at, opacity) }));
+  return <Animated.View pointerEvents="none" style={[styles.cover, { backgroundColor: color }, style, anim]} />;
+}
+
 /** A coloured copy of the card's outline, knocked sideways (the board's split drop-shadows). */
-function GhostOutline({ t, color, sign, radius }: { t: SharedValue<number>; color: string; sign: number; radius: number }) {
-  const style = useAnimatedStyle(() => {
+function GhostOutline({ t, color, sign, style }: { t: SharedValue<number>; color: string; sign: number; style: ViewStyle }) {
+  const anim = useAnimatedStyle(() => {
     const off = stepframes(t.value, [0, 0.1, 0.4], [0, 4, 6]);
     return { opacity: off > 0 ? 0.9 : 0, transform: [{ translateX: sign * off }] };
   });
-  // The card has a 10 px gap below it (TaskRow), which the outline leaves out.
-  return <Animated.View pointerEvents="none" style={[styles.ghost, { borderRadius: radius, borderColor: color }, style]} />;
+  return <Animated.View pointerEvents="none" style={[styles.cover, { borderWidth: 1.5, borderColor: color }, style, anim]} />;
 }
 
 /** Neon: the task card's outline pulsing slowly between cyan and magenta. */
@@ -205,7 +293,11 @@ export function RowPulse({ colors, radius }: { colors: [string, string]; radius:
 }
 
 const styles = StyleSheet.create({
-  ghost: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 10, borderWidth: 1.5 },
+  cover: { position: 'absolute', left: 0, right: 0, top: 0 },
+  cloud: { position: 'absolute', borderRadius: 999, backgroundColor: '#ffffff' },
+  // Blurred where phones can blur; faint enough to stay soft where they can't.
+  smoke: { position: 'absolute', bottom: '40%', width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(160,150,145,0.35)', filter: 'blur(5px)' } as ViewStyle,
+  mote: { position: 'absolute', width: 4, height: 4, borderRadius: 2, backgroundColor: '#ffffff', boxShadow: '0 0 6px #a3b3ea' } as ViewStyle,
 });
 
 function Overlay({ kind, t }: { kind: FinishKind; t: SharedValue<number> }) {
@@ -220,7 +312,16 @@ function Overlay({ kind, t }: { kind: FinishKind; t: SharedValue<number> }) {
       return <StrikeThrough t={t} />;
     case 'throw':
       return <Hands t={t} />;
+    case 'zap':
+      return <Strike t={t} />;
+    case 'up':
+      return <Puff t={t} />;
+    case 'burn':
+      return <Smoke t={t} />;
+    case 'dust':
+      return <Stardust t={t} />;
     case 'glitch':
+    case 'sink':
     case 'fade':
       return null;
   }
@@ -349,4 +450,91 @@ function Hands({ t }: { t: SharedValue<number> }) {
       </Svg>
     </Animated.View>
   );
+}
+
+/** Thunder: the bolt that strikes the task, there for a blink. */
+function Strike({ t }: { t: SharedValue<number> }) {
+  const style = useAnimatedStyle(() => ({ opacity: stepframes(t.value, [0, 0.1, 0.31], [0, 1, 0]) }));
+  return (
+    <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: '58%', top: -60 }, style]}>
+      <Svg width={30} height={90} viewBox="0 0 30 90">
+        <Path d="M18 0 6 40h9L8 90 26 32h-9l6-32z" fill="#fff6b0" />
+      </Svg>
+    </Animated.View>
+  );
+}
+
+/** Summit: a puff of cloud the task rises into. */
+function Puff({ t }: { t: SharedValue<number> }) {
+  const gap = useCardGap();
+  const style = useAnimatedStyle(() => {
+    const v = t.value;
+    return { opacity: keyframes(v, [0, 0.4, 1], [0, 0.95, 0]), transform: [{ translateY: keyframes(v, [0, 0.4, 1], [0, 0, -40]) }, { scale: keyframes(v, [0, 0.4, 1], [1, 1, 1.3]) }] };
+  });
+  return (
+    <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, right: 0, top: 0, bottom: gap }, style]}>
+      <View style={[styles.cloud, { left: '22%', top: '22%', width: '16%', aspectRatio: 1 }]} />
+      <View style={[styles.cloud, { left: '43%', top: '5%', width: '24%', aspectRatio: 1 }]} />
+      <View style={[styles.cloud, { left: '66%', top: '25%', width: '17%', aspectRatio: 1 }]} />
+    </Animated.View>
+  );
+}
+
+const SMOKE = [
+  { left: '15%', start: 0.22 },
+  { left: '35%', start: 0.33 },
+  { left: '55%', start: 0.43 },
+  { left: '75%', start: 0.54 },
+] as const;
+
+/** Ember: grey smoke curling up as the task burns. */
+function Smoke({ t }: { t: SharedValue<number> }) {
+  return (
+    <>
+      {SMOKE.map((p, i) => (
+        <SmokePuff key={i} t={t} left={p.left} start={p.start} />
+      ))}
+    </>
+  );
+}
+
+function SmokePuff({ t, left, start }: { t: SharedValue<number>; left: `${number}%`; start: number }) {
+  const style = useAnimatedStyle(() => {
+    const p = Math.max(0, Math.min(1, (t.value - start) / (1 - start)));
+    const out = 1 - (1 - p) * (1 - p);
+    return { opacity: keyframes(p, [0, 0.2, 1], [0, 0.8, 0]), transform: [{ translateX: 10 * out }, { translateY: -70 * out }, { scale: 1 + 1.2 * out }] };
+  });
+  return <Animated.View pointerEvents="none" style={[styles.smoke, { left }, style]} />;
+}
+
+const DUST = [
+  { left: '10%', top: '50%', x: -10, y: -60, delay: 0 },
+  { left: '25%', top: '30%', x: 20, y: -80, delay: 0.05 },
+  { left: '40%', top: '60%', x: -15, y: -70, delay: 0.11 },
+  { left: '55%', top: '40%', x: 30, y: -90, delay: 0.03 },
+  { left: '70%', top: '55%', x: 10, y: -60, delay: 0.08 },
+  { left: '85%', top: '35%', x: 25, y: -75, delay: 0.14 },
+  { left: '32%', top: '70%', x: 5, y: -50, delay: 0.18 },
+  { left: '63%', top: '25%', x: -20, y: -85, delay: 0.15 },
+] as const;
+
+/** Midnight: sparks of stardust drifting up from the task. */
+function Stardust({ t }: { t: SharedValue<number> }) {
+  const gap = useCardGap();
+  return (
+    <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: gap }}>
+      {DUST.map((d, i) => (
+        <Mote key={i} t={t} {...d} />
+      ))}
+    </View>
+  );
+}
+
+function Mote({ t, left, top, x, y, delay }: { t: SharedValue<number>; left: `${number}%`; top: `${number}%`; x: number; y: number; delay: number }) {
+  const style = useAnimatedStyle(() => {
+    const p = Math.max(0, Math.min(1, (t.value - delay) / (1 - delay)));
+    const out = 1 - (1 - p) * (1 - p);
+    return { opacity: keyframes(p, [0, 0.2, 1], [0, 1, 0]), transform: [{ translateX: x * out }, { translateY: y * out }] };
+  });
+  return <Animated.View style={[styles.mote, { left, top }, style]} />;
 }

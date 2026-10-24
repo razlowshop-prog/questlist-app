@@ -3,11 +3,11 @@
 // ticked task leaves the list. Themes without an entry keep the brand bar
 // and a plain fade.
 
-export type MascotKind = 'rocket' | 'sprout' | 'boat' | 'car' | 'pencil' | 'lifter';
-export type FinishKind = 'rocket' | 'blow' | 'wash' | 'glitch' | 'cross' | 'throw' | 'fade';
-export type AmbientKind = 'stars' | 'leaves' | 'sea' | 'synth' | 'floor';
+export type MascotKind = 'rocket' | 'sprout' | 'boat' | 'car' | 'pencil' | 'lifter' | 'sun' | 'bolt' | 'climber' | 'flame' | 'moon';
+export type FinishKind = 'rocket' | 'blow' | 'wash' | 'glitch' | 'cross' | 'throw' | 'sink' | 'zap' | 'up' | 'burn' | 'dust' | 'fade';
+export type AmbientKind = 'stars' | 'leaves' | 'sea' | 'synth' | 'floor' | 'dusk' | 'storm' | 'peaks' | 'embers' | 'night';
 /** Drawn on the fill and revealed as it grows. */
-export type BarDecor = 'vine' | 'wavetop';
+export type BarDecor = 'vine' | 'wavetop' | 'arcs' | 'coals';
 
 export interface ThemeBarSpec {
   height: number;
@@ -117,28 +117,52 @@ export const THEME_FX: Record<string, ThemeFx> = {
   },
   sunset: {
     bar: { height: 10, track: '#f1e2d6', fill: linear(90, '#ffb36b', '#e0603c', '#b44e33'), fillColor: '#e0603c', glow: '#ffb36b' },
-    finish: 'fade',
-    finishMs: 600,
+    mascot: 'sun',
+    mascotScale: 1.2,
+    finish: 'sink',
+    finishMs: 1000,
+    ambient: 'dusk',
   },
   thunder: {
-    bar: { height: 10, track: '#282a34', fill: linear(90, '#c9b84a', '#e6d36a', '#fff6b0'), fillColor: '#e6d36a', glow: '#fff6b0' },
-    finish: 'fade',
-    finishMs: 600,
+    bar: {
+      height: 10,
+      track: '#282a34',
+      fill: linear(90, '#c9b84a', '#e6d36a', '#fff6b0'),
+      fillColor: '#e6d36a',
+      glow: '#fff6b0',
+      radius: 2,
+      fillShadow: '0 0 10px rgba(230,211,106,0.7)',
+      decor: 'arcs',
+    },
+    mascot: 'bolt',
+    mascotScale: 1.2,
+    finish: 'zap',
+    finishMs: 850,
+    ambient: 'storm',
   },
   summit: {
     bar: { height: 6, track: '#dcdfe2', fill: linear(90, '#7d93a8', '#334250'), fillColor: '#56697c', glow: '#7d93a8' },
-    finish: 'fade',
-    finishMs: 600,
+    mascot: 'climber',
+    mascotScale: 1.2,
+    finish: 'up',
+    finishMs: 1000,
+    ambient: 'peaks',
   },
   ember: {
-    bar: { height: 8, track: '#352722', fill: linear(90, '#7a2a12', '#e0541c', '#ffb347'), fillColor: '#e0541c', glow: '#ffb347' },
-    finish: 'fade',
-    finishMs: 600,
+    bar: { height: 8, track: '#352722', fill: linear(90, '#7a2a12', '#e0541c', '#ffb347'), fillColor: '#e0541c', glow: '#ffb347', fillShadow: '0 0 10px rgba(234,141,102,0.7)', decor: 'coals' },
+    mascot: 'flame',
+    mascotScale: 1.2,
+    finish: 'burn',
+    finishMs: 1150,
+    ambient: 'embers',
   },
   midnight: {
     bar: { height: 6, track: '#242838', fill: linear(90, '#59607a', '#a3b3ea', '#ffffff'), fillColor: '#a3b3ea', glow: '#ffffff' },
-    finish: 'fade',
-    finishMs: 600,
+    mascot: 'moon',
+    mascotScale: 1.2,
+    finish: 'dust',
+    finishMs: 1100,
+    ambient: 'night',
   },
 };
 
@@ -157,6 +181,11 @@ export const MASCOT_SIZE: Record<MascotKind, { width: number; height: number; si
   car: { width: 46, height: 24 },
   pencil: { width: 40, height: 40, sink: 9 },
   lifter: { width: 40, height: 44 },
+  sun: { width: 30, height: 30 },
+  bolt: { width: 18, height: 26 },
+  climber: { width: 22, height: 30 },
+  flame: { width: 20, height: 28 },
+  moon: { width: 24, height: 24 },
 };
 
 /**

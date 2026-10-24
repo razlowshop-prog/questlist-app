@@ -1,6 +1,6 @@
 import { View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, type SharedValue } from 'react-native-reanimated';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Circle, Defs, Path, RadialGradient, Stop } from 'react-native-svg';
 import type { BarDecor as DecorKind } from '../../themeFx';
 import { keyframes, LEAF, useLoop, useLoopsOn } from './hooks';
 
@@ -16,6 +16,10 @@ export function BarDecor({ kind, width, height, live }: { kind: DecorKind; width
       return <Vine width={width} height={height} live={live} />;
     case 'wavetop':
       return <WaveTop width={width} />;
+    case 'arcs':
+      return <Arcs width={width} height={height} />;
+    case 'coals':
+      return <Coals width={width} height={height} />;
   }
 }
 
@@ -79,6 +83,47 @@ function WaveTop({ width }: { width: number }) {
     <Animated.View style={[{ position: 'absolute', left: 0, top: -3, width: width + 24, height: 6, opacity: 0.9 }, style]}>
       <Svg width={width + 24} height={6}>
         <Path d={d} fill="#7fe3f0" />
+      </Svg>
+    </Animated.View>
+  );
+}
+
+/** Thunder: thin sparks crackling along the charged bar. */
+function Arcs({ width, height }: { width: number; height: number }) {
+  const on = useLoopsOn();
+  const t = useLoop(250, on, { restart: true, easing: Easing.linear });
+  // Jumps 7 px and back, in two hard steps.
+  const style = useAnimatedStyle(() => ({ transform: [{ translateX: t.value < 0.5 ? 0 : 7 }] }));
+  let d = '';
+  for (let x = 14; x < width + 15; x += 15) d += `M${x + 0.5} 0V${height}`;
+  return (
+    <Animated.View style={[{ position: 'absolute', left: 0, top: 0, width: width + 15, height, opacity: 0.35 }, style]}>
+      <Svg width={width + 15} height={height}>
+        <Path d={d} stroke="rgba(255,255,255,0.9)" strokeWidth={1} />
+      </Svg>
+    </Animated.View>
+  );
+}
+
+/** Ember: hot spots glowing and drifting inside the bar, like live coals. */
+function Coals({ width, height }: { width: number; height: number }) {
+  const on = useLoopsOn();
+  const t = useLoop(4400, on);
+  const style = useAnimatedStyle(() => ({ opacity: 1 - 0.4 * t.value, transform: [{ translateX: 30 * t.value }] }));
+  const spots: { x: number; r: number; o: number }[] = [];
+  for (let x = -60; x < width + 60; x += 60) spots.push({ x: x + 12, r: 18, o: 0.7 }, { x: x + 39, r: 15, o: 0.6 });
+  return (
+    <Animated.View style={[{ position: 'absolute', left: 0, top: 0, width: width + 60, height }, style]}>
+      <Svg width={width + 60} height={height}>
+        <Defs>
+          <RadialGradient id="coal" cx="50%" cy="50%" rx="50%" ry="50%">
+            <Stop offset="0" stopColor="#fff0b4" stopOpacity={1} />
+            <Stop offset="1" stopColor="#fff0b4" stopOpacity={0} />
+          </RadialGradient>
+        </Defs>
+        {spots.map((p, i) => (
+          <Circle key={i} cx={p.x} cy={height / 2} r={p.r} fill="url(#coal)" opacity={p.o} />
+        ))}
       </Svg>
     </Animated.View>
   );
