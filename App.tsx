@@ -67,6 +67,8 @@ import { withEstimatedTimes } from './src/estimate';
 import { answerRecovery, recoveryOffer, spendAdFree, spendDoubleXp, spendRestDay, swapChallenge, tokenCounts } from './src/tokens';
 import { TokenStrip } from './src/components/TokenStrip';
 import { GoldDust } from './src/components/Fortuna';
+import { Ambient, ThemeFxContext } from './src/components/ThemeFx';
+import { themeFx } from './src/themeFx';
 import { RecoveryModal } from './src/components/RecoveryModal';
 import { FlameStyleContext } from './src/components/Fire';
 import { AvatarDiscContext } from './src/components/ProfileFrame';
@@ -182,6 +184,7 @@ export default function App() {
   const wantedTheme = themeById(unlockedThemes.has(state.settings.theme) ? state.settings.theme : 'classic');
   const theme = themeById(shownThemeId ?? wantedTheme.id);
   const c = theme.palette;
+  const fx = themeFx(theme.id);
 
   useEffect(() => {
     if (!loaded) return;
@@ -357,12 +360,14 @@ export default function App() {
 
   return (
     <ThemeProvider palette={c}>
+      <ThemeFxContext.Provider value={fx}>
       <FlameStyleContext.Provider value={looks.flameStyle}>
         <CelebrationContext.Provider value={looks.celebration}>
           <AvatarDiscContext.Provider value={state.settings.avatar}>
           <SafeAreaView style={styles.safe}>
             <StatusBar style={statusBar} />
             {c.backdrop === 'dust' && (tab !== 'spin' || page) && <GoldDust />}
+            {fx.ambient && (tab !== 'spin' || page) && <Ambient kind={fx.ambient} />}
             {page ? (
               <BackBar backTo={TABS.find((t) => t.key === tab)!.label} title={PAGE_TITLES[page]} onBack={() => setPage(null)} />
             ) : (
@@ -588,6 +593,7 @@ export default function App() {
           </AvatarDiscContext.Provider>
         </CelebrationContext.Provider>
       </FlameStyleContext.Provider>
+      </ThemeFxContext.Provider>
     </ThemeProvider>
   );
 }
