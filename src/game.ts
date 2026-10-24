@@ -187,6 +187,8 @@ export interface Settings {
   celebration?: CelebrationId;
   /** Which of the five avatar gradients (vivid.ts AVATAR_DISCS) the profile picture uses. */
   avatar?: number;
+  /** Up to 3 won trophies pinned to the profile, in order (trophies.ts SHOWCASE_SIZE). */
+  showcase?: string[];
 }
 
 /** Evening time of the "your streak is about to end" notification. */
