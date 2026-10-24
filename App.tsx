@@ -9,6 +9,7 @@ import { Animated, BackHandler, Easing, Platform, Pressable, SafeAreaView, Style
 import { activitySummary } from './src/activity';
 import { BackBar, TopBar } from './src/components/TopBar';
 import { XpProgress } from './src/components/XpProgress';
+import { FirstDayGuide } from './src/components/FirstDayGuide';
 import { ComboPill, MomentCelebration, type Moment } from './src/components/Moments';
 import { PERFECT_DAY_XP, reachStreakMilestone, syncPerfectDay } from './src/moments';
 import {
@@ -60,7 +61,7 @@ import { SetupScreen, type SetupPick } from './src/screens/SetupScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { SpinScreen } from './src/screens/SpinScreen';
 import { TodayScreen } from './src/screens/TodayScreen';
-import { ownsWheelTheme, spinsToPity, spinWheel, ticketStatus } from './src/wheel';
+import { ownsWheelTheme, spinsToPity, spinWheel, ticketStatus, XP_PER_TICKET } from './src/wheel';
 import { tickStep } from './src/steps';
 import { claimDaily, dailyChallenges } from './src/daily';
 import type { LibraryTask } from './src/library';
@@ -497,6 +498,15 @@ export default function App() {
                       state={state}
                       today={today}
                       onRest={takeRestDay}
+                    />
+                  }
+                  guide={
+                    <FirstDayGuide
+                      state={state}
+                      totalXp={xp}
+                      ticketXp={tickets.earned > 0 ? XP_PER_TICKET : tickets.progress}
+                      onOpenSpin={() => openTab('spin')}
+                      onHide={() => setState(updateSettings(state, { guideHidden: true }))}
                     />
                   }
                   today={today}
