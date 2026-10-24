@@ -127,6 +127,10 @@ export interface GameState {
   stepTicks?: StepTick[];
   /** Daily challenges claimed (see daily.ts). */
   dailyClaims?: DailyClaim[];
+  /** Days every task was done, with their small bonus (see moments.ts). */
+  perfectDays?: PerfectDay[];
+  /** Streak milestones reached (7, 30, 100, 365 days), for the celebration and the profile. */
+  streakMilestones?: { days: number; date: string }[];
 }
 
 export interface DailyClaim {
@@ -134,6 +138,13 @@ export interface DailyClaim {
   /** The day the challenge belonged to and was claimed, YYYY-MM-DD. */
   date: string;
   xp: number;
+}
+
+export interface PerfectDay {
+  date: string;
+  xp: number;
+  /** Tasks done that day when it was earned; unticking below this takes it back. */
+  tasks: number;
 }
 
 export interface StepTick {
@@ -324,6 +335,7 @@ export function totalXp(state: GameState): number {
     state.claims.reduce((sum, c) => sum + c.xp, 0) +
     state.achievementClaims.reduce((sum, c) => sum + c.xp, 0) +
     (state.dailyClaims ?? []).reduce((sum, c) => sum + c.xp, 0) +
+    (state.perfectDays ?? []).reduce((sum, d) => sum + d.xp, 0) +
     wheelXp(state) +
     stepXp(state)
   );
