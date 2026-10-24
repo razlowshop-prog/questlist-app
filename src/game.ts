@@ -123,7 +123,8 @@ export interface GameState {
    */
   recovery?: { day: string; used: boolean };
   /** Monthly events finished, by month ("2026-10"); each wins that month's frame. */
-  seasonClaims?: { month: string; date: string }[];
+  /** Monthly events won; `xp` is the bonus paid (events won before it existed paid none). */
+  seasonClaims?: { month: string; date: string; xp?: number }[];
   /** Lucky wheel spins, oldest first (see wheel.ts). */
   wheelSpins?: WheelSpin[];
   /** Steps of long tasks ticked off on the way (see steps.ts). */
@@ -344,7 +345,8 @@ export function totalXp(state: GameState): number {
     (state.dailyClaims ?? []).reduce((sum, c) => sum + c.xp, 0) +
     (state.perfectDays ?? []).reduce((sum, d) => sum + d.xp, 0) +
     wheelXp(state) +
-    stepXp(state)
+    stepXp(state) +
+    (state.seasonClaims ?? []).reduce((sum, c) => sum + (c.xp ?? 0), 0)
   );
 }
 
