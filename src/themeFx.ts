@@ -3,9 +3,11 @@
 // ticked task leaves the list. Themes without an entry keep the brand bar
 // and a plain fade.
 
-export type MascotKind = 'rocket';
-export type FinishKind = 'rocket' | 'fade';
-export type AmbientKind = 'stars';
+export type MascotKind = 'rocket' | 'sprout' | 'boat';
+export type FinishKind = 'rocket' | 'blow' | 'wash' | 'fade';
+export type AmbientKind = 'stars' | 'leaves' | 'sea';
+/** Drawn on the fill and revealed as it grows. */
+export type BarDecor = 'vine' | 'wavetop';
 
 export interface ThemeBarSpec {
   height: number;
@@ -15,6 +17,7 @@ export interface ThemeBarSpec {
   fillColor: string;
   /** The tip glow while XP is added. */
   glow: string;
+  decor?: BarDecor;
 }
 
 export interface ThemeFx {
@@ -42,9 +45,20 @@ export const THEME_FX: Record<string, ThemeFx> = {
     ambient: 'stars',
   },
   forest: {
-    bar: { height: 10, track: '#d8e3d2', fill: linear(90, '#6aa060', '#3f6b4a'), fillColor: '#548655', glow: '#9cd08f' },
-    finish: 'fade',
-    finishMs: 600,
+    bar: { height: 10, track: '#d8e3d2', fill: linear(90, '#6aa060', '#3f6b4a'), fillColor: '#548655', glow: '#9cd08f', decor: 'vine' },
+    mascot: 'sprout',
+    mascotScale: 1.25,
+    finish: 'blow',
+    finishMs: 1000,
+    ambient: 'leaves',
+  },
+  ocean: {
+    bar: { height: 12, track: 'rgba(255,255,255,0.12)', fill: linear(180, '#7fe3f0', '#1aa6c4'), fillColor: '#4cc5dc', glow: '#7fe3f0', decor: 'wavetop' },
+    mascot: 'boat',
+    mascotScale: 1.45,
+    finish: 'wash',
+    finishMs: 1100,
+    ambient: 'sea',
   },
   sunset: {
     bar: { height: 10, track: '#f1e2d6', fill: linear(90, '#ffb36b', '#e0603c', '#b44e33'), fillColor: '#e0603c', glow: '#ffb36b' },
@@ -80,6 +94,8 @@ export function themeFx(themeId: string): ThemeFx {
 /** Mascot drawings, unscaled: width and height in px. */
 export const MASCOT_SIZE: Record<MascotKind, { width: number; height: number }> = {
   rocket: { width: 58, height: 30 },
+  sprout: { width: 26, height: 26 },
+  boat: { width: 34, height: 30 },
 };
 
 /**

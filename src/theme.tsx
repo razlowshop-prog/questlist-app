@@ -215,7 +215,8 @@ export const THEMES: ThemeDef[] = [
     reward: 'Forest theme',
     palette: palette({
       light: true,
-      colors: ['eef1ea', 'ffffff', 'e3e9df', 'd3dbcf', '1d2a20', '4f5e52', '6a776c', 'a9b4a6', '3f6b4a', 'ffffff'],
+      colors: ['ebf2e3', 'ffffff', 'e3e9df', 'd3dbcf', '1d2a20', '4f5e52', '5b6b5e', 'a9b4a6', '3f6b4a', 'ffffff'],
+      bgImage: 'linear-gradient(180deg, #f3f7ec 0%, #e3eedb 100%)',
       fonts: CORMORANT,
       radius: 14, listStyle: 'cards', check: 'square', lineWeight: 6, tip: false,
       eyebrowCaps: false, logoRule: false, ornament: 'leaf', italicAccent: true, headingUpper: false,
@@ -225,11 +226,13 @@ export const THEMES: ThemeDef[] = [
     id: 'ocean',
     name: 'Ocean',
     reward: 'Ocean theme',
+    // Dark since the animated themes (spec "themes-frames-event"): deep sea, boat on the bar.
     palette: palette({
-      light: true,
-      colors: ['edf3f5', 'ffffff', 'e0eaee', 'cfdde3', '10232c', '3f5864', '5e7480', 'a3b5bd', '226580', 'ffffff'],
+      colors: ['08324a', '0b3149', '0f3d5a', '1f5468', 'eaf7fb', 'bfe1ea', '9cc3d1', '5f8fa0', '7fe3f0', '04192a'],
+      bgImage: 'linear-gradient(180deg, #0d4a66 0%, #08324a 45%, #04192a 100%)',
+      tabBar: 'rgba(4,25,42,0.9)',
       fonts: heading('DMSerifDisplay_400Regular', 'DMSerifDisplay_400Regular_Italic'),
-      radius: 20, listStyle: 'lines', check: 'circle', lineWeight: 3, tip: false,
+      radius: 18, listStyle: 'cards', check: 'circle', lineWeight: 3, tip: false,
       eyebrowCaps: false, logoRule: false, ornament: 'wave', italicAccent: true, headingUpper: false,
     }),
   },

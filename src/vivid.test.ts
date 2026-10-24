@@ -91,7 +91,7 @@ test('challenge rarity grows with the reward', () => {
 test('gradient numbers stay readable on every light theme background', () => {
   const src = readFileSync(new URL('./theme.tsx', import.meta.url), 'utf8');
   const light = [...src.matchAll(/light: true,\s*colors: \['(\w{6})', '(\w{6})'/g)].map((m) => [`#${m[1]}`, `#${m[2]}`]);
-  assert.ok(light.length >= 4, 'found the light themes');
+  assert.ok(light.length >= 3, 'found the light themes');
   for (const [bg, cardBg] of light) {
     assert.ok(contrast(textSolid(false), bg) >= 4.5, `on ${bg}`);
     assert.ok(contrast(textSolid(false), cardBg) >= 4.5, `on ${cardBg}`);
