@@ -152,7 +152,7 @@ function EventRow({ event }: { event: ActivityEvent }) {
     case 'challenge':
       icon = <AppIcon name={event.icon} size={18} color={c.muted} />;
       title = event.title;
-      sub = 'Weekly challenge claimed';
+      sub = event.daily ? 'Daily challenge claimed' : 'Weekly challenge claimed';
       xp = event.xp;
       break;
     case 'achievement':

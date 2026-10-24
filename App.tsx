@@ -62,6 +62,7 @@ import { SpinScreen } from './src/screens/SpinScreen';
 import { TodayScreen } from './src/screens/TodayScreen';
 import { ownsWheelTheme, spinsToPity, spinWheel, ticketStatus } from './src/wheel';
 import { tickStep } from './src/steps';
+import { claimDaily, dailyChallenges } from './src/daily';
 import type { LibraryTask } from './src/library';
 import { fontFilesFor, VIVID_FONTS, WHEEL_FONTS } from './src/fonts';
 import { trophyStatuses } from './src/trophies';
@@ -171,7 +172,9 @@ export default function App() {
   const tasks = useMemo(() => visibleTasks(state, today), [state, today]);
   const upcoming = useMemo(() => upcomingTasks(state, today), [state.tasks, today]);
   const challenges = useMemo(() => weeklyChallenges(state, today), [state, today]);
-  const readyToClaim = challenges.filter((c) => c.complete && !c.claimed).length;
+  const hour = new Date().getHours();
+  const daily = useMemo(() => dailyChallenges(state, today, hour), [state, today, hour]);
+  const readyToClaim = [...challenges, ...daily].filter((c) => c.complete && !c.claimed).length;
   const achievements = useMemo(() => achievementStatuses(state, today), [state, today]);
   const trophies = useMemo(() => trophyStatuses(state, today), [state, today]);
   const tokens = tokenCounts(state);
@@ -349,6 +352,11 @@ export default function App() {
     if (gained > 0) showToast(`Challenge complete · +${gained} XP`);
   }
 
+  function onClaimDaily(id: string) {
+    const gained = apply(claimDaily(state, id, today, new Date().getHours()));
+    if (gained > 0) showToast(`Daily challenge complete · +${gained} XP`);
+  }
+
   function onClaimAchievement(id: string) {
     const { state: next, tier } = claimAchievement(state, id, today);
     if (!tier) return;
@@ -513,6 +521,8 @@ export default function App() {
               {!page && tab === 'challenges' && (
                 <ChallengesScreen
                   challenges={challenges}
+                  daily={daily}
+                  onClaimDaily={onClaimDaily}
                   today={today}
                   onClaim={onClaim}
                   swapsLeft={tokens.reroll}
