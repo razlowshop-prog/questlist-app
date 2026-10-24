@@ -21,7 +21,7 @@ export const KEYLINE = '#0e0b12';
 
 export const TICKET_COLORS = { c1: '#FFE066', c2: '#FF7A00', ink: '#4A2600' };
 
-function prizeIcon(prize: WheelPrize): LucideIcon {
+export function prizeIcon(prize: WheelPrize): LucideIcon {
   if (prize.theme) return Gem;
   if (prize.id === 'jackpot') return Star;
   switch (prize.token) {
