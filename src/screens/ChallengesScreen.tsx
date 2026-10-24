@@ -2,6 +2,7 @@ import { Plus } from 'lucide-react-native';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { addDays, SENSOR_CHALLENGES, weekStart, type ChallengeDef, type ChallengeStatus } from '../game';
 import { EventCard } from '../components/EventCard';
+import type { DailyStatus } from '../daily';
 import type { SeasonStatus } from '../seasons';
 import { card, themed, useStyles, useTheme, FONTS, headingCase } from '../theme';
 import { fill, Glyph, BRAND_FILL_SMALL, BRAND_INK, GradientText, ProgressRing, StickerHeading, VIVID_HEAVY, BRAND_TEXT_SHADOW } from '../components/Vivid';
@@ -9,6 +10,8 @@ import { brandGlow, brandLine, challengeRarity, ICON_GLYPHS, RARITY, SEASON_PILL
 
 export function ChallengesScreen({
   challenges,
+  daily,
+  onClaimDaily,
   today,
   onClaim,
   swapsLeft,
@@ -17,6 +20,9 @@ export function ChallengesScreen({
   onClaimSeason,
 }: {
   challenges: ChallengeStatus[];
+  /** Today's two small challenges. */
+  daily: DailyStatus[];
+  onClaimDaily: (id: string) => void;
   today: string;
   onClaim: (id: string) => void;
   /** Challenge swap tokens held. */
@@ -37,6 +43,24 @@ export function ChallengesScreen({
         <Text style={[s.heading, s.subHeading, { marginTop: 0 }]}>Monthly event</Text>
       </StickerHeading>
       <EventCard season={season} onClaim={onClaimSeason} />
+
+      <StickerHeading glyph="Sun" grad={RARITY.rare} style={{ marginTop: 24 }}>
+        <Text style={[s.heading, s.subHeading, { marginTop: 0 }]}>Today's challenges</Text>
+      </StickerHeading>
+      <Text style={s.sub}>Two new ones every day · reset at midnight</Text>
+      {daily.map((ch) => (
+        <ChallengeCard key={ch.def.id} def={ch.def} progress={ch.progress} highlight={ch.complete && !ch.claimed} locked={ch.ended} lockedNote="Ended for today">
+          {ch.claimed ? (
+            <Text style={s.claimed}>✓ Claimed</Text>
+          ) : ch.complete ? (
+            <Pressable style={s.claim} onPress={() => onClaimDaily(ch.def.id)} accessibilityRole="button">
+              <Text style={s.claimText}>Claim +{ch.def.rewardXp} XP</Text>
+            </Pressable>
+          ) : (
+            <GradientText style={s.reward}>+{ch.def.rewardXp} XP</GradientText>
+          )}
+        </ChallengeCard>
+      ))}
 
       <StickerHeading glyph="Target" grad={RARITY.epic} style={{ marginTop: 24 }}>
         <Text style={[s.heading, s.subHeading, { marginTop: 0 }]}>Weekly challenges</Text>
@@ -97,12 +121,14 @@ function ChallengeCard({
   def,
   progress,
   locked,
+  lockedNote = 'Coming soon',
   highlight,
   children,
 }: {
-  def: ChallengeDef;
+  def: Pick<ChallengeDef, 'title' | 'icon' | 'rewardXp' | 'target' | 'unit'>;
   progress: number;
   locked?: boolean;
+  lockedNote?: string;
   highlight?: boolean;
   children: React.ReactNode;
 }) {
@@ -120,7 +146,7 @@ function ChallengeCard({
         <View style={s.track}>
           <View style={[s.fill, fill(grad, 90), { width: `${pct}%` }]} />
         </View>
-        <Text style={s.progress}>{locked ? 'Coming soon' : `${progress} / ${def.target} ${def.unit}`}</Text>
+        <Text style={s.progress}>{locked ? lockedNote : `${progress} / ${def.target} ${def.unit}`}</Text>
       </View>
       <View style={{ alignItems: 'flex-end' }}>{children}</View>
     </View>

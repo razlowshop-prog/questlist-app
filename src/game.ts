@@ -59,6 +59,8 @@ export interface Completion {
   title?: string;
   /** Set when an anti-cheat rule reduced the XP. */
   limited?: Limit;
+  /** Local hour (0–23) it was ticked, for the daily "before noon" challenges. Missing on older saves. */
+  hour?: number;
 }
 
 /**
@@ -124,6 +126,26 @@ export interface GameState {
   wheelSpins?: WheelSpin[];
   /** Steps of long tasks ticked off on the way (see steps.ts). */
   stepTicks?: StepTick[];
+  /** Daily challenges claimed (see daily.ts). */
+  dailyClaims?: DailyClaim[];
+  /** Days every task was done, with their small bonus (see moments.ts). */
+  perfectDays?: PerfectDay[];
+  /** Streak milestones reached (7, 30, 100, 365 days), for the celebration and the profile. */
+  streakMilestones?: { days: number; date: string }[];
+}
+
+export interface DailyClaim {
+  challengeId: string;
+  /** The day the challenge belonged to and was claimed, YYYY-MM-DD. */
+  date: string;
+  xp: number;
+}
+
+export interface PerfectDay {
+  date: string;
+  xp: number;
+  /** Tasks done that day when it was earned; unticking below this takes it back. */
+  tasks: number;
 }
 
 export interface StepTick {
@@ -188,6 +210,8 @@ export interface Settings {
   celebration?: CelebrationId;
   /** Which of the five avatar gradients (vivid.ts AVATAR_DISCS) the profile picture uses. */
   avatar?: number;
+  /** The first-steps card on Today was hidden. */
+  guideHidden?: boolean;
 }
 
 /** Evening time of the "your streak is about to end" notification. */
@@ -313,6 +337,8 @@ export function totalXp(state: GameState): number {
     state.completions.reduce((sum, c) => sum + c.xp, 0) +
     state.claims.reduce((sum, c) => sum + c.xp, 0) +
     state.achievementClaims.reduce((sum, c) => sum + c.xp, 0) +
+    (state.dailyClaims ?? []).reduce((sum, c) => sum + c.xp, 0) +
+    (state.perfectDays ?? []).reduce((sum, d) => sum + d.xp, 0) +
     wheelXp(state) +
     stepXp(state) +
     (state.seasonClaims ?? []).reduce((sum, c) => sum + (c.xp ?? 0), 0)
@@ -671,6 +697,7 @@ export function toggleTask(state: GameState, taskId: string, today: string, now?
     title: task.title,
   };
   if (limited) completion.limited = limited;
+  if (now !== undefined) completion.hour = new Date(now).getHours();
   return { ...state, completions: [...state.completions, completion] };
 }
 
