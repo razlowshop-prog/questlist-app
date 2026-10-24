@@ -184,9 +184,26 @@ export function LevelBadge({ level, size }: { level: number; size: number }) {
  * phones show a solid colour. Ice blue to violet on dark themes, a deep
  * blue-violet on light ones so it stays readable.
  */
-export function GradientText({ style, children, numberOfLines }: { style?: StyleProp<TextStyle>; children: ReactNode; numberOfLines?: number }) {
+export function GradientText({
+  style,
+  children,
+  numberOfLines,
+  colors,
+  glow,
+  glowRadius = 10,
+}: {
+  style?: StyleProp<TextStyle>;
+  children: ReactNode;
+  numberOfLines?: number;
+  /** Own colours instead of the theme's text gradient; phones show `c2` solid. */
+  colors?: { c1: string; c2: string };
+  /** A soft glow behind the letters. */
+  glow?: string;
+  glowRadius?: number;
+}) {
   const c = useTheme();
-  const t = textGradient(c.dark);
+  const theme = textGradient(c.dark);
+  const t = colors ? { ...colors, glow } : { ...theme, glow: glow ?? theme.glow };
   const web =
     Platform.OS === 'web'
       ? ({
@@ -195,13 +212,13 @@ export function GradientText({ style, children, numberOfLines }: { style?: Style
           backgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
           // A text shadow would paint over the clipped gradient; a drop shadow sits behind it.
-          ...(t.glow && { filter: `drop-shadow(0px 2px 8px ${t.glow})` }),
+          ...(t.glow && { filter: `drop-shadow(0px 2px ${glowRadius * 0.8}px ${t.glow})` }),
         } as unknown as TextStyle)
       : t.glow
-        ? { textShadowColor: t.glow, textShadowRadius: 10, textShadowOffset: { width: 0, height: 2 } }
+        ? { textShadowColor: t.glow, textShadowRadius: glowRadius, textShadowOffset: { width: 0, height: 2 } }
         : null;
   return (
-    <Text style={[{ color: textSolid(c.dark) }, style, web]} numberOfLines={numberOfLines}>
+    <Text style={[{ color: colors ? colors.c2 : textSolid(c.dark) }, style, web]} numberOfLines={numberOfLines}>
       {children}
     </Text>
   );

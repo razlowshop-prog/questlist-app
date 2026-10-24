@@ -9,6 +9,8 @@ import { Animated, BackHandler, Easing, Platform, Pressable, SafeAreaView, Style
 import { activitySummary } from './src/activity';
 import { BackBar, TopBar } from './src/components/TopBar';
 import { XpProgress } from './src/components/XpProgress';
+import { ComboPill, MomentCelebration, type Moment } from './src/components/Moments';
+import { PERFECT_DAY_XP, reachStreakMilestone, syncPerfectDay } from './src/moments';
 import {
   addTask,
   claimChallenge,
@@ -86,6 +88,8 @@ const FORTUNA = themeById('fortune').palette;
 
 /** Browser previews are built with this on so every theme and look can be tried without unlocking it. */
 const PREVIEW_ALL_THEMES = process.env.EXPO_PUBLIC_UNLOCK_THEMES === '1';
+/** Ticks closer together than this build a combo. */
+const COMBO_MS = 45_000;
 
 type Tab = 'today' | 'challenges' | 'spin' | 'menu';
 /** Pages opened from the header or the Menu. They sit above the tab they were opened from, which stays lit in the tab bar. */
@@ -127,8 +131,16 @@ export default function App() {
   const [levelOpen, setLevelOpen] = useState(false);
   const [draft, setDraft] = useState<LibraryTask | undefined>();
   const [celebration, setCelebration] = useState<CelebrationEvent | null>(null);
+  /** Perfect days and streak milestones waiting to be celebrated, after any level-up. */
+  const [moments, setMoments] = useState<Moment[]>([]);
+  /** Days whose perfect day was celebrated this session, so an untick and tick again doesn't repeat it. */
+  const perfectShown = useRef(new Set<string>());
+  /** Quick ticks in a row: how many, and when the last one was. */
+  const combo = useRef({ count: 0, at: 0 });
+  const [comboShown, setComboShown] = useState({ count: 0, play: 0 });
+  /** A level-up or moment pop-up is open or waiting; the review pop-up never shows on top of one. */
   const celebrationOpen = useRef(false);
-  celebrationOpen.current = !!celebration;
+  celebrationOpen.current = !!celebration || moments.length > 0;
   const bestLevel = useRef<number | null>(null);
   // Theme whose fonts are loaded and which is on screen; a newly picked theme
   // shows once its fonts are ready, so text never flashes in a missing font.
@@ -243,7 +255,19 @@ export default function App() {
 
   /** Applies a change and celebrates a level-up. Returns the XP gained. */
   function apply(change: GameState): number {
-    const gained = totalXp(change) - xp;
+    // A perfect day and streak milestones follow from the change itself.
+    const perfect = syncPerfectDay(change, today);
+    const milestone = reachStreakMilestone(state, perfect.state, today);
+    change = milestone.state;
+    const found: Moment[] = [];
+    if (perfect.earned && !perfectShown.current.has(today)) {
+      perfectShown.current.add(today);
+      found.push({ kind: 'perfect' });
+    }
+    if (milestone.days) found.push({ kind: 'streak', days: milestone.days });
+    if (found.length) setTimeout(() => setMoments((m) => [...m, ...found]), 900);
+    // The perfect day bonus is celebrated on its own, so it's left out of the task's "+XP".
+    const gained = totalXp(change) - xp - (perfect.earned ? PERFECT_DAY_XP : 0);
     const before = levelInfo(xp);
     const after = levelInfo(totalXp(change));
     // Level rewards (tokens, titles) arrive the moment a level is reached.
@@ -264,7 +288,7 @@ export default function App() {
     return gained;
   }
 
-  /** After a level-up pop-up closes: maybe the store's review pop-up (rarely, never for a reward). */
+  /** After a level-up or perfect-day pop-up closes: maybe the store's review pop-up (rarely, never for a reward). */
   function maybeAskReview(level: number) {
     if (!reviewDue(state, level, today)) return;
     // Long enough for a level-up from collected bonus XP to open first; then it waits for the next one.
@@ -307,6 +331,10 @@ export default function App() {
     }
     const gained = apply(next);
     if (wasDone) return { xp: 0 };
+    // Ticks within COMBO_MS of each other build a combo; it's only for show.
+    const now = Date.now();
+    combo.current = { count: now - combo.current.at <= COMBO_MS ? combo.current.count + 1 : 1, at: now };
+    if (combo.current.count >= 2) setComboShown({ count: combo.current.count, play: now });
     const limited = next.completions[next.completions.length - 1].limited;
     return { xp: gained, note: limited ? limitMessage(limited) : undefined };
   }
@@ -584,6 +612,19 @@ export default function App() {
                 onAnswer={(take) => {
                   setState(answerRecovery(state, today, take));
                   if (take) showToast(recovery.streakLost ? `Your ${recovery.keeps}-day streak is safe. Welcome back!` : 'Your fire is safe. Welcome back!');
+                }}
+              />
+            )}
+
+            <ComboPill count={comboShown.count} play={comboShown.play} />
+
+            {!celebration && moments.length > 0 && (
+              <MomentCelebration
+                key={JSON.stringify(moments[0])}
+                moment={moments[0]}
+                onClose={() => {
+                  if (moments[0].kind === 'perfect') maybeAskReview(levelInfo(xp).level);
+                  setMoments((m) => m.slice(1));
                 }}
               />
             )}
