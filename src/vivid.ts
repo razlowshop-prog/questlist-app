@@ -157,23 +157,41 @@ export interface FrameLook {
   /** Turns once every 6 s. */
   spin?: boolean;
   glow?: boolean;
+  /**
+   * Drawn by FrameArt instead of the plain ring: `metal` is a polished ring
+   * (conic `stops`) with a shine sweeping over it; the rest are the trophy
+   * frames, each with its own drawing.
+   */
+  art?: FrameArt;
 }
+
+export type FrameArt = 'metal' | 'flames' | 'laurel' | 'crystal' | 'sunrise' | 'aurora' | 'orbit';
 
 /**
  * The ten profile frames, in the order the levels hand them out. Ids are
  * stored in settings, so they stay; only the looks and names are new.
  */
 export const FRAME_LOOKS: Record<FrameId, FrameLook> = {
-  ring: { name: 'Bronze', rarity: 'common', stops: ['#FFD3A1', '#B4622E', '#F0A56B', '#7A3E17'] },
-  double: { name: 'Silver', rarity: 'common', stops: ['#FFFFFF', '#9AA7B6', '#E9EEF3', '#6C7886'] },
-  dotted: { name: 'Gold', rarity: 'rare', stops: ['#FFF4B0', '#E0A100', '#FFD84A', '#B87800'], glow: true },
+  // The metal rings sweep round from the lower left (conic, from 210°), as on the frames board.
+  ring: { name: 'Bronze', rarity: 'common', stops: ['#7a4a26', '#e0a070', '#8a5530', '#f2c299', '#7a4a26'], art: 'metal' },
+  double: { name: 'Silver', rarity: 'common', stops: ['#7c8591', '#f4f7fa', '#9aa4b0', '#ffffff', '#7c8591'], art: 'metal' },
+  dotted: { name: 'Gold', rarity: 'rare', stops: ['#9a6412', '#ffe7a0', '#c48a20', '#fff6d0', '#9a6412'], art: 'metal' },
   hex: { name: 'Emerald', rarity: 'rare', stops: ['#9DFFD2', '#0BA360', '#047A47'] },
   rays: { name: 'Sapphire', rarity: 'rare', stops: ['#9AD9FF', '#2340FF', '#14208F'] },
+  platinum: { name: 'Platinum', rarity: 'rare', stops: ['#8fa3b8', '#ffffff', '#c9d6e3', '#eef4fa', '#8fa3b8'], art: 'metal' },
   laurel: { name: 'Ruby', rarity: 'epic', stops: ['#FFA3B3', '#E0123A', '#8A0620'] },
+  titanium: { name: 'Titanium', rarity: 'epic', stops: ['#2b3140', '#9aa6bf', '#3a4256', '#d7deeb', '#2b3140'], art: 'metal' },
   stars: { name: 'Amethyst', rarity: 'epic', stops: ['#ECBDFF', '#7A2CFF', '#3F0F99'] },
   diamond: { name: 'Neon', rarity: 'legendary', stops: ['#00F0FF', '#FF00E5', '#00F0FF'], conic: true, spin: true, glow: true },
   ember: { name: 'Inferno', rarity: 'legendary', stops: ['#FFE066', '#FF5A1F', '#FF2D7A', '#FFE066'], conic: true, spin: true, glow: true },
   crown: { name: 'Aurora', rarity: 'mythic', stops: [...MYTHIC, MYTHIC[0]], conic: true, spin: true, glow: true },
+  // Trophy frames (the trophy's rarity on the frames board).
+  ironWill: { name: 'Iron Will', rarity: 'legendary', stops: ['#FF2D1C', '#FF7A00', '#FFE29A', '#FF7A00', '#FF2D1C', '#FF7A00', '#FFE29A', '#FF2D1C'], art: 'flames' },
+  marathonMind: { name: 'Marathon Mind', rarity: 'legendary', stops: ['#FFF1A8', '#E8B33A', '#9A6412'], art: 'laurel' },
+  crystalClear: { name: 'Crystal Clear', rarity: 'epic', stops: ['#E6FBFF', '#9BE8FF', '#C9B6FF', '#ffffff', '#7FD6FF', '#E2C9FF', '#E6FBFF'], art: 'crystal' },
+  dawnBreaker: { name: 'Dawn Breaker', rarity: 'epic', stops: ['#FF7A00', '#FFD36B', '#FFF3C4', '#FFD36B', '#FF7A00'], art: 'sunrise' },
+  dreamWalker: { name: 'Dream Walker', rarity: 'epic', stops: ['#3CFFB0', '#2BD9FF', '#7A5CFF', '#E77BFF', '#3CFFB0'], art: 'aurora' },
+  pathfinder: { name: 'Pathfinder', rarity: 'legendary', stops: ['#7FD6FF'], art: 'orbit' },
 };
 
 /** Monthly event frames: the Aurora ring with a month pill. */

@@ -1,7 +1,7 @@
 import type { IconName } from './icons.ts';
 import { APP_NAME } from './brand.ts';
 import { ownsWheelTheme, WHEEL_THEME_REWARD } from './wheel.ts';
-import { CELEBRATIONS, FLAME_STYLES, FRAMES, type CelebrationId, type FlameStyleId, type FrameId } from './cosmetics.ts';
+import { CELEBRATIONS, FLAME_STYLES, FRAMES, type CelebrationId, type FlameStyleId, type LevelFrameId } from './cosmetics.ts';
 import {
   levelInfo,
   longestStreak,
@@ -75,7 +75,7 @@ const token = (kind: TokenKind, count = 1): Reward => ({
   count,
   label: count === 1 ? TOKEN_NAMES[kind][0] : `${count} ${TOKEN_NAMES[kind][1]}`,
 });
-const frame = (id: FrameId): Reward => ({ kind: 'frame', item: id, label: `${FRAMES.find((f) => f.id === id)!.name} frame` });
+const frame = (id: LevelFrameId): Reward => ({ kind: 'frame', item: id, label: `${FRAMES.find((f) => f.id === id)!.name} frame` });
 const flame = (id: FlameStyleId): Reward => ({ kind: 'flame', item: id, label: `${FLAME_STYLES.find((f) => f.id === id)!.name} flame` });
 const celebration = (id: CelebrationId): Reward => ({
   kind: 'celebration',
@@ -302,10 +302,12 @@ const SPECIAL_REWARDS: Record<number, Reward> = {
   28: celebration('ink'),
   30: title('Relentless'),
   32: frame('rays'),
+  34: frame('platinum'),
   36: flame('twin'),
   40: title('Vanguard'),
   42: frame('laurel'),
   46: celebration('embers'),
+  48: frame('titanium'),
   52: frame('stars'),
   55: flame('glow'),
   60: title('Paragon'),

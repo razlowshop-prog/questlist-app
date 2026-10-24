@@ -9,6 +9,9 @@ import { Animated, BackHandler, Easing, Platform, Pressable, SafeAreaView, Style
 import { activitySummary } from './src/activity';
 import { BackBar, TopBar } from './src/components/TopBar';
 import { XpProgress } from './src/components/XpProgress';
+import { FirstDayGuide } from './src/components/FirstDayGuide';
+import { ComboPill, MomentCelebration, type Moment } from './src/components/Moments';
+import { PERFECT_DAY_XP, reachStreakMilestone, syncPerfectDay } from './src/moments';
 import {
   addTask,
   claimChallenge,
@@ -22,6 +25,7 @@ import {
   levelInfo,
   limitMessage,
   profileStats,
+  secondsUntilTickable,
   setName,
   toggleTask,
   totalXp,
@@ -58,8 +62,9 @@ import { SetupScreen, type SetupPick } from './src/screens/SetupScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { SpinScreen } from './src/screens/SpinScreen';
 import { TodayScreen } from './src/screens/TodayScreen';
-import { ownsWheelTheme, spinsToPity, spinWheel, ticketStatus } from './src/wheel';
+import { ownsWheelTheme, spinsToPity, spinWheel, ticketStatus, XP_PER_TICKET } from './src/wheel';
 import { tickStep } from './src/steps';
+import { claimDaily, dailyChallenges } from './src/daily';
 import type { LibraryTask } from './src/library';
 import { fontFilesFor, VIVID_FONTS, WHEEL_FONTS } from './src/fonts';
 import { trophyStatuses } from './src/trophies';
@@ -71,14 +76,21 @@ import { Ambient, ThemeFxContext } from './src/components/ThemeFx';
 import { themeFx } from './src/themeFx';
 import { RecoveryModal } from './src/components/RecoveryModal';
 import { FlameStyleContext } from './src/components/Fire';
-import { AvatarDiscContext } from './src/components/ProfileFrame';
+import { AvatarDiscContext, AvatarPhotoContext } from './src/components/ProfileFrame';
+import { FocusBar, FocusTimer } from './src/components/FocusTimer';
+import { focusBonus, pauseFocus, resumeFocus, startFocus } from './src/focus';
 import { CelebrationContext } from './src/components/TaskRow';
 import { emblemStatuses } from './src/emblems';
 import { equippedLooks, ownedLooks } from './src/inventory';
 import { claimSeason, seasonStatus } from './src/seasons';
 import { frameName } from './src/cosmetics';
 import { askReminderPermission, REMINDERS_SUPPORTED, syncReminders } from './src/reminders';
-import { loadState, saveState } from './src/storage';
+import { reviewDue } from './src/review';
+import { askStoreReview } from './src/storeReview';
+import { buzz } from './src/haptics';
+import { recapToShow } from './src/recap';
+import { WeeklyRecap } from './src/components/WeeklyRecap';
+import { loadPhoto, loadState, savePhoto, saveState } from './src/storage';
 import { nativeDriver, themeById, themed, ThemeProvider, THEMES, withFonts } from './src/theme';
 
 /** The Spin tab always wears the Fortuna look. */
@@ -86,6 +98,8 @@ const FORTUNA = themeById('fortune').palette;
 
 /** Browser previews are built with this on so every theme and look can be tried without unlocking it. */
 const PREVIEW_ALL_THEMES = process.env.EXPO_PUBLIC_UNLOCK_THEMES === '1';
+/** Ticks closer together than this build a combo. */
+const COMBO_MS = 45_000;
 
 type Tab = 'today' | 'challenges' | 'spin' | 'menu';
 /** Pages opened from the header or the Menu. They sit above the tab they were opened from, which stays lit in the tab bar. */
@@ -127,10 +141,22 @@ export default function App() {
   const [levelOpen, setLevelOpen] = useState(false);
   const [draft, setDraft] = useState<LibraryTask | undefined>();
   const [celebration, setCelebration] = useState<CelebrationEvent | null>(null);
+  /** Perfect days and streak milestones waiting to be celebrated, after any level-up. */
+  const [moments, setMoments] = useState<Moment[]>([]);
+  /** Days whose perfect day was celebrated this session, so an untick and tick again doesn't repeat it. */
+  const perfectShown = useRef(new Set<string>());
+  /** Quick ticks in a row: how many, and when the last one was. */
+  const combo = useRef({ count: 0, at: 0 });
+  const [comboShown, setComboShown] = useState({ count: 0, play: 0 });
+  /** A level-up or moment pop-up is open or waiting; the review pop-up never shows on top of one. */
+  const celebrationOpen = useRef(false);
+  celebrationOpen.current = !!celebration || moments.length > 0;
   const bestLevel = useRef<number | null>(null);
   // Theme whose fonts are loaded and which is on screen; a newly picked theme
   // shows once its fonts are ready, so text never flashes in a missing font.
   const [shownThemeId, setShownThemeId] = useState<string | null>(null);
+  const [focusOpen, setFocusOpen] = useState(false);
+  const [photo, setPhoto] = useState<string>();
 
   // Recomputed on each render so the list rolls over after midnight.
   const today = dayKey();
@@ -142,6 +168,7 @@ export default function App() {
       setState(grantLevelRewards(loadedState, levelInfo(totalXp(loadedState)).level));
       setLoaded(true);
     });
+    loadPhoto().then(setPhoto);
   }, []);
 
   useEffect(() => {
@@ -160,7 +187,9 @@ export default function App() {
   const tasks = useMemo(() => visibleTasks(state, today), [state, today]);
   const upcoming = useMemo(() => upcomingTasks(state, today), [state.tasks, today]);
   const challenges = useMemo(() => weeklyChallenges(state, today), [state, today]);
-  const readyToClaim = challenges.filter((c) => c.complete && !c.claimed).length;
+  const hour = new Date().getHours();
+  const daily = useMemo(() => dailyChallenges(state, today, hour), [state, today, hour]);
+  const readyToClaim = [...challenges, ...daily].filter((c) => c.complete && !c.claimed).length;
   const achievements = useMemo(() => achievementStatuses(state, today), [state, today]);
   const trophies = useMemo(() => trophyStatuses(state, today), [state, today]);
   const tokens = tokenCounts(state);
@@ -172,7 +201,15 @@ export default function App() {
     const labels = new Set(rewards.map((r) => r.label));
     return new Set(THEMES.filter((t) => !t.reward || labels.has(t.reward) || PREVIEW_ALL_THEMES).map((t) => t.id));
   }, [rewards]);
-  const owned = useMemo(() => ownedLooks(state, PREVIEW_ALL_THEMES), [state.achievementClaims, state.levelRewards, state.seasonClaims, state.wheelSpins]);
+  // Trophies won, as a key that only changes when one is won: each gives a title and maybe a frame.
+  const trophiesWon = trophies
+    .filter((t) => t.earned)
+    .map((t) => t.def.id)
+    .join(',');
+  const owned = useMemo(
+    () => ownedLooks(state, PREVIEW_ALL_THEMES, trophiesWon ? trophiesWon.split(',') : []),
+    [state.achievementClaims, state.levelRewards, state.seasonClaims, state.wheelSpins, trophiesWon],
+  );
   const tickets = ticketStatus(state, xp);
   const looks = equippedLooks(state.settings, owned);
   const season = useMemo(() => seasonStatus(state, today), [state.completions, state.tasks, state.seasonClaims, today]);
@@ -181,6 +218,9 @@ export default function App() {
   const bagCount = Object.values(tokens).reduce((sum, n) => sum + Math.max(0, n), 0);
   const level = levelInfo(xp);
   const initials = state.profile.name.trim().slice(0, 2).toUpperCase() || '?';
+  const recap = loaded ? recapToShow(state, today, new Date().getHours()) : undefined;
+  // A timer for a task that is gone or already done today no longer shows.
+  const focusTask = state.focus ? state.tasks.find((t) => t.id === state.focus!.taskId && !isDoneToday(state, t, today)) : undefined;
   const wantedTheme = themeById(unlockedThemes.has(state.settings.theme) ? state.settings.theme : 'classic');
   const theme = themeById(shownThemeId ?? wantedTheme.id);
   const c = theme.palette;
@@ -242,7 +282,19 @@ export default function App() {
 
   /** Applies a change and celebrates a level-up. Returns the XP gained. */
   function apply(change: GameState): number {
-    const gained = totalXp(change) - xp;
+    // A perfect day and streak milestones follow from the change itself.
+    const perfect = syncPerfectDay(change, today);
+    const milestone = reachStreakMilestone(state, perfect.state, today);
+    change = milestone.state;
+    const found: Moment[] = [];
+    if (perfect.earned && !perfectShown.current.has(today)) {
+      perfectShown.current.add(today);
+      found.push({ kind: 'perfect' });
+    }
+    if (milestone.days) found.push({ kind: 'streak', days: milestone.days });
+    if (found.length) setTimeout(() => setMoments((m) => [...m, ...found]), 900);
+    // The perfect day bonus is celebrated on its own, so it's left out of the task's "+XP".
+    const gained = totalXp(change) - xp - (perfect.earned ? PERFECT_DAY_XP : 0);
     const before = levelInfo(xp);
     const after = levelInfo(totalXp(change));
     // Level rewards (tokens, titles) arrive the moment a level is reached.
@@ -256,11 +308,26 @@ export default function App() {
       const milestone = LEVEL_MILESTONES.filter((m) => m.level > from && m.level <= after.level).at(-1);
       // After the XP bar has run to the end.
       setTimeout(
-        () => setCelebration({ level: after.level, rank: after.rank, newRank: after.rank !== before.rank, milestone }),
+        () => {
+          setCelebration({ level: after.level, rank: after.rank, newRank: after.rank !== before.rank, milestone });
+          buzz('levelUp', next.settings.haptics);
+        },
         900,
       );
     }
     return gained;
+  }
+
+  /** After a level-up or perfect-day pop-up closes: maybe the store's review pop-up (rarely, never for a reward). */
+  function maybeAskReview(level: number) {
+    if (!reviewDue(state, level, today)) return;
+    // Long enough for a level-up from collected bonus XP to open first; then it waits for the next one.
+    setTimeout(() => {
+      if (celebrationOpen.current) return;
+      askStoreReview().then((asked) => {
+        if (asked) setState((s) => ({ ...s, settings: { ...s.settings, reviewAsks: [...(s.settings.reviewAsks ?? []), today] } }));
+      });
+    }, 1500);
   }
 
   /** Collect on the reward pop-up: claims the Climber bonus XP up to that level (other rewards are already given). */
@@ -283,9 +350,9 @@ export default function App() {
     showToast(day === today ? 'Rest day: your streak is safe today' : 'Streak saved with a rest day');
   }
 
-  function onToggle(task: Task): { xp: number; note?: string } {
+  function onToggle(task: Task, focusXp = 0): { xp: number; note?: string } {
     const wasDone = isDoneToday(state, task, today);
-    let next = toggleTask(state, task.id, today, Date.now());
+    let next = toggleTask(state, task.id, today, Date.now(), focusXp);
     if (next === state) return { xp: 0 };
     // On the phone, the first finished task asks once whether streak reminders may notify.
     if (!wasDone && REMINDERS_SUPPORTED && !next.settings.askedNotifications && next.settings.streakReminders !== false) {
@@ -294,8 +361,30 @@ export default function App() {
     }
     const gained = apply(next);
     if (wasDone) return { xp: 0 };
+    if (gained > 0) buzz('tick', state.settings.haptics);
+    // Ticks within COMBO_MS of each other build a combo; it's only for show.
+    const now = Date.now();
+    combo.current = { count: now - combo.current.at <= COMBO_MS ? combo.current.count + 1 : 1, at: now };
+    if (combo.current.count >= 2) setComboShown({ count: combo.current.count, play: now });
     const limited = next.completions[next.completions.length - 1].limited;
     return { xp: gained, note: limited ? limitMessage(limited) : undefined };
+  }
+
+  function onFocus(task: Task) {
+    if (state.focus?.taskId !== task.id) setState({ ...state, focus: startFocus(task.id, Date.now()) });
+    setFocusOpen(true);
+  }
+
+  function finishFocus(task: Task) {
+    const bonus = focusBonus(state.focus, task, Date.now());
+    if (secondsUntilTickable(task, Date.now()) > 0) {
+      showToast('New tasks can be ticked a few seconds after adding');
+      setFocusOpen(false);
+      return;
+    }
+    const { xp: gained, note } = onToggle(task, bonus);
+    setFocusOpen(false);
+    showToast(gained > 0 ? `${task.title} done · +${gained} XP${bonus ? `, with a +${bonus} focus bonus` : ''}` : note ?? `${task.title} done`);
   }
 
   /**
@@ -307,13 +396,20 @@ export default function App() {
     const { state: next, prize } = spinWheel(state, xp, today, Math.random());
     if (!prize) return undefined;
     saveState(next);
-    return { prize, finish: () => apply(next) };
+    return {
+      prize,
+      finish: () => {
+        buzz('prize', state.settings.haptics);
+        return apply(next);
+      },
+    };
   }
 
   function onStep(task: Task, step: number): { xp: number; finished: boolean; note?: string } {
     const { state: next, finished } = tickStep(state, task.id, step, today, Date.now());
     if (next === state) return { xp: 0, finished: false };
     const gained = apply(next);
+    if (gained > 0) buzz(finished ? 'tick' : 'step', state.settings.haptics);
     const limited = finished ? next.completions[next.completions.length - 1].limited : undefined;
     return { xp: gained, finished, note: limited ? limitMessage(limited) : undefined };
   }
@@ -321,6 +417,11 @@ export default function App() {
   function onClaim(id: string) {
     const gained = apply(claimChallenge(state, id, today));
     if (gained > 0) showToast(`Challenge complete · +${gained} XP`);
+  }
+
+  function onClaimDaily(id: string) {
+    const gained = apply(claimDaily(state, id, today, new Date().getHours()));
+    if (gained > 0) showToast(`Daily challenge complete · +${gained} XP`);
   }
 
   function onClaimAchievement(id: string) {
@@ -364,6 +465,7 @@ export default function App() {
       <FlameStyleContext.Provider value={looks.flameStyle}>
         <CelebrationContext.Provider value={looks.celebration}>
           <AvatarDiscContext.Provider value={state.settings.avatar}>
+          <AvatarPhotoContext.Provider value={photo}>
           <SafeAreaView style={styles.safe}>
             <StatusBar style={statusBar} />
             {c.backdrop === 'dust' && (tab !== 'spin' || page) && <GoldDust />}
@@ -390,12 +492,7 @@ export default function App() {
                   state={state}
                   today={today}
                   level={level.level}
-                  fireTier={streakInfo.tier}
-                  initials={initials}
-                  owned={owned}
-                  season={season}
                   tickets={tickets.tickets}
-                  unlockedThemes={unlockedThemes}
                   onOpenSpin={() => openTab('spin')}
                   onRest={takeRestDay}
                   onDouble={() => {
@@ -407,7 +504,7 @@ export default function App() {
                     showToast('No ads for the rest of today');
                   }}
                   onOpenChallenges={() => openTab('challenges')}
-                  onEquip={(changes) => setState(updateSettings(state, changes))}
+                  onOpenProfile={() => setPage('profile')}
                 />
               )}
               {page === 'profile' && (
@@ -417,8 +514,11 @@ export default function App() {
                   trophies={trophies}
                   joinedAt={state.joinedAt}
                   settings={state.settings}
-                  title={looks.title}
-                  frame={looks.frame}
+                  owned={owned}
+                  unlockedThemes={unlockedThemes}
+                  eventFrame={season.frame}
+                  fireTier={streakInfo.tier}
+                  photo={photo}
                   emblems={emblems}
                   multiplier={multiplier}
                   achievements={achievements}
@@ -429,6 +529,10 @@ export default function App() {
                   onClaimAchievement={onClaimAchievement}
                   onRename={(name) => setState(setName(state, name))}
                   onSettings={(changes) => setState(updateSettings(state, changes))}
+                  onPhoto={(next) => {
+                    setPhoto(next);
+                    savePhoto(next);
+                  }}
                 />
               )}
               {(page === 'friends' || page === 'leaderboard') && (
@@ -464,6 +568,15 @@ export default function App() {
                       onRest={takeRestDay}
                     />
                   }
+                  guide={
+                    <FirstDayGuide
+                      state={state}
+                      totalXp={xp}
+                      ticketXp={tickets.earned > 0 ? XP_PER_TICKET : tickets.progress}
+                      onOpenSpin={() => openTab('spin')}
+                      onHide={() => setState(updateSettings(state, { guideHidden: true }))}
+                    />
+                  }
                   today={today}
                   loaded={loaded}
                   addedTitles={addedTitles}
@@ -481,11 +594,17 @@ export default function App() {
                   onToggle={onToggle}
                   onStep={onStep}
                   onDelete={(task) => setState(deleteTask(state, task.id))}
+                  recap={recap && <WeeklyRecap recap={recap} onSeen={() => setState(updateSettings(state, { recapSeen: recap.week }))} />}
+                  focusingId={focusTask?.id}
+                  onFocus={onFocus}
+                  focusBar={focusTask && state.focus && !focusOpen ? <FocusBar task={focusTask} session={state.focus} onOpen={() => setFocusOpen(true)} /> : undefined}
                 />
               )}
               {!page && tab === 'challenges' && (
                 <ChallengesScreen
                   challenges={challenges}
+                  daily={daily}
+                  onClaimDaily={onClaimDaily}
                   today={today}
                   onClaim={onClaim}
                   swapsLeft={tokens.reroll}
@@ -565,6 +684,23 @@ export default function App() {
               </Animated.View>
             )}
 
+            {focusTask && state.focus && (
+              <FocusTimer
+                task={focusTask}
+                session={state.focus}
+                visible={focusOpen}
+                onPause={() => setState({ ...state, focus: pauseFocus(state.focus!, Date.now()) })}
+                onResume={() => setState({ ...state, focus: resumeFocus(state.focus!, Date.now()) })}
+                onFinish={() => finishFocus(focusTask)}
+                onStop={() => {
+                  const { focus: _stopped, ...rest } = state;
+                  setState(rest);
+                  setFocusOpen(false);
+                }}
+                onHide={() => setFocusOpen(false)}
+              />
+            )}
+
             <LevelDetails visible={levelOpen} totalXp={xp} streak={streakInfo} onClose={() => setLevelOpen(false)} />
 
             {recovery && !celebration && (
@@ -577,19 +713,37 @@ export default function App() {
               />
             )}
 
+            <ComboPill count={comboShown.count} play={comboShown.play} />
+
+            {!celebration && moments.length > 0 && (
+              <MomentCelebration
+                key={JSON.stringify(moments[0])}
+                moment={moments[0]}
+                onClose={() => {
+                  if (moments[0].kind === 'perfect') maybeAskReview(levelInfo(xp).level);
+                  setMoments((m) => m.slice(1));
+                }}
+              />
+            )}
+
             {celebration && (
               <Celebration
                 key={celebration.level}
                 event={celebration}
-                onClose={() => setCelebration(null)}
+                onClose={() => {
+                  setCelebration(null);
+                  maybeAskReview(celebration.level);
+                }}
                 onCollect={() => {
                   const m = celebration.milestone;
                   setCelebration(null);
                   if (m) collectLevelReward(m);
+                  maybeAskReview(celebration.level);
                 }}
               />
             )}
           </SafeAreaView>
+          </AvatarPhotoContext.Provider>
           </AvatarDiscContext.Provider>
         </CelebrationContext.Provider>
       </FlameStyleContext.Provider>
