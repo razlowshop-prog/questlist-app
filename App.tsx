@@ -71,7 +71,7 @@ import { TokenStrip } from './src/components/TokenStrip';
 import { GoldDust } from './src/components/Fortuna';
 import { RecoveryModal } from './src/components/RecoveryModal';
 import { FlameStyleContext } from './src/components/Fire';
-import { AvatarDiscContext } from './src/components/ProfileFrame';
+import { AvatarDiscContext, AvatarPhotoContext } from './src/components/ProfileFrame';
 import { CelebrationContext } from './src/components/TaskRow';
 import { emblemStatuses } from './src/emblems';
 import { equippedLooks, ownedLooks } from './src/inventory';
@@ -80,7 +80,7 @@ import { frameName } from './src/cosmetics';
 import { askReminderPermission, REMINDERS_SUPPORTED, syncReminders } from './src/reminders';
 import { reviewDue } from './src/review';
 import { askStoreReview } from './src/storeReview';
-import { loadState, saveState } from './src/storage';
+import { loadPhoto, loadState, savePhoto, saveState } from './src/storage';
 import { nativeDriver, themeById, themed, ThemeProvider, THEMES, withFonts } from './src/theme';
 
 /** The Spin tab always wears the Fortuna look. */
@@ -145,6 +145,7 @@ export default function App() {
   // Theme whose fonts are loaded and which is on screen; a newly picked theme
   // shows once its fonts are ready, so text never flashes in a missing font.
   const [shownThemeId, setShownThemeId] = useState<string | null>(null);
+  const [photo, setPhoto] = useState<string>();
 
   // Recomputed on each render so the list rolls over after midnight.
   const today = dayKey();
@@ -156,6 +157,7 @@ export default function App() {
       setState(grantLevelRewards(loadedState, levelInfo(totalXp(loadedState)).level));
       setLoaded(true);
     });
+    loadPhoto().then(setPhoto);
   }, []);
 
   useEffect(() => {
@@ -404,6 +406,7 @@ export default function App() {
       <FlameStyleContext.Provider value={looks.flameStyle}>
         <CelebrationContext.Provider value={looks.celebration}>
           <AvatarDiscContext.Provider value={state.settings.avatar}>
+          <AvatarPhotoContext.Provider value={photo}>
           <SafeAreaView style={styles.safe}>
             <StatusBar style={statusBar} />
             {c.backdrop === 'dust' && (tab !== 'spin' || page) && <GoldDust />}
@@ -429,12 +432,7 @@ export default function App() {
                   state={state}
                   today={today}
                   level={level.level}
-                  fireTier={streakInfo.tier}
-                  initials={initials}
-                  owned={owned}
-                  season={season}
                   tickets={tickets.tickets}
-                  unlockedThemes={unlockedThemes}
                   onOpenSpin={() => openTab('spin')}
                   onRest={takeRestDay}
                   onDouble={() => {
@@ -446,7 +444,7 @@ export default function App() {
                     showToast('No ads for the rest of today');
                   }}
                   onOpenChallenges={() => openTab('challenges')}
-                  onEquip={(changes) => setState(updateSettings(state, changes))}
+                  onOpenProfile={() => setPage('profile')}
                 />
               )}
               {page === 'profile' && (
@@ -456,8 +454,11 @@ export default function App() {
                   trophies={trophies}
                   joinedAt={state.joinedAt}
                   settings={state.settings}
-                  title={looks.title}
-                  frame={looks.frame}
+                  owned={owned}
+                  unlockedThemes={unlockedThemes}
+                  eventFrame={season.frame}
+                  fireTier={streakInfo.tier}
+                  photo={photo}
                   emblems={emblems}
                   multiplier={multiplier}
                   achievements={achievements}
@@ -468,6 +469,10 @@ export default function App() {
                   onClaimAchievement={onClaimAchievement}
                   onRename={(name) => setState(setName(state, name))}
                   onSettings={(changes) => setState(updateSettings(state, changes))}
+                  onPhoto={(next) => {
+                    setPhoto(next);
+                    savePhoto(next);
+                  }}
                 />
               )}
               {(page === 'friends' || page === 'leaderboard') && (
@@ -646,6 +651,7 @@ export default function App() {
               />
             )}
           </SafeAreaView>
+          </AvatarPhotoContext.Provider>
           </AvatarDiscContext.Provider>
         </CelebrationContext.Provider>
       </FlameStyleContext.Provider>
