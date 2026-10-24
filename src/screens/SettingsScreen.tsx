@@ -5,7 +5,7 @@ import { BRAND_FILL_SMALL, BRAND_INK, BRAND_TEXT_SHADOW, VIVID_HEAVY, VividButto
 import { themed, useStyles, useTheme } from '../theme';
 import { MenuGroup, MenuRow } from './MenuScreen';
 
-/** Settings, opened from the Menu: reminders, the daily quote email, privacy and the setup questions. */
+/** Settings, opened from the Menu: reminders, the daily quote email, vibration, privacy and the setup questions. */
 export function SettingsScreen({ settings, onSettings, onRedoSetup }: { settings: Settings; onSettings: (s: Partial<Settings>) => void; onRedoSetup: () => void }) {
   const s = useStyles(makeStyles);
   const c = useTheme();
@@ -44,6 +44,15 @@ export function SettingsScreen({ settings, onSettings, onRedoSetup }: { settings
             </Text>
           </View>
         )}
+      </MenuGroup>
+
+      <MenuGroup label="Feel">
+        <MenuRow
+          first
+          label="Vibration"
+          sub="A small buzz when you tick off a task, level up or win on the wheel."
+          right={<VividSwitch value={settings.haptics !== false} onValueChange={(v) => onSettings({ haptics: v })} accessibilityLabel="Vibration" />}
+        />
       </MenuGroup>
 
       <MenuGroup label="Privacy">
