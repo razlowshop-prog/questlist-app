@@ -45,6 +45,7 @@ export function TodayScreen({
   xpProgress,
   onOpenStreak,
   tokenStrip,
+  guide,
   today,
   loaded,
   addedTitles,
@@ -56,6 +57,9 @@ export function TodayScreen({
   onStep,
   onDelete,
   recap,
+  focusBar,
+  focusingId,
+  onFocus,
 }: {
   state: GameState;
   tasks: Task[];
@@ -67,6 +71,8 @@ export function TodayScreen({
   onOpenStreak: () => void;
   /** Tokens to use, shown under the streak. */
   tokenStrip?: React.ReactNode;
+  /** The first-steps card for new players. */
+  guide?: React.ReactNode;
   today: string;
   loaded: boolean;
   addedTitles: Set<string>;
@@ -80,6 +86,11 @@ export function TodayScreen({
   onDelete: (task: Task) => void;
   /** The weekly recap card, on Sunday evening and Monday. */
   recap?: React.ReactNode;
+  /** The running focus timer, when it is hidden. */
+  focusBar?: React.ReactNode;
+  /** The task the focus timer runs for. */
+  focusingId?: string;
+  onFocus: (task: Task) => void;
 }) {
   const s = useStyles(makeStyles);
   const c = useTheme();
@@ -184,6 +195,8 @@ export function TodayScreen({
             <StreakCard streak={streak} week={weekDots(state, today)} multiplier={multiplier} onPress={onOpenStreak} />
             {tokenStrip}
             {recap}
+            {focusBar}
+            {guide}
 
             <View style={s.sectionRow}>
               <Text style={s.sectionTitle}>Today's tasks</Text>
@@ -200,15 +213,11 @@ export function TodayScreen({
         }
         ListEmptyComponent={
           loaded ? (
-            <EmptyState glyph="Sparkle" mythic before="A " word="fresh" after=" start" body="No tasks for today. Add one below or pick some from the library." />
+            <EmptyState glyph="Sparkle" mythic before="A " word="fresh" after=" start" body="No tasks for today. Tap + to add one or pick some from the library." />
           ) : undefined
         }
         ListFooterComponent={
           <>
-            <Pressable onPress={() => setAdding(true)} style={s.addOpen} accessibilityRole="button">
-              <Plus size={20} color={BRAND_INK} strokeWidth={2.5} aria-hidden />
-              <Text style={s.addOpenText}>Add a task</Text>
-            </Pressable>
             <View style={s.quote} accessibilityLabel={`Quote of the day: ${quote.text}, by ${quote.author}`}>
               <Text style={s.quoteLabel}>Quote of the day</Text>
               <Text style={s.quoteText}>“{quote.text}”</Text>
@@ -239,9 +248,16 @@ export function TodayScreen({
             onToggle={() => onToggle(item)}
             onStep={(step) => onStep(item, step)}
             onDelete={() => onDelete(item)}
+            focusing={focusingId === item.id}
+            onFocus={() => onFocus(item)}
           />
         )}
       />
+
+      {/* Always in reach at the bottom right, however long the list gets. */}
+      <Pressable onPress={() => setAdding(true)} style={s.fab} accessibilityRole="button" accessibilityLabel="Add a task">
+        <Plus size={28} color={BRAND_INK} strokeWidth={2.75} aria-hidden />
+      </Pressable>
 
       <Modal visible={adding} transparent animationType="slide" onRequestClose={closeSheet}>
         <Pressable style={s.backdrop} onPress={closeSheet} accessibilityLabel="Close" />
@@ -401,15 +417,15 @@ export function TodayScreen({
 
 
 const makeStyles = themed((c) => ({
-  content: { padding: 20, paddingTop: 12, paddingBottom: 48, maxWidth: 640, width: '100%', alignSelf: 'center' },
+  // Room at the bottom so the + button never covers the last row.
+  content: { padding: 20, paddingTop: 12, paddingBottom: 104, maxWidth: 640, width: '100%', alignSelf: 'center' },
   greeting: { fontFamily: FONTS.serif, color: c.text, fontSize: 26, lineHeight: 32, ...headingCase(c) },
   greetingEm: c.italicAccent ? { fontFamily: FONTS.serifItalic, color: c.accent } : { fontFamily: FONTS.serif, color: c.text },
-  quote: { ...card(c), marginTop: 16, padding: 16, gap: 6 },
+  quote: { ...card(c), marginTop: 20, padding: 16, gap: 6 },
   quoteLabel: { ...eyebrow(c, 11), color: c.muted },
   quoteText: { fontFamily: FONTS.serif, fontStyle: 'italic', color: c.text, fontSize: 16, lineHeight: 23 },
   quoteAuthor: { ...eyebrow(c, 11), color: c.label },
-  addOpen: { ...BRAND_FILL, flexDirection: 'row', gap: 8, minHeight: 54, justifyContent: 'center', borderRadius: 14, alignItems: 'center', marginTop: 8 },
-  addOpenText: { fontFamily: VIVID_HEAVY, fontSize: 17, color: BRAND_INK, ...BRAND_TEXT_SHADOW },
+  fab: { ...BRAND_FILL, position: 'absolute', right: 20, bottom: 20, width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', boxShadow: '0px 8px 24px rgba(90,80,255,0.45)' },
   backdrop: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.55)' },
   sheetWrap: { flex: 1, justifyContent: 'flex-end' },
   sheet: {

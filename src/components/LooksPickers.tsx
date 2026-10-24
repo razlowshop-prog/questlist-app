@@ -1,7 +1,8 @@
 import { Lock } from 'lucide-react-native';
 import { Pressable, Text, View } from 'react-native';
 import { levelForLook } from '../achievements';
-import { CELEBRATIONS, FLAME_STYLES, FRAMES, frameName, type CelebrationId, type FlameStyleId } from '../cosmetics';
+import { CELEBRATIONS, FLAME_STYLES, FRAMES, frameName, TROPHY_FRAMES, type CelebrationId, type FlameStyleId } from '../cosmetics';
+import { TROPHY_FRAMES_ON } from '../inventory';
 import { card, THEMES, themeById, themed, useStyles, useTheme } from '../theme';
 import { brandGlow, brandLine, CELEBRATION_GLYPHS, CELEBRATION_LOOKS } from '../vivid';
 import { Fire } from './Fire';
@@ -10,6 +11,8 @@ import { BRAND_FILL_SMALL, BRAND_INK, BRAND_TEXT_SHADOW, Sticker, VIVID_HEAVY } 
 
 // The pickers for every look: theme, profile frame, flame, title and tick
 // celebration. Looks not won yet show where they come from.
+
+const isTrophyFrame = (id: string) => TROPHY_FRAMES.some((f) => f.id === id);
 
 export function ThemeGrid({ current, unlocked, onPick }: { current: string; unlocked: Set<string>; onPick: (id: string) => void }) {
   const s = useStyles(makeStyles);
@@ -78,7 +81,7 @@ export function FrameGrid({
             key={id}
             label={frameName(id)}
             active={equipped === id}
-            lockedLabel={has ? undefined : id === eventFrame ? 'Event' : `Lvl ${levelForLook('frame', id)}`}
+            lockedLabel={has ? undefined : id === eventFrame ? 'Event' : isTrophyFrame(id) ? 'Trophy' : `Lvl ${levelForLook('frame', id)}`}
             onPress={has ? () => onPick(id) : undefined}
           >
             <ProfileFrame frame={id} size={34} locked={!has}>
@@ -91,10 +94,10 @@ export function FrameGrid({
   );
 }
 
-/** The level frames plus every event frame owned, and this month's even before it's won. */
+/** The level frames, the trophy frames, every event frame owned, and this month's even before it's won. */
 export function frameList(owned: string[], eventFrame: string): string[] {
   const seasonal = owned.filter((f) => f.startsWith('season-'));
-  return [...FRAMES.map((f) => f.id as string), ...(seasonal.includes(eventFrame) ? seasonal : [...seasonal, eventFrame])];
+  return [...FRAMES.map((f) => f.id as string), ...TROPHY_FRAMES_ON.map((f) => f.id as string), ...(seasonal.includes(eventFrame) ? seasonal : [...seasonal, eventFrame])];
 }
 
 export function FlameGrid({ owned, equipped, fireTier, onPick }: { owned: string[]; equipped?: FlameStyleId; fireTier: number; onPick: (id: FlameStyleId) => void }) {
