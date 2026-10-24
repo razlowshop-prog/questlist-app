@@ -187,6 +187,8 @@ export interface Settings {
   celebration?: CelebrationId;
   /** Which of the five avatar gradients (vivid.ts AVATAR_DISCS) the profile picture uses. */
   avatar?: number;
+  /** Days the store's review pop-up was asked for (review.ts). */
+  reviewAsks?: string[];
 }
 
 /** Evening time of the "your streak is about to end" notification. */

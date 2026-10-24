@@ -76,6 +76,8 @@ import { equippedLooks, ownedLooks } from './src/inventory';
 import { claimSeason, seasonStatus } from './src/seasons';
 import { frameName } from './src/cosmetics';
 import { askReminderPermission, REMINDERS_SUPPORTED, syncReminders } from './src/reminders';
+import { reviewDue } from './src/review';
+import { askStoreReview } from './src/storeReview';
 import { loadState, saveState } from './src/storage';
 import { nativeDriver, themeById, themed, ThemeProvider, THEMES, withFonts } from './src/theme';
 
@@ -125,6 +127,8 @@ export default function App() {
   const [levelOpen, setLevelOpen] = useState(false);
   const [draft, setDraft] = useState<LibraryTask | undefined>();
   const [celebration, setCelebration] = useState<CelebrationEvent | null>(null);
+  const celebrationOpen = useRef(false);
+  celebrationOpen.current = !!celebration;
   const bestLevel = useRef<number | null>(null);
   // Theme whose fonts are loaded and which is on screen; a newly picked theme
   // shows once its fonts are ready, so text never flashes in a missing font.
@@ -258,6 +262,18 @@ export default function App() {
       );
     }
     return gained;
+  }
+
+  /** After a level-up pop-up closes: maybe the store's review pop-up (rarely, never for a reward). */
+  function maybeAskReview(level: number) {
+    if (!reviewDue(state, level, today)) return;
+    // Long enough for a level-up from collected bonus XP to open first; then it waits for the next one.
+    setTimeout(() => {
+      if (celebrationOpen.current) return;
+      askStoreReview().then((asked) => {
+        if (asked) setState((s) => ({ ...s, settings: { ...s.settings, reviewAsks: [...(s.settings.reviewAsks ?? []), today] } }));
+      });
+    }, 1500);
   }
 
   /** Collect on the reward pop-up: claims the Climber bonus XP up to that level (other rewards are already given). */
@@ -576,11 +592,15 @@ export default function App() {
               <Celebration
                 key={celebration.level}
                 event={celebration}
-                onClose={() => setCelebration(null)}
+                onClose={() => {
+                  setCelebration(null);
+                  maybeAskReview(celebration.level);
+                }}
                 onCollect={() => {
                   const m = celebration.milestone;
                   setCelebration(null);
                   if (m) collectLevelReward(m);
+                  maybeAskReview(celebration.level);
                 }}
               />
             )}
