@@ -7,7 +7,7 @@ import { Achievements } from '../components/Achievements';
 import { MultiplierPill } from '../components/MultiplierPill';
 import { Fire } from '../components/Fire';
 import { CelebrationGrid, FlameGrid, FrameGrid, frameList, LookRow, ThemeGrid, ThemeSwatch, TitleChoices } from '../components/LooksPickers';
-import { Avatar, ProfileFrame } from '../components/ProfileFrame';
+import { Avatar, frameReach, ProfileFrame } from '../components/ProfileFrame';
 import { Sheet } from '../components/Sheet';
 import { CELEBRATIONS } from '../cosmetics';
 import { equippedLooks, type OwnedLooks } from '../inventory';
@@ -103,7 +103,12 @@ export function ProfileScreen({
   return (
     <ScrollView contentContainerStyle={s.content}>
       <View style={s.hero}>
-        <Pressable onPress={() => setSheet('look')} accessibilityRole="button" accessibilityLabel="Change your photo, colour, frame and title">
+        <Pressable
+          onPress={() => setSheet('look')}
+          style={{ marginVertical: frameReach(frame, 92) }}
+          accessibilityRole="button"
+          accessibilityLabel="Change your photo, colour, frame and title"
+        >
           <ProfileFrame frame={frame} size={92}>
             <Avatar initials={initials} size={92} />
           </ProfileFrame>
@@ -208,7 +213,7 @@ export function ProfileScreen({
       )}
 
       <Sheet visible={sheet === 'look'} onClose={() => setSheet(null)} eyebrow="Your look" title="Profile picture">
-        <View style={s.photoRow}>
+        <View style={[s.photoRow, { paddingVertical: frameReach(frame, 72) }]}>
           <ProfileFrame frame={frame} size={72}>
             <Avatar initials={initials} size={72} />
           </ProfileFrame>

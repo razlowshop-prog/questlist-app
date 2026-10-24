@@ -9,6 +9,7 @@ import { Animated, BackHandler, Easing, Platform, Pressable, SafeAreaView, Style
 import { activitySummary } from './src/activity';
 import { BackBar, TopBar } from './src/components/TopBar';
 import { XpProgress } from './src/components/XpProgress';
+import { FirstDayGuide } from './src/components/FirstDayGuide';
 import { ComboPill, MomentCelebration, type Moment } from './src/components/Moments';
 import { PERFECT_DAY_XP, reachStreakMilestone, syncPerfectDay } from './src/moments';
 import {
@@ -61,8 +62,9 @@ import { SetupScreen, type SetupPick } from './src/screens/SetupScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { SpinScreen } from './src/screens/SpinScreen';
 import { TodayScreen } from './src/screens/TodayScreen';
-import { ownsWheelTheme, spinsToPity, spinWheel, ticketStatus } from './src/wheel';
+import { ownsWheelTheme, spinsToPity, spinWheel, ticketStatus, XP_PER_TICKET } from './src/wheel';
 import { tickStep } from './src/steps';
+import { claimDaily, dailyChallenges } from './src/daily';
 import type { LibraryTask } from './src/library';
 import { fontFilesFor, VIVID_FONTS, WHEEL_FONTS } from './src/fonts';
 import { trophyStatuses } from './src/trophies';
@@ -175,7 +177,9 @@ export default function App() {
   const tasks = useMemo(() => visibleTasks(state, today), [state, today]);
   const upcoming = useMemo(() => upcomingTasks(state, today), [state.tasks, today]);
   const challenges = useMemo(() => weeklyChallenges(state, today), [state, today]);
-  const readyToClaim = challenges.filter((c) => c.complete && !c.claimed).length;
+  const hour = new Date().getHours();
+  const daily = useMemo(() => dailyChallenges(state, today, hour), [state, today, hour]);
+  const readyToClaim = [...challenges, ...daily].filter((c) => c.complete && !c.claimed).length;
   const achievements = useMemo(() => achievementStatuses(state, today), [state, today]);
   const trophies = useMemo(() => trophyStatuses(state, today), [state, today]);
   const tokens = tokenCounts(state);
@@ -187,7 +191,15 @@ export default function App() {
     const labels = new Set(rewards.map((r) => r.label));
     return new Set(THEMES.filter((t) => !t.reward || labels.has(t.reward) || PREVIEW_ALL_THEMES).map((t) => t.id));
   }, [rewards]);
-  const owned = useMemo(() => ownedLooks(state, PREVIEW_ALL_THEMES), [state.achievementClaims, state.levelRewards, state.seasonClaims, state.wheelSpins]);
+  // Trophies won, as a key that only changes when one is won: each gives a title and maybe a frame.
+  const trophiesWon = trophies
+    .filter((t) => t.earned)
+    .map((t) => t.def.id)
+    .join(',');
+  const owned = useMemo(
+    () => ownedLooks(state, PREVIEW_ALL_THEMES, trophiesWon ? trophiesWon.split(',') : []),
+    [state.achievementClaims, state.levelRewards, state.seasonClaims, state.wheelSpins, trophiesWon],
+  );
   const tickets = ticketStatus(state, xp);
   const looks = equippedLooks(state.settings, owned);
   const season = useMemo(() => seasonStatus(state, today), [state.completions, state.tasks, state.seasonClaims, today]);
@@ -372,6 +384,11 @@ export default function App() {
     if (gained > 0) showToast(`Challenge complete · +${gained} XP`);
   }
 
+  function onClaimDaily(id: string) {
+    const gained = apply(claimDaily(state, id, today, new Date().getHours()));
+    if (gained > 0) showToast(`Daily challenge complete · +${gained} XP`);
+  }
+
   function onClaimAchievement(id: string) {
     const { state: next, tier } = claimAchievement(state, id, today);
     if (!tier) return;
@@ -514,6 +531,15 @@ export default function App() {
                       onRest={takeRestDay}
                     />
                   }
+                  guide={
+                    <FirstDayGuide
+                      state={state}
+                      totalXp={xp}
+                      ticketXp={tickets.earned > 0 ? XP_PER_TICKET : tickets.progress}
+                      onOpenSpin={() => openTab('spin')}
+                      onHide={() => setState(updateSettings(state, { guideHidden: true }))}
+                    />
+                  }
                   today={today}
                   loaded={loaded}
                   addedTitles={addedTitles}
@@ -539,6 +565,8 @@ export default function App() {
               {!page && tab === 'challenges' && (
                 <ChallengesScreen
                   challenges={challenges}
+                  daily={daily}
+                  onClaimDaily={onClaimDaily}
                   today={today}
                   onClaim={onClaim}
                   swapsLeft={tokens.reroll}

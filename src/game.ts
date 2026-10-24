@@ -62,6 +62,8 @@ export interface Completion {
   limited?: Limit;
   /** The focus timer bonus, already part of `xp`. */
   focusXp?: number;
+  /** Local hour (0–23) it was ticked, for the daily "before noon" challenges. Missing on older saves. */
+  hour?: number;
 }
 
 /**
@@ -128,10 +130,19 @@ export interface GameState {
   stepTicks?: StepTick[];
   /** The focus timer that is running, if any (see focus.ts). */
   focus?: FocusSession;
+  /** Daily challenges claimed (see daily.ts). */
+  dailyClaims?: DailyClaim[];
   /** Days every task was done, with their small bonus (see moments.ts). */
   perfectDays?: PerfectDay[];
   /** Streak milestones reached (7, 30, 100, 365 days), for the celebration and the profile. */
   streakMilestones?: { days: number; date: string }[];
+}
+
+export interface DailyClaim {
+  challengeId: string;
+  /** The day the challenge belonged to and was claimed, YYYY-MM-DD. */
+  date: string;
+  xp: number;
 }
 
 export interface PerfectDay {
@@ -203,6 +214,8 @@ export interface Settings {
   celebration?: CelebrationId;
   /** Which of the five avatar gradients (vivid.ts AVATAR_DISCS) the profile picture uses. */
   avatar?: number;
+  /** The first-steps card on Today was hidden. */
+  guideHidden?: boolean;
 }
 
 /** Evening time of the "your streak is about to end" notification. */
@@ -328,6 +341,7 @@ export function totalXp(state: GameState): number {
     state.completions.reduce((sum, c) => sum + c.xp, 0) +
     state.claims.reduce((sum, c) => sum + c.xp, 0) +
     state.achievementClaims.reduce((sum, c) => sum + c.xp, 0) +
+    (state.dailyClaims ?? []).reduce((sum, c) => sum + c.xp, 0) +
     (state.perfectDays ?? []).reduce((sum, d) => sum + d.xp, 0) +
     wheelXp(state) +
     stepXp(state)
@@ -690,6 +704,7 @@ export function toggleTask(state: GameState, taskId: string, today: string, now?
   };
   if (limited) completion.limited = limited;
   if (focusXp) completion.focusXp = focusXp;
+  if (now !== undefined) completion.hour = new Date(now).getHours();
   // Finishing the task ends its focus timer.
   const next = { ...state, completions: [...state.completions, completion] };
   if (state.focus?.taskId === taskId) delete next.focus;
