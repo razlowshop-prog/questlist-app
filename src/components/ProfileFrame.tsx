@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, type ReactNode } from 'react';
-import { Animated, Easing, Platform, Text, View } from 'react-native';
+import { Animated, Easing, Image, Platform, Text, View } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 import type { FrameId } from '../cosmetics';
 import { nativeDriver } from '../theme';
@@ -9,11 +9,24 @@ import { fill, useSvgId, VIVID_HEAVY } from './Vivid';
 
 /** The avatar gradient the player picked (Settings.avatar), for every avatar in the app. */
 export const AvatarDiscContext = createContext<number | undefined>(undefined);
+/** The player's own photo (a data URI), shown instead of the initials disc. */
+export const AvatarPhotoContext = createContext<string | undefined>(undefined);
 
 /** The profile picture: white initials on the player's gradient disc, with a dark keyline. */
 export function Avatar({ initials, size, disc }: { initials: string; size: number; /** Overrides the picked disc, for the picker. */ disc?: number }) {
   const picked = useContext(AvatarDiscContext);
+  const photo = useContext(AvatarPhotoContext);
   const grad = avatarDisc(disc ?? picked);
+  // The colour pickers always show discs, even with a photo set.
+  if (photo && disc === undefined) {
+    return (
+      <Image
+        source={{ uri: photo }}
+        style={{ width: size, height: size, borderRadius: size / 2, borderWidth: size >= 40 ? 2 : 1.5, borderColor: KEYLINE }}
+        accessibilityIgnoresInvertColors
+      />
+    );
+  }
   return (
     <View
       style={{
