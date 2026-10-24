@@ -1,11 +1,26 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
+import Animated, { Easing, useAnimatedReaction, useAnimatedStyle, useDerivedValue, useSharedValue, withDelay, withSequence, withTiming } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import { nextLevelReward } from '../achievements';
-import { levelInfo } from '../game';
+import { levelInfo, MAX_LEVEL, xpToNext } from '../game';
 import { eyebrow, themed, useStyles, useTheme } from '../theme';
 import { ShimmerBar } from './Fortuna';
 import { RewardPicture } from './RewardPicture';
 import { GradientText, PrismBar, VIVID_HEAVY } from './Vivid';
+
+/** XP needed for each level, so the animation thread can turn a position back into XP numbers. */
+const LEVEL_XP = Array.from({ length: MAX_LEVEL + 1 }, (_, l) => (l === 0 ? 1 : xpToNext(l)));
+
+/**
+ * Position on the level track: the level plus how far into it, so 3.4 is 40%
+ * into level 3. Within a level XP grows linearly, so animating this number
+ * moves the bar smoothly and a level-up runs it to the end and on from zero.
+ */
+function levelPosition(totalXp: number): number {
+  const info = levelInfo(totalXp);
+  return info.maxed ? MAX_LEVEL : info.level + info.progress;
+}
 
 /**
  * Level progress at the top of Today: "Level 8 → 9", the XP into the level and
@@ -13,61 +28,67 @@ import { GradientText, PrismBar, VIVID_HEAVY } from './Vivid';
  * jumps ahead to the new total, the solid bar fills after it, the numbers tick
  * up and "+N XP" floats by. A level-up runs the bar to the end and continues
  * from zero on the new level. Tapping it opens the level details.
+ *
+ * The bar runs on the animation thread (Reanimated), so it stays smooth while
+ * the rest of the app is busy; only the numbers re-render, once per XP.
  */
 export function XpProgress({ totalXp, onPress }: { totalXp: number; onPress: () => void }) {
   const s = useStyles(makeStyles);
   const c = useTheme();
   const real = levelInfo(totalXp);
   // On first show the bar fills up from the start of the current level.
-  const [shownXp, setShownXp] = useState(totalXp - real.xpIntoLevel);
-  const anim = useRef(new Animated.Value(totalXp - real.xpIntoLevel)).current;
-  const glow = useRef(new Animated.Value(0)).current;
-  const gainAnim = useRef(new Animated.Value(0)).current;
+  const startXp = totalXp - real.xpIntoLevel;
+  const pos = useSharedValue(levelPosition(startXp));
+  const [shown, setShown] = useState({ level: real.level, xp: 0 });
+  const glow = useSharedValue(0);
+  const gainAnim = useSharedValue(0);
   const [gain, setGain] = useState(0);
   const prevXp = useRef<number | null>(null);
-
-  useEffect(() => {
-    const id = anim.addListener(({ value }) => setShownXp(Math.round(value)));
-    return () => anim.removeListener(id);
-  }, []);
 
   useEffect(() => {
     const before = prevXp.current;
     prevXp.current = totalXp;
     const diff = before === null ? 0 : totalXp - before;
-    anim.stopAnimation();
-    glow.stopAnimation();
-    glow.setValue(0);
+    const to = levelPosition(totalXp);
     const levels = Math.max(0, real.level - levelInfo(before ?? totalXp).level);
-    Animated.timing(anim, {
-      toValue: totalXp,
+    pos.value = withDelay(
+      before === null ? 350 : 200,
       // Longer when a level-up runs the bar to the end first.
-      duration: before === null ? 1200 : 1100 + Math.min(levels, 3) * 500,
-      delay: before === null ? 350 : 200,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: false,
-    }).start();
+      withTiming(to, { duration: before === null ? 1200 : 1100 + Math.min(levels, 3) * 500, easing: Easing.out(Easing.cubic) }),
+    );
     if (diff > 0) {
       setGain(diff);
-      gainAnim.setValue(0);
-      Animated.parallel([
-        Animated.sequence([
-          Animated.timing(glow, { toValue: 1, duration: 250, useNativeDriver: false }),
-          Animated.timing(glow, { toValue: 0, duration: 1100, useNativeDriver: false }),
-        ]),
-        Animated.timing(gainAnim, { toValue: 1, duration: 1800, easing: Easing.out(Easing.quad), useNativeDriver: false }),
-      ]).start(({ finished }) => finished && setGain(0));
+      glow.value = withSequence(withTiming(1, { duration: 250 }), withTiming(0, { duration: 1100 }));
+      gainAnim.value = 0;
+      gainAnim.value = withTiming(1, { duration: 1800, easing: Easing.out(Easing.quad) }, (finished) => {
+        if (finished) scheduleOnRN(setGain, 0);
+      });
     }
   }, [totalXp]);
 
-  const shown = levelInfo(shownXp);
+  // How full the bar is: the part after the decimal point, or full at the top level.
+  const fraction = useDerivedValue(() => (pos.value >= MAX_LEVEL ? 1 : pos.value - Math.floor(pos.value)));
+
+  // The numbers follow the bar, re-rendering only when the shown XP changes.
+  useAnimatedReaction(
+    () => {
+      const level = Math.min(MAX_LEVEL, Math.floor(pos.value));
+      const need = LEVEL_XP[level] ?? 1;
+      return level * 100000 + (level >= MAX_LEVEL ? 0 : Math.min(need, Math.round((pos.value - level) * need)));
+    },
+    (now, before) => {
+      if (now !== before) scheduleOnRN(setShown, { level: Math.floor(now / 100000), xp: now % 100000 });
+    },
+  );
+
+  const maxed = shown.level >= MAX_LEVEL;
+  const forLevel = maxed ? 0 : xpToNext(shown.level);
   // Where the bar is heading: the new total, or the end while a level-up is still running.
   const ghost = shown.level === real.level ? real.progress : 1;
-  const glowColor = glow.interpolate({ inputRange: [0, 1], outputRange: [c.xp, c.text] });
-  const gainStyle = {
-    opacity: gainAnim.interpolate({ inputRange: [0, 0.1, 0.7, 1], outputRange: [0, 1, 1, 0] }),
-    transform: [{ translateY: gainAnim.interpolate({ inputRange: [0, 1], outputRange: [4, -8] }) }],
-  };
+  const gainStyle = useAnimatedStyle(() => ({
+    opacity: gainAnim.value < 0.1 ? gainAnim.value * 10 : gainAnim.value > 0.7 ? (1 - gainAnim.value) / 0.3 : 1,
+    transform: [{ translateY: 4 - 12 * gainAnim.value }],
+  }));
 
   return (
     <View style={s.wrap}>
@@ -75,27 +96,27 @@ export function XpProgress({ totalXp, onPress }: { totalXp: number; onPress: () 
         onPress={onPress}
         style={s.press}
         accessibilityRole="button"
-        accessibilityLabel={`Level ${shown.level}, ${shown.rank}. ${shown.maxed ? 'Max level' : `${shown.xpIntoLevel} of ${shown.xpForLevel} XP to level ${shown.level + 1}`}. Show level details`}
+        accessibilityLabel={`Level ${real.level}, ${real.rank}. ${real.maxed ? 'Max level' : `${real.xpIntoLevel} of ${real.xpForLevel} XP to level ${real.level + 1}`}. Show level details`}
       >
         <View style={s.labels}>
-          <Text style={s.level}>{shown.maxed ? `Level ${shown.level} · max` : `Level ${shown.level} → ${shown.level + 1}`}</Text>
+          <Text style={s.level}>{maxed ? `Level ${shown.level} · max` : `Level ${shown.level} → ${shown.level + 1}`}</Text>
           <View style={s.xpWrap}>
             {gain > 0 && (
               <Animated.View style={gainStyle}>
                 <GradientText style={s.gain}>+{gain} XP</GradientText>
               </Animated.View>
             )}
-            {!shown.maxed && (
+            {!maxed && (
               <GradientText style={s.xpNumbers}>
-                {shown.xpIntoLevel} / {shown.xpForLevel} XP
+                {shown.xp} / {forLevel} XP
               </GradientText>
             )}
           </View>
         </View>
         {c.bar.kind === 'shimmer' ? (
-          <ShimmerBar progress={shown.progress} ghost={ghost} glow={gain > 0 ? glowColor : undefined} />
+          <ShimmerBar progress={real.progress} live={fraction} ghost={ghost} glow={gain > 0 ? glow : undefined} glowFrom={c.xp} glowTo={c.text} />
         ) : (
-          <PrismBar progress={shown.progress} ghost={ghost} />
+          <PrismBar progress={real.progress} live={fraction} ghost={ghost} />
         )}
       </Pressable>
       <NextReward totalXp={totalXp} />

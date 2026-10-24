@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Animated, Easing, Platform, StyleSheet, Text, View, type LayoutChangeEvent, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
+import Reanimated, { interpolateColor, useAnimatedStyle, type SharedValue } from 'react-native-reanimated';
 import Svg, { Circle, Defs, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { useReduceMotion } from './FireAura';
+import { useLiveProgress } from './Vivid';
 
 // The Fortuna theme's own pieces (design thread, "Fortuna theme and wheel
 // spec"): a four-point star, the gold coin check, the shimmering XP bar,
@@ -66,17 +68,36 @@ export function CoinCheck({ done, size = 30 }: { done: boolean; size?: number })
 }
 
 /** The XP bar: gold gradient fill, a light sweeping across every 3.6 s, and a twinkling star at the tip. */
-export function ShimmerBar({ progress, ghost, glow }: { progress: number; ghost: number; glow?: Animated.AnimatedInterpolation<string> }) {
+export function ShimmerBar({
+  progress,
+  live,
+  ghost,
+  glow,
+  glowFrom = GOLD.mid,
+  glowTo = '#FFFFFF',
+}: {
+  progress: number;
+  /** Moves the fill on the animation thread instead of `progress`. */
+  live?: SharedValue<number>;
+  ghost: number;
+  /** 0–1: tints the fill from `glowFrom` towards `glowTo` while XP comes in. */
+  glow?: SharedValue<number>;
+  glowFrom?: string;
+  glowTo?: string;
+}) {
   const [width, setWidth] = useState(0);
   const sweep = useLoop(3600, Easing.inOut(Easing.quad));
   const twinkle = useLoop(2200, Easing.inOut(Easing.sin));
-  const fillW = Math.max(0, Math.min(1, progress)) * width;
+  const fraction = useLiveProgress(progress, live);
+  const fillStyle = useAnimatedStyle(() => ({ width: Math.max(0, Math.min(1, fraction.value)) * width }));
+  const starStyle = useAnimatedStyle(() => ({ left: Math.max(0, Math.min(1, fraction.value)) * width - 9 }));
+  const glowStyle = useAnimatedStyle(() => ({ backgroundColor: interpolateColor(glow?.value ?? 0, [0, 1], [glowFrom, glowTo]) }));
   return (
     <View onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)} style={{ height: 18, justifyContent: 'center' }} accessibilityRole="progressbar">
       <View style={{ height: 6, borderRadius: 3, backgroundColor: '#2a1d40', overflow: 'hidden' }}>
         <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${ghost * 100}%`, backgroundColor: GOLD.mid, opacity: 0.25 }} />
-        <View style={{ width: fillW, height: 6, overflow: 'hidden', borderRadius: 3 }}>
-          <Svg width={Math.max(1, fillW)} height={6}>
+        <Reanimated.View style={[{ height: 6, overflow: 'hidden', borderRadius: 3 }, fillStyle]}>
+          <Svg width="100%" height={6}>
             <Defs>
               <LinearGradient id="shimmer" x1="0" y1="0" x2="1" y2="0">
                 <Stop offset="0" stopColor={GOLD.deep} />
@@ -84,9 +105,9 @@ export function ShimmerBar({ progress, ghost, glow }: { progress: number; ghost:
                 <Stop offset="1" stopColor={GOLD.light} />
               </LinearGradient>
             </Defs>
-            <Rect width={Math.max(1, fillW)} height={6} fill="url(#shimmer)" />
+            <Rect width="100%" height={6} fill="url(#shimmer)" />
           </Svg>
-          {glow && <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: glow, opacity: 0.25 }]} />}
+          {glow && <Reanimated.View style={[StyleSheet.absoluteFill, { opacity: 0.25 }, glowStyle]} />}
           <Animated.View
             style={{
               position: 'absolute',
@@ -98,24 +119,23 @@ export function ShimmerBar({ progress, ghost, glow }: { progress: number; ghost:
               transform: [{ translateX: sweep.interpolate({ inputRange: [0, 1], outputRange: [-40, Math.max(width, 80)] }) }, { skewX: '-20deg' }],
             }}
           />
-        </View>
+        </Reanimated.View>
       </View>
       {width > 0 && (
-        <Animated.View
-          style={{
-            position: 'absolute',
-            left: fillW - 9,
-            top: 0,
-            boxShadow: `0px 0px 8px ${GOLD.bright}`,
-            borderRadius: 9,
-            transform: [
-              { scale: twinkle.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.7, 1.15, 0.7] }) },
-              { rotate: twinkle.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '45deg'] }) },
-            ],
-          }}
-        >
-          <Star4 size={18} color={GOLD.light} />
-        </Animated.View>
+        <Reanimated.View style={[{ position: 'absolute', top: 0 }, starStyle]}>
+          <Animated.View
+            style={{
+              boxShadow: `0px 0px 8px ${GOLD.bright}`,
+              borderRadius: 9,
+              transform: [
+                { scale: twinkle.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.7, 1.15, 0.7] }) },
+                { rotate: twinkle.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '45deg'] }) },
+              ],
+            }}
+          >
+            <Star4 size={18} color={GOLD.light} />
+          </Animated.View>
+        </Reanimated.View>
       )}
     </View>
   );
