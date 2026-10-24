@@ -55,6 +55,7 @@ export function TodayScreen({
   onToggle,
   onStep,
   onDelete,
+  recap,
 }: {
   state: GameState;
   tasks: Task[];
@@ -77,6 +78,8 @@ export function TodayScreen({
   onToggle: (task: Task) => { xp: number; note?: string };
   onStep: (task: Task, step: number) => { xp: number; finished: boolean; note?: string };
   onDelete: (task: Task) => void;
+  /** The weekly recap card, on Sunday evening and Monday. */
+  recap?: React.ReactNode;
 }) {
   const s = useStyles(makeStyles);
   const c = useTheme();
@@ -180,6 +183,7 @@ export function TodayScreen({
 
             <StreakCard streak={streak} week={weekDots(state, today)} multiplier={multiplier} onPress={onOpenStreak} />
             {tokenStrip}
+            {recap}
 
             <View style={s.sectionRow}>
               <Text style={s.sectionTitle}>Today's tasks</Text>

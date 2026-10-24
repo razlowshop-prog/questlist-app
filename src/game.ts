@@ -187,6 +187,10 @@ export interface Settings {
   celebration?: CelebrationId;
   /** Which of the five avatar gradients (vivid.ts AVATAR_DISCS) the profile picture uses. */
   avatar?: number;
+  /** Small vibrations on tick, level up and the wheel; on unless turned off. */
+  haptics?: boolean;
+  /** Monday of the last week whose recap was seen or closed. */
+  recapSeen?: string;
 }
 
 /** Evening time of the "your streak is about to end" notification. */
