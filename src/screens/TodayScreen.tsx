@@ -87,7 +87,7 @@ export function TodayScreen({
   /** Steps the user edited; undefined = the suggested ones. */
   const [stepDraft, setStepDraft] = useState<string[] | undefined>();
   const [newStep, setNewStep] = useState('');
-  /** The add sheet: the task form, quick picks and the quote of the day. */
+  /** The add sheet: the task form and quick picks. */
   const [adding, setAdding] = useState(false);
   const quote = quoteOfTheDay(today);
   const typed = title.trim();
@@ -205,6 +205,11 @@ export function TodayScreen({
               <Plus size={20} color={BRAND_INK} strokeWidth={2.5} aria-hidden />
               <Text style={s.addOpenText}>Add a task</Text>
             </Pressable>
+            <View style={s.quote} accessibilityLabel={`Quote of the day: ${quote.text}, by ${quote.author}`}>
+              <Text style={s.quoteLabel}>Quote of the day</Text>
+              <Text style={s.quoteText}>“{quote.text}”</Text>
+              <Text style={s.quoteAuthor}>{quote.author}</Text>
+            </View>
             {upcoming.length > 0 && (
               <View style={s.upcoming}>
                 <Text style={s.upcomingHeading}>Coming up</Text>
@@ -382,12 +387,6 @@ export function TodayScreen({
               />
             )}
 
-              {typed.length === 0 && (
-                <View style={s.quote}>
-                  <Text style={s.quoteText}>“{quote.text}”</Text>
-                  <Text style={s.quoteAuthor}>{quote.author}</Text>
-                </View>
-              )}
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
@@ -401,8 +400,9 @@ const makeStyles = themed((c) => ({
   content: { padding: 20, paddingTop: 12, paddingBottom: 48, maxWidth: 640, width: '100%', alignSelf: 'center' },
   greeting: { fontFamily: FONTS.serif, color: c.text, fontSize: 26, lineHeight: 32, ...headingCase(c) },
   greetingEm: c.italicAccent ? { fontFamily: FONTS.serifItalic, color: c.accent } : { fontFamily: FONTS.serif, color: c.text },
-  quote: { marginTop: 4, gap: 6 },
-  quoteText: { fontFamily: FONTS.serif, fontStyle: 'italic', color: c.muted, fontSize: 15, lineHeight: 22 },
+  quote: { ...card(c), marginTop: 16, padding: 16, gap: 6 },
+  quoteLabel: { ...eyebrow(c, 11), color: c.muted },
+  quoteText: { fontFamily: FONTS.serif, fontStyle: 'italic', color: c.text, fontSize: 16, lineHeight: 23 },
   quoteAuthor: { ...eyebrow(c, 11), color: c.label },
   addOpen: { ...BRAND_FILL, flexDirection: 'row', gap: 8, minHeight: 54, justifyContent: 'center', borderRadius: 14, alignItems: 'center', marginTop: 8 },
   addOpenText: { fontFamily: VIVID_HEAVY, fontSize: 17, color: BRAND_INK, ...BRAND_TEXT_SHADOW },
