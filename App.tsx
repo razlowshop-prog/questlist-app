@@ -172,7 +172,15 @@ export default function App() {
     const labels = new Set(rewards.map((r) => r.label));
     return new Set(THEMES.filter((t) => !t.reward || labels.has(t.reward) || PREVIEW_ALL_THEMES).map((t) => t.id));
   }, [rewards]);
-  const owned = useMemo(() => ownedLooks(state, PREVIEW_ALL_THEMES), [state.achievementClaims, state.levelRewards, state.seasonClaims, state.wheelSpins]);
+  // Trophies won, as a key that only changes when one is won: each gives a title and maybe a frame.
+  const trophiesWon = trophies
+    .filter((t) => t.earned)
+    .map((t) => t.def.id)
+    .join(',');
+  const owned = useMemo(
+    () => ownedLooks(state, PREVIEW_ALL_THEMES, trophiesWon ? trophiesWon.split(',') : []),
+    [state.achievementClaims, state.levelRewards, state.seasonClaims, state.wheelSpins, trophiesWon],
+  );
   const tickets = ticketStatus(state, xp);
   const looks = equippedLooks(state.settings, owned);
   const season = useMemo(() => seasonStatus(state, today), [state.completions, state.tasks, state.seasonClaims, today]);

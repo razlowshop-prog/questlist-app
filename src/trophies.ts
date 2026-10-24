@@ -55,6 +55,16 @@ export const TROPHIES: TrophyDef[] = [
     value: (s, today) => streakStatus(s.completions, today, restDaysOf(s)).bestInfernoWeeks,
   },
   {
+    id: 'marathonMind',
+    name: 'Marathon Mind',
+    description: 'Finish 500 tasks.',
+    icon: 'Brain',
+    rarity: 'epic',
+    target: 500,
+    unit: 'tasks',
+    value: (s) => s.completions.length,
+  },
+  {
     id: 'centurion',
     name: 'Centurion',
     description: 'Finish 1,000 tasks.',
