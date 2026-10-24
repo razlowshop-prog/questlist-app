@@ -59,6 +59,8 @@ export interface Completion {
   title?: string;
   /** Set when an anti-cheat rule reduced the XP. */
   limited?: Limit;
+  /** Local hour (0–23) it was ticked, for the daily "before noon" challenges. Missing on older saves. */
+  hour?: number;
 }
 
 /**
@@ -123,6 +125,15 @@ export interface GameState {
   wheelSpins?: WheelSpin[];
   /** Steps of long tasks ticked off on the way (see steps.ts). */
   stepTicks?: StepTick[];
+  /** Daily challenges claimed (see daily.ts). */
+  dailyClaims?: DailyClaim[];
+}
+
+export interface DailyClaim {
+  challengeId: string;
+  /** The day the challenge belonged to and was claimed, YYYY-MM-DD. */
+  date: string;
+  xp: number;
 }
 
 export interface StepTick {
@@ -312,6 +323,7 @@ export function totalXp(state: GameState): number {
     state.completions.reduce((sum, c) => sum + c.xp, 0) +
     state.claims.reduce((sum, c) => sum + c.xp, 0) +
     state.achievementClaims.reduce((sum, c) => sum + c.xp, 0) +
+    (state.dailyClaims ?? []).reduce((sum, c) => sum + c.xp, 0) +
     wheelXp(state) +
     stepXp(state)
   );
@@ -669,6 +681,7 @@ export function toggleTask(state: GameState, taskId: string, today: string, now?
     title: task.title,
   };
   if (limited) completion.limited = limited;
+  if (now !== undefined) completion.hour = new Date(now).getHours();
   return { ...state, completions: [...state.completions, completion] };
 }
 
