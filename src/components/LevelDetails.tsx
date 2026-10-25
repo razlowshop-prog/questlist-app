@@ -130,7 +130,7 @@ const makeStyles = themed((c) => ({
   small: { ...eyebrow(c, 11), color: c.muted },
   steps: { flexDirection: 'row', gap: 8 },
   step: { flex: 1, alignItems: 'center', gap: 2, paddingVertical: 8, borderRadius: c.radius, borderWidth: 1, borderColor: c.border },
-  stepOn: { borderColor: brandLine(c.dark), backgroundColor: c.surface, boxShadow: `0px 0px 10px ${brandGlow(0.3)}` },
+  stepOn: { borderColor: brandLine(c), backgroundColor: c.surface, boxShadow: `0px 0px 10px ${brandGlow(0.3)}` },
   stepValue: { fontFamily: FONTS.serif, color: c.muted, fontSize: 18, fontVariant: ['lining-nums'] },
   tierRow: {
     flexDirection: 'row',

@@ -33,6 +33,8 @@ export function Mascot({ kind, scale, live, gainKey }: { kind: MascotKind; scale
       return <Flame scale={scale} />;
     case 'moon':
       return <Moon scale={scale} />;
+    case 'crown':
+      return <Crown scale={scale} />;
   }
 }
 
@@ -312,6 +314,29 @@ function Moon({ scale }: { scale: number }) {
     <Animated.View style={[{ width: 24 * scale, height: 24 * scale }, style]}>
       <Svg width={24 * scale} height={24 * scale} viewBox="0 0 24 24">
         <Path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5z" fill="#fff6d8" stroke="#12141c" strokeWidth={1} />
+      </Svg>
+    </Animated.View>
+  );
+}
+
+/** Gold: a small gold crown with a white jewel, bobbing and tilting gently in its own glow. */
+function Crown({ scale }: { scale: number }) {
+  const on = useLoopsOn();
+  const bob = useLoop(3000, on);
+  const style = useAnimatedStyle(() => ({ transform: [{ translateY: -2 * scale * bob.value }, { rotate: `${-4 * bob.value}deg` }] }));
+  return (
+    <Animated.View style={[{ width: 30 * scale, height: 24 * scale, filter: 'drop-shadow(0px 0px 6px rgba(232,198,108,0.6))' } as ViewStyle, style]}>
+      <Svg width={30 * scale} height={24 * scale} viewBox="0 0 30 24">
+        <Defs>
+          <LinearGradient id="crownGold" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor="#fff3c4" />
+            <Stop offset="0.5" stopColor="#e8c66c" />
+            <Stop offset="1" stopColor="#9a6b1c" />
+          </LinearGradient>
+        </Defs>
+        <Path d="M3 20 1 6l7 6 7-10 7 10 7-6-2 14z" fill="url(#crownGold)" stroke="#5a3d0c" strokeWidth={0.8} />
+        <Rect x={3} y={19} width={24} height={4} rx={1} fill="url(#crownGold)" stroke="#5a3d0c" strokeWidth={0.8} />
+        <Circle cx={15} cy={12} r={1.8} fill="#ffffff" />
       </Svg>
     </Animated.View>
   );

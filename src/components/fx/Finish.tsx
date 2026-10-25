@@ -29,6 +29,8 @@ const EASING: Record<FinishKind, TimingEasing> = {
   up: EASE_IN,
   burn: EASE_IN,
   dust: EASE_IN,
+  // The frames below hold still for the sheen, then ease the coin away.
+  gild: Easing.linear,
   fade: Easing.in(Easing.quad),
 };
 
@@ -137,6 +139,15 @@ export function FinishFx({ kind, ms, leaving, onDone, children }: { kind: Finish
       case 'dust':
         // Brightens and drifts up as it crumbles into stardust.
         return { opacity: 1 - v, transform: [{ translateX: 0 }, { translateY: -14 * v }, { rotate: '0deg' }, { skewX: '0deg' }] };
+      case 'gild': {
+        // Turns to gold under the sheen, then shrinks into a coin that flies up to the XP bar.
+        const p = Math.max(0, (v - 0.55) / 0.45);
+        const e = p * p;
+        return {
+          opacity: 1 - e,
+          transform: [{ translateX: 0 }, { translateY: -220 * e }, { rotate: '0deg' }, { skewX: '0deg' }, { scale: keyframes(v, [0, 0.35, 0.55, 1], [1, 1, 0.98, 0.08]) }],
+        };
+      }
       case 'fade':
         return { opacity: 1 - v, transform: [{ translateX: 0 }, { translateY: -8 * v }, { rotate: '0deg' }, { skewX: '0deg' }] };
     }
@@ -265,9 +276,53 @@ function Tint({ kind, t }: { kind: FinishKind; t: SharedValue<number> }) {
       return <Glow t={t} color="#ff7a00" at={[0, 0.25, 0.6]} opacity={[0, 0.35, 0.2]} style={shape} />;
     case 'dust':
       return <Glow t={t} color="#ffffff" at={[0, 0.3, 1]} opacity={[0, 0.15, 0.3]} style={shape} />;
+    case 'gild':
+      return (
+        <>
+          <Glow t={t} color="#e8c66c" at={[0, 0.35, 1]} opacity={[0, 0.6, 0.9]} style={shape} />
+          <GildSheen t={t} style={shape} />
+        </>
+      );
     default:
       return null;
   }
+}
+
+/** Gold: a bright band of light sweeping across the card in the first 0.45 s. */
+function GildSheen({ t, style }: { t: SharedValue<number>; style: ViewStyle }) {
+  const anim = useAnimatedStyle(() => {
+    const p = Math.min(1, t.value / 0.41);
+    return { opacity: t.value < 0.41 ? 1 : 0, left: `${120 - 140 * p}%` };
+  });
+  return (
+    <Animated.View pointerEvents="none" style={[styles.cover, style, { overflow: 'hidden', left: 0, right: 0 }]}>
+      <Animated.View style={[{ position: 'absolute', top: 0, bottom: 0, width: '60%', marginLeft: '-30%', backgroundImage: 'linear-gradient(100deg, rgba(255,243,196,0) 0%, rgba(255,243,196,0.9) 50%, rgba(255,243,196,0) 100%)' } as ViewStyle, anim]} />
+    </Animated.View>
+  );
+}
+
+/**
+ * Gold: the task card's outline, with a light running along it every 7 s
+ * (cards start `index` × 1.7 s apart). The light is a bright band moving
+ * behind the card, seen only through the 1 px edge left around the inner fill.
+ */
+export function RowSheen({ colors, radius, fillColor, index }: { colors: [string, string]; radius: number; fillColor: string; index: number }) {
+  const on = useLoopsOn();
+  const t = useLoop(7000, on, { delay: (index % 4) * 1700, restart: true, easing: Easing.linear });
+  const band = useAnimatedStyle(() => {
+    const p = Math.min(1, t.value / 0.55);
+    return { left: `${130 - 160 * p}%` };
+  });
+  return (
+    <View pointerEvents="none" style={{ position: 'absolute', left: -1, right: -1, top: -1, bottom: -1, borderRadius: radius, overflow: 'hidden', backgroundColor: colors[0] }}>
+      {on && (
+        <Animated.View
+          style={[{ position: 'absolute', top: 0, bottom: 0, width: '40%', marginLeft: '-20%', backgroundImage: `linear-gradient(110deg, ${colors[0]} 0%, ${colors[1]} 50%, ${colors[0]} 100%)` } as ViewStyle, band]}
+        />
+      )}
+      <View style={{ position: 'absolute', left: 1, right: 1, top: 1, bottom: 1, borderRadius: Math.max(0, radius - 1), backgroundColor: fillColor }} />
+    </View>
+  );
 }
 
 function Glow({ t, color, at, opacity, steps, style }: { t: SharedValue<number>; color: string; at: number[]; opacity: number[]; steps?: boolean; style: ViewStyle }) {

@@ -2,7 +2,7 @@ import { Pressable, Text, View } from 'react-native';
 import { durationLabel, xpFor } from '../game';
 import { categoryOf, type LibraryTask } from '../library';
 import { card, useStyles, type Palette } from '../theme';
-import { BRAND_FILL_SMALL, BRAND_INK, BRAND_TEXT_SHADOW } from './Vivid';
+import { brandFillSmall, brandInk, brandTextShadow } from './Vivid';
 import { Sticker } from './Vivid';
 import { categoryLook } from '../vivid';
 
@@ -66,12 +66,12 @@ const makeStyles = (c: Palette) => ({
     width: 30,
     height: 30,
     borderRadius: 15,
-    ...BRAND_FILL_SMALL,
+    ...brandFillSmall(c),
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
   },
   added: { backgroundColor: c.xpSoft },
   picked: { borderColor: c.xp, borderWidth: 1.5 },
-  addText: { color: BRAND_INK, fontSize: 18, fontWeight: '700' as const, lineHeight: 20, ...BRAND_TEXT_SHADOW },
+  addText: { color: brandInk(c), fontSize: 18, fontWeight: '700' as const, lineHeight: 20, ...brandTextShadow(c) },
   addedText: { color: c.xp },
 });

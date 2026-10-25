@@ -692,7 +692,7 @@ export default function App() {
                 >
                   {tab === t.key ? (
                     <View style={[styles.tabGlyph, styles.tabGlow]}>
-                      {t.glyph ? <Glyph name={t.glyph} size={24} grad={BRAND} /> : <t.Icon size={24} color={brandLine(c.dark)} strokeWidth={2.5} aria-hidden />}
+                      {t.glyph ? <Glyph name={t.glyph} size={24} grad={c.brand?.text ?? BRAND} /> : <t.Icon size={24} color={brandLine(c)} strokeWidth={2.5} aria-hidden />}
                     </View>
                   ) : (
                     <View style={styles.tabGlyph}>
@@ -816,7 +816,7 @@ const makeStyles = themed((c) => ({
   },
   tab: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 44, gap: 4 },
   tabLabel: { fontSize: 11, fontWeight: '600', color: c.muted },
-  tabLabelActive: { color: brandLine(c.dark), fontFamily: VIVID_HEAVY },
+  tabLabelActive: { color: brandLine(c), fontFamily: VIVID_HEAVY },
   tabGlyph: { width: 28, height: 26, alignItems: 'center', justifyContent: 'center' },
   tabGlow: { filter: `drop-shadow(0px 0px 6px ${brandGlow(0.7)})` },
   dot: { position: 'absolute', top: -4, right: '18%' },
@@ -826,7 +826,7 @@ const makeStyles = themed((c) => ({
     alignSelf: 'center',
     backgroundColor: c.surface,
     borderWidth: 1.5,
-    borderColor: brandLine(c.dark),
+    borderColor: brandLine(c),
     boxShadow: `0px 6px 20px ${brandGlow(0.3)}`,
     paddingHorizontal: 20,
     paddingVertical: 12,

@@ -139,7 +139,7 @@ function Dot({ state, grad }: { state: WeekDot; grad?: { c1: string; c2: string 
   const doneGrad = grad ?? { c1: '#FFE29A', c2: '#FF4A1C' };
   if (state === 'done') return <View style={[s.dot, fill(doneGrad, 180), { borderColor: 'transparent' }]} />;
   if (state === 'rest') return <View style={[s.dot, { borderColor: doneGrad.c2, borderStyle: 'dashed' }]} />;
-  if (state === 'today') return <View style={[s.dot, { borderColor: brandLine(c.dark), borderWidth: 2 }]} />;
+  if (state === 'today') return <View style={[s.dot, { borderColor: brandLine(c), borderWidth: 2 }]} />;
   return <View style={[s.dot, state === 'future' && { opacity: 0.6 }]} />;
 }
 

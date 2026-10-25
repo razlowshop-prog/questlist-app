@@ -53,7 +53,7 @@ export function WeeklyRecap({ recap, onSeen }: { recap: WeekRecap; onSeen: () =>
             </View>
             {recap.bestDay && (
               <Text style={s.line}>
-                Best day: <Text style={{ color: brandLine(c.dark), fontWeight: '700' }}>{recap.bestDay.name}</Text> with {recap.bestDay.tasks} {recap.bestDay.tasks === 1 ? 'task' : 'tasks'}
+                Best day: <Text style={{ color: brandLine(c), fontWeight: '700' }}>{recap.bestDay.name}</Text> with {recap.bestDay.tasks} {recap.bestDay.tasks === 1 ? 'task' : 'tasks'}
               </Text>
             )}
             <Text style={s.line}>{compare}</Text>

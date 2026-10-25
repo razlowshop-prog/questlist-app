@@ -6,7 +6,7 @@ import { clockLabel, focusElapsed, focusGoalMinutes, FOCUS_BONUS_XP, type FocusS
 import type { Task } from '../game';
 import { card, eyebrow, FONTS, headingCase, themed, useStyles, useTheme } from '../theme';
 import { BRAND, brandLine } from '../vivid';
-import { BRAND_FILL, BRAND_INK, BRAND_TEXT_SHADOW, useSvgId, VIVID_HEAVY } from './Vivid';
+import { brandFill, brandInk, brandTextShadow, useSvgId, VIVID_HEAVY } from './Vivid';
 
 const RING = 240;
 const STROKE = 14;
@@ -161,14 +161,14 @@ const makeStyles = themed((c) => ({
   clock: { fontFamily: VIVID_HEAVY, color: c.text, fontSize: 52, lineHeight: 60, fontVariant: ['tabular-nums'] },
   clockNote: { color: c.muted, fontSize: 14 },
   bonus: { color: c.muted, fontSize: 14, textAlign: 'center' },
-  bonusReady: { color: brandLine(c.dark), fontWeight: '700' },
+  bonusReady: { color: brandLine(c), fontWeight: '700' },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 14, maxWidth: 420, width: '100%', alignSelf: 'center' },
   round: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surface, borderWidth: 1, borderColor: c.border },
-  finish: { ...BRAND_FILL, flex: 1, height: 56, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  finishText: { color: BRAND_INK, fontFamily: VIVID_HEAVY, fontSize: 17, ...BRAND_TEXT_SHADOW },
+  finish: { ...brandFill(c), flex: 1, height: 56, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  finishText: { color: brandInk(c), fontFamily: VIVID_HEAVY, fontSize: 17, ...brandTextShadow(c) },
   stop: { alignSelf: 'center', marginTop: 16 },
   stopText: { color: c.faint, fontSize: 14, fontWeight: '600' },
-  bar: { ...card(c), flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingHorizontal: 14, borderColor: brandLine(c.dark) },
+  bar: { ...card(c), flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingHorizontal: 14, borderColor: brandLine(c) },
   barTitle: { flex: 1, color: c.text, fontSize: 14, fontWeight: '700' },
   barClock: { color: c.text, fontFamily: VIVID_HEAVY, fontSize: 15, fontVariant: ['tabular-nums'] },
 }));

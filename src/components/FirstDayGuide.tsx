@@ -4,7 +4,7 @@ import type { GameState } from '../game';
 import { guideSteps } from '../guide';
 import { card, eyebrow, themed, useStyles, useTheme } from '../theme';
 import { brandLine } from '../vivid';
-import { BRAND_FILL_SMALL, BRAND_INK, BRAND_TEXT_SHADOW, VIVID_HEAVY } from './Vivid';
+import { brandFillSmall, brandInk, brandTextShadow, VIVID_HEAVY } from './Vivid';
 
 /**
  * A small card on Today for new players: three steps that show how the game
@@ -42,7 +42,7 @@ export function FirstDayGuide({
       {steps.map((st, i) => (
         <View key={st.label} style={s.row} accessible accessibilityLabel={`Step ${i + 1}: ${st.label}${st.done ? ', done' : ''}`}>
           <View style={[s.dot, st.done && s.dotDone, i === next && s.dotNext]}>
-            {st.done ? <Check size={13} color={BRAND_INK} strokeWidth={3} aria-hidden /> : <Text style={[s.num, i === next && { color: c.text }]}>{i + 1}</Text>}
+            {st.done ? <Check size={13} color={brandInk(c)} strokeWidth={3} aria-hidden /> : <Text style={[s.num, i === next && { color: c.text }]}>{i + 1}</Text>}
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[s.label, st.done && s.labelDone]}>{st.label}</Text>
@@ -60,18 +60,18 @@ export function FirstDayGuide({
 }
 
 const makeStyles = themed((c) => ({
-  card: { ...card(c), marginTop: 16, paddingVertical: 12, paddingHorizontal: 14, gap: 10, borderWidth: 1, borderColor: brandLine(c.dark) },
+  card: { ...card(c), marginTop: 16, paddingVertical: 12, paddingHorizontal: 14, gap: 10, borderWidth: 1, borderColor: brandLine(c) },
   head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   eyebrow: { ...eyebrow(c, 11), color: c.muted },
   hide: { color: c.faint, fontSize: 12, fontWeight: '600' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   dot: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: c.outline, alignItems: 'center', justifyContent: 'center' },
-  dotDone: { ...BRAND_FILL_SMALL, borderWidth: 0 },
-  dotNext: { borderColor: brandLine(c.dark), borderWidth: 2 },
+  dotDone: { ...brandFillSmall(c), borderWidth: 0 },
+  dotNext: { borderColor: brandLine(c), borderWidth: 2 },
   num: { color: c.faint, fontSize: 12, fontWeight: '700' },
   label: { color: c.text, fontSize: 14, fontWeight: '600' },
   labelDone: { color: c.muted, textDecorationLine: 'line-through' },
   note: { color: c.muted, fontSize: 12, marginTop: 1 },
-  go: { ...BRAND_FILL_SMALL, paddingHorizontal: 14, minHeight: 32, justifyContent: 'center', borderRadius: 10 },
-  goText: { color: BRAND_INK, fontFamily: VIVID_HEAVY, fontSize: 13, ...BRAND_TEXT_SHADOW },
+  go: { ...brandFillSmall(c), paddingHorizontal: 14, minHeight: 32, justifyContent: 'center', borderRadius: 10 },
+  goText: { color: brandInk(c), fontFamily: VIVID_HEAVY, fontSize: 13, ...brandTextShadow(c) },
 }));

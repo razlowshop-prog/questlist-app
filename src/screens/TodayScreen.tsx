@@ -4,7 +4,7 @@ import Animated, { LinearTransition, useAnimatedScrollHandler, useAnimatedStyle,
 import { ComboPill } from '../components/Moments';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { Chip } from '../components/Chip';
-import { EmptyState, BRAND_FILL, BRAND_FILL_SMALL, BRAND_INK, BRAND_TEXT_SHADOW, GradientText, VIVID_HEAVY, VividButton } from '../components/Vivid';
+import { brandFill, brandFillSmall, brandInk, brandTextShadow, EmptyState, GradientText, VIVID_HEAVY, VividButton } from '../components/Vivid';
 import { RARITY } from '../vivid';
 import { LibraryRow } from '../components/LibraryRow';
 import { defaultSchedule, scheduleProblem, SchedulePicker, scheduleToTask, type Schedule } from '../components/SchedulePicker';
@@ -310,7 +310,7 @@ export function TodayScreen({
 
       {/* Always in reach at the bottom right, however long the list gets. */}
       <Pressable onPress={() => setAdding(true)} style={s.fab} accessibilityRole="button" accessibilityLabel="Add a task">
-        <Plus size={28} color={BRAND_INK} strokeWidth={2.75} aria-hidden />
+        <Plus size={28} color={brandInk(c)} strokeWidth={2.75} aria-hidden />
       </Pressable>
 
       <Modal visible={adding} transparent animationType="slide" onRequestClose={closeSheet}>
@@ -341,7 +341,7 @@ export function TodayScreen({
                 accessibilityRole="button"
                 accessibilityLabel="Add task"
               >
-                <Plus size={22} color={BRAND_INK} strokeWidth={2.5} />
+                <Plus size={22} color={brandInk(c)} strokeWidth={2.5} />
               </Pressable>
             </View>
 
@@ -492,7 +492,7 @@ const makeStyles = themed((c) => ({
   quoteLabel: { ...eyebrow(c, 11), color: c.muted },
   quoteText: { fontFamily: FONTS.serif, fontStyle: 'italic', color: c.text, fontSize: 16, lineHeight: 23 },
   quoteAuthor: { ...eyebrow(c, 11), color: c.label },
-  fab: { ...BRAND_FILL, position: 'absolute', right: 20, bottom: 20, width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', boxShadow: '0px 8px 24px rgba(90,80,255,0.45)' },
+  fab: { ...brandFill(c), position: 'absolute', right: 20, bottom: 20, width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', boxShadow: c.brand ? '0px 8px 24px rgba(232,198,108,0.3)' : '0px 8px 24px rgba(90,80,255,0.45)' },
   backdrop: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.55)' },
   sheetWrap: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
@@ -511,7 +511,7 @@ const makeStyles = themed((c) => ({
   sheetTitle: { fontFamily: FONTS.serif, color: c.text, fontSize: 22, ...headingCase(c) },
   sheetBody: { padding: 18, paddingTop: 8, gap: 12, paddingBottom: 32 },
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  plus: { width: 46, height: 46, borderRadius: 14, ...BRAND_FILL_SMALL, alignItems: 'center', justifyContent: 'center' },
+  plus: { width: 46, height: 46, borderRadius: 14, ...brandFillSmall(c), alignItems: 'center', justifyContent: 'center' },
   quickRow: { gap: 8, paddingRight: 4 },
   quick: {
     flexDirection: 'row',
@@ -554,8 +554,8 @@ const makeStyles = themed((c) => ({
   estimateText: { color: c.text, fontSize: 14 },
   estimateStrong: { fontWeight: '700' },
   estimateNote: { color: c.faint, fontSize: 12 },
-  addButton: { ...BRAND_FILL, minHeight: 54, justifyContent: 'center', borderRadius: 14, alignItems: 'center' },
-  addButtonText: { fontFamily: VIVID_HEAVY, fontSize: 17, color: BRAND_INK, ...BRAND_TEXT_SHADOW },
+  addButton: { ...brandFill(c), minHeight: 54, justifyContent: 'center', borderRadius: 14, alignItems: 'center' },
+  addButtonText: { fontFamily: VIVID_HEAVY, fontSize: 17, color: brandInk(c), ...brandTextShadow(c) },
   sectionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

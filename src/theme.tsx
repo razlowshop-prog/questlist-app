@@ -61,6 +61,12 @@ export interface Palette {
   /** Fortuna extras: drifting rainbow borders on task cards, and rising gold dust behind everything. */
   holo: boolean;
   backdrop: 'none' | 'dust';
+  /**
+   * The theme's own accent instead of the blue-violet brand (Gold): fill for
+   * buttons and selected things (CSS gradient + solid colour), text on it,
+   * outline colour and the gradient for highlighted numbers and words.
+   */
+  brand?: { fill: string; color: string; ink: string; line: string; text: { c1: string; c2: string } };
 }
 
 export type Ornament = 'none' | 'leaf' | 'wave' | 'sun' | 'bolt' | 'peak' | 'dots' | 'double' | 'moon' | 'star4';
@@ -131,6 +137,7 @@ interface ThemeSpec {
   headingUpper: boolean;
   holo?: boolean;
   backdrop?: Palette['backdrop'];
+  brand?: Palette['brand'];
 }
 
 /** Builds a palette from a design-thread spec line. */
@@ -176,6 +183,7 @@ function palette(spec: ThemeSpec): Palette {
     fonts: spec.fonts ?? FONTS,
     holo: spec.holo ?? false,
     backdrop: spec.backdrop ?? 'none',
+    brand: spec.brand,
   };
 }
 
@@ -300,11 +308,15 @@ export const THEMES: ThemeDef[] = [
     id: 'gold',
     name: 'Gold',
     reward: 'Gold theme',
+    // Design "Noir": black and gold, a sheen running round the task cards, gold dust.
     palette: palette({
-      colors: ['17140f', '221d15', '2c261b', '4c4232', 'f6efe0', 'cbbf9f', 'a39878', '6f6448', 'e8c66c', '17140f'],
+      colors: ['0b0a08', '14110c', '1c170f', '3a2f1c', 'f6efe0', 'cbbf9f', 'a39878', '5a4a2c', 'e8c66c', '1a1206'],
+      bgImage: 'radial-gradient(90% 55% at 50% 0%, #221a0e 0%, #0b0a08 62%)',
+      tabBar: 'rgba(11,10,8,0.92)',
       fonts: CORMORANT,
-      radius: 0, listStyle: 'lines', check: 'diamond', lineWeight: 2, tip: true,
+      radius: 2, listStyle: 'cards', check: 'diamond', lineWeight: 2, tip: false,
       eyebrowCaps: true, logoRule: true, ornament: 'double', italicAccent: false, headingUpper: true,
+      brand: { fill: 'linear-gradient(135deg, #fff3c4, #e8c66c 45%, #a8771f)', color: '#e8c66c', ink: '#1a1206', line: '#e8c66c', text: { c1: '#fff3c4', c2: '#c9a046' } },
     }),
   },
   {

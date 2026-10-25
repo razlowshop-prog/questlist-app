@@ -9,7 +9,7 @@ import { Mascot } from './fx/Mascots';
 // layer and the way a ticked task leaves the list (see themeFx.ts and fx/).
 
 export { Ambient } from './fx/Ambient';
-export { FinishFx, RowPulse } from './fx/Finish';
+export { FinishFx, RowPulse, RowSheen } from './fx/Finish';
 
 /** The moving parts of the theme on screen, set in App. */
 export const ThemeFxContext = createContext<ThemeFx>(PLAIN_FX);

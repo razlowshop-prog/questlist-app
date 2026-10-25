@@ -18,7 +18,7 @@ import { EMBLEM_TIERS, type EmblemStatus } from '../emblems';
 import { showcaseTrophies, toggleShowcase, type TrophyStatus } from '../trophies';
 import { card, eyebrow, themeById, themed, useStyles, useTheme, FONTS, headingCase } from '../theme';
 import { WeekCard } from './ActivityScreen';
-import { BRAND_FILL_SMALL, BRAND_INK, BRAND_TEXT_SHADOW, CountBadge, GradientText, LevelBadge, Sticker, StickerHeading, VIVID_HEAVY } from '../components/Vivid';
+import { brandFillSmall, brandInk, brandTextShadow, CountBadge, GradientText, LevelBadge, Sticker, StickerHeading, VIVID_HEAVY } from '../components/Vivid';
 import { AVATAR_DISCS, brandLine, categoryLook, CELEBRATION_GLYPHS, CELEBRATION_LOOKS, EMBLEM_METALS, RARITY } from '../vivid';
 
 export function ProfileScreen({
@@ -393,10 +393,10 @@ const makeStyles = themed((c) => ({
   showcaseName: { color: c.muted, fontSize: 11, fontWeight: '700', textAlign: 'center' },
   discs: { flexDirection: 'row', gap: 10, marginTop: 6 },
   disc: { padding: 2, borderRadius: 16, borderWidth: 1.5, borderColor: 'transparent' },
-  discActive: { borderColor: brandLine(c.dark) },
+  discActive: { borderColor: brandLine(c) },
   emblems: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   emblem: { width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'transparent' },
-  emblemOpen: { borderColor: brandLine(c.dark) },
+  emblemOpen: { borderColor: brandLine(c) },
   name: { fontFamily: FONTS.serif, color: c.text, fontSize: 28, ...headingCase(c) },
   title: { fontFamily: FONTS.serifItalic, color: c.accent, fontSize: 17, marginTop: -2 },
   edit: { color: c.muted, fontSize: 16 },
@@ -425,9 +425,9 @@ const makeStyles = themed((c) => ({
   eyebrow: { ...eyebrow(c, 11), color: c.muted, marginTop: 18, marginBottom: 8 },
   photoRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   photoButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  smallButton: { ...BRAND_FILL_SMALL, borderRadius: 12, paddingHorizontal: 12, minHeight: 36, justifyContent: 'center' },
+  smallButton: { ...brandFillSmall(c), borderRadius: 12, paddingHorizontal: 12, minHeight: 36, justifyContent: 'center' },
   smallButtonQuiet: { backgroundColor: 'transparent', backgroundImage: 'none', borderWidth: 1, borderColor: c.border, boxShadow: 'none' },
-  smallButtonText: { color: BRAND_INK, fontFamily: VIVID_HEAVY, fontSize: 13, ...BRAND_TEXT_SHADOW },
+  smallButtonText: { color: brandInk(c), fontFamily: VIVID_HEAVY, fontSize: 13, ...brandTextShadow(c) },
   error: { color: c.flame, fontSize: 13 },
   statValue: { fontFamily: VIVID_HEAVY, fontSize: 24, fontVariant: ['lining-nums'] },
   statLabel: { color: c.muted, fontSize: 12, marginTop: 2, textAlign: 'center' },
@@ -435,9 +435,9 @@ const makeStyles = themed((c) => ({
   headingFirst: { marginTop: 4, marginBottom: 12 },
   segment: { flexDirection: 'row', gap: 4, padding: 4, borderRadius: c.radius + 6, backgroundColor: c.surface, marginTop: 14, marginBottom: 18 },
   segmentItem: { flex: 1, minHeight: 38, alignItems: 'center', justifyContent: 'center', borderRadius: c.radius + 2 },
-  segmentActive: { ...BRAND_FILL_SMALL },
+  segmentActive: { ...brandFillSmall(c) },
   segmentText: { color: c.muted, fontWeight: '700', fontSize: 14 },
-  segmentTextActive: { color: BRAND_INK, fontFamily: VIVID_HEAVY, ...BRAND_TEXT_SHADOW },
+  segmentTextActive: { color: brandInk(c), fontFamily: VIVID_HEAVY, ...brandTextShadow(c) },
   segmentBadge: { position: 'absolute', top: -6, right: 10 },
   sectionTitle: { fontFamily: FONTS.serif, color: c.text, fontSize: 19, ...headingCase(c) },
 }));

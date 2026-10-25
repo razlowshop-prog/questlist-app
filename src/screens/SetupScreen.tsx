@@ -5,7 +5,7 @@ import { Stepper } from '../components/Stepper';
 import { durationLabel, maxPerWeek, xpFor } from '../game';
 import { CATEGORIES, categoryOf, suggestionsFor, type LibraryTask } from '../library';
 import { eyebrow, themed, useStyles, useTheme, FONTS, headingCase } from '../theme';
-import { BRAND_FILL, BRAND_FILL_SMALL, BRAND_INK, VIVID_HEAVY, BRAND_TEXT_SHADOW } from '../components/Vivid';
+import { BRAND_FILL_SMALL, brandFill, brandFillSmall, brandInk, brandTextShadow, VIVID_HEAVY } from '../components/Vivid';
 import { Sticker } from '../components/Vivid';
 import { brandGlow, brandLine, categoryLook } from '../vivid';
 
@@ -256,11 +256,11 @@ const makeStyles = themed((c) => ({
     borderColor: 'transparent',
     gap: 4,
   },
-  goalOn: { borderColor: brandLine(c.dark), backgroundColor: c.surface, boxShadow: `0px 0px 12px ${brandGlow(0.3)}` },
+  goalOn: { borderColor: brandLine(c), backgroundColor: c.surface, boxShadow: `0px 0px 12px ${brandGlow(0.3)}` },
   goalLabel: { color: c.text, fontSize: 14, fontWeight: '700' },
   section: { ...eyebrow(c), color: c.muted, marginBottom: 10 },
   taskCard: { backgroundColor: c.surface, borderRadius: c.radius, marginBottom: 6, borderWidth: 1, borderColor: 'transparent' },
-  taskCardOn: { borderColor: brandLine(c.dark) },
+  taskCardOn: { borderColor: brandLine(c) },
   taskMain: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 },
   check: {
     width: 24,
@@ -271,8 +271,8 @@ const makeStyles = themed((c) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkOn: { ...BRAND_FILL_SMALL, borderColor: 'transparent' },
-  checkMark: { color: BRAND_INK, fontWeight: '700', fontSize: 14, ...BRAND_TEXT_SHADOW },
+  checkOn: { ...brandFillSmall(c), borderColor: 'transparent' },
+  checkMark: { color: brandInk(c), fontWeight: '700', fontSize: 14, ...brandTextShadow(c) },
   taskTitle: { color: c.text, fontSize: 15, fontWeight: '600' },
   taskMeta: { color: c.muted, fontSize: 12, marginTop: 1 },
   freq: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12, paddingBottom: 12 },
@@ -281,6 +281,6 @@ const makeStyles = themed((c) => ({
   footer: { flexDirection: 'row', gap: 10, padding: 16, borderTopWidth: 1, borderTopColor: c.border },
   back: { paddingHorizontal: 20, minHeight: 48, justifyContent: 'center', borderRadius: c.radius, borderWidth: 1, borderColor: c.outline },
   backText: { color: c.text, fontWeight: '700', fontSize: 15 },
-  next: { flex: 1, ...BRAND_FILL, minHeight: 54, justifyContent: 'center', borderRadius: 14, alignItems: 'center' },
-  nextText: { color: BRAND_INK, fontFamily: VIVID_HEAVY, fontSize: 17, ...BRAND_TEXT_SHADOW },
+  next: { flex: 1, ...brandFill(c), minHeight: 54, justifyContent: 'center', borderRadius: 14, alignItems: 'center' },
+  nextText: { color: brandInk(c), fontFamily: VIVID_HEAVY, fontSize: 17, ...brandTextShadow(c) },
 }));

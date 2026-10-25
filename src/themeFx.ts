@@ -3,11 +3,11 @@
 // ticked task leaves the list. Themes without an entry keep the brand bar
 // and a plain fade.
 
-export type MascotKind = 'rocket' | 'sprout' | 'boat' | 'car' | 'pencil' | 'lifter' | 'sun' | 'bolt' | 'climber' | 'flame' | 'moon';
-export type FinishKind = 'rocket' | 'blow' | 'wash' | 'glitch' | 'cross' | 'throw' | 'sink' | 'zap' | 'up' | 'burn' | 'dust' | 'fade';
-export type AmbientKind = 'stars' | 'leaves' | 'sea' | 'synth' | 'floor' | 'dusk' | 'storm' | 'peaks' | 'embers' | 'night';
+export type MascotKind = 'rocket' | 'sprout' | 'boat' | 'car' | 'pencil' | 'lifter' | 'sun' | 'bolt' | 'climber' | 'flame' | 'moon' | 'crown';
+export type FinishKind = 'rocket' | 'blow' | 'wash' | 'glitch' | 'cross' | 'throw' | 'sink' | 'zap' | 'up' | 'burn' | 'dust' | 'gild' | 'fade';
+export type AmbientKind = 'stars' | 'leaves' | 'sea' | 'skyline' | 'floor' | 'dusk' | 'storm' | 'peaks' | 'embers' | 'night' | 'noir';
 /** Drawn on the fill and revealed as it grows. */
-export type BarDecor = 'vine' | 'wavetop' | 'arcs' | 'coals';
+export type BarDecor = 'vine' | 'wavetop' | 'arcs' | 'coals' | 'sheen';
 
 export interface ThemeBarSpec {
   height: number;
@@ -43,6 +43,8 @@ export interface ThemeFx {
   ambient?: AmbientKind;
   /** Task cards whose outline pulses between two colours (Neon). */
   rowPulse?: [string, string];
+  /** Task cards whose outline catches a light running round it: [outline, light] (Gold). */
+  rowSheen?: [string, string];
 }
 
 const linear = (angle: number, ...colors: string[]) => `linear-gradient(${angle}deg, ${colors.join(', ')})`;
@@ -77,10 +79,10 @@ export const THEME_FX: Record<string, ThemeFx> = {
   neon: {
     bar: { height: 8, track: '#1c1030', fill: linear(90, '#22e8ff', '#ff2bd6'), fillColor: '#8e8af0', glow: '#ff2bd6', fillShadow: '0 0 10px #ff2bd6, 0 0 16px #22e8ff' },
     mascot: 'car',
-    mascotScale: 1.35,
+    mascotScale: 0.95,
     finish: 'glitch',
     finishMs: 900,
-    ambient: 'synth',
+    ambient: 'skyline',
     rowPulse: ['rgba(34,232,255,0.55)', 'rgba(255,43,214,0.85)'],
   },
   notepad: {
@@ -156,6 +158,24 @@ export const THEME_FX: Record<string, ThemeFx> = {
     finishMs: 1150,
     ambient: 'embers',
   },
+  gold: {
+    bar: {
+      height: 6,
+      radius: 1,
+      track: '#1c170f',
+      fill: linear(90, '#9a6b1c', '#e8c66c', '#fff3c4', '#e8c66c'),
+      fillColor: '#e8c66c',
+      glow: '#fff3c4',
+      fillShadow: '0 0 10px rgba(232,198,108,0.45)',
+      decor: 'sheen',
+    },
+    mascot: 'crown',
+    mascotScale: 1.2,
+    finish: 'gild',
+    finishMs: 1100,
+    ambient: 'noir',
+    rowSheen: ['#3a2f1c', '#f7dc8a'],
+  },
   midnight: {
     bar: { height: 6, track: '#242838', fill: linear(90, '#59607a', '#a3b3ea', '#ffffff'), fillColor: '#a3b3ea', glow: '#ffffff' },
     mascot: 'moon',
@@ -186,6 +206,7 @@ export const MASCOT_SIZE: Record<MascotKind, { width: number; height: number; si
   climber: { width: 22, height: 30 },
   flame: { width: 20, height: 28 },
   moon: { width: 24, height: 24 },
+  crown: { width: 30, height: 24 },
 };
 
 /**

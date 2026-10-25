@@ -77,7 +77,7 @@ const makeStyles = themed((c) => ({
   shareRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: 1, borderTopColor: c.border, paddingTop: 12, marginTop: 4, alignSelf: 'stretch' },
   shareTitle: { color: c.text, fontSize: 15, fontWeight: '600' },
   small: { color: c.muted, fontSize: 12 },
-  me: { ...card(c), flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, paddingHorizontal: 14, borderWidth: 1.5, borderColor: brandLine(c.dark) },
+  me: { ...card(c), flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, paddingHorizontal: 14, borderWidth: 1.5, borderColor: brandLine(c) },
   rank: { color: c.muted, fontFamily: VIVID_HEAVY, fontSize: 15, width: 18, textAlign: 'center' },
   meName: { color: c.text, fontSize: 15, fontWeight: '700' },
   xp: { fontFamily: VIVID_HEAVY, fontSize: 14, fontVariant: ['tabular-nums'] },

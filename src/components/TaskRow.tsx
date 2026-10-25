@@ -19,7 +19,7 @@ import { CoinCheck, HoloBorder } from './Fortuna';
 import { stepStatus } from '../steps';
 import { taskCategory } from '../library';
 import { brandLine, categoryLook, midColor, MYTHIC } from '../vivid';
-import { FinishFx, RowPulse, useThemeFx } from './ThemeFx';
+import { FinishFx, RowPulse, RowSheen, useThemeFx } from './ThemeFx';
 import { fill, GradientText, Sticker } from './Vivid';
 
 /** The tick celebration the player has equipped. */
@@ -193,6 +193,7 @@ export function TaskRow({
   const row = (
     <View style={[s.row, label && !c.holo && { zIndex: 2 }]}>
       {fx.rowPulse && c.listStyle === 'cards' && <RowPulse colors={fx.rowPulse} radius={c.radius} />}
+      {fx.rowSheen && c.listStyle === 'cards' && <RowSheen colors={fx.rowSheen} radius={c.radius} fillColor={c.surface} index={index} />}
       <Animated.View style={[s.flash, flashStyle]} pointerEvents="none" />
       <View style={[s.edge, fill(cat, 180)]} pointerEvents="none" />
       <View style={s.top}>
@@ -492,10 +493,10 @@ const makeStyles = themed((c) => ({
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 8 },
   reminder: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
   focus: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2, paddingHorizontal: 7, paddingVertical: 1, borderRadius: 999, borderWidth: 1, borderColor: c.border },
-  focusOn: { borderColor: brandLine(c.dark) },
+  focusOn: { borderColor: brandLine(c) },
   focusText: { color: c.muted, fontSize: 11, fontWeight: '700' },
   wait: { color: c.flame, fontWeight: '600' },
-  xp: { color: brandLine(c.dark), fontFamily: 'Vivid_800ExtraBold', fontSize: 14, fontVariant: ['tabular-nums'] },
+  xp: { color: brandLine(c), fontFamily: 'Vivid_800ExtraBold', fontSize: 14, fontVariant: ['tabular-nums'] },
   checkWrap: { width: c.check === 'coin' ? 30 : 24, height: c.check === 'coin' ? 30 : 24, alignItems: 'center', justifyContent: 'center' },
   ring: {
     position: 'absolute',
@@ -503,7 +504,7 @@ const makeStyles = themed((c) => ({
     height: 48,
     borderRadius: c.check === 'circle' || c.check === 'coin' ? 24 : c.check === 'square' ? Math.min(c.radius * 2, 12) : 4,
     borderWidth: 2,
-    borderColor: brandLine(c.dark),
+    borderColor: brandLine(c),
   },
   checkbox: {
     width: c.check === 'diamond' ? 20 : 24,
