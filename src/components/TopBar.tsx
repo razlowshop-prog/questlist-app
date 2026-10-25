@@ -24,7 +24,6 @@ export function TopBar({
   initials,
   bagCount,
   toClaim,
-  newLooks = 0,
   onHome,
   onInventory,
   onProfile,
@@ -37,8 +36,6 @@ export function TopBar({
   bagCount: number;
   /** Trophy tiers ready to claim on the profile. */
   toClaim: number;
-  /** New flames to pick on the profile. */
-  newLooks?: number;
   /** The wordmark goes back to Today. */
   onHome: () => void;
   onInventory: () => void;
@@ -75,7 +72,7 @@ export function TopBar({
         onPress={onProfile}
         style={s.avatarHit}
         accessibilityRole="button"
-        accessibilityLabel={`Profile, level ${level}, ${Math.round(shown * 100)}% to the next level${toClaim ? `, ${toClaim} to claim` : ''}${newLooks ? `, ${newLooks} new` : ''}`}
+        accessibilityLabel={`Profile, level ${level}, ${Math.round(shown * 100)}% to the next level${toClaim ? `, ${toClaim} to claim` : ''}`}
       >
         <View style={s.ring}>
           <Svg width={RING} height={RING} style={s.ringSvg}>
@@ -100,7 +97,7 @@ export function TopBar({
             <Text style={s.levelText}>{level}</Text>
           </View>
         </View>
-        <CountBadge count={toClaim + newLooks} style={s.claim} />
+        <CountBadge count={toClaim} style={s.claim} />
       </Pressable>
     </View>
   );

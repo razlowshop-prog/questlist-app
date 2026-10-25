@@ -3,7 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import { levelForLook } from '../achievements';
 import { CELEBRATIONS, FLAME_STYLES, FRAMES, frameName, TROPHY_FRAMES, type CelebrationId, type FlameStyleId } from '../cosmetics';
 import { TROPHY_FRAMES_ON } from '../inventory';
-import { card, THEMES, themeById, themed, useStyles, useTheme } from '../theme';
+import { THEMES, themeById, themed, useStyles, useTheme } from '../theme';
 import { brandGlow, brandLine, CELEBRATION_GLYPHS, CELEBRATION_LOOKS } from '../vivid';
 import { Fire } from './Fire';
 import { Avatar, ProfileFrame } from './ProfileFrame';
@@ -273,42 +273,4 @@ const makeStyles = themed((c) => ({
   lockRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   lockText: { color: c.faint, fontSize: 11, fontWeight: '600' },
   newBadge: { position: 'absolute', top: -6, right: -6, zIndex: 2 },
-}));
-
-/** A card row for the profile: a picture, a name and what it is, opening a picker. */
-export function LookRow({
-  label,
-  value,
-  onPress,
-  fresh = 0,
-  children,
-}: {
-  label: string;
-  value: string;
-  onPress: () => void;
-  /** New looks waiting inside, shown as a badge. */
-  fresh?: number;
-  children: React.ReactNode;
-}) {
-  const s = useStyles(rowStyles);
-  return (
-    <Pressable onPress={onPress} style={s.row} accessibilityRole="button" accessibilityLabel={`${label}: ${value}${fresh ? `, ${fresh} new` : ''}. Change`}>
-      <CountBadge count={fresh} style={s.badge} />
-      <View style={s.pic}>{children}</View>
-      <View style={{ flex: 1 }}>
-        <Text style={s.label}>{label}</Text>
-        <Text style={s.value}>{value}</Text>
-      </View>
-      <Text style={s.change}>Change</Text>
-    </Pressable>
-  );
-}
-
-const rowStyles = themed((c) => ({
-  row: { ...card(c), flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 },
-  pic: { width: 46, height: 40, alignItems: 'center', justifyContent: 'center' },
-  label: { color: c.muted, fontSize: 12 },
-  value: { color: c.text, fontSize: 15, fontWeight: '700' },
-  change: { color: c.accent, fontSize: 13, fontWeight: '700' },
-  badge: { position: 'absolute', top: -6, right: -6, zIndex: 2 },
 }));

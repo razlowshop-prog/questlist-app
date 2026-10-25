@@ -6,7 +6,7 @@ import { equippedLooks, newOfKind, nextTokenLevel, type OwnedLooks } from '../in
 import { card, eyebrow, themed, useStyles, useTheme } from '../theme';
 import { adFreeActive, doubleXpActive, restOffer, TOKEN_INFO, tokenCounts } from '../tokens';
 import { XP_PER_TICKET } from '../wheel';
-import { CelebrationGrid, ThemeGrid } from '../components/LooksPickers';
+import { CelebrationGrid, FlameGrid, ThemeGrid } from '../components/LooksPickers';
 import { Sheet } from '../components/Sheet';
 import { brandFillSmall, brandInk, brandTextShadow, CountBadge, Sticker, VIVID_HEAVY } from '../components/Vivid';
 import type { GlyphName } from '../glyphs';
@@ -30,9 +30,9 @@ function itemLook(item: BagItem): { grad: Grad; glyph: GlyphName } {
  * The inventory, opened from the header, in two tabs. Bag: wheel tickets and
  * tokens in slots, five of a kind to a slot, each named underneath. When the
  * slots are full the rest waits in a tray below and can still be used. Tap a
- * slot to see what it does and use it. Customize: the theme and the tick
- * celebration (also still on the profile). Frames, flames and titles stay on
- * the profile.
+ * slot to see what it does and use it. Customize your app: the theme, the
+ * tick celebration and the streak flame (only here). Frames and titles stay
+ * on the profile.
  */
 export function InventoryScreen({
   state,
@@ -48,6 +48,7 @@ export function InventoryScreen({
   settings,
   owned,
   unlockedThemes,
+  fireTier,
   freshLooks,
   onSeenLook,
   onSettings,
@@ -67,6 +68,8 @@ export function InventoryScreen({
   owned: OwnedLooks;
   /** Ids of themes the player may use. */
   unlockedThemes: Set<string>;
+  /** Current streak fire tier, so flame previews match the player's own fire. */
+  fireTier: number;
   /** Won looks not seen yet, as "kind:id" keys. */
   freshLooks: Set<string>;
   onSeenLook: (key: string) => void;
@@ -76,7 +79,8 @@ export function InventoryScreen({
   const [open, setOpen] = useState<BagItem | null>(null);
   const freshThemes = newOfKind(freshLooks, 'theme');
   const freshCelebrations = newOfKind(freshLooks, 'celebration');
-  const freshLooksHere = freshThemes.size + freshCelebrations.size;
+  const freshFlames = newOfKind(freshLooks, 'flame');
+  const freshLooksHere = freshThemes.size + freshCelebrations.size + freshFlames.size;
   // New looks and nothing else new: open on Customize, where they are.
   const [tab, setTab] = useState<'bag' | 'customize'>(freshLooksHere > 0 ? 'customize' : 'bag');
   const counts: Record<BagItem, number> = { ticket: tickets, ...tokenCounts(state) };
@@ -111,7 +115,7 @@ export function InventoryScreen({
 
   const picked = open ? action(open) : undefined;
 
-  const { celebration } = equippedLooks(settings, owned);
+  const { celebration, flameStyle } = equippedLooks(settings, owned);
   const themeId = unlockedThemes.has(settings.theme) ? settings.theme : 'classic';
 
   const tabs = (
@@ -123,9 +127,9 @@ export function InventoryScreen({
           style={[s.segmentItem, tab === v && s.segmentActive]}
           accessibilityRole="tab"
           accessibilityState={{ selected: tab === v }}
-          accessibilityLabel={v === 'bag' ? 'Bag' : `Customize${freshLooksHere ? `, ${freshLooksHere} new` : ''}`}
+          accessibilityLabel={v === 'bag' ? 'Bag' : `Customize your app${freshLooksHere ? `, ${freshLooksHere} new` : ''}`}
         >
-          <Text style={[s.segmentText, tab === v && s.segmentTextActive]}>{v === 'bag' ? 'Bag' : 'Customize'}</Text>
+          <Text style={[s.segmentText, tab === v && s.segmentTextActive]}>{v === 'bag' ? 'Bag' : 'Customize your app'}</Text>
           {v === 'customize' && <CountBadge count={freshLooksHere} style={s.segmentBadge} />}
         </Pressable>
       ))}
@@ -150,8 +154,17 @@ export function InventoryScreen({
           onPick={(id) => onSettings({ celebration: id })}
           fresh={{ ids: freshCelebrations, onSeen: (id) => onSeenLook(`celebration:${id}`) }}
         />
+        <Text style={[s.section, s.lookHeading]}>Streak flame</Text>
+        <FlameGrid
+          owned={owned.flames}
+          equipped={flameStyle}
+          fireTier={fireTier}
+          onPick={(id) => onSettings({ flameStyle: id })}
+          fresh={{ ids: freshFlames, onSeen: (id) => onSeenLook(`flame:${id}`) }}
+        />
+        <Text style={s.muted}>Your fire grows with your streak. The style is yours to pick.</Text>
         <Pressable onPress={onOpenProfile} style={s.looksLink} accessibilityRole="button">
-          <Text style={s.muted}>Frames, flames and titles are on your profile.</Text>
+          <Text style={s.muted}>Frames and titles are on your profile.</Text>
           <Text style={s.linkText}>Open profile</Text>
         </Pressable>
       </ScrollView>
@@ -199,7 +212,7 @@ export function InventoryScreen({
       )}
 
       <Pressable onPress={onOpenProfile} style={s.looksLink} accessibilityRole="button">
-        <Text style={s.muted}>Frames, flames and titles are on your profile.</Text>
+        <Text style={s.muted}>Frames and titles are on your profile.</Text>
         <Text style={s.linkText}>Open profile</Text>
       </Pressable>
 
