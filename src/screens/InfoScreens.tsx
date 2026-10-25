@@ -1,7 +1,8 @@
 import { Bike, Footprints, HeartPulse, Utensils, type LucideIcon } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, ScrollView, Text } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { APP_NAME } from '../brand';
+import { LEGAL_DRAFT_DATE, legalDocs, type LegalId } from '../legal';
 import { XP_PER_TICKET } from '../wheel';
 import { VividSwitch } from '../components/Vivid';
 import { themed, useStyles } from '../theme';
@@ -71,17 +72,53 @@ export function HelpScreen() {
   );
 }
 
-/** Legal texts. They are written and checked before launch; until then each row says so. */
+const LEGAL_SUBS: Record<LegalId, string> = {
+  terms: 'The rules for using the app (AGB).',
+  privacy: 'What is stored, where, and your rights under the GDPR.',
+  imprint: 'Who runs the app (Impressum).',
+};
+
+/** Terms, privacy policy and imprint; tap one to read it. */
 export function LegalScreen() {
   const s = useStyles(makeStyles);
+  const docs = legalDocs(APP_NAME);
+  const [open, setOpen] = useState<LegalId | null>(null);
+  const doc = docs.find((d) => d.id === open);
+
+  if (doc) {
+    return (
+      <ScrollView contentContainerStyle={s.content}>
+        <Pressable onPress={() => setOpen(null)} style={s.back} accessibilityRole="button" accessibilityLabel="All legal texts">
+          <Text style={s.backText}>‹ All legal texts</Text>
+        </Pressable>
+        <Text style={s.docTitle} accessibilityRole="header">
+          {doc.title}
+        </Text>
+        <Text style={s.docDate}>Version of {LEGAL_DRAFT_DATE}</Text>
+        {doc.sections.map((sec) => (
+          <View key={sec.heading} style={s.docSection}>
+            <Text style={s.q} accessibilityRole="header">
+              {sec.heading}
+            </Text>
+            {sec.paragraphs.map((p, i) => (
+              <Text key={i} style={s.a}>
+                {p}
+              </Text>
+            ))}
+          </View>
+        ))}
+      </ScrollView>
+    );
+  }
+
   return (
     <ScrollView contentContainerStyle={s.content}>
       <MenuGroup label="Legal">
-        <MenuRow first label="Terms of use (AGB)" sub="Added before launch." />
-        <MenuRow label="Privacy policy" sub="How your data is handled under the GDPR. Added before launch." />
-        <MenuRow label="Imprint (Impressum)" sub="Who runs the app. Added before launch." />
+        {docs.map((d, i) => (
+          <MenuRow key={d.id} first={i === 0} label={d.title} sub={LEGAL_SUBS[d.id]} onPress={() => setOpen(d.id)} />
+        ))}
         <MenuRow label="Ad and data consent" sub="Your choices about ads and data, once ads are added." />
-        <MenuRow label="Open-source licences" sub="The free software this app is built with." />
+        <MenuRow label="Open-source licences" sub="The free software this app is built with. Added before launch." />
       </MenuGroup>
     </ScrollView>
   );
@@ -94,4 +131,9 @@ const makeStyles = themed((c) => ({
   divider: { borderTopWidth: 1, borderTopColor: c.surfaceAlt },
   q: { color: c.text, fontSize: 15, fontWeight: '700' },
   a: { color: c.muted, fontSize: 14, lineHeight: 20 },
+  back: { paddingVertical: 10, alignSelf: 'flex-start' },
+  backText: { color: c.accent, fontSize: 14, fontWeight: '700' },
+  docTitle: { color: c.text, fontSize: 24, fontWeight: '800', marginTop: 4 },
+  docDate: { color: c.muted, fontSize: 12, marginTop: 2, marginBottom: 6 },
+  docSection: { gap: 6, marginTop: 16 },
 }));

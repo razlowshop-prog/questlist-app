@@ -54,6 +54,7 @@ import { ActivityScreen } from './src/screens/ActivityScreen';
 import { ChallengesScreen } from './src/screens/ChallengesScreen';
 import { FriendsScreen } from './src/screens/FriendsScreen';
 import { ConnectedAppsScreen, HelpScreen, LegalScreen } from './src/screens/InfoScreens';
+import { makeBackup } from './src/backup';
 import { InventoryScreen } from './src/screens/InventoryScreen';
 import { MenuScreen, type MenuPage } from './src/screens/MenuScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
@@ -164,11 +165,16 @@ export default function App() {
   // Recomputed on each render so the list rolls over after midnight.
   const today = dayKey();
 
+  /** Saved progress made ready to play: missing fields filled, old tasks timed, level rewards handed out. */
+  function prepared(s: GameState): GameState {
+    const ready = withEstimatedTimes(withDefaults(s, dayKey()));
+    // Level rewards for levels reached before the reward ladder existed.
+    return grantLevelRewards(ready, levelInfo(totalXp(ready)).level);
+  }
+
   useEffect(() => {
     loadState().then((s) => {
-      const loadedState = withEstimatedTimes(withDefaults(s, dayKey()));
-      // Level rewards for levels reached before the reward ladder existed.
-      setState(grantLevelRewards(loadedState, levelInfo(totalXp(loadedState)).level));
+      setState(prepared(s));
       setLoaded(true);
     });
     loadPhoto().then(setPhoto);
@@ -585,7 +591,19 @@ export default function App() {
                 />
               )}
               {page === 'settings' && (
-                <SettingsScreen settings={state.settings} onSettings={(changes) => setState((s) => updateSettings(s, changes))} onRedoSetup={() => setRedoSetup(true)} />
+                <SettingsScreen
+                  settings={state.settings}
+                  today={today}
+                  onSettings={(changes) => setState((s) => updateSettings(s, changes))}
+                  onRedoSetup={() => setRedoSetup(true)}
+                  backupText={(savedAt) => makeBackup(state, photo, savedAt, today)}
+                  onRestore={(backup) => {
+                    setState(prepared(backup.state));
+                    setPhoto(backup.photo);
+                    savePhoto(backup.photo);
+                    showToast('Backup restored');
+                  }}
+                />
               )}
               {page === 'apps' && <ConnectedAppsScreen />}
               {page === 'help' && <HelpScreen />}
