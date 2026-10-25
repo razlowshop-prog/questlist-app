@@ -5,7 +5,7 @@
 
 export type MascotKind = 'rocket' | 'sprout' | 'boat' | 'car' | 'pencil' | 'lifter' | 'sun' | 'bolt' | 'climber' | 'flame' | 'moon' | 'crown';
 export type FinishKind = 'rocket' | 'blow' | 'wash' | 'glitch' | 'cross' | 'throw' | 'sink' | 'zap' | 'up' | 'burn' | 'dust' | 'gild' | 'fade';
-export type AmbientKind = 'stars' | 'leaves' | 'sea' | 'skyline' | 'floor' | 'dusk' | 'storm' | 'peaks' | 'embers' | 'night' | 'noir';
+export type AmbientKind = 'stars' | 'leaves' | 'sea' | 'circuit' | 'floor' | 'dusk' | 'storm' | 'peaks' | 'embers' | 'night' | 'noir';
 /** Drawn on the fill and revealed as it grows. */
 export type BarDecor = 'vine' | 'wavetop' | 'arcs' | 'coals' | 'sheen';
 
@@ -82,7 +82,7 @@ export const THEME_FX: Record<string, ThemeFx> = {
     mascotScale: 0.95,
     finish: 'glitch',
     finishMs: 900,
-    ambient: 'skyline',
+    ambient: 'circuit',
     rowPulse: ['rgba(34,232,255,0.55)', 'rgba(255,43,214,0.85)'],
   },
   notepad: {

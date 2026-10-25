@@ -22,6 +22,6 @@ test('every theme effect belongs to a real theme, and mascots have a size', () =
   // Gold got its own look (design "Noir"): crown, coin finish, sheen on the cards.
   assert.equal(themeFx('gold').mascot, 'crown');
   assert.equal(themeFx('gold').finish, 'gild');
-  assert.equal(themeFx('neon').ambient, 'skyline');
+  assert.equal(themeFx('neon').ambient, 'circuit');
   assert.equal(themeFx('fortune'), PLAIN_FX, 'Fortuna stays as it is');
 });
