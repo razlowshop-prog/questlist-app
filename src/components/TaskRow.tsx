@@ -19,6 +19,7 @@ import { CoinCheck, HoloBorder } from './Fortuna';
 import { stepStatus } from '../steps';
 import { taskCategory } from '../library';
 import { brandLine, categoryLook, midColor, MYTHIC } from '../vivid';
+import { FinishFx, useThemeFx } from './ThemeFx';
 import { fill, GradientText, Sticker } from './Vivid';
 
 /** The tick celebration the player has equipped. */
@@ -40,6 +41,8 @@ export function TaskRow({
   onToggle,
   onStep,
   onDelete,
+  leaving = false,
+  onLeft,
   focusing,
   onFocus,
 }: {
@@ -54,6 +57,9 @@ export function TaskRow({
   /** Ticks or unticks a step; `finished` when it was the last one and completed the task. */
   onStep: (step: number) => { xp: number; finished: boolean; note?: string };
   onDelete: () => void;
+  /** Just finished: plays the theme's finish animation, then `onLeft` drops it from the list. */
+  leaving?: boolean;
+  onLeft?: () => void;
   /** The focus timer runs for this task. */
   focusing?: boolean;
   /** Opens the focus timer for this task. */
@@ -62,6 +68,7 @@ export function TaskRow({
   const s = useStyles(makeStyles);
   const c = useTheme();
   const look = useContext(CelebrationContext);
+  const fx = useThemeFx();
   const particles = useMemo(() => particlesFor(look, c), [look, c]);
   // The task's category colours: the edge, the check outline and the filled check.
   const cat = useMemo(() => categoryLook(taskCategory(task)), [task.title, task.category]);
@@ -330,12 +337,16 @@ export function TaskRow({
     </View>
   );
   // Fortuna draws a drifting holo border around each card.
-  return c.holo ? (
-    <HoloBorder radius={c.radius} style={[{ marginBottom: 10 }, label && { zIndex: 2 }]}>
-      {row}
-    </HoloBorder>
-  ) : (
-    row
+  return (
+    <FinishFx kind={fx.finish} ms={fx.finishMs} leaving={leaving} onDone={() => onLeft?.()}>
+      {c.holo ? (
+        <HoloBorder radius={c.radius} style={[{ marginBottom: 10 }, label && { zIndex: 2 }]}>
+          {row}
+        </HoloBorder>
+      ) : (
+        row
+      )}
+    </FinishFx>
   );
 }
 

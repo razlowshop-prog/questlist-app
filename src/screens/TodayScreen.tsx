@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Sparkles, X } from 'lucide-react-native';
-import { FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ChevronDown, ChevronUp, Plus, Sparkles, X } from 'lucide-react-native';
+import Animated, { LinearTransition } from 'react-native-reanimated';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { Chip } from '../components/Chip';
 import { EmptyState, BRAND_FILL, BRAND_FILL_SMALL, BRAND_INK, BRAND_TEXT_SHADOW, GradientText, VIVID_HEAVY, VividButton } from '../components/Vivid';
 import { RARITY } from '../vivid';
@@ -177,11 +178,53 @@ export function TodayScreen({
     return tasks.map((t, i) => ({ t, i, rank: order.indexOf(taskCategory(t)) })).sort((x, y) => x.rank - y.rank || x.i - y.i).map((x) => x.t);
   }, [tasks]);
   const doneCount = tasks.filter((t) => isDoneToday(state, t, today)).length;
+  // A ticked task plays its theme's finish animation, then leaves the list for "Done today".
+  const [leaving, setLeaving] = useState<Set<string>>(() => new Set());
+  const [showDone, setShowDone] = useState(false);
+  const openTasks = sorted.filter((t) => !isDoneToday(state, t, today) || leaving.has(t.id));
+  const doneTasks = sorted.filter((t) => isDoneToday(state, t, today) && !leaving.has(t.id));
+  const leave = (id: string) => setLeaving((l) => new Set(l).add(id));
+  const left = (id: string) =>
+    setLeaving((l) => {
+      const next = new Set(l);
+      next.delete(id);
+      return next;
+    });
+
+  function row(item: Task, index: number) {
+    const done = isDoneToday(state, item, today);
+    return (
+      <TaskRow
+        index={index}
+        task={item}
+        state={state}
+        today={today}
+        done={done}
+        leaving={leaving.has(item.id)}
+        onLeft={() => left(item.id)}
+        onToggle={() => {
+          const result = onToggle(item);
+          // Finished (with XP, or with a limit note): off it goes.
+          if (!done && (result.xp > 0 || result.note)) leave(item.id);
+          return result;
+        }}
+        onStep={(step) => {
+          const result = onStep(item, step);
+          if (result.finished) leave(item.id);
+          return result;
+        }}
+        onDelete={() => onDelete(item)}
+        focusing={focusingId === item.id}
+        onFocus={() => onFocus(item)}
+      />
+    );
+  }
 
   return (
     <>
-      <FlatList
-        data={sorted}
+      <Animated.FlatList
+        data={openTasks}
+        itemLayoutAnimation={LinearTransition.duration(260)}
         keyExtractor={(t) => t.id}
         contentContainerStyle={s.content}
         keyboardShouldPersistTaps="handled"
@@ -206,7 +249,7 @@ export function TodayScreen({
                 </Text>
               )}
             </View>
-            {tasks.length > 0 && doneCount === tasks.length && (
+            {tasks.length > 0 && openTasks.length === 0 && (
               <EmptyState glyph="Trophy" grad={RARITY.legendary} before="All " word="done" after=" for today" body="Every task is ticked off. Enjoy the rest of your day." />
             )}
           </>
@@ -218,6 +261,21 @@ export function TodayScreen({
         }
         ListFooterComponent={
           <>
+            {doneTasks.length > 0 && (
+              <View style={s.doneBox}>
+                <Pressable
+                  onPress={() => setShowDone((v) => !v)}
+                  style={s.doneToggle}
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: showDone }}
+                  accessibilityLabel={`Done today, ${doneTasks.length}. ${showDone ? 'Hide' : 'Show'}`}
+                >
+                  <Text style={s.doneLabel}>Done today · {doneTasks.length}</Text>
+                  {showDone ? <ChevronUp size={16} color={c.muted} strokeWidth={1.75} aria-hidden /> : <ChevronDown size={16} color={c.muted} strokeWidth={1.75} aria-hidden />}
+                </Pressable>
+                {showDone && doneTasks.map((t, i) => <View key={t.id}>{row(t, i)}</View>)}
+              </View>
+            )}
             <View style={s.quote} accessibilityLabel={`Quote of the day: ${quote.text}, by ${quote.author}`}>
               <Text style={s.quoteLabel}>Quote of the day</Text>
               <Text style={s.quoteText}>“{quote.text}”</Text>
@@ -238,20 +296,7 @@ export function TodayScreen({
             )}
           </>
         }
-        renderItem={({ item, index }) => (
-          <TaskRow
-            index={index}
-            task={item}
-            state={state}
-            today={today}
-            done={isDoneToday(state, item, today)}
-            onToggle={() => onToggle(item)}
-            onStep={(step) => onStep(item, step)}
-            onDelete={() => onDelete(item)}
-            focusing={focusingId === item.id}
-            onFocus={() => onFocus(item)}
-          />
-        )}
+        renderItem={({ item, index }) => row(item, index)}
       />
 
       {/* Always in reach at the bottom right, however long the list gets. */}
@@ -460,6 +505,9 @@ const makeStyles = themed((c) => ({
   cancel: { alignItems: 'center', paddingVertical: 4 },
   cancelText: { ...eyebrow(c, 11), color: c.muted },
   upcoming: { marginTop: 28, gap: 2 },
+  doneBox: { marginBottom: 8 },
+  doneToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10 },
+  doneLabel: { ...eyebrow(c, 11), color: c.muted },
   upcomingHeading: { ...eyebrow(c), color: c.muted, marginBottom: 4 },
   upcomingRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.border },
   upcomingTitle: { flex: 1, color: c.text, fontSize: 15 },

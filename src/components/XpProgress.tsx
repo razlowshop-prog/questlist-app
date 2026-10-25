@@ -7,6 +7,7 @@ import { levelInfo, MAX_LEVEL, xpToNext } from '../game';
 import { eyebrow, themed, useStyles, useTheme } from '../theme';
 import { ShimmerBar } from './Fortuna';
 import { RewardPicture } from './RewardPicture';
+import { ThemeXpBar, useThemeFx } from './ThemeFx';
 import { GradientText, PrismBar, VIVID_HEAVY } from './Vivid';
 
 /** XP needed for each level, so the animation thread can turn a position back into XP numbers. */
@@ -23,10 +24,11 @@ function levelPosition(totalXp: number): number {
 }
 
 /**
- * Level progress at the top of Today: "Level 8 → 9", the XP into the level and
- * the bar, then the next reward. Gained XP counts up: a light "ghost" bar
+ * Level progress at the top of Today: the bar (with the theme's mascot in its
+ * own lane above it), then "Level 8 → 9" and the XP into the level below it,
+ * so the mascot never covers them, then the next reward. Gained XP counts up: a light "ghost" bar
  * jumps ahead to the new total, the solid bar fills after it, the numbers tick
- * up and "+N XP" floats by. A level-up runs the bar to the end and continues
+ * up and "+N XP" pops in beside them. A level-up runs the bar to the end and continues
  * from zero on the new level. Tapping it opens the level details.
  *
  * The bar runs on the animation thread (Reanimated), so it stays smooth while
@@ -35,6 +37,7 @@ function levelPosition(totalXp: number): number {
 export function XpProgress({ totalXp, onPress }: { totalXp: number; onPress: () => void }) {
   const s = useStyles(makeStyles);
   const c = useTheme();
+  const fx = useThemeFx();
   const real = levelInfo(totalXp);
   // On first show the bar fills up from the start of the current level.
   const startXp = totalXp - real.xpIntoLevel;
@@ -87,7 +90,8 @@ export function XpProgress({ totalXp, onPress }: { totalXp: number; onPress: () 
   const ghost = shown.level === real.level ? real.progress : 1;
   const gainStyle = useAnimatedStyle(() => ({
     opacity: gainAnim.value < 0.1 ? gainAnim.value * 10 : gainAnim.value > 0.7 ? (1 - gainAnim.value) / 0.3 : 1,
-    transform: [{ translateY: 4 - 12 * gainAnim.value }],
+    // Pops up into the label row and stays there, clear of the bar above.
+    transform: [{ translateY: 6 * (1 - Math.min(1, gainAnim.value / 0.25)) }],
   }));
 
   return (
@@ -98,6 +102,13 @@ export function XpProgress({ totalXp, onPress }: { totalXp: number; onPress: () 
         accessibilityRole="button"
         accessibilityLabel={`Level ${real.level}, ${real.rank}. ${real.maxed ? 'Max level' : `${real.xpIntoLevel} of ${real.xpForLevel} XP to level ${real.level + 1}`}. Show level details`}
       >
+        {fx.bar ? (
+          <ThemeXpBar spec={fx.bar} mascot={fx.mascot} scale={fx.mascotScale} live={fraction} ghost={ghost} progress={real.progress} />
+        ) : c.bar.kind === 'shimmer' ? (
+          <ShimmerBar progress={real.progress} live={fraction} ghost={ghost} glow={gain > 0 ? glow : undefined} glowFrom={c.xp} glowTo={c.text} />
+        ) : (
+          <PrismBar progress={real.progress} live={fraction} ghost={ghost} />
+        )}
         <View style={s.labels}>
           <Text style={s.level}>{maxed ? `Level ${shown.level} · max` : `Level ${shown.level} → ${shown.level + 1}`}</Text>
           <View style={s.xpWrap}>
@@ -113,11 +124,6 @@ export function XpProgress({ totalXp, onPress }: { totalXp: number; onPress: () 
             )}
           </View>
         </View>
-        {c.bar.kind === 'shimmer' ? (
-          <ShimmerBar progress={real.progress} live={fraction} ghost={ghost} glow={gain > 0 ? glow : undefined} glowFrom={c.xp} glowTo={c.text} />
-        ) : (
-          <PrismBar progress={real.progress} live={fraction} ghost={ghost} />
-        )}
       </Pressable>
       <NextReward totalXp={totalXp} />
     </View>
