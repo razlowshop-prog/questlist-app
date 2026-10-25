@@ -2,8 +2,8 @@
 // imprint (Impressum). They describe the app as it is now: everything stays
 // on the phone, there are no accounts, ads or analytics yet. Before accounts,
 // cloud sync, ads, Premium or the photo check go live, these texts must be
-// updated first. DRAFT: to be checked (e.g. WKO templates or a lawyer) and the
-// operator's details filled in before launch.
+// updated first. DRAFT: to be checked (e.g. WKO templates or a lawyer) before
+// launch.
 
 export interface Operator {
   /** Full name of the person running the app (or the company name). */
@@ -13,23 +13,32 @@ export interface Operator {
   city: string;
   country: string;
   email: string;
+  phone?: string;
   /** The trade authority (Gewerbebehörde), e.g. "Magistrat der Stadt Wien". */
   authority: string;
-  /** The trade licence, e.g. "Dienstleistungen in der automatischen Datenverarbeitung und Informationstechnik". */
+  /** The trade licence, e.g. "Handelsgewerbe". */
   trade: string;
+  /** The chamber the business belongs to, e.g. "WKO Niederösterreich". */
+  chamber?: string;
+  /** Number in the trade register (GISA). */
+  gisa?: string;
   /** VAT number (UID), if there is one; small businesses under the Kleinunternehmer limit have none. */
   vatId?: string;
 }
 
-/** Filled in before launch; empty fields show as "[to be added]" so a gap is never silent. */
+/** The business behind the app (as on razlow.shop). An empty field shows as "[to be added]", so a gap is never silent. */
 export const OPERATOR: Operator = {
-  name: '',
-  street: '',
-  city: '',
+  name: 'Fabian Hufnagl (sole proprietorship)',
+  street: 'Hauptstraße 38/10',
+  city: '2000 Stockerau',
   country: 'Austria',
-  email: '',
-  authority: '',
-  trade: 'Dienstleistungen in der automatischen Datenverarbeitung und Informationstechnik',
+  email: 'razlowshop@gmail.com',
+  phone: '+43 677 63398656',
+  authority: 'Bezirkshauptmannschaft Korneuburg',
+  trade: 'Handelsgewerbe',
+  chamber: 'WKO Niederösterreich',
+  gisa: '40170046',
+  vatId: 'ATU83689812',
 };
 
 /** Shown at the top of each text until it has been checked. */
@@ -48,7 +57,19 @@ const MISSING = '[to be added]';
 /** The operator's details with every empty field marked. */
 export function filled(op: Operator): Required<Operator> {
   const f = (v: string | undefined) => (v && v.trim() ? v.trim() : MISSING);
-  return { name: f(op.name), street: f(op.street), city: f(op.city), country: f(op.country), email: f(op.email), authority: f(op.authority), trade: f(op.trade), vatId: f(op.vatId) };
+  return {
+    name: f(op.name),
+    street: f(op.street),
+    city: f(op.city),
+    country: f(op.country),
+    email: f(op.email),
+    phone: f(op.phone),
+    authority: f(op.authority),
+    trade: f(op.trade),
+    chamber: f(op.chamber),
+    gisa: f(op.gisa),
+    vatId: f(op.vatId),
+  };
 }
 
 /** Fields still missing before launch. */
@@ -164,10 +185,12 @@ export function legalDocs(appName: string, op: Operator = OPERATOR): LegalDoc[] 
             `Operator and media owner: ${o.name}`,
             `Address: ${o.street}, ${o.city}, ${o.country}`,
             `Email: ${o.email}`,
+            ...(op.phone?.trim() ? [`Phone: ${o.phone}`] : []),
             `Business: development and sale of mobile apps (${appName})`,
             `Trade licence: ${o.trade}`,
+            ...(op.gisa?.trim() ? [`GISA number: ${o.gisa}`] : []),
             `Trade authority: ${o.authority}`,
-            'Member of the Austrian Chamber of Commerce (WKO)',
+            `Member of ${op.chamber?.trim() ? o.chamber : 'the Austrian Chamber of Commerce (WKO)'}`,
             'Rules: Gewerbeordnung (GewO), www.ris.bka.gv.at',
             op.vatId?.trim() ? `VAT number (UID): ${o.vatId}` : 'No VAT number (small business, § 6 Abs. 1 Z 27 UStG)',
           ],

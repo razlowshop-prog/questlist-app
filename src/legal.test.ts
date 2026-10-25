@@ -21,8 +21,15 @@ test('with every detail filled in, nothing says "to be added"', () => {
   assert.ok(JSON.stringify(legalDocs('Succedo', { ...full, vatId: 'ATU12345678' })).includes('ATU12345678'));
 });
 
+test('the real operator details are complete', () => {
+  assert.deepEqual(missingDetails(OPERATOR), []);
+  const text = JSON.stringify(legalDocs('Succedo', OPERATOR));
+  assert.ok(!text.includes('[to be added]'));
+  for (const bit of ['Hauptstraße 38/10, 2000 Stockerau', 'razlowshop@gmail.com', 'ATU83689812', '40170046', 'Bezirkshauptmannschaft Korneuburg', 'WKO Niederösterreich']) assert.ok(text.includes(bit), bit);
+});
+
 test('missing details are marked, and listed so the launch check catches them', () => {
-  assert.ok(JSON.stringify(legalDocs('Succedo', OPERATOR)).includes('[to be added]'));
+  assert.ok(JSON.stringify(legalDocs('Succedo', { ...full, email: '' })).includes('[to be added]'));
   assert.deepEqual(missingDetails(full), []);
   assert.deepEqual(missingDetails({ ...full, email: ' ' }), ['email']);
 });

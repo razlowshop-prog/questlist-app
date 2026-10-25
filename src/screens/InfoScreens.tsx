@@ -1,8 +1,8 @@
 import { Bike, Footprints, HeartPulse, Utensils, type LucideIcon } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { APP_NAME } from '../brand';
-import { LEGAL_DRAFT_DATE, legalDocs, type LegalId } from '../legal';
+import { LEGAL_DRAFT_DATE, legalDocs, OPERATOR, type LegalId } from '../legal';
 import { XP_PER_TICKET } from '../wheel';
 import { VividSwitch } from '../components/Vivid';
 import { themed, useStyles } from '../theme';
@@ -65,7 +65,7 @@ export function HelpScreen() {
         ))}
       </MenuGroup>
       <MenuGroup label="Write to us">
-        <MenuRow first label="Contact and feedback" sub="Our support address is added before launch." />
+        <MenuRow first label="Contact and feedback" sub={`Write to ${OPERATOR.email}. We read every message.`} onPress={() => Linking.openURL(`mailto:${OPERATOR.email}?subject=${encodeURIComponent(`${APP_NAME} feedback`)}`)} />
         <MenuRow label="Rate the app" sub={`Once ${APP_NAME} is in the App Store and Google Play.`} />
       </MenuGroup>
     </ScrollView>
