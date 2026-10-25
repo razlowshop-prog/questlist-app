@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { addDays, emptyState, type Completion } from './game.ts';
-import { TROPHIES, trophyStatuses } from './trophies.ts';
+import { SHOWCASE_SIZE, showcaseTrophies, toggleShowcase, TROPHIES, trophyStatuses } from './trophies.ts';
 
 const TODAY = '2026-10-21';
 const find = (s: ReturnType<typeof trophyStatuses>, id: string) => s.find((t) => t.def.id === id)!;
@@ -31,4 +31,17 @@ test('streak, time and marathon trophies count real history', () => {
   assert.equal(find(s, 'veteran').value, 3);
   // Values never pass the target
   assert.equal(find(s, 'ironWill').value, 100);
+});
+
+test('up to three won trophies can be pinned to the profile, in order', () => {
+  const completions: Completion[] = Array.from({ length: 100 }, (_, i) => ({ taskId: 'x', date: addDays(TODAY, -i), xp: 50, minutes: 60, title: 'Go for a run' }));
+  const s = trophyStatuses({ ...emptyState, completions, joinedAt: addDays(TODAY, -100) }, TODAY);
+  let pins = toggleShowcase(undefined, 'ironWill');
+  pins = toggleShowcase(pins, 'timeLord'); // not won: pinned, but not shown
+  pins = toggleShowcase(pins, 'infernoKeeper');
+  assert.equal(toggleShowcase(pins, 'veteran'), pins, 'a full showcase stays as it is');
+  assert.equal(pins.length, SHOWCASE_SIZE);
+  assert.deepEqual(showcaseTrophies(s, pins).map((t) => t.def.id), ['ironWill', 'infernoKeeper']);
+  assert.deepEqual(toggleShowcase(pins, 'ironWill'), ['timeLord', 'infernoKeeper'], 'tapping again unpins');
+  assert.deepEqual(showcaseTrophies(s, undefined), []);
 });

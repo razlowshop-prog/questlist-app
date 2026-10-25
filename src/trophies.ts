@@ -165,3 +165,20 @@ export function trophyStatuses(state: GameState, today: string): TrophyStatus[] 
     return { def, value, earned: value >= def.target };
   });
 }
+
+/** How many trophies can be pinned to the profile. */
+export const SHOWCASE_SIZE = 3;
+
+/** The pinned trophies to show, in pin order: only ones still won, at most SHOWCASE_SIZE. */
+export function showcaseTrophies(statuses: TrophyStatus[], showcase: string[] = []): TrophyStatus[] {
+  return showcase
+    .map((id) => statuses.find((t) => t.def.id === id && t.earned))
+    .filter((t): t is TrophyStatus => !!t)
+    .slice(0, SHOWCASE_SIZE);
+}
+
+/** Pins a trophy (at the end) or unpins it; a full showcase stays as it is. */
+export function toggleShowcase(showcase: string[] = [], id: string): string[] {
+  if (showcase.includes(id)) return showcase.filter((x) => x !== id);
+  return showcase.length >= SHOWCASE_SIZE ? showcase : [...showcase, id];
+}

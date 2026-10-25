@@ -12,10 +12,10 @@ import { Sheet } from '../components/Sheet';
 import { CELEBRATIONS } from '../cosmetics';
 import { equippedLooks, type OwnedLooks } from '../inventory';
 import { pickPhoto } from '../photo';
-import { TrophyCabinet } from '../components/TrophyCabinet';
+import { TrophyBadge, TrophyCabinet } from '../components/TrophyCabinet';
 import { type profileStats, type Settings, type xpMultiplier } from '../game';
 import { EMBLEM_TIERS, type EmblemStatus } from '../emblems';
-import type { TrophyStatus } from '../trophies';
+import { showcaseTrophies, toggleShowcase, type TrophyStatus } from '../trophies';
 import { card, eyebrow, themeById, themed, useStyles, useTheme, FONTS, headingCase } from '../theme';
 import { WeekCard } from './ActivityScreen';
 import { BRAND_FILL_SMALL, BRAND_INK, BRAND_TEXT_SHADOW, CountBadge, GradientText, LevelBadge, Sticker, StickerHeading, VIVID_HEAVY } from '../components/Vivid';
@@ -82,6 +82,7 @@ export function ProfileScreen({
   const { title, frame, flameStyle, celebration } = equippedLooks(settings, owned);
   const themeId = unlockedThemes.has(settings.theme) ? settings.theme : 'classic';
   const earnedTrophies = trophies.filter((t) => t.earned).length;
+  const showcase = showcaseTrophies(trophies, settings.showcase);
   const initials = name.trim().slice(0, 2).toUpperCase() || '?';
   const memberSince = joinedAt
     ? new Date(`${joinedAt}T12:00:00`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
@@ -147,6 +148,18 @@ export function ProfileScreen({
           </View>
           <MultiplierPill multiplier={multiplier} />
         </View>
+        {showcase.length > 0 && (
+          <View style={s.showcase} accessibilityLabel={`Pinned trophies: ${showcase.map((t) => t.def.name).join(', ')}`}>
+            {showcase.map((t) => (
+              <View key={t.def.id} style={s.showcaseItem}>
+                <TrophyBadge trophy={t} size={44} />
+                <Text style={s.showcaseName} numberOfLines={1}>
+                  {t.def.name}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
         {memberSince ? <Text style={s.small}>Member since {memberSince}</Text> : null}
       </View>
 
@@ -189,7 +202,7 @@ export function ProfileScreen({
           <StickerHeading glyph="Trophy" grad={RARITY.legendary} style={s.headingFirst} right={<Text style={s.small}>{earnedTrophies} of {trophies.length} · tap one</Text>}>
             <Text style={s.sectionTitle}>Trophies</Text>
           </StickerHeading>
-          <TrophyCabinet trophies={trophies} />
+          <TrophyCabinet trophies={trophies} pinned={settings.showcase} onPin={(id) => onSettings({ showcase: toggleShowcase(settings.showcase, id) })} />
 
           <StickerHeading glyph="Medal" grad={EMBLEM_METALS[2]} style={s.headingRow}>
             <Text style={s.sectionTitle}>Emblems</Text>
@@ -346,6 +359,9 @@ function SmallButton({ label, onPress, quiet }: { label: string; onPress: () => 
 const makeStyles = themed((c) => ({
   content: { padding: 20, paddingTop: 8, paddingBottom: 48, maxWidth: 640, width: '100%', alignSelf: 'center' },
   hero: { alignItems: 'center', gap: 8, marginBottom: 22 },
+  showcase: { flexDirection: 'row', justifyContent: 'center', gap: 14, marginTop: 4 },
+  showcaseItem: { alignItems: 'center', width: 76, gap: 2 },
+  showcaseName: { color: c.muted, fontSize: 11, fontWeight: '700', textAlign: 'center' },
   discs: { flexDirection: 'row', gap: 10, marginTop: 6 },
   disc: { padding: 2, borderRadius: 16, borderWidth: 1.5, borderColor: 'transparent' },
   discActive: { borderColor: brandLine(c.dark) },

@@ -215,6 +215,8 @@ export interface Settings {
   celebration?: CelebrationId;
   /** Which of the five avatar gradients (vivid.ts AVATAR_DISCS) the profile picture uses. */
   avatar?: number;
+  /** Up to 3 won trophies pinned to the profile, in order (trophies.ts SHOWCASE_SIZE). */
+  showcase?: string[];
   /** Days the store's review pop-up was asked for (review.ts). */
   reviewAsks?: string[];
   /** Small vibrations on tick, level up and the wheel; on unless turned off. */
