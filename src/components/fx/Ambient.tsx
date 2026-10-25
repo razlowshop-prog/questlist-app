@@ -1,20 +1,21 @@
 import { useMemo, useState } from 'react';
 import { StyleSheet, View, type ViewStyle } from 'react-native';
 import Animated, { Easing, useAnimatedStyle } from 'react-native-reanimated';
-import Svg, { G, Path, Rect } from 'react-native-svg';
+import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import type { AmbientKind } from '../../themeFx';
-import { BLINK_GROUPS, skyline, SKYLINE_HEIGHT, WINDOW_H, WINDOW_W, type Window as SkylineWindow } from '../../skyline';
+import { circuit, pointOn, PULSE_LOOP, PULSE_SHARE, PULSE_STAGGER, type Trace } from '../../circuit';
 import { keyframes, LEAF, seeded, stepframes, useLoop, useLoopsOn } from './hooks';
 
 // The theme's background layer: a few slow particles behind everything,
-// never in the way of a tap. Off with reduced motion and in the background.
+// never in the way of a tap. Off with reduced motion and in the background,
+// except Neon's circuit lines, which then stay drawn without their lights.
 
 export function Ambient({ kind }: { kind: AmbientKind }) {
   const on = useLoopsOn();
   const [size, setSize] = useState({ w: 0, h: 0 });
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none" onLayout={(e) => setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
-      {on && size.h > 0 && <Layer kind={kind} w={size.w} h={size.h} />}
+      {size.h > 0 && (on ? <Layer kind={kind} w={size.w} h={size.h} /> : kind === 'circuit' && <Circuit w={size.w} h={size.h} still />)}
     </View>
   );
 }
@@ -27,8 +28,8 @@ function Layer({ kind, w, h }: { kind: AmbientKind; w: number; h: number }) {
       return <Leaves w={w} h={h} />;
     case 'sea':
       return <Sea w={w} h={h} />;
-    case 'skyline':
-      return <Skyline w={w} />;
+    case 'circuit':
+      return <Circuit w={w} h={h} />;
     case 'noir':
       return <Noir w={w} h={h} />;
     case 'floor':
@@ -217,40 +218,41 @@ function Bubble({ x, size, duration, delay, h }: { x: number; size: number; dura
   );
 }
 
-/** Neon: a dark city skyline along the bottom with a soft magenta glow; now and then a window blinks. */
-function Skyline({ w }: { w: number }) {
-  const { towers, windows } = useMemo(() => skyline(w), [w]);
+/** Neon: faint circuit lines along the edges, each ending in a solder pad; a short light runs along one every 2 s. */
+function Circuit({ w, h, still }: { w: number; h: number; still?: boolean }) {
+  const traces = useMemo(() => circuit(w, h), [w, h]);
   return (
     <>
-      <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 230, backgroundImage: 'linear-gradient(0deg, rgba(255,43,214,0.10), rgba(255,43,214,0))' } as ViewStyle} />
-      <Svg width={w} height={SKYLINE_HEIGHT} style={{ position: 'absolute', left: 0, bottom: 0 }}>
-        {towers.map((t, i) => (
-          <G key={i}>
-            <Rect x={t.x} y={SKYLINE_HEIGHT - t.height} width={t.width} height={t.height} fill="#170a2a" />
-            {t.antenna && <Rect x={t.x + t.width / 2 - 1} y={SKYLINE_HEIGHT - t.height - 10} width={2} height={10} fill="#170a2a" />}
-          </G>
+      <Svg width={w} height={h} style={{ position: 'absolute', left: 0, top: 0 }}>
+        {traces.map((t, i) => (
+          <Path key={i} d={t.d} fill="none" stroke={t.color} strokeWidth={1} opacity={0.22} />
         ))}
-        <Rect x={0} y={SKYLINE_HEIGHT - 6} width={w} height={6} fill="#0c0518" />
+        {traces.map((t, i) => {
+          const [x, y] = t.points[t.points.length - 1];
+          return <Circle key={i} cx={x} cy={y} r={2.5} fill="none" stroke="#a58fd0" strokeWidth={1} opacity={0.5} />;
+        })}
       </Svg>
-      {Array.from({ length: BLINK_GROUPS }, (_, g) => (
-        <WindowGroup key={g} group={g} w={w} windows={windows.filter((win) => win.group === g)} />
-      ))}
+      {!still && traces.map((t, i) => <Pulse key={i} trace={t} delay={i * PULSE_STAGGER} />)}
     </>
   );
 }
 
-/** One group of lit windows: on, then off for a blink, at its own moment of a 9 s loop. */
-function WindowGroup({ group, w, windows }: { group: number; w: number; windows: SkylineWindow[] }) {
-  const t = useLoop(9000, true, { delay: group * 2300, restart: true, easing: Easing.linear });
-  const style = useAnimatedStyle(() => ({ opacity: t.value > 0.7 && t.value < 0.72 ? 0.15 : 0.9 }));
+/** The light on one trace: fades in, runs from start to pad in the first 30% of the loop, then rests. */
+function Pulse({ trace, delay }: { trace: Trace; delay: number }) {
+  const t = useLoop(PULSE_LOOP, true, { delay, restart: true, easing: Easing.linear });
+  const { points, at, color } = trace;
+  const len = Math.max(6, Math.round(trace.length * PULSE_SHARE));
+  const style = useAnimatedStyle(() => {
+    const p = pointOn(points, at, PULSE_SHARE / 2 + (1 - PULSE_SHARE / 2) * Math.min(1, t.value / 0.3));
+    return {
+      opacity: keyframes(t.value, [0, 0.03, 0.3, 0.32], [0, 1, 1, 0]),
+      transform: [{ translateX: p.x - len / 2 }, { translateY: p.y - 1 }, { rotate: `${p.angle}deg` }],
+    };
+  });
   return (
-    <Animated.View style={[{ position: 'absolute', left: 0, bottom: 0, width: w, height: SKYLINE_HEIGHT }, style]}>
-      <Svg width={w} height={SKYLINE_HEIGHT}>
-        {windows.map((win, i) => (
-          <Rect key={i} x={win.x} y={win.y} width={WINDOW_W} height={WINDOW_H} fill={win.color} />
-        ))}
-      </Svg>
-    </Animated.View>
+    <Animated.View
+      style={[{ position: 'absolute', left: 0, top: 0, width: len, height: 2, borderRadius: 1, backgroundColor: color, boxShadow: `0px 0px 4px ${color}` } as ViewStyle, style]}
+    />
   );
 }
 
