@@ -58,3 +58,38 @@ export function equippedLooks(settings: Settings, owned: OwnedLooks) {
 export function nextTokenLevel(kind: TokenKind, level: number): number | undefined {
   return LEVEL_LADDER.find((l) => l.level > level && l.reward.token === kind)?.level;
 }
+
+/** The won looks that get a "new" badge until the player has seen them. */
+export type LookKind = 'theme' | 'flame' | 'celebration';
+
+export const lookKey = (kind: LookKind, id: string) => `${kind}:${id}`;
+
+/**
+ * Keys of every won look: `themes` are the ids of themes won (not the free
+ * ones). The classic flame and celebration everyone has don't count.
+ */
+export function lookKeys(themes: string[], owned: Pick<OwnedLooks, 'flames' | 'celebrations'>): string[] {
+  return [
+    ...themes.map((id) => lookKey('theme', id)),
+    ...owned.flames.filter((id) => id !== 'classic').map((id) => lookKey('flame', id)),
+    ...owned.celebrations.filter((id) => id !== 'classic').map((id) => lookKey('celebration', id)),
+  ];
+}
+
+/** Won looks not seen yet. Before anything was stored (`seen` undefined) nothing counts as new. */
+export function newLooks(keys: string[], seen: string[] | undefined): Set<string> {
+  if (!seen) return new Set();
+  const had = new Set(seen);
+  return new Set(keys.filter((k) => !had.has(k)));
+}
+
+/** The ids of one kind among the new looks, for a picker. */
+export function newOfKind(fresh: Set<string>, kind: LookKind): Set<string> {
+  const prefix = `${kind}:`;
+  return new Set([...fresh].filter((k) => k.startsWith(prefix)).map((k) => k.slice(prefix.length)));
+}
+
+/** `seen` with these keys added. */
+export function markLooksSeen(seen: string[] | undefined, keys: string[]): string[] {
+  return [...new Set([...(seen ?? []), ...keys])];
+}

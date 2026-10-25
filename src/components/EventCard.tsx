@@ -62,6 +62,8 @@ export function EventCard({ season, onClaim }: { season: SeasonStatus; onClaim: 
       <View style={s.footer}>
         <View style={s.track} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: season.season.target, now: season.progress }}>
           <View style={[s.fill, { width: `${pct}%` }]} />
+          {/* The pumpkin rides the tip of the bar. */}
+          {harvest && <Pumpkin live={!reduce} at={pct} />}
         </View>
         <View style={s.row}>
           <Text style={s.count}>
@@ -100,8 +102,9 @@ const LEAVES: [number, number, string, number, number, number][] = [
   [-1, 11, '#F2C14E', 0, 6500, 0.75],
 ];
 const STALKS = 14;
+const PUMPKIN = 26;
 
-/** October: a sunset field with a pulsing sun, swaying wheat, a bobbing pumpkin and falling leaves. */
+/** October: a sunset field with a pulsing sun, swaying wheat and falling leaves. The pumpkin sits on the progress bar. */
 function HarvestScene({ live }: { live: boolean }) {
   const sun = useWave(5000, live);
   const sunStyle = useAnimatedStyle(() => ({ transform: [{ scale: 1 + 0.08 * sun.value }] }));
@@ -128,7 +131,6 @@ function HarvestScene({ live }: { live: boolean }) {
           <Stalk key={i} live={live} delay={i * 0.37} />
         ))}
       </View>
-      <Pumpkin live={live} />
       {live && <FallingLeaves />}
     </View>
   );
@@ -158,12 +160,13 @@ function Stalk({ live, delay }: { live: boolean; delay: number }) {
   );
 }
 
-function Pumpkin({ live }: { live: boolean }) {
+/** A small pumpkin on the progress bar at `at` percent, rocking gently. */
+function Pumpkin({ live, at }: { live: boolean; at: number }) {
   const bob = useWave(3000, live);
-  const style = useAnimatedStyle(() => ({ transform: [{ translateY: -4 * bob.value }, { rotate: `${-3 * bob.value}deg` }] }));
+  const style = useAnimatedStyle(() => ({ transform: [{ translateY: -1.5 * bob.value }, { rotate: `${-6 * bob.value}deg` }] }));
   return (
-    <Animated.View style={[s.pumpkin, style]}>
-      <Svg viewBox="0 0 64 64" width={66} height={66}>
+    <Animated.View style={[s.pumpkin, { left: `${at}%` }, style]} pointerEvents="none">
+      <Svg viewBox="0 0 64 64" width={PUMPKIN} height={PUMPKIN}>
         <Defs>
           <LinearGradient id="harvestPumpkin" x1="0" y1="0" x2="0" y2="1">
             <Stop offset="0" stopColor="#FFC66B" />
@@ -223,7 +226,6 @@ const s = StyleSheet.create({
   sun: { position: 'absolute', right: 40, top: 26, width: 70, height: 70 },
   hills: { position: 'absolute', left: 0, bottom: 0 },
   wheat: { position: 'absolute', left: 0, right: 0, bottom: 22, flexDirection: 'row', justifyContent: 'space-around', paddingHorizontal: 6 },
-  pumpkin: { position: 'absolute', left: 18, bottom: 30, width: 66, height: 66 },
   text: { position: 'absolute', left: 18, top: 18, right: 120, gap: 3 },
   eyebrow: { fontFamily: VIVID_HEAVY, fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: '#5a250c' },
   eyebrowPlain: { color: 'rgba(255,255,255,0.8)' },
@@ -231,7 +233,9 @@ const s = StyleSheet.create({
   goal: { fontFamily: VIVID_HEAVY, fontSize: 13, color: '#4a1f0a' },
   goalPlain: { color: '#FFFFFF' },
   footer: { paddingHorizontal: 16, paddingVertical: 14, backgroundColor: '#2e160b', backgroundImage: 'linear-gradient(180deg, #3b1a0c, #24120a)' } as ViewStyle,
-  track: { height: 10, borderRadius: 5, backgroundColor: 'rgba(255,255,255,0.12)' },
+  track: { height: 10, borderRadius: 5, backgroundColor: 'rgba(255,255,255,0.12)', marginTop: 6 },
+  // Centred on the bar's tip; the stem pokes up above the bar.
+  pumpkin: { position: 'absolute', top: 5 - PUMPKIN / 2 - 3, marginLeft: -PUMPKIN / 2, width: PUMPKIN, height: PUMPKIN },
   fill: {
     height: '100%',
     borderRadius: 5,

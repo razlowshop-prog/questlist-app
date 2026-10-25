@@ -73,6 +73,7 @@ export function SpinScreen({
   spins,
   onSpin,
   onWearTheme,
+  onBusy,
 }: {
   tickets: TicketStatus;
   /** Spins left until the theme is guaranteed; undefined once won. */
@@ -82,6 +83,8 @@ export function SpinScreen({
   /** Spends a ticket (saved at once); `finish` hands the prize out once it's revealed. */
   onSpin: () => { prize: WheelPrize; finish: () => void } | undefined;
   onWearTheme: () => void;
+  /** True while the wheel turns: the app holds the tabs, so the prize can't be left behind. */
+  onBusy?: (busy: boolean) => void;
 }) {
   const s = useStyles(makeStyles);
   const reduceMotion = useReduceMotion();
@@ -93,6 +96,10 @@ export function SpinScreen({
   const angle = useRef(0);
   const kick = useSharedValue(0);
   const [spinning, setSpinning] = useState(false);
+  useEffect(() => {
+    onBusy?.(spinning);
+    return () => onBusy?.(false);
+  }, [spinning]);
   const [won, setWon] = useState<WheelPrize | null>(null);
   const [oddsOpen, setOddsOpen] = useState(false);
   /** The slice the player tapped, explained under the wheel. */
@@ -179,7 +186,8 @@ export function SpinScreen({
   const touch = useMemo(
     () =>
       PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
+        // Not while it turns, so a drag that starts on the wheel still scrolls the page.
+        onStartShouldSetPanResponder: () => !live.current.spinning,
         onPanResponderRelease: (e, g) => {
           const { spin, spinning, has, size, ownsTheme } = live.current;
           if (spinning) return;
@@ -320,10 +328,6 @@ export function SpinScreen({
         )}
       </ScrollView>
 
-      <Modal visible={spinning} transparent animationType="none">
-        {/* Holds every other tap while the wheel turns, so nothing changes under it. */}
-        <View style={{ flex: 1 }} />
-      </Modal>
       {oddsOpen && <OddsSheet ownsTheme={ownsTheme} onClose={() => setOddsOpen(false)} />}
       {won && (
         <PrizeReveal

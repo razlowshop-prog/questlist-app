@@ -124,7 +124,7 @@ function Leaf({ x, size, turn, duration, delay, h }: { x: number; size: number; 
   );
 }
 
-/** Ocean: bubbles rising from the deep, and two slow waves rolling along the bottom. */
+/** Ocean: bubbles rising from the deep, two slow waves rolling along the bottom, and now and then a little fish. */
 function Sea({ w, h }: { w: number; h: number }) {
   const bubbles = useMemo(
     () =>
@@ -143,7 +143,36 @@ function Sea({ w, h }: { w: number; h: number }) {
       {bubbles.map((b, i) => (
         <Bubble key={i} {...b} h={h} />
       ))}
+      <Fish w={w} y={h * 0.62} delay={6000} />
+      <Fish w={w} y={h * 0.38} delay={29000} reverse />
     </>
+  );
+}
+
+/** How often a fish comes by, and the share of that time it takes to cross. */
+const FISH_LOOP = 46000;
+const FISH_SWIM = 0.24;
+const FISH_SIZE = 26;
+
+/** A small fish crossing the screen about once in FISH_LOOP ms, bobbing a little; gone the rest of the time. */
+function Fish({ w, y, delay, reverse }: { w: number; y: number; delay: number; reverse?: boolean }) {
+  const t = useLoop(FISH_LOOP, true, { delay, restart: true, easing: Easing.linear });
+  const style = useAnimatedStyle(() => {
+    const p = Math.min(1, t.value / FISH_SWIM);
+    const x = -FISH_SIZE * 2 + (w + FISH_SIZE * 4) * p;
+    return {
+      opacity: t.value < FISH_SWIM ? keyframes(p, [0, 0.08, 0.92, 1], [0, 0.45, 0.45, 0]) : 0,
+      transform: [{ translateX: reverse ? w - x - FISH_SIZE : x }, { translateY: 6 * Math.sin(p * Math.PI * 5) }, { scaleX: reverse ? -1 : 1 }],
+    };
+  });
+  return (
+    <Animated.View style={[{ position: 'absolute', left: 0, top: y, width: FISH_SIZE, height: FISH_SIZE * 0.6 }, style]}>
+      <Svg width={FISH_SIZE} height={FISH_SIZE * 0.6} viewBox="0 0 30 18">
+        <Path d="M2 9 L9 3 L9 15 Z" fill="#7fd3e6" />
+        <Path d="M8 9 C 12 1, 24 1, 29 9 C 24 17, 12 17, 8 9 Z" fill="#7fd3e6" />
+        <Path d="M24 7.2 a1.3 1.3 0 1 0 0.01 0" fill="#0b3a4c" />
+      </Svg>
+    </Animated.View>
   );
 }
 

@@ -225,6 +225,10 @@ export interface Settings {
   recapSeen?: string;
   /** The first-steps card on Today was hidden. */
   guideHidden?: boolean;
+  /** How many of each bag item the player had when they last looked in the bag (bag.ts newInBag). */
+  bagSeen?: Partial<Record<string, number>>;
+  /** Won looks the player has already seen, as "kind:id" keys (inventory.ts newLooks). */
+  seenLooks?: string[];
 }
 
 /** Evening time of the "your streak is about to end" notification. */

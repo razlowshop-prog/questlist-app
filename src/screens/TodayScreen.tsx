@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp, Plus, Sparkles, X } from 'lucide-react-native';
-import Animated, { LinearTransition } from 'react-native-reanimated';
+import Animated, { LinearTransition, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import { ComboPill } from '../components/Moments';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { Chip } from '../components/Chip';
 import { EmptyState, BRAND_FILL, BRAND_FILL_SMALL, BRAND_INK, BRAND_TEXT_SHADOW, GradientText, VIVID_HEAVY, VividButton } from '../components/Vivid';
@@ -27,6 +28,7 @@ import {
 import { CATEGORIES, FEATURED, guessCategory, librarySteps, OTHER_CATEGORY, searchLibrary, taskCategory, type LibraryTask } from '../library';
 import { STEP_SHARE, suggestedSteps } from '../steps';
 import { estimateMinutes } from '../estimate';
+import { nonsenseReason } from '../sense';
 import { quoteOfTheDay } from '../quotes';
 import { card, eyebrow, FONTS, themed, useStyles, useTheme, headingCase } from '../theme';
 
@@ -50,8 +52,6 @@ export function TodayScreen({
   today,
   loaded,
   addedTitles,
-  draft,
-  onDraftUsed,
   onAdd,
   onOpenLibrary,
   onToggle,
@@ -59,6 +59,7 @@ export function TodayScreen({
   onDelete,
   recap,
   focusBar,
+  combo,
   focusingId,
   onFocus,
 }: {
@@ -77,9 +78,6 @@ export function TodayScreen({
   today: string;
   loaded: boolean;
   addedTitles: Set<string>;
-  /** A library task picked elsewhere, to plan here before adding. */
-  draft?: LibraryTask;
-  onDraftUsed: () => void;
   onAdd: (title: string, repeat: Repeat, minutes: number, plan: TaskPlan) => void;
   onOpenLibrary: () => void;
   onToggle: (task: Task) => { xp: number; note?: string };
@@ -92,9 +90,18 @@ export function TodayScreen({
   /** The task the focus timer runs for. */
   focusingId?: string;
   onFocus: (task: Task) => void;
+  /** The "×3 combo" pop-up; play changes each time it should show. */
+  combo?: { count: number; play: number };
 }) {
   const s = useStyles(makeStyles);
   const c = useTheme();
+  // The combo pill sits just under the XP bar and sticks to the top once the bar has scrolled away.
+  const scrollY = useSharedValue(0);
+  const comboY = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler((e) => {
+    scrollY.value = e.contentOffset.y;
+  });
+  const comboStyle = useAnimatedStyle(() => ({ top: Math.max(6, comboY.value - scrollY.value) }));
   const [title, setTitle] = useState('');
   const [schedule, setSchedule] = useState<Schedule>(() => defaultSchedule(today));
   /** Chosen by the user; otherwise guessed from the title. */
@@ -120,7 +127,9 @@ export function TodayScreen({
   const estimate = useMemo(() => estimateMinutes(typed), [typed]);
   const chosenMinutes = estimate.minutes;
   const problem = typed ? scheduleProblem(shownSchedule, typed) : undefined;
-  const canAdd = typed.length > 0 && chosenMinutes > 0 && !problem;
+  // Keyboard mash earns nothing: the title has to be made of words.
+  const nonsense = typed ? nonsenseReason(typed) : undefined;
+  const canAdd = typed.length > 0 && chosenMinutes > 0 && !problem && !nonsense;
   const suggested = useMemo(() => suggestedSteps(typed, chosenMinutes), [typed, chosenMinutes]);
   const shownSteps = stepDraft ?? suggested;
   // Steps are offered for longer tasks, or whenever some are already there.
@@ -141,13 +150,6 @@ export function TodayScreen({
     setCategory(t.category);
     setStepDraft(undefined);
   }
-
-  useEffect(() => {
-    if (!draft) return;
-    prefill(draft);
-    setAdding(true);
-    onDraftUsed();
-  }, [draft]);
 
   function reset() {
     setTitle('');
@@ -222,82 +224,89 @@ export function TodayScreen({
 
   return (
     <>
-      <Animated.FlatList
-        data={openTasks}
-        itemLayoutAnimation={LinearTransition.duration(260)}
-        keyExtractor={(t) => t.id}
-        contentContainerStyle={s.content}
-        keyboardShouldPersistTaps="handled"
-        ListHeaderComponent={
-          <>
-            <Text style={s.greeting}>
-              Good <Text style={s.greetingEm}>{partOfDay(new Date().getHours())}</Text>, {state.profile.name}.
-            </Text>
-            {xpProgress}
+      <View style={{ flex: 1 }}>
+        <Animated.FlatList
+          data={openTasks}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
+          itemLayoutAnimation={LinearTransition.duration(260)}
+          keyExtractor={(t) => t.id}
+          contentContainerStyle={s.content}
+          keyboardShouldPersistTaps="handled"
+          ListHeaderComponent={
+            <>
+              <Text style={s.greeting}>
+                Good <Text style={s.greetingEm}>{partOfDay(new Date().getHours())}</Text>, {state.profile.name}.
+              </Text>
+              {xpProgress}
+              {/* Where the combo pill pops up: the header starts below the list's top padding. */}
+              <View onLayout={(e) => (comboY.value = HEADER_TOP + e.nativeEvent.layout.y)} />
 
-            <StreakCard streak={streak} week={weekDots(state, today)} multiplier={multiplier} onPress={onOpenStreak} />
-            {tokenStrip}
-            {recap}
-            {focusBar}
-            {guide}
+              <StreakCard streak={streak} week={weekDots(state, today)} multiplier={multiplier} onPress={onOpenStreak} />
+              {tokenStrip}
+              {recap}
+              {focusBar}
+              {guide}
 
-            <View style={s.sectionRow}>
-              <Text style={s.sectionTitle}>Today's tasks</Text>
-              {tasks.length > 0 && (
-                <Text style={s.sectionCount}>
-                  <GradientText style={s.sectionCountStrong}>{doneCount}</GradientText> / {tasks.length}
-                </Text>
+              <View style={s.sectionRow}>
+                <Text style={s.sectionTitle}>Today's tasks</Text>
+                {tasks.length > 0 && (
+                  <Text style={s.sectionCount}>
+                    <GradientText style={s.sectionCountStrong}>{doneCount}</GradientText> / {tasks.length}
+                  </Text>
+                )}
+              </View>
+              {tasks.length > 0 && openTasks.length === 0 && (
+                <EmptyState glyph="Trophy" grad={RARITY.legendary} before="All " word="done" after=" for today" body="Every task is ticked off. Enjoy the rest of your day." />
               )}
-            </View>
-            {tasks.length > 0 && openTasks.length === 0 && (
-              <EmptyState glyph="Trophy" grad={RARITY.legendary} before="All " word="done" after=" for today" body="Every task is ticked off. Enjoy the rest of your day." />
-            )}
-          </>
-        }
-        ListEmptyComponent={
-          loaded ? (
-            <EmptyState glyph="Sparkle" mythic before="A " word="fresh" after=" start" body="No tasks for today. Tap + to add one or pick some from the library." />
-          ) : undefined
-        }
-        ListFooterComponent={
-          <>
-            {doneTasks.length > 0 && (
-              <View style={s.doneBox}>
-                <Pressable
-                  onPress={() => setShowDone((v) => !v)}
-                  style={s.doneToggle}
-                  accessibilityRole="button"
-                  accessibilityState={{ expanded: showDone }}
-                  accessibilityLabel={`Done today, ${doneTasks.length}. ${showDone ? 'Hide' : 'Show'}`}
-                >
-                  <Text style={s.doneLabel}>Done today · {doneTasks.length}</Text>
-                  {showDone ? <ChevronUp size={16} color={c.muted} strokeWidth={1.75} aria-hidden /> : <ChevronDown size={16} color={c.muted} strokeWidth={1.75} aria-hidden />}
-                </Pressable>
-                {showDone && doneTasks.map((t, i) => <View key={t.id}>{row(t, i)}</View>)}
+            </>
+          }
+          ListEmptyComponent={
+            loaded ? (
+              <EmptyState glyph="Sparkle" mythic before="A " word="fresh" after=" start" body="No tasks for today. Tap + to add one or pick some from the library." />
+            ) : undefined
+          }
+          ListFooterComponent={
+            <>
+              {doneTasks.length > 0 && (
+                <View style={s.doneBox}>
+                  <Pressable
+                    onPress={() => setShowDone((v) => !v)}
+                    style={s.doneToggle}
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: showDone }}
+                    accessibilityLabel={`Done today, ${doneTasks.length}. ${showDone ? 'Hide' : 'Show'}`}
+                  >
+                    <Text style={s.doneLabel}>Done today · {doneTasks.length}</Text>
+                    {showDone ? <ChevronUp size={16} color={c.muted} strokeWidth={1.75} aria-hidden /> : <ChevronDown size={16} color={c.muted} strokeWidth={1.75} aria-hidden />}
+                  </Pressable>
+                  {showDone && doneTasks.map((t, i) => <View key={t.id}>{row(t, i)}</View>)}
+                </View>
+              )}
+              <View style={s.quote} accessibilityLabel={`Quote of the day: ${quote.text}, by ${quote.author}`}>
+                <Text style={s.quoteLabel}>Quote of the day</Text>
+                <Text style={s.quoteText}>“{quote.text}”</Text>
+                <Text style={s.quoteAuthor}>{quote.author}</Text>
               </View>
-            )}
-            <View style={s.quote} accessibilityLabel={`Quote of the day: ${quote.text}, by ${quote.author}`}>
-              <Text style={s.quoteLabel}>Quote of the day</Text>
-              <Text style={s.quoteText}>“{quote.text}”</Text>
-              <Text style={s.quoteAuthor}>{quote.author}</Text>
-            </View>
-            {upcoming.length > 0 && (
-              <View style={s.upcoming}>
-                <Text style={s.upcomingHeading}>Coming up</Text>
-                {upcoming.map((t) => (
-                  <View key={t.id} style={s.upcomingRow}>
-                    <Text style={s.upcomingTitle} numberOfLines={1}>
-                      {t.title}
-                    </Text>
-                    <Text style={s.upcomingDay}>{dayLabel(t.date!)}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
-          </>
-        }
-        renderItem={({ item, index }) => row(item, index)}
-      />
+              {upcoming.length > 0 && (
+                <View style={s.upcoming}>
+                  <Text style={s.upcomingHeading}>Coming up</Text>
+                  {upcoming.map((t) => (
+                    <View key={t.id} style={s.upcomingRow}>
+                      <Text style={s.upcomingTitle} numberOfLines={1}>
+                        {t.title}
+                      </Text>
+                      <Text style={s.upcomingDay}>{dayLabel(t.date!)}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </>
+          }
+          renderItem={({ item, index }) => row(item, index)}
+        />
+        {combo && <ComboPill count={combo.count} play={combo.play} style={comboStyle} />}
+      </View>
 
       {/* Always in reach at the bottom right, however long the list gets. */}
       <Pressable onPress={() => setAdding(true)} style={s.fab} accessibilityRole="button" accessibilityLabel="Add a task">
@@ -369,13 +378,22 @@ export function TodayScreen({
 
             {typed.length > 0 && (
               <>
-                <View style={s.estimate} accessibilityLabel={`Takes about ${durationLabel(chosenMinutes)}, ${xpFor(chosenMinutes)} XP`}>
-                  <Sparkles size={16} color={c.accent} strokeWidth={1.5} aria-hidden />
-                  <Text style={s.estimateText}>
-                    About <Text style={s.estimateStrong}>{durationLabel(chosenMinutes)}</Text> · +{xpFor(chosenMinutes)} XP
-                  </Text>
-                  <Text style={s.estimateNote}>{estimate.source === 'default' ? 'standard time' : 'estimated from the title'}</Text>
-                </View>
+                {nonsense ? (
+                  // Hidden for the first letters, so it doesn't nag while typing.
+                  typed.length >= 3 && (
+                    <Text style={s.nonsense} accessibilityLiveRegion="polite">
+                      {nonsense}
+                    </Text>
+                  )
+                ) : (
+                  <View style={s.estimate} accessibilityLabel={`Takes about ${durationLabel(chosenMinutes)}, ${xpFor(chosenMinutes)} XP`}>
+                    <Sparkles size={16} color={c.accent} strokeWidth={1.5} aria-hidden />
+                    <Text style={s.estimateText}>
+                      About <Text style={s.estimateStrong}>{durationLabel(chosenMinutes)}</Text> · +{xpFor(chosenMinutes)} XP
+                    </Text>
+                    <Text style={s.estimateNote}>{estimate.source === 'default' ? 'standard time' : 'estimated from the title'}</Text>
+                  </View>
+                )}
                 <SchedulePicker value={shownSchedule} onChange={setSchedule} title={typed} today={today} />
                 {offerSteps && (
                   <View style={{ gap: 8 }}>
@@ -431,7 +449,7 @@ export function TodayScreen({
                   accessibilityRole="button"
                 >
                   <Text style={s.addButtonText}>
-                    {problem ? 'Pick the days first' : `Add task${canAdd ? ` · +${xpFor(chosenMinutes)} XP` : ''}`}
+                    {nonsense ? 'Name it in words first' : problem ? 'Pick the days first' : `Add task${canAdd ? ` · +${xpFor(chosenMinutes)} XP` : ''}`}
                   </Text>
                 </Pressable>
                 <Pressable onPress={reset} style={s.cancel} accessibilityRole="button">
@@ -461,9 +479,13 @@ export function TodayScreen({
 }
 
 
+/** The list's top padding, above the greeting. */
+const HEADER_TOP = 12;
+
 const makeStyles = themed((c) => ({
   // Room at the bottom so the + button never covers the last row.
-  content: { padding: 20, paddingTop: 12, paddingBottom: 104, maxWidth: 640, width: '100%', alignSelf: 'center' },
+  nonsense: { color: c.flame, fontSize: 13, fontWeight: '600', lineHeight: 18 },
+  content: { padding: 20, paddingTop: HEADER_TOP, paddingBottom: 104, maxWidth: 640, width: '100%', alignSelf: 'center' },
   greeting: { fontFamily: FONTS.serif, color: c.text, fontSize: 26, lineHeight: 32, ...headingCase(c) },
   greetingEm: c.italicAccent ? { fontFamily: FONTS.serifItalic, color: c.accent } : { fontFamily: FONTS.serif, color: c.text },
   quote: { ...card(c), marginTop: 20, padding: 16, gap: 6 },

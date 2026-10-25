@@ -24,6 +24,7 @@ export function TopBar({
   initials,
   bagCount,
   toClaim,
+  newLooks = 0,
   onHome,
   onInventory,
   onProfile,
@@ -32,10 +33,12 @@ export function TopBar({
   /** 0 to 1: XP into this level. */
   progress: number;
   initials: string;
-  /** Tokens held, shown small on the bag. */
+  /** New in the bag since it was last opened, plus new looks to wear from it. */
   bagCount: number;
   /** Trophy tiers ready to claim on the profile. */
   toClaim: number;
+  /** New flames to pick on the profile. */
+  newLooks?: number;
   /** The wordmark goes back to Today. */
   onHome: () => void;
   onInventory: () => void;
@@ -61,7 +64,7 @@ export function TopBar({
         onPress={onInventory}
         style={s.icon}
         accessibilityRole="button"
-        accessibilityLabel={`Inventory${bagCount ? `, ${bagCount} tokens` : ''}`}
+        accessibilityLabel={`Inventory${bagCount ? `, ${bagCount} new` : ''}`}
       >
         <View style={[s.bag, fill(BAG, 145)]}>
           <Backpack size={18} color="#FFFFFF" strokeWidth={2} aria-hidden />
@@ -72,7 +75,7 @@ export function TopBar({
         onPress={onProfile}
         style={s.avatarHit}
         accessibilityRole="button"
-        accessibilityLabel={`Profile, level ${level}, ${Math.round(shown * 100)}% to the next level${toClaim ? `, ${toClaim} to claim` : ''}`}
+        accessibilityLabel={`Profile, level ${level}, ${Math.round(shown * 100)}% to the next level${toClaim ? `, ${toClaim} to claim` : ''}${newLooks ? `, ${newLooks} new` : ''}`}
       >
         <View style={s.ring}>
           <Svg width={RING} height={RING} style={s.ringSvg}>
@@ -97,7 +100,7 @@ export function TopBar({
             <Text style={s.levelText}>{level}</Text>
           </View>
         </View>
-        <CountBadge count={toClaim} style={s.claim} />
+        <CountBadge count={toClaim + newLooks} style={s.claim} />
       </Pressable>
     </View>
   );

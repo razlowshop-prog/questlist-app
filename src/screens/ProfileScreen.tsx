@@ -10,7 +10,7 @@ import { CelebrationGrid, FlameGrid, FrameGrid, frameList, LookRow, ThemeGrid, T
 import { Avatar, frameReach, ProfileFrame } from '../components/ProfileFrame';
 import { Sheet } from '../components/Sheet';
 import { CELEBRATIONS } from '../cosmetics';
-import { equippedLooks, type OwnedLooks } from '../inventory';
+import { equippedLooks, newOfKind, type OwnedLooks } from '../inventory';
 import { pickPhoto } from '../photo';
 import { TrophyBadge, TrophyCabinet } from '../components/TrophyCabinet';
 import { type profileStats, type Settings, type xpMultiplier } from '../game';
@@ -43,6 +43,8 @@ export function ProfileScreen({
   onRename,
   onSettings,
   onPhoto,
+  freshLooks,
+  onSeenLook,
 }: {
   name: string;
   stats: ReturnType<typeof profileStats>;
@@ -72,6 +74,9 @@ export function ProfileScreen({
   onRename: (name: string) => void;
   onSettings: (s: Partial<Settings>) => void;
   onPhoto: (photo: string | undefined) => void;
+  /** Won looks not seen yet, as "kind:id" keys (inventory.ts newLooks). */
+  freshLooks: Set<string>;
+  onSeenLook: (key: string) => void;
 }) {
   const s = useStyles(makeStyles);
   const [editing, setEditing] = useState(false);
@@ -82,6 +87,9 @@ export function ProfileScreen({
   const { title, frame, flameStyle, celebration } = equippedLooks(settings, owned);
   const themeId = unlockedThemes.has(settings.theme) ? settings.theme : 'classic';
   const earnedTrophies = trophies.filter((t) => t.earned).length;
+  const freshThemes = newOfKind(freshLooks, 'theme');
+  const freshFlames = newOfKind(freshLooks, 'flame');
+  const freshCelebrations = newOfKind(freshLooks, 'celebration');
   const showcase = showcaseTrophies(trophies, settings.showcase);
   const initials = name.trim().slice(0, 2).toUpperCase() || '?';
   const memberSince = joinedAt
@@ -165,7 +173,7 @@ export function ProfileScreen({
 
       <View style={s.grid}>
         <Stat label="Total XP" value={stats.totalXp.toLocaleString()} />
-        <Stat label="Streak" value={String(stats.currentStreak)} onPress={() => setSheet('flame')} hint="Change your flame">
+        <Stat label="Streak" value={String(stats.currentStreak)} onPress={() => setSheet('flame')} hint="Change your flame" fresh={freshFlames.size}>
           <Fire tier={Math.max(1, fireTier)} size={22} still />
         </Stat>
         <Stat label="Trophies" value={`${earnedTrophies}/${trophies.length}`} />
@@ -173,10 +181,15 @@ export function ProfileScreen({
 
       <Text style={s.eyebrow}>Customize my app</Text>
       <View style={{ gap: 8 }}>
-        <LookRow label="Theme" value={themeById(themeId).name} onPress={() => setSheet('theme')}>
+        <LookRow label="Theme" value={themeById(themeId).name} onPress={() => setSheet('theme')} fresh={freshThemes.size}>
           <ThemeSwatch id={themeId} />
         </LookRow>
-        <LookRow label="Tick celebration" value={CELEBRATIONS.find((x) => x.id === celebration)?.name ?? ''} onPress={() => setSheet('celebration')}>
+        <LookRow
+          label="Tick celebration"
+          value={CELEBRATIONS.find((x) => x.id === celebration)?.name ?? ''}
+          onPress={() => setSheet('celebration')}
+          fresh={freshCelebrations.size}
+        >
           <Sticker grad={CELEBRATION_LOOKS[celebration]} glyph={CELEBRATION_GLYPHS[celebration]} size={32} flat />
         </LookRow>
       </View>
@@ -266,16 +279,16 @@ export function ProfileScreen({
       </Sheet>
 
       <Sheet visible={sheet === 'flame'} onClose={() => setSheet(null)} eyebrow="Your streak" title="Flame">
-        <FlameGrid owned={owned.flames} equipped={flameStyle} fireTier={fireTier} onPick={(id) => onSettings({ flameStyle: id })} />
+        <FlameGrid owned={owned.flames} equipped={flameStyle} fireTier={fireTier} onPick={(id) => onSettings({ flameStyle: id })} fresh={{ ids: freshFlames, onSeen: (id) => onSeenLook(`flame:${id}`) }} />
         <Text style={s.small}>Your fire grows with your streak. The style is yours to pick.</Text>
       </Sheet>
 
       <Sheet visible={sheet === 'theme'} onClose={() => setSheet(null)} eyebrow="Customize my app" title="Theme">
-        <ThemeGrid current={themeId} unlocked={unlockedThemes} onPick={(id) => onSettings({ theme: id })} />
+        <ThemeGrid current={themeId} unlocked={unlockedThemes} onPick={(id) => onSettings({ theme: id })} fresh={{ ids: freshThemes, onSeen: (id) => onSeenLook(`theme:${id}`) }} />
       </Sheet>
 
       <Sheet visible={sheet === 'celebration'} onClose={() => setSheet(null)} eyebrow="Customize my app" title="Tick celebration">
-        <CelebrationGrid owned={owned.celebrations} equipped={celebration} onPick={(id) => onSettings({ celebration: id })} />
+        <CelebrationGrid owned={owned.celebrations} equipped={celebration} onPick={(id) => onSettings({ celebration: id })} fresh={{ ids: freshCelebrations, onSeen: (id) => onSeenLook(`celebration:${id}`) }} />
       </Sheet>
     </ScrollView>
   );
@@ -315,7 +328,22 @@ function Emblems({ emblems }: { emblems: EmblemStatus[] }) {
   );
 }
 
-function Stat({ label, value, onPress, hint, children }: { label: string; value: string; onPress?: () => void; hint?: string; children?: React.ReactNode }) {
+function Stat({
+  label,
+  value,
+  onPress,
+  hint,
+  fresh = 0,
+  children,
+}: {
+  label: string;
+  value: string;
+  onPress?: () => void;
+  hint?: string;
+  /** New looks waiting behind it. */
+  fresh?: number;
+  children?: React.ReactNode;
+}) {
   const s = useStyles(makeStyles);
   const body = (
     <>
@@ -325,10 +353,11 @@ function Stat({ label, value, onPress, hint, children }: { label: string; value:
       </View>
       <Text style={s.statLabel}>{label}</Text>
       {onPress && <Gear style={s.statGear} small />}
+      <CountBadge count={fresh} style={s.statBadge} />
     </>
   );
   return onPress ? (
-    <Pressable onPress={onPress} style={s.stat} accessibilityRole="button" accessibilityLabel={`${label}: ${value}`} accessibilityHint={hint}>
+    <Pressable onPress={onPress} style={s.stat} accessibilityRole="button" accessibilityLabel={`${label}: ${value}${fresh ? `, ${fresh} new` : ''}`} accessibilityHint={hint}>
       {body}
     </Pressable>
   ) : (
@@ -390,6 +419,7 @@ const makeStyles = themed((c) => ({
   statTop: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   statGear: { position: 'absolute', top: 6, right: 6 },
   gear: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surface, borderWidth: 1, borderColor: c.border },
+  statBadge: { position: 'absolute', top: -6, left: -6 },
   gearSmall: { width: 20, height: 20, borderRadius: 10 },
   avatarGear: { position: 'absolute', right: -2, bottom: -2 },
   eyebrow: { ...eyebrow(c, 11), color: c.muted, marginTop: 18, marginBottom: 8 },

@@ -39,7 +39,7 @@ export function ChallengesScreen({
 
   return (
     <ScrollView contentContainerStyle={s.content}>
-      <StickerHeading glyph="CalendarStar" grad={SEASON_PILL}>
+      <StickerHeading glyph="CalendarStar" grad={SEASON_PILL} style={{ marginBottom: 14 }}>
         <Text style={[s.heading, s.subHeading, { marginTop: 0 }]}>Monthly event</Text>
       </StickerHeading>
       <EventCard season={season} onClaim={onClaimSeason} />

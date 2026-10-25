@@ -12,12 +12,18 @@ export function perWeekLabel(n: number): string {
   return `${n}× a week`;
 }
 
-/** A library task with a one-tap add button. */
-export function LibraryRow({ task, added, onAdd }: { task: LibraryTask; added: boolean; onAdd: () => void }) {
+/** A library task with a one-tap add button. `picked`: on the list to add, tap again to change it. */
+export function LibraryRow({ task, added, picked, onAdd }: { task: LibraryTask; added: boolean; picked?: boolean; onAdd: () => void }) {
   const s = useStyles(makeStyles);
   const cat = categoryOf(task.category);
   return (
-    <Pressable onPress={added ? undefined : onAdd} style={s.row} accessibilityRole="button">
+    <Pressable
+      onPress={added ? undefined : onAdd}
+      style={[s.row, picked && s.picked]}
+      accessibilityRole="button"
+      accessibilityState={{ selected: !!picked, disabled: added }}
+      accessibilityLabel={`${task.title}, +${xpFor(task.minutes)} XP${added ? ', already in your tasks' : picked ? ', on your list, change' : ''}`}
+    >
       <View style={s.iconWrap}>
         {cat && <Sticker grad={categoryLook(cat.id)} glyph={categoryLook(cat.id).glyph} size={32} />}
       </View>
@@ -28,8 +34,8 @@ export function LibraryRow({ task, added, onAdd }: { task: LibraryTask; added: b
         </Text>
       </View>
       <Text style={s.xp}>+{xpFor(task.minutes)} XP</Text>
-      <View style={[s.add, added && s.added]}>
-        <Text style={[s.addText, added && s.addedText]}>{added ? '✓' : '+'}</Text>
+      <View style={[s.add, (added || picked) && s.added]}>
+        <Text style={[s.addText, (added || picked) && s.addedText]}>{added || picked ? '✓' : '+'}</Text>
       </View>
     </Pressable>
   );
@@ -65,6 +71,7 @@ const makeStyles = (c: Palette) => ({
     justifyContent: 'center' as const,
   },
   added: { backgroundColor: c.xpSoft },
+  picked: { borderColor: c.xp, borderWidth: 1.5 },
   addText: { color: BRAND_INK, fontSize: 18, fontWeight: '700' as const, lineHeight: 20, ...BRAND_TEXT_SHADOW },
   addedText: { color: c.xp },
 });
