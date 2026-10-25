@@ -59,3 +59,11 @@ export function keyframes(t: number, at: number[], values: number[]): number {
 }
 
 export const LEAF = 'M12 2C6 6 4 12 6 20c1-4 3-7 6-9-2 3-3 6-3 9 7-2 10-9 3-18z';
+
+/** Like `keyframes`, but holds each value until the next stop (CSS `steps(1)`). */
+export function stepframes(t: number, at: number[], values: number[]): number {
+  'worklet';
+  let v = values[0];
+  for (let i = 0; i < at.length; i++) if (t >= at[i]) v = values[i];
+  return v;
+}

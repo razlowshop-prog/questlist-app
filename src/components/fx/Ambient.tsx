@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, type ViewStyle } from 'react-native';
 import Animated, { Easing, useAnimatedStyle } from 'react-native-reanimated';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { ClipPath, Defs, G, Line, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 import type { AmbientKind } from '../../themeFx';
 import { keyframes, LEAF, seeded, useLoop, useLoopsOn } from './hooks';
 
@@ -26,6 +26,10 @@ function Layer({ kind, w, h }: { kind: AmbientKind; w: number; h: number }) {
       return <Leaves w={w} h={h} />;
     case 'sea':
       return <Sea w={w} h={h} />;
+    case 'synth':
+      return <Synth w={w} h={h} />;
+    case 'floor':
+      return <Floor />;
   }
 }
 
@@ -168,5 +172,107 @@ function Bubble({ x, size, duration, delay, h }: { x: number; size: number; dura
         style,
       ]}
     />
+  );
+}
+
+const GRID = 34;
+
+/** Neon: a synthwave sunset, a glowing grid floor rolling towards you, and neon rain. */
+function Synth({ w, h }: { w: number; h: number }) {
+  const drops = useMemo(
+    () =>
+      Array.from({ length: 7 }, (_, i) => ({
+        x: Math.round(seeded(i, 16) * (w - 4)),
+        len: 48 + Math.round(seeded(i, 17) * 40),
+        duration: 1500 + Math.round(seeded(i, 18) * 1000),
+        delay: Math.round(seeded(i, 19) * 2500),
+      })),
+    [w],
+  );
+  return (
+    <>
+      <SynthSun left={w / 2 - 80} />
+      <GridFloor w={w} />
+      {drops.map((d, i) => (
+        <Drop key={i} {...d} h={h} />
+      ))}
+    </>
+  );
+}
+
+/** A half sun cut into stripes, low over the grid. */
+function SynthSun({ left }: { left: number }) {
+  // 10 px bands with 3 px gaps, as the board's stripe mask.
+  const bands = Array.from({ length: 7 }, (_, i) => i * 13);
+  return (
+    <Svg width={160} height={80} style={{ position: 'absolute', left, bottom: 68, opacity: 0.55 }}>
+      <Defs>
+        <LinearGradient id="sun" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor="#ffb347" />
+          <Stop offset="0.7" stopColor="#ff2bd6" />
+        </LinearGradient>
+        <ClipPath id="sunDisc">
+          <Path d="M0 80A80 80 0 0 1 160 80z" />
+        </ClipPath>
+      </Defs>
+      <G clipPath="url(#sunDisc)">
+        {bands.map((y) => (
+          <Rect key={y} x={0} y={y} width={160} height={10} fill="url(#sun)" />
+        ))}
+      </G>
+    </Svg>
+  );
+}
+
+/** The grid laid flat in perspective, its lines rolling forward. */
+function GridFloor({ w }: { w: number }) {
+  const t = useLoop(1600, true, { restart: true, easing: Easing.linear });
+  const width = w * 2;
+  const height = 150;
+  const roll = useAnimatedStyle(() => ({ transform: [{ translateY: GRID * t.value }] }));
+  const rows = Array.from({ length: Math.ceil(height / GRID) + 2 }, (_, i) => (i - 1) * GRID);
+  const cols = Array.from({ length: Math.ceil(width / GRID) + 1 }, (_, i) => i * GRID);
+  return (
+    <View style={{ position: 'absolute', left: -w / 2, width, bottom: 0, height, overflow: 'hidden' }}>
+      <View style={[StyleSheet.absoluteFill, { opacity: 0.35, transform: [{ perspective: 220 }, { rotateX: '62deg' }], transformOrigin: '50% 100%' } as ViewStyle]}>
+        <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
+          {cols.map((x) => (
+            <Line key={x} x1={x} y1={0} x2={x} y2={height} stroke="#ff2bd6" strokeWidth={1.5} />
+          ))}
+        </Svg>
+        <Animated.View style={[StyleSheet.absoluteFill, roll]}>
+          <Svg width={width} height={height + 2 * GRID} style={{ position: 'absolute', top: -GRID }}>
+            {rows.map((y) => (
+              <Line key={y} x1={0} y1={y + GRID} x2={width} y2={y + GRID} stroke="#ff2bd6" strokeWidth={1.5} />
+            ))}
+          </Svg>
+        </Animated.View>
+      </View>
+      {/* Fades the far end of the grid into the night. */}
+      <View style={[StyleSheet.absoluteFill, { backgroundImage: 'linear-gradient(180deg, #0a0614 0%, rgba(10,6,20,0) 55%)' } as ViewStyle]} />
+    </View>
+  );
+}
+
+function Drop({ x, len, duration, delay, h }: { x: number; len: number; duration: number; delay: number; h: number }) {
+  const t = useLoop(duration, true, { delay, restart: true, easing: Easing.linear });
+  const fall = h + 120;
+  const style = useAnimatedStyle(() => ({ transform: [{ translateY: fall * t.value }] }));
+  return (
+    <Animated.View
+      style={[{ position: 'absolute', left: x, top: -100, width: 1, height: len, backgroundColor: 'rgba(34,232,255,0.5)', backgroundImage: 'linear-gradient(180deg, rgba(34,232,255,0), #22e8ff)' } as ViewStyle, style]}
+    />
+  );
+}
+
+/** Gym: dark rubber floor tiles along the bottom of the screen. */
+function Floor() {
+  return (
+    <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 120, flexDirection: 'row', overflow: 'hidden' }}>
+      {Array.from({ length: 24 }, (_, i) => (
+        <View key={i} style={{ width: 60, backgroundColor: i % 2 ? '#18191c' : '#1c1d21' }} />
+      ))}
+      <View style={[StyleSheet.absoluteFill, { backgroundImage: 'linear-gradient(180deg, #141518 0%, rgba(20,21,24,0) 60%)' } as ViewStyle]} />
+    </View>
   );
 }

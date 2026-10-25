@@ -316,6 +316,54 @@ export const THEMES: ThemeDef[] = [
     }),
   },
   {
+    id: 'neon',
+    name: 'Neon',
+    reward: 'Neon theme',
+    palette: palette({
+      colors: ['0a0614', '120822', '1c1030', '3a2266', 'f2eaff', 'cdbcee', 'a58fd0', '6b5296', '22e8ff', '0a0614'],
+      bgImage: 'radial-gradient(120% 60% at 50% 0%, #2a0b45 0%, #0a0614 60%)',
+      tabBar: 'rgba(14,6,28,0.9)',
+      fonts: heading('Orbitron_700Bold', 'Orbitron_700Bold'),
+      radius: 4, listStyle: 'cards', check: 'square', lineWeight: 2, tip: false,
+      eyebrowCaps: true, logoRule: false, ornament: 'bolt', italicAccent: false, headingUpper: false,
+    }),
+  },
+  {
+    id: 'notepad',
+    name: 'Notepad',
+    reward: 'Notepad theme',
+    palette: palette({
+      light: true,
+      colors: ['fbf8ef', 'fbf8ef', 'f1ecdd', 'c9dcef', '26324a', '4a556c', '6f7a90', 'b9c2d3', 'c0392b', 'ffffff'],
+      // A red margin line and pale blue ruled lines, like a school notebook.
+      bgImage: 'linear-gradient(90deg, transparent 46px, #f0a3a3 46px, #f0a3a3 48px, transparent 48px), repeating-linear-gradient(180deg, #fbf8ef 0px, #fbf8ef 31px, #c9dcef 31px, #c9dcef 32px)',
+      fonts: {
+        serif: 'Caveat_700Bold',
+        serifItalic: 'Caveat_700Bold',
+        body: 'Caveat_500Medium',
+        bodyMedium: 'Caveat_500Medium',
+        bodySemiBold: 'Caveat_600SemiBold',
+        bodyBold: 'Caveat_700Bold',
+        bodyExtraBold: 'Caveat_700Bold',
+      },
+      radius: 0, listStyle: 'lines', check: 'square', lineWeight: 2, tip: false,
+      eyebrowCaps: false, logoRule: false, ornament: 'none', italicAccent: false, headingUpper: false,
+    }),
+  },
+  {
+    id: 'gym',
+    name: 'Gym',
+    reward: 'Gym theme',
+    palette: palette({
+      colors: ['141518', '1e2024', '2a2d33', '33363d', 'f4f4f2', 'c4c6cb', '9a9da4', '5e6168', 'ff5a1f', '141518'],
+      bgImage: 'radial-gradient(90% 50% at 50% 0%, #2a2d33 0%, #141518 70%)',
+      tabBar: 'rgba(20,21,24,0.92)',
+      fonts: heading('Anton_400Regular', 'Anton_400Regular'),
+      radius: 6, listStyle: 'cards', check: 'square', lineWeight: 2, tip: false,
+      eyebrowCaps: true, logoRule: false, ornament: 'none', italicAccent: false, headingUpper: true,
+    }),
+  },
+  {
     // Only won on the lucky wheel (design thread, "Fortuna theme and wheel spec").
     id: 'fortune',
     name: 'Fortuna',

@@ -3,9 +3,9 @@
 // ticked task leaves the list. Themes without an entry keep the brand bar
 // and a plain fade.
 
-export type MascotKind = 'rocket' | 'sprout' | 'boat';
-export type FinishKind = 'rocket' | 'blow' | 'wash' | 'fade';
-export type AmbientKind = 'stars' | 'leaves' | 'sea';
+export type MascotKind = 'rocket' | 'sprout' | 'boat' | 'car' | 'pencil' | 'lifter';
+export type FinishKind = 'rocket' | 'blow' | 'wash' | 'glitch' | 'cross' | 'throw' | 'fade';
+export type AmbientKind = 'stars' | 'leaves' | 'sea' | 'synth' | 'floor';
 /** Drawn on the fill and revealed as it grows. */
 export type BarDecor = 'vine' | 'wavetop';
 
@@ -18,6 +18,18 @@ export interface ThemeBarSpec {
   /** The tip glow while XP is added. */
   glow: string;
   decor?: BarDecor;
+  /** Corner radius of the track and fill; half the height when left out. */
+  radius?: number;
+  /** A dashed line under the track instead of a filled one (Notepad). */
+  dashedBase?: string;
+  fillOpacity?: number;
+  /** A glow around the fill (CSS box-shadow). */
+  fillShadow?: string;
+  /**
+   * How the fill moves to a new total, when it isn't the usual quick ease-out:
+   * Gym waits while the lifter picks the barbell up, then carries it along.
+   */
+  motion?: { delay: number; duration: number };
 }
 
 export interface ThemeFx {
@@ -29,6 +41,8 @@ export interface ThemeFx {
   /** How long the task-finish animation runs before the row leaves. */
   finishMs: number;
   ambient?: AmbientKind;
+  /** Task cards whose outline pulses between two colours (Neon). */
+  rowPulse?: [string, string];
 }
 
 const linear = (angle: number, ...colors: string[]) => `linear-gradient(${angle}deg, ${colors.join(', ')})`;
@@ -59,6 +73,47 @@ export const THEME_FX: Record<string, ThemeFx> = {
     finish: 'wash',
     finishMs: 1100,
     ambient: 'sea',
+  },
+  neon: {
+    bar: { height: 8, track: '#1c1030', fill: linear(90, '#22e8ff', '#ff2bd6'), fillColor: '#8e8af0', glow: '#ff2bd6', fillShadow: '0 0 10px #ff2bd6, 0 0 16px #22e8ff' },
+    mascot: 'car',
+    mascotScale: 1.35,
+    finish: 'glitch',
+    finishMs: 900,
+    ambient: 'synth',
+    rowPulse: ['rgba(34,232,255,0.55)', 'rgba(255,43,214,0.85)'],
+  },
+  notepad: {
+    bar: {
+      height: 12,
+      track: 'transparent',
+      fill: 'repeating-linear-gradient(-55deg, #3a4256 0 2px, transparent 2px 5px)',
+      fillColor: '#8a92a6',
+      glow: '#c0392b',
+      radius: 3,
+      dashedBase: '#b9c2d3',
+      fillOpacity: 0.85,
+    },
+    mascot: 'pencil',
+    mascotScale: 1.1,
+    finish: 'cross',
+    finishMs: 1000,
+  },
+  gym: {
+    bar: {
+      height: 12,
+      track: '#2a2d33',
+      fill: 'repeating-linear-gradient(-45deg, #FF5A1F 0 10px, #FF8A2A 10px 20px)',
+      fillColor: '#FF6A24',
+      glow: '#FFB000',
+      radius: 3,
+      motion: { delay: 500, duration: 650 },
+    },
+    mascot: 'lifter',
+    mascotScale: 1.4,
+    finish: 'throw',
+    finishMs: 1000,
+    ambient: 'floor',
   },
   sunset: {
     bar: { height: 10, track: '#f1e2d6', fill: linear(90, '#ffb36b', '#e0603c', '#b44e33'), fillColor: '#e0603c', glow: '#ffb36b' },
@@ -91,11 +146,17 @@ export function themeFx(themeId: string): ThemeFx {
   return THEME_FX[themeId] ?? PLAIN_FX;
 }
 
-/** Mascot drawings, unscaled: width and height in px. */
-export const MASCOT_SIZE: Record<MascotKind, { width: number; height: number }> = {
+/**
+ * Mascot drawings, unscaled: width and height in px, and `sink`, how far the
+ * drawing dips into the bar (the pencil's tip has to touch it).
+ */
+export const MASCOT_SIZE: Record<MascotKind, { width: number; height: number; sink?: number }> = {
   rocket: { width: 58, height: 30 },
   sprout: { width: 26, height: 26 },
   boat: { width: 34, height: 30 },
+  car: { width: 46, height: 24 },
+  pencil: { width: 40, height: 40, sink: 9 },
+  lifter: { width: 40, height: 44 },
 };
 
 /**
