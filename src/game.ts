@@ -215,6 +215,8 @@ export interface Settings {
   celebration?: CelebrationId;
   /** Which of the five avatar gradients (vivid.ts AVATAR_DISCS) the profile picture uses. */
   avatar?: number;
+  /** Days the store's review pop-up was asked for (review.ts). */
+  reviewAsks?: string[];
   /** Small vibrations on tick, level up and the wheel; on unless turned off. */
   haptics?: boolean;
   /** Monday of the last week whose recap was seen or closed. */

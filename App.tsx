@@ -83,6 +83,8 @@ import { equippedLooks, ownedLooks } from './src/inventory';
 import { claimSeason, seasonStatus } from './src/seasons';
 import { frameName } from './src/cosmetics';
 import { askReminderPermission, REMINDERS_SUPPORTED, syncReminders } from './src/reminders';
+import { reviewDue } from './src/review';
+import { askStoreReview } from './src/storeReview';
 import { buzz } from './src/haptics';
 import { recapToShow } from './src/recap';
 import { WeeklyRecap } from './src/components/WeeklyRecap';
@@ -144,6 +146,9 @@ export default function App() {
   /** Quick ticks in a row: how many, and when the last one was. */
   const combo = useRef({ count: 0, at: 0 });
   const [comboShown, setComboShown] = useState({ count: 0, play: 0 });
+  /** A level-up or moment pop-up is open or waiting; the review pop-up never shows on top of one. */
+  const celebrationOpen = useRef(false);
+  celebrationOpen.current = !!celebration || moments.length > 0;
   const bestLevel = useRef<number | null>(null);
   // Theme whose fonts are loaded and which is on screen; a newly picked theme
   // shows once its fonts are ready, so text never flashes in a missing font.
@@ -308,6 +313,18 @@ export default function App() {
       );
     }
     return gained;
+  }
+
+  /** After a level-up or perfect-day pop-up closes: maybe the store's review pop-up (rarely, never for a reward). */
+  function maybeAskReview(level: number) {
+    if (!reviewDue(state, level, today)) return;
+    // Long enough for a level-up from collected bonus XP to open first; then it waits for the next one.
+    setTimeout(() => {
+      if (celebrationOpen.current) return;
+      askStoreReview().then((asked) => {
+        if (asked) setState((s) => ({ ...s, settings: { ...s.settings, reviewAsks: [...(s.settings.reviewAsks ?? []), today] } }));
+      });
+    }, 1500);
   }
 
   /** Collect on the reward pop-up: claims the Climber bonus XP up to that level (other rewards are already given). */
@@ -694,18 +711,29 @@ export default function App() {
             <ComboPill count={comboShown.count} play={comboShown.play} />
 
             {!celebration && moments.length > 0 && (
-              <MomentCelebration key={JSON.stringify(moments[0])} moment={moments[0]} onClose={() => setMoments((m) => m.slice(1))} />
+              <MomentCelebration
+                key={JSON.stringify(moments[0])}
+                moment={moments[0]}
+                onClose={() => {
+                  if (moments[0].kind === 'perfect') maybeAskReview(levelInfo(xp).level);
+                  setMoments((m) => m.slice(1));
+                }}
+              />
             )}
 
             {celebration && (
               <Celebration
                 key={celebration.level}
                 event={celebration}
-                onClose={() => setCelebration(null)}
+                onClose={() => {
+                  setCelebration(null);
+                  maybeAskReview(celebration.level);
+                }}
                 onCollect={() => {
                   const m = celebration.milestone;
                   setCelebration(null);
                   if (m) collectLevelReward(m);
+                  maybeAskReview(celebration.level);
                 }}
               />
             )}
