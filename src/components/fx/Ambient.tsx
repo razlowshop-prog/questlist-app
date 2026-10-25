@@ -3,7 +3,7 @@ import { StyleSheet, View, type ViewStyle } from 'react-native';
 import Animated, { Easing, useAnimatedStyle } from 'react-native-reanimated';
 import Svg, { ClipPath, Defs, G, Line, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 import type { AmbientKind } from '../../themeFx';
-import { keyframes, LEAF, seeded, useLoop, useLoopsOn } from './hooks';
+import { keyframes, LEAF, seeded, stepframes, useLoop, useLoopsOn } from './hooks';
 
 // The theme's background layer: a few slow particles behind everything,
 // never in the way of a tap. Off with reduced motion and in the background.
@@ -30,6 +30,16 @@ function Layer({ kind, w, h }: { kind: AmbientKind; w: number; h: number }) {
       return <Synth w={w} h={h} />;
     case 'floor':
       return <Floor />;
+    case 'dusk':
+      return <Dusk w={w} />;
+    case 'storm':
+      return <Storm />;
+    case 'peaks':
+      return <Peaks w={w} h={h} />;
+    case 'embers':
+      return <Embers w={w} h={h} />;
+    case 'night':
+      return <Night w={w} h={h} />;
   }
 }
 
@@ -274,5 +284,147 @@ function Floor() {
       ))}
       <View style={[StyleSheet.absoluteFill, { backgroundImage: 'linear-gradient(180deg, #141518 0%, rgba(20,21,24,0) 60%)' } as ViewStyle]} />
     </View>
+  );
+}
+
+/** Sunset: the sky's glow slowly breathing, soft hills along the bottom. */
+function Dusk({ w }: { w: number }) {
+  const t = useLoop(16000, true);
+  const sky = useAnimatedStyle(() => ({ opacity: 1 - 0.6 * t.value }));
+  return (
+    <>
+      <Animated.View style={[StyleSheet.absoluteFill, { backgroundImage: 'linear-gradient(180deg, rgba(255,140,90,0.35), rgba(255,140,90,0) 45%)' } as ViewStyle, sky]} />
+      <Svg width={w} height={120} viewBox="0 0 390 120" preserveAspectRatio="none" style={{ position: 'absolute', left: 0, bottom: 0, opacity: 0.35 }}>
+        <Path d="M0 80 Q 60 40 120 70 T 250 60 T 390 70 V120 H0z" fill="#e6b39a" />
+        <Path d="M0 100 Q 90 70 180 95 T 390 90 V120 H0z" fill="#d48f74" />
+      </Svg>
+    </>
+  );
+}
+
+/** Thunder: every few seconds the sky flickers and a bolt cracks in the corner. */
+function Storm() {
+  const t = useLoop(7000, true, { restart: true, easing: Easing.linear });
+  const flash = useAnimatedStyle(() => ({ opacity: keyframes(t.value, [0, 0.9, 0.91, 0.92, 0.93, 0.94, 1], [0, 0, 0.18, 0.04, 0.18, 0, 0]) }));
+  const bolt = useAnimatedStyle(() => ({ opacity: stepframes(t.value, [0, 0.91, 0.93], [0, 0.9, 0]) }));
+  return (
+    <>
+      <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: '#cfd6ff' }, flash]} />
+      <Animated.View style={[{ position: 'absolute', right: 40, top: 30 }, bolt]}>
+        <Svg width={60} height={140} viewBox="0 0 60 140">
+          <Path d="M34 0 14 60h16L18 140 50 50H34L44 0z" fill="#fff6b0" />
+        </Svg>
+      </Animated.View>
+    </>
+  );
+}
+
+const CLOUDS = [
+  { top: 0.753, width: 107, duration: 36100, delay: 0.66 },
+  { top: 0.708, width: 75, duration: 37600, delay: 0.62 },
+  { top: 0.734, width: 75, duration: 26700, delay: 0.53 },
+  { top: 0.723, width: 73, duration: 33600, delay: 0.01 },
+];
+
+/** Summit: a mountain ridge with a snowy peak, clouds drifting past. */
+function Peaks({ w, h }: { w: number; h: number }) {
+  return (
+    <>
+      <Svg width={w} height={170} viewBox="0 0 390 170" preserveAspectRatio="none" style={{ position: 'absolute', left: 0, bottom: 0, opacity: 0.5 }}>
+        <Path d="M0 170 L70 80 L110 115 L190 30 L250 100 L300 60 L390 140 V170z" fill="#c4ced8" />
+        <Path d="M190 30 L172 52 L186 48 L196 58 L206 46z" fill="#fff" />
+      </Svg>
+      {CLOUDS.map((c, i) => (
+        <Cloud key={i} top={c.top * h} width={c.width} duration={c.duration} start={c.delay} w={w} />
+      ))}
+    </>
+  );
+}
+
+function Cloud({ top, width, duration, start, w }: { top: number; width: number; duration: number; start: number; w: number }) {
+  // Starts partway across, like the board's negative delays, then loops from the left edge.
+  const t = useLoop(duration, true, { restart: true, easing: Easing.linear });
+  const span = w + 330;
+  const style = useAnimatedStyle(() => ({ transform: [{ translateX: -200 + (((t.value + start) % 1) * span) }] }));
+  return <Animated.View style={[{ position: 'absolute', left: 0, top, width, height: 20, borderRadius: 20, backgroundColor: '#fff', opacity: 0.75 }, style]} />;
+}
+
+/** Ember: sparks rising from the bottom of the screen, drifting as they go. */
+function Embers({ w, h }: { w: number; h: number }) {
+  const sparks = useMemo(
+    () =>
+      Array.from({ length: 16 }, (_, i) => ({
+        x: seeded(i, 20) * (w - 6),
+        size: 2 + Math.round(seeded(i, 21) * 3),
+        duration: 5400 + Math.round(seeded(i, 22) * 4600),
+        start: seeded(i, 23),
+      })),
+    [w],
+  );
+  return (
+    <>
+      {sparks.map((p, i) => (
+        <Spark key={i} {...p} h={h} />
+      ))}
+    </>
+  );
+}
+
+function Spark({ x, size, duration, start, h }: { x: number; size: number; duration: number; start: number; h: number }) {
+  const t = useLoop(duration, true, { restart: true, easing: Easing.linear });
+  const rise = h + 20;
+  const style = useAnimatedStyle(() => {
+    const v = (t.value + start) % 1;
+    return { opacity: keyframes(v, [0, 0.1, 1], [0, 1, 0]), transform: [{ translateX: 30 * v }, { translateY: -rise * v }] };
+  });
+  return (
+    <Animated.View
+      style={[{ position: 'absolute', left: x, bottom: -10, width: size, height: size, borderRadius: size / 2, backgroundColor: '#ffb347', boxShadow: '0 0 6px #ff7a00' } as ViewStyle, style]}
+    />
+  );
+}
+
+/** Midnight: tiny stars twinkling and, now and then, a shooting star. */
+function Night({ w, h }: { w: number; h: number }) {
+  const stars = useMemo(
+    () =>
+      Array.from({ length: 20 }, (_, i) => ({
+        x: seeded(i, 24) * w,
+        y: seeded(i, 25) * h,
+        size: 1 + Math.round(seeded(i, 26) * 2),
+        duration: 2200 + Math.round(seeded(i, 27) * 2700),
+        delay: Math.round(seeded(i, 28) * 3000),
+      })),
+    [w, h],
+  );
+  return (
+    <>
+      {stars.map((st, i) => (
+        <Twinkle key={i} {...st} />
+      ))}
+      <ShootingStar w={w} />
+    </>
+  );
+}
+
+function Twinkle({ x, y, size, duration, delay }: { x: number; y: number; size: number; duration: number; delay: number }) {
+  const t = useLoop(duration, true, { delay });
+  const style = useAnimatedStyle(() => ({ opacity: 0.2 + 0.8 * t.value }));
+  return <Animated.View style={[{ position: 'absolute', left: x, top: y, width: size, height: size, borderRadius: size / 2, backgroundColor: '#fff' }, style]} />;
+}
+
+function ShootingStar({ w }: { w: number }) {
+  const t = useLoop(9000, true, { restart: true, easing: Easing.linear });
+  const style = useAnimatedStyle(() => {
+    const v = t.value;
+    // Quiet most of the cycle, then a quick streak down to the left.
+    const p = Math.max(0, Math.min(1, (v - 0.85) / 0.11));
+    const out = 1 - (1 - p) * (1 - p);
+    return { opacity: keyframes(v, [0, 0.85, 0.88, 0.96, 1], [0, 0, 1, 0, 0]), transform: [{ rotate: '-25deg' }, { translateX: -260 * out }] };
+  });
+  return (
+    <Animated.View
+      style={[{ position: 'absolute', left: w - 90, top: 60, width: 90, height: 2, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.6)', backgroundImage: 'linear-gradient(90deg, #fff, rgba(255,255,255,0))' } as ViewStyle, style]}
+    />
   );
 }

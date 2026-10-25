@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { View, type ViewStyle } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
-import Svg, { Circle, Defs, Ellipse, G, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, Ellipse, G, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 import type { MascotKind } from '../../themeFx';
 import { useLoop, useLoopsOn } from './hooks';
 
@@ -23,6 +23,16 @@ export function Mascot({ kind, scale, live, gainKey }: { kind: MascotKind; scale
       return <Pencil scale={scale} />;
     case 'lifter':
       return <Lifter scale={scale} gainKey={gainKey} />;
+    case 'sun':
+      return <Sun scale={scale} />;
+    case 'bolt':
+      return <Bolt scale={scale} />;
+    case 'climber':
+      return <Climber scale={scale} />;
+    case 'flame':
+      return <Flame scale={scale} />;
+    case 'moon':
+      return <Moon scale={scale} />;
   }
 }
 
@@ -207,5 +217,102 @@ function Lifter({ scale, gainKey }: { scale: number; gainKey: number }) {
         </Svg>
       </Animated.View>
     </View>
+  );
+}
+
+/** Sunset: a glowing sun rising along the bar, its halo breathing. */
+function Sun({ scale }: { scale: number }) {
+  const on = useLoopsOn();
+  const glow = useLoop(3000, on);
+  const size = 30 * scale;
+  const haloStyle = useAnimatedStyle(() => ({ opacity: 0.55 + 0.45 * glow.value, transform: [{ scale: 1 + 0.25 * glow.value }] }));
+  return (
+    <View style={{ width: size, height: size }}>
+      <Animated.View style={[{ position: 'absolute', left: -size * 0.3, top: -size * 0.3, width: size * 1.6, height: size * 1.6 }, haloStyle]}>
+        <Svg width={size * 1.6} height={size * 1.6} viewBox="0 0 48 48">
+          <Defs>
+            <RadialGradient id="sunHalo" cx="50%" cy="50%" rx="50%" ry="50%">
+              <Stop offset="0.45" stopColor="#ffa050" stopOpacity={0.75} />
+              <Stop offset="1" stopColor="#ffa050" stopOpacity={0} />
+            </RadialGradient>
+          </Defs>
+          <Circle cx={24} cy={24} r={24} fill="url(#sunHalo)" />
+        </Svg>
+      </Animated.View>
+      <Svg width={size} height={size} viewBox="0 0 30 30">
+        <Defs>
+          <RadialGradient id="sunDisc" cx="50%" cy="50%" rx="50%" ry="50%">
+            <Stop offset="0.3" stopColor="#fff3c4" />
+            <Stop offset="0.6" stopColor="#ffb347" />
+            <Stop offset="1" stopColor="#f06a3c" />
+          </RadialGradient>
+        </Defs>
+        <Circle cx={15} cy={15} r={15} fill="url(#sunDisc)" />
+      </Svg>
+    </View>
+  );
+}
+
+/** Thunder: a little lightning bolt crackling on the bar. */
+function Bolt({ scale }: { scale: number }) {
+  const on = useLoopsOn();
+  const zap = useLoop(600, on, { restart: true, easing: Easing.linear });
+  // Two hard steps, small and big, like the board's steps(2).
+  const style = useAnimatedStyle(() => ({ transform: [{ scale: zap.value < 0.5 ? 1 : 1.15 }] }));
+  return (
+    <Animated.View style={[{ width: 18 * scale, height: 26 * scale }, style]}>
+      <Svg width={18 * scale} height={26 * scale} viewBox="0 0 18 26">
+        <Path d="M11 0 1 15h7l-3 11 12-16h-7l3-10z" fill="#fff6b0" stroke="#15161c" strokeWidth={1.2} />
+      </Svg>
+    </Animated.View>
+  );
+}
+
+/** Summit: the climber's flag planted at the tip, swaying in the wind. */
+function Climber({ scale }: { scale: number }) {
+  const on = useLoopsOn();
+  const sway = useLoop(1800, on);
+  const style = useAnimatedStyle(() => ({ transform: [{ rotate: `${-5 * sway.value}deg` }] }));
+  return (
+    <Animated.View style={[{ width: 22 * scale, height: 30 * scale, transformOrigin: `${5 * scale}px ${30 * scale}px` } as ViewStyle, style]}>
+      <Svg width={22 * scale} height={30 * scale} viewBox="0 0 22 30">
+        <Path d="M5 30V2" stroke="#334250" strokeWidth={2} />
+        <Path d="M6 3h13l-4 5 4 5H6z" fill="#e0603c" />
+      </Svg>
+    </Animated.View>
+  );
+}
+
+/** Ember: a small flame flickering at the tip of the glowing bar. */
+function Flame({ scale }: { scale: number }) {
+  const on = useLoopsOn();
+  const flick = useLoop(1200, on);
+  const style = useAnimatedStyle(() => ({ transform: [{ scaleX: 1 + 0.08 * flick.value }, { scaleY: 1 + 0.14 * flick.value }] }));
+  return (
+    <Animated.View style={[{ width: 20 * scale, height: 28 * scale, transformOrigin: 'bottom' } as ViewStyle, style]}>
+      <Svg width={20 * scale} height={28 * scale} viewBox="0 0 24 32">
+        <Defs>
+          <LinearGradient id="emberFlame" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor="#FFE29A" />
+            <Stop offset="1" stopColor="#FF4A1C" />
+          </LinearGradient>
+        </Defs>
+        <Path d="M12 1c2 5 8 8 8 16a8 8 0 0 1-16 0c0-3 1.5-5.5 3.5-7 .3 2.6 1.6 4.3 3.6 4.9C10.5 10.5 10.5 6 12 1z" fill="url(#emberFlame)" />
+      </Svg>
+    </Animated.View>
+  );
+}
+
+/** Midnight: a crescent moon travelling over the bar, rocking gently. */
+function Moon({ scale }: { scale: number }) {
+  const on = useLoopsOn();
+  const rock = useLoop(4000, on);
+  const style = useAnimatedStyle(() => ({ transform: [{ rotate: `${-12 * rock.value}deg` }] }));
+  return (
+    <Animated.View style={[{ width: 24 * scale, height: 24 * scale }, style]}>
+      <Svg width={24 * scale} height={24 * scale} viewBox="0 0 24 24">
+        <Path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5z" fill="#fff6d8" stroke="#12141c" strokeWidth={1} />
+      </Svg>
+    </Animated.View>
   );
 }

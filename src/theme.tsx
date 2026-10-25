@@ -243,6 +243,7 @@ export const THEMES: ThemeDef[] = [
     palette: palette({
       light: true,
       colors: ['f8eee6', 'fffaf6', 'f1e2d6', 'ecd8ca', '2b1a14', '634a3f', '7e6458', 'c4ab9c', 'b44e33', 'ffffff'],
+      bgImage: 'linear-gradient(180deg, #ffd9b8 0%, #f8eee6 40%, #f8eee6 100%)',
       fonts: heading('Fraunces_400Regular', 'Fraunces_400Regular_Italic'),
       radius: 18, listStyle: 'cards', check: 'circle', lineWeight: 6, tip: false,
       eyebrowCaps: false, logoRule: false, ornament: 'sun', italicAccent: true, headingUpper: false,
@@ -255,6 +256,7 @@ export const THEMES: ThemeDef[] = [
     reward: 'Thunder theme',
     palette: palette({
       colors: ['15161c', '1f2028', '282a34', '3a3c48', 'f1f1f5', 'b9bac6', '9496a4', '5d6070', 'e6d36a', '15161c'],
+      bgImage: 'radial-gradient(100% 50% at 50% 0%, #262836 0%, #15161c 70%)',
       fonts: {
         serif: 'SpaceGrotesk_700Bold',
         serifItalic: 'SpaceGrotesk_700Bold',
@@ -276,8 +278,9 @@ export const THEMES: ThemeDef[] = [
     palette: palette({
       light: true,
       colors: ['f3f4f5', 'ffffff', 'e8eaec', 'dcdfe2', '1b1f23', '4e565e', '68717a', 'a9b0b5', '334250', 'ffffff'],
+      bgImage: 'linear-gradient(180deg, #dfe7ee 0%, #f3f4f5 50%)',
       fonts: heading('Archivo_800ExtraBold', 'Archivo_800ExtraBold_Italic'),
-      radius: 6, listStyle: 'lines', check: 'circle', lineWeight: 2, tip: false,
+      radius: 6, listStyle: 'cards', check: 'circle', lineWeight: 2, tip: false,
       eyebrowCaps: true, logoRule: false, ornament: 'peak', italicAccent: false, headingUpper: true,
     }),
   },
@@ -287,8 +290,9 @@ export const THEMES: ThemeDef[] = [
     reward: 'Ember theme',
     palette: palette({
       colors: ['1e1614', '2b1f1b', '352722', '4f3a33', 'f6eee9', 'cbb9b1', 'a8968e', '75605a', 'ea8d66', '1e1614'],
+      bgImage: 'radial-gradient(100% 50% at 50% 100%, #3a1a10 0%, #1e1614 65%)',
       fonts: heading('BodoniModa_400Regular', 'BodoniModa_400Regular_Italic'),
-      radius: 8, listStyle: 'lines', check: 'circle', lineWeight: 2, tip: true,
+      radius: 8, listStyle: 'cards', check: 'circle', lineWeight: 2, tip: true,
       eyebrowCaps: true, logoRule: false, ornament: 'dots', italicAccent: true, headingUpper: false,
     }),
   },
@@ -309,6 +313,7 @@ export const THEMES: ThemeDef[] = [
     reward: 'Midnight theme',
     palette: palette({
       colors: ['12141c', '1b1e29', '242838', '343a4c', 'eef1fa', 'b6bdd2', '8f97ae', '59607a', 'a3b3ea', '12141c'],
+      bgImage: 'radial-gradient(120% 60% at 70% 0%, #1d2340 0%, #12141c 65%)',
       fonts: heading('InstrumentSerif_400Regular', 'InstrumentSerif_400Regular_Italic'),
       radius: 18, listStyle: 'cards', check: 'circle', lineWeight: 4, tip: false,
       eyebrowCaps: false, logoRule: false, ornament: 'moon', italicAccent: true, headingUpper: false,
