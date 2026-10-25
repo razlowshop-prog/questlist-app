@@ -82,7 +82,7 @@ import { FocusBar, FocusTimer } from './src/components/FocusTimer';
 import { focusBonus, pauseFocus, resumeFocus, startFocus } from './src/focus';
 import { CelebrationContext } from './src/components/TaskRow';
 import { emblemStatuses } from './src/emblems';
-import { equippedLooks, lookKeys, markLooksSeen, newLooks, newOfKind, ownedLooks } from './src/inventory';
+import { equippedLooks, lookKeys, markLooksSeen, newLooks, ownedLooks } from './src/inventory';
 import { bagChanged, bagSnapshot, newInBag, type BagItem } from './src/bag';
 import { claimSeason, seasonStatus } from './src/seasons';
 import { frameName } from './src/cosmetics';
@@ -226,8 +226,8 @@ export default function App() {
     [unlockedThemes, owned],
   );
   const freshLooks = useMemo(() => newLooks(allLookKeys, state.settings.seenLooks), [allLookKeys, state.settings.seenLooks]);
-  const freshInBag = newOfKind(freshLooks, 'theme').size + newOfKind(freshLooks, 'celebration').size;
-  const freshFlames = newOfKind(freshLooks, 'flame').size;
+  // Every won look is picked in the bag now (Customize your app), so all new ones show there.
+  const freshInBag = freshLooks.size;
   const seeLook = (key: string) => setState((s) => updateSettings(s, { seenLooks: markLooksSeen(s.settings.seenLooks, [key]) }));
   const bagKey = JSON.stringify(bagSnapshot(bagCounts));
   // Players from before the badges start with everything seen, so only what comes next is new.
@@ -510,7 +510,6 @@ export default function App() {
                   initials={initials}
                   bagCount={bagNew + freshInBag}
                   toClaim={awardsToClaim}
-                  newLooks={freshFlames}
                   onHome={() => openTab('today')}
                   onInventory={() => setPage('inventory')}
                   onProfile={() => setPage('profile')}
@@ -541,6 +540,7 @@ export default function App() {
                   settings={state.settings}
                   owned={owned}
                   unlockedThemes={unlockedThemes}
+                  fireTier={streakInfo.tier}
                   freshLooks={freshLooks}
                   onSeenLook={seeLook}
                   onSettings={(changes) => setState((s) => updateSettings(s, changes))}
@@ -554,7 +554,6 @@ export default function App() {
                   joinedAt={state.joinedAt}
                   settings={state.settings}
                   owned={owned}
-                  unlockedThemes={unlockedThemes}
                   eventFrame={season.frame}
                   fireTier={streakInfo.tier}
                   photo={photo}
@@ -572,8 +571,6 @@ export default function App() {
                     setPhoto(next);
                     savePhoto(next);
                   }}
-                  freshLooks={freshLooks}
-                  onSeenLook={seeLook}
                 />
               )}
               {(page === 'friends' || page === 'leaderboard') && (
