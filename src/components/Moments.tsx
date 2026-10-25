@@ -1,6 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { useEffect, type ComponentProps } from 'react';
 import { Modal, Platform, Pressable, Share, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import { APP_NAME } from '../brand';
 import { PERFECT_DAY_XP } from '../moments';
@@ -41,7 +42,7 @@ export function MomentCelebration({ moment, onClose }: { moment: Moment; onClose
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={s.backdrop} onPress={onClose} accessibilityLabel="Close" />
-      <View style={s.center} pointerEvents="box-none">
+      <SafeAreaView style={s.center} pointerEvents="box-none">
         <ConfettiBurst scale={1.4} />
         <Animated.View style={[s.card, cardStyle]} accessibilityViewIsModal>
           <Text style={s.eyebrow}>{perfect ? 'All done' : 'Streak milestone'}</Text>
@@ -58,7 +59,7 @@ export function MomentCelebration({ moment, onClose }: { moment: Moment; onClose
           </View>
           <Text style={[s.small, { color: c.faint }]}>Tap anywhere to close</Text>
         </Animated.View>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }

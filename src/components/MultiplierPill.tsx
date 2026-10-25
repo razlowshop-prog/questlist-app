@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Modal, Pressable, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { nextStreakBonus, type xpMultiplier } from '../game';
 import { card, eyebrow, FONTS, themed, useStyles, useTheme } from '../theme';
@@ -55,7 +56,7 @@ export function MultiplierPill({ multiplier, size = 'normal' }: { multiplier: Mu
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <Pressable style={s.backdrop} onPress={() => setOpen(false)} accessibilityLabel="Close" />
-        <View style={s.center} pointerEvents="box-none">
+        <SafeAreaView style={s.center} pointerEvents="box-none">
           <View style={s.sheet}>
             <Text style={s.eyebrow}>XP multiplier</Text>
             <Text style={s.big}>× {fmtX(multiplier.total)}</Text>
@@ -80,7 +81,7 @@ export function MultiplierPill({ multiplier, size = 'normal' }: { multiplier: Mu
               <Text style={s.buttonText}>Got it</Text>
             </Pressable>
           </View>
-        </View>
+        </SafeAreaView>
       </Modal>
     </>
   );

@@ -1,6 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Animated, Easing, Modal, PanResponder, Platform, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Reanimated, { cancelAnimation, Easing as REasing, useAnimatedReaction, useAnimatedStyle, useSharedValue, withRepeat, withTiming, type SharedValue } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import Svg, { Circle, Defs, G, LinearGradient, Mask, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
@@ -377,7 +378,7 @@ function OddsSheet({ ownsTheme, onClose }: { ownsTheme: boolean; onClose: () => 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={s.revealBackdrop} onPress={onClose} accessibilityLabel="Close" />
-      <View style={s.revealWrap} pointerEvents="box-none">
+      <SafeAreaView style={s.revealWrap} pointerEvents="box-none">
         <HoloBorder radius={18} style={{ width: '100%', maxWidth: 380 }}>
           <View style={s.oddsSheet}>
             <Text style={s.oddsTitle}>Odds</Text>
@@ -401,7 +402,7 @@ function OddsSheet({ ownsTheme, onClose }: { ownsTheme: boolean; onClose: () => 
             <GoldAction label="Got it" onPress={onClose} />
           </View>
         </HoloBorder>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }
@@ -693,7 +694,7 @@ function PrizeReveal({
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={s.revealBackdrop} onPress={onClose} accessibilityLabel="Close" />
       {mythic && <CoinShower count={30} />}
-      <View style={s.revealWrap} pointerEvents="box-none">
+      <SafeAreaView style={s.revealWrap} pointerEvents="box-none">
         <Animated.View
           style={[
             s.rays,
@@ -791,7 +792,7 @@ function PrizeReveal({
             </View>
           </HoloBorder>
         </Animated.View>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }

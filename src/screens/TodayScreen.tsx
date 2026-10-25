@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp, Plus, Sparkles, X } from 'lucide-react-native';
 import Animated, { LinearTransition, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { ComboPill } from '../components/Moments';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Chip } from '../components/Chip';
 import { brandFill, brandFillSmall, brandInk, brandTextShadow, EmptyState, GradientText, VIVID_HEAVY, VividButton } from '../components/Vivid';
 import { RARITY } from '../vivid';
@@ -316,7 +317,7 @@ export function TodayScreen({
       <Modal visible={adding} transparent animationType="slide" onRequestClose={closeSheet}>
         <Pressable style={s.backdrop} onPress={closeSheet} accessibilityLabel="Close" />
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.sheetWrap} pointerEvents="box-none">
-          <View style={s.sheet}>
+          <SafeAreaView edges={['bottom', 'left', 'right']} style={s.sheet}>
             <View style={s.sheetHead}>
               <Text style={s.sheetTitle}>Add a task</Text>
               <Pressable onPress={closeSheet} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close">
@@ -471,7 +472,7 @@ export function TodayScreen({
             )}
 
             </ScrollView>
-          </View>
+          </SafeAreaView>
         </KeyboardAvoidingView>
       </Modal>
     </>

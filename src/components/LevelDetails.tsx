@@ -1,5 +1,6 @@
 import { Check } from 'lucide-react-native';
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { nextLevelReward } from '../achievements';
 import {
   levelInfo,
@@ -38,7 +39,7 @@ export function LevelDetails({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={s.backdrop} onPress={onClose} accessibilityLabel="Close" />
-      <View style={s.sheetWrap} pointerEvents="box-none">
+      <SafeAreaView style={s.sheetWrap} pointerEvents="box-none">
         <View style={s.sheet}>
           <ScrollView contentContainerStyle={{ gap: 18 }}>
             <View style={{ gap: 4 }}>
@@ -112,7 +113,7 @@ export function LevelDetails({
             <Text style={s.closeText}>Close</Text>
           </Pressable>
         </View>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }

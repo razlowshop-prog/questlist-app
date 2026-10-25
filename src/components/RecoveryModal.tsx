@@ -1,4 +1,5 @@
 import { Modal, Pressable, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { streakTierName } from '../game';
 import { card, eyebrow, FONTS, headingCase, themed, useStyles } from '../theme';
 import type { RestOffer } from '../tokens';
@@ -18,7 +19,7 @@ export function RecoveryModal({ offer, onAnswer }: { offer: RestOffer; onAnswer:
   return (
     <Modal visible transparent animationType="fade" onRequestClose={() => onAnswer(false)}>
       <View style={s.backdrop} />
-      <View style={s.sheetWrap} pointerEvents="box-none">
+      <SafeAreaView style={s.sheetWrap} pointerEvents="box-none">
         <View style={s.sheet} accessibilityViewIsModal>
           <View style={s.fire}>
             <Fire tier={offer.tier} size={44} />
@@ -37,7 +38,7 @@ export function RecoveryModal({ offer, onAnswer }: { offer: RestOffer; onAnswer:
             <Text style={s.secondaryText}>No thanks</Text>
           </Pressable>
         </View>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }

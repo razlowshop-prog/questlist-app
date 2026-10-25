@@ -5,7 +5,8 @@ import type { GlyphName } from './src/glyphs';
 import { CountBadge, Glyph, VIVID_HEAVY } from './src/components/Vivid';
 import { BRAND, brandGlow, brandLine } from './src/vivid';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, BackHandler, Easing, Platform, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { Animated, BackHandler, Easing, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { activitySummary } from './src/activity';
 import { BackBar, TopBar } from './src/components/TopBar';
 import { XpProgress } from './src/components/XpProgress';
@@ -133,6 +134,17 @@ const PAGE_TITLES: Record<Page, string> = {
 };
 
 export default function App() {
+  return (
+    <SafeAreaProvider>
+      <Succedo />
+    </SafeAreaProvider>
+  );
+}
+
+function Succedo() {
+  // Android draws edge to edge: the top bar keeps clear of the status bar and
+  // camera, the tab bar and toast clear of the system navigation bar.
+  const insets = useSafeAreaInsets();
   const [state, setState] = useState<GameState>(emptyState);
   const [loaded, setLoaded] = useState(false);
   const [tab, setTab] = useState<Tab>('today');
@@ -502,7 +514,7 @@ export default function App() {
         <CelebrationContext.Provider value={looks.celebration}>
           <AvatarDiscContext.Provider value={state.settings.avatar}>
           <AvatarPhotoContext.Provider value={photo}>
-          <SafeAreaView style={styles.safe}>
+          <SafeAreaView edges={['top', 'left', 'right']} style={styles.safe}>
             <StatusBar style={statusBar} />
             {c.backdrop === 'dust' && (tab !== 'spin' || page) && <GoldDust />}
             {fx.ambient && (tab !== 'spin' || page) && <Ambient kind={fx.ambient} />}
@@ -696,7 +708,7 @@ export default function App() {
               {!page && tab === 'menu' && <MenuScreen onOpen={setPage} />}
             </View>
 
-            <View style={styles.tabBar} pointerEvents={spinBusy ? 'none' : 'auto'}>
+            <View style={[styles.tabBar, { paddingBottom: 10 + insets.bottom }]} pointerEvents={spinBusy ? 'none' : 'auto'}>
               {TABS.map((t) => (
                 <Pressable
                   key={t.key}
@@ -746,7 +758,7 @@ export default function App() {
             />
 
             {toast && (
-              <Animated.View style={[styles.toast, toastStyle]} pointerEvents="none">
+              <Animated.View style={[styles.toast, { bottom: 96 + insets.bottom }, toastStyle]} pointerEvents="none">
                 <Text style={styles.toastText}>{toast}</Text>
               </Animated.View>
             )}
