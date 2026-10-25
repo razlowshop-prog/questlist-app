@@ -1,6 +1,7 @@
 import { ChevronDown, Pause, Play, Timer } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { clockLabel, focusElapsed, focusGoalMinutes, FOCUS_BONUS_XP, type FocusSession } from '../focus';
 import type { Task } from '../game';
@@ -61,7 +62,7 @@ export function FocusTimer({
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onHide}>
-      <View style={s.screen}>
+      <SafeAreaView style={s.screen}>
         <View style={s.top}>
           <Pressable onPress={onHide} hitSlop={10} style={s.hide} accessibilityRole="button" accessibilityLabel="Hide the timer. It keeps running">
             <ChevronDown size={22} color={c.muted} strokeWidth={1.75} aria-hidden />
@@ -123,7 +124,7 @@ export function FocusTimer({
         <Pressable onPress={onStop} hitSlop={8} style={s.stop} accessibilityRole="button">
           <Text style={s.stopText}>Stop the timer</Text>
         </Pressable>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }
@@ -149,7 +150,7 @@ export function FocusBar({ task, session, onOpen }: { task: Task; session: Focus
 }
 
 const makeStyles = themed((c) => ({
-  screen: { flex: 1, backgroundColor: c.bg, backgroundImage: c.bgImage, padding: 24, paddingTop: 52, paddingBottom: 40 },
+  screen: { flex: 1, backgroundColor: c.bg, backgroundImage: c.bgImage, padding: 24, paddingTop: 20, paddingBottom: 24 },
   top: { flexDirection: 'row' },
   hide: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   hideText: { color: c.muted, fontSize: 15, fontWeight: '600' },

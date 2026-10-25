@@ -1,6 +1,7 @@
 import { Lock, Pin } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Modal, Pressable, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { SHOWCASE_SIZE, type Rarity, type TrophyStatus } from '../trophies';
 import { card, eyebrow, FONTS, nativeDriver, themed, useStyles, useTheme } from '../theme';
 import { ICON_GLYPHS, RARITY, rarityLabel, type Rarity as VividRarity } from '../vivid';
@@ -107,7 +108,7 @@ export function TrophyCabinet({ trophies, pinned = [], onPin }: { trophies: Trop
       <Modal visible={!!open} transparent animationType="fade" onRequestClose={() => setOpen(null)}>
         <Pressable style={s.backdrop} onPress={() => setOpen(null)} accessibilityLabel="Close" />
         {open && (
-          <View style={s.sheetWrap} pointerEvents="box-none">
+          <SafeAreaView style={s.sheetWrap} pointerEvents="box-none">
             <View style={s.sheet}>
               <TrophyBadge trophy={open} size={120} />
               <Text style={[s.rarity, { color: rarityLabel(RARITY_OF[open.def.rarity], c.dark) }]}>{RARITY[RARITY_OF[open.def.rarity]].name} trophy</Text>
@@ -124,7 +125,7 @@ export function TrophyCabinet({ trophies, pinned = [], onPin }: { trophies: Trop
               {open.earned && onPin && <PinButton id={open.def.id} pinned={pinned} onPin={onPin} />}
               <VividButton label="Close" kind="secondary" onPress={() => setOpen(null)} style={{ alignSelf: 'stretch', marginTop: open.earned && onPin ? 0 : 8 }} />
             </View>
-          </View>
+          </SafeAreaView>
         )}
       </Modal>
     </>

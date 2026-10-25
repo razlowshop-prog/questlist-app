@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { card, eyebrow, FONTS, headingCase, themed, useStyles } from '../theme';
 
 /** A centred sheet over a dim backdrop, closed by tapping outside or Done. */
@@ -23,7 +24,7 @@ export function Sheet({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={s.backdrop} onPress={onClose} accessibilityLabel="Close" />
-      <View style={s.wrap} pointerEvents="box-none">
+      <SafeAreaView style={s.wrap} pointerEvents="box-none">
         <View style={s.sheet}>
           <View style={s.head}>
             <View style={{ flex: 1 }}>
@@ -36,7 +37,7 @@ export function Sheet({
           </View>
           <ScrollView contentContainerStyle={{ gap: 10, paddingBottom: 4 }}>{children}</ScrollView>
         </View>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }

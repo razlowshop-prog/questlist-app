@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Modal, Pressable, Share, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { APP_NAME } from '../brand';
 import { recapShareText, type WeekRecap } from '../recap';
 import { card, eyebrow, FONTS, headingCase, themed, useStyles, useTheme } from '../theme';
@@ -40,7 +41,7 @@ export function WeeklyRecap({ recap, onSeen }: { recap: WeekRecap; onSeen: () =>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <Pressable style={s.backdrop} onPress={() => setOpen(false)} accessibilityLabel="Close" />
-        <View style={s.wrap} pointerEvents="box-none">
+        <SafeAreaView style={s.wrap} pointerEvents="box-none">
           <View style={s.sheet}>
             <Sticker grad={RARITY.epic} glyph="CalendarCheck" size={64} />
             <Text style={s.eyebrow}>Weekly recap</Text>
@@ -70,7 +71,7 @@ export function WeeklyRecap({ recap, onSeen }: { recap: WeekRecap; onSeen: () =>
               />
             </View>
           </View>
-        </View>
+        </SafeAreaView>
       </Modal>
     </>
   );

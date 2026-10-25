@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LogoMark } from '../components/LogoMark';
 import { Stepper } from '../components/Stepper';
 import { durationLabel, maxPerWeek, xpFor } from '../game';
