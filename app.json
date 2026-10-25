@@ -8,7 +8,8 @@
     "userInterfaceStyle": "dark",
     "backgroundColor": "#1C1815",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.razlow.succedo"
     },
     "android": {
       "adaptiveIcon": {
@@ -17,7 +18,13 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.razlow.succedo",
+      "versionCode": 1,
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -38,9 +45,16 @@
         "expo-image-picker",
         {
           "photosPermission": "Succedo uses your photos so you can pick a profile picture. It stays on your phone.",
-          "cameraPermission": "Succedo uses the camera so you can take a profile picture. It stays on your phone."
+          "cameraPermission": "Succedo uses the camera so you can take a profile picture. It stays on your phone.",
+          "microphonePermission": false
         }
       ]
-    ]
+    ],
+    "owner": "razlow",
+    "extra": {
+      "eas": {
+        "projectId": "8f8e5d53-63b6-44d3-818b-cbd554bf14d6"
+      }
+    }
   }
 }
