@@ -1,14 +1,63 @@
+import { useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { APP_NAME } from '../brand';
+import { backupName, backupSummary, readBackup, type Backup } from '../backup';
+import { openBackupFile, saveBackupFile } from '../backupFile';
 import { STREAK_REMINDER_HOUR, type Settings } from '../game';
+import { Sheet } from '../components/Sheet';
 import { brandFillSmall, brandInk, brandTextShadow, VIVID_HEAVY, VividButton, VividSwitch } from '../components/Vivid';
 import { themed, useStyles, useTheme } from '../theme';
 import { MenuGroup, MenuRow } from './MenuScreen';
 
-/** Settings, opened from the Menu: reminders, the daily quote email, vibration, privacy and the setup questions. */
-export function SettingsScreen({ settings, onSettings, onRedoSetup }: { settings: Settings; onSettings: (s: Partial<Settings>) => void; onRedoSetup: () => void }) {
+/** Settings, opened from the Menu: reminders, the daily quote email, vibration, privacy, backup and the setup questions. */
+export function SettingsScreen({
+  settings,
+  today,
+  onSettings,
+  onRedoSetup,
+  backupText,
+  onRestore,
+}: {
+  settings: Settings;
+  today: string;
+  onSettings: (s: Partial<Settings>) => void;
+  onRedoSetup: () => void;
+  /** The backup file's text for everything on this phone, saved at the given ISO time. */
+  backupText: (savedAt: string) => string;
+  /** Replaces all progress on this phone with a backup's. */
+  onRestore: (backup: Backup) => void;
+}) {
   const s = useStyles(makeStyles);
   const c = useTheme();
+  const [restore, setRestore] = useState<Backup>();
+  const [note, setNote] = useState<{ text: string; error?: boolean }>();
+
+  async function saveBackup() {
+    setNote(undefined);
+    try {
+      if (await saveBackupFile(backupName(today), backupText(new Date().toISOString()))) {
+        onSettings({ lastBackup: today });
+        setNote({ text: 'Backup saved. Keep the file somewhere safe, like your email or a cloud drive.' });
+      } else {
+        setNote({ text: 'This phone can’t share files right now.', error: true });
+      }
+    } catch {
+      setNote({ text: 'The backup couldn’t be saved. Please try again.', error: true });
+    }
+  }
+
+  async function pickBackup() {
+    setNote(undefined);
+    try {
+      const text = await openBackupFile();
+      if (text === undefined) return;
+      const read = readBackup(text);
+      if (read.ok) setRestore(read);
+      else setNote({ text: read.error, error: true });
+    } catch {
+      setNote({ text: 'That file couldn’t be opened.', error: true });
+    }
+  }
   const emailValid = /^\S+@\S+\.\S+$/.test(settings.email);
   const visibility = settings.profileVisibility ?? 'friends';
 
@@ -80,18 +129,64 @@ export function SettingsScreen({ settings, onSettings, onRedoSetup }: { settings
         />
       </MenuGroup>
 
+      <MenuGroup label="Backup">
+        <MenuRow
+          first
+          label="Save a backup"
+          sub={`Everything is kept on this phone until accounts arrive. A backup file brings it back on a new phone or after a reset. ${settings.lastBackup ? `Last saved ${longDate(settings.lastBackup)}.` : 'No backup saved yet.'}`}
+          onPress={saveBackup}
+        />
+        <MenuRow label="Restore from a backup" sub="Pick a backup file. You see what's in it before anything changes." onPress={pickBackup} />
+        {note && <Text style={[s.note, note.error && { color: c.flame }]}>{note.text}</Text>}
+      </MenuGroup>
+
       <MenuGroup label="Account">
         <MenuRow first label="Account and Premium" sub="Sign in, email, password, deleting your account and the subscription arrive with accounts." />
       </MenuGroup>
 
       <VividButton label="Redo setup questions" kind="secondary" compact onPress={onRedoSetup} style={{ marginTop: 18 }} />
+
+      <Sheet visible={!!restore} onClose={() => setRestore(undefined)} closeLabel="Cancel" eyebrow="Backup" title="Restore this backup?">
+        {restore && <RestoreSummary backup={restore} />}
+        <Text style={s.small}>Everything on this phone now is replaced by it. Save a backup first if you want to keep today's progress.</Text>
+        <VividButton
+          label="Replace my progress"
+          onPress={() => {
+            if (restore) onRestore(restore);
+            setRestore(undefined);
+            setNote({ text: 'Backup restored.' });
+          }}
+          style={{ marginTop: 6 }}
+        />
+      </Sheet>
     </ScrollView>
   );
+}
+
+function RestoreSummary({ backup }: { backup: Backup }) {
+  const s = useStyles(makeStyles);
+  const { level, tasks, tasksDone } = backupSummary(backup.state);
+  return (
+    <View style={s.summary}>
+      {backup.savedAt ? <Text style={s.label}>Saved {longDate(backup.savedAt.slice(0, 10))}</Text> : null}
+      <Text style={s.summaryText}>
+        {backup.state.profile.name} · level {level} · {tasks} {tasks === 1 ? 'task' : 'tasks'} on the list · {tasksDone} done in total
+      </Text>
+    </View>
+  );
+}
+
+/** "25 October 2026" for a YYYY-MM-DD day. */
+function longDate(day: string): string {
+  return new Date(`${day}T12:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 const makeStyles = themed((c) => ({
   content: { padding: 20, paddingTop: 0, paddingBottom: 48, maxWidth: 640, width: '100%', alignSelf: 'center' },
   small: { color: c.muted, fontSize: 12 },
+  note: { color: c.muted, fontSize: 13, paddingBottom: 12 },
+  summary: { gap: 4, padding: 12, borderRadius: c.radius, backgroundColor: c.surfaceAlt },
+  summaryText: { color: c.text, fontSize: 14 },
   label: { color: c.text, fontSize: 15, fontWeight: '700' },
   emailBox: { gap: 6, paddingBottom: 12 },
   emailInput: { color: c.text, fontSize: 15, backgroundColor: c.surfaceAlt, borderRadius: c.radius, paddingHorizontal: 12, paddingVertical: 10 },

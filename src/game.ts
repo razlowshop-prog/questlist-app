@@ -229,6 +229,8 @@ export interface Settings {
   bagSeen?: Partial<Record<string, number>>;
   /** Won looks the player has already seen, as "kind:id" keys (inventory.ts newLooks). */
   seenLooks?: string[];
+  /** Day the last backup file was saved (backup.ts). */
+  lastBackup?: string;
 }
 
 /** Evening time of the "your streak is about to end" notification. */
@@ -245,6 +247,16 @@ export const emptyState: GameState = {
   joinedAt: '',
   achievementClaims: [],
 };
+
+/** Saved data on top of the empty state, so fields added in newer versions get their defaults. */
+export function mergeSaved(saved: Partial<GameState>): GameState {
+  return {
+    ...emptyState,
+    ...saved,
+    profile: { ...emptyState.profile, ...saved.profile },
+    settings: { ...emptyState.settings, ...saved.settings },
+  };
+}
 
 /** Fills in fields that older saved data doesn't have yet. */
 export function withDefaults(state: GameState, today: string): GameState {
