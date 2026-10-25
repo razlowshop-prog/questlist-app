@@ -1,7 +1,8 @@
 {
   "expo": {
     "name": "Succedo",
-    "slug": "succedo",
+    "slug": "succedo-sma-5vu7suxwkiwc157s0",
+    "scheme": "succedo",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
