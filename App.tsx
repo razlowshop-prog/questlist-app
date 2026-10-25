@@ -83,6 +83,9 @@ import { equippedLooks, ownedLooks } from './src/inventory';
 import { claimSeason, seasonStatus } from './src/seasons';
 import { frameName } from './src/cosmetics';
 import { askReminderPermission, REMINDERS_SUPPORTED, syncReminders } from './src/reminders';
+import { buzz } from './src/haptics';
+import { recapToShow } from './src/recap';
+import { WeeklyRecap } from './src/components/WeeklyRecap';
 import { loadPhoto, loadState, savePhoto, saveState } from './src/storage';
 import { nativeDriver, themeById, themed, ThemeProvider, THEMES, withFonts } from './src/theme';
 
@@ -208,6 +211,7 @@ export default function App() {
   const bagCount = Object.values(tokens).reduce((sum, n) => sum + Math.max(0, n), 0);
   const level = levelInfo(xp);
   const initials = state.profile.name.trim().slice(0, 2).toUpperCase() || '?';
+  const recap = loaded ? recapToShow(state, today, new Date().getHours()) : undefined;
   // A timer for a task that is gone or already done today no longer shows.
   const focusTask = state.focus ? state.tasks.find((t) => t.id === state.focus!.taskId && !isDoneToday(state, t, today)) : undefined;
   const wantedTheme = themeById(unlockedThemes.has(state.settings.theme) ? state.settings.theme : 'classic');
@@ -296,7 +300,10 @@ export default function App() {
       const milestone = LEVEL_MILESTONES.filter((m) => m.level > from && m.level <= after.level).at(-1);
       // After the XP bar has run to the end.
       setTimeout(
-        () => setCelebration({ level: after.level, rank: after.rank, newRank: after.rank !== before.rank, milestone }),
+        () => {
+          setCelebration({ level: after.level, rank: after.rank, newRank: after.rank !== before.rank, milestone });
+          buzz('levelUp', next.settings.haptics);
+        },
         900,
       );
     }
@@ -334,6 +341,7 @@ export default function App() {
     }
     const gained = apply(next);
     if (wasDone) return { xp: 0 };
+    if (gained > 0) buzz('tick', state.settings.haptics);
     // Ticks within COMBO_MS of each other build a combo; it's only for show.
     const now = Date.now();
     combo.current = { count: now - combo.current.at <= COMBO_MS ? combo.current.count + 1 : 1, at: now };
@@ -368,13 +376,20 @@ export default function App() {
     const { state: next, prize } = spinWheel(state, xp, today, Math.random());
     if (!prize) return undefined;
     saveState(next);
-    return { prize, finish: () => apply(next) };
+    return {
+      prize,
+      finish: () => {
+        buzz('prize', state.settings.haptics);
+        return apply(next);
+      },
+    };
   }
 
   function onStep(task: Task, step: number): { xp: number; finished: boolean; note?: string } {
     const { state: next, finished } = tickStep(state, task.id, step, today, Date.now());
     if (next === state) return { xp: 0, finished: false };
     const gained = apply(next);
+    if (gained > 0) buzz(finished ? 'tick' : 'step', state.settings.haptics);
     const limited = finished ? next.completions[next.completions.length - 1].limited : undefined;
     return { xp: gained, finished, note: limited ? limitMessage(limited) : undefined };
   }
@@ -557,6 +572,7 @@ export default function App() {
                   onToggle={onToggle}
                   onStep={onStep}
                   onDelete={(task) => setState(deleteTask(state, task.id))}
+                  recap={recap && <WeeklyRecap recap={recap} onSeen={() => setState(updateSettings(state, { recapSeen: recap.week }))} />}
                   focusingId={focusTask?.id}
                   onFocus={onFocus}
                   focusBar={focusTask && state.focus && !focusOpen ? <FocusBar task={focusTask} session={state.focus} onOpen={() => setFocusOpen(true)} /> : undefined}

@@ -56,6 +56,7 @@ export function TodayScreen({
   onToggle,
   onStep,
   onDelete,
+  recap,
   focusBar,
   focusingId,
   onFocus,
@@ -83,6 +84,8 @@ export function TodayScreen({
   onToggle: (task: Task) => { xp: number; note?: string };
   onStep: (task: Task, step: number) => { xp: number; finished: boolean; note?: string };
   onDelete: (task: Task) => void;
+  /** The weekly recap card, on Sunday evening and Monday. */
+  recap?: React.ReactNode;
   /** The running focus timer, when it is hidden. */
   focusBar?: React.ReactNode;
   /** The task the focus timer runs for. */
@@ -191,6 +194,7 @@ export function TodayScreen({
 
             <StreakCard streak={streak} week={weekDots(state, today)} multiplier={multiplier} onPress={onOpenStreak} />
             {tokenStrip}
+            {recap}
             {focusBar}
             {guide}
 
