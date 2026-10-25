@@ -10,7 +10,7 @@ import { activitySummary } from './src/activity';
 import { BackBar, TopBar } from './src/components/TopBar';
 import { XpProgress } from './src/components/XpProgress';
 import { FirstDayGuide } from './src/components/FirstDayGuide';
-import { ComboPill, MomentCelebration, type Moment } from './src/components/Moments';
+import { MomentCelebration, type Moment } from './src/components/Moments';
 import { PERFECT_DAY_XP, reachStreakMilestone, syncPerfectDay } from './src/moments';
 import {
   addTask,
@@ -58,6 +58,7 @@ import { InventoryScreen } from './src/screens/InventoryScreen';
 import { MenuScreen, type MenuPage } from './src/screens/MenuScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 import { LibraryModal } from './src/screens/LibraryModal';
+import { scheduleToTask } from './src/components/SchedulePicker';
 import { SetupScreen, type SetupPick } from './src/screens/SetupScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { SpinScreen } from './src/screens/SpinScreen';
@@ -81,7 +82,8 @@ import { FocusBar, FocusTimer } from './src/components/FocusTimer';
 import { focusBonus, pauseFocus, resumeFocus, startFocus } from './src/focus';
 import { CelebrationContext } from './src/components/TaskRow';
 import { emblemStatuses } from './src/emblems';
-import { equippedLooks, ownedLooks } from './src/inventory';
+import { equippedLooks, lookKeys, markLooksSeen, newLooks, newOfKind, ownedLooks } from './src/inventory';
+import { bagChanged, bagSnapshot, newInBag, type BagItem } from './src/bag';
 import { claimSeason, seasonStatus } from './src/seasons';
 import { frameName } from './src/cosmetics';
 import { askReminderPermission, REMINDERS_SUPPORTED, syncReminders } from './src/reminders';
@@ -139,7 +141,6 @@ export default function App() {
   const [toast, setToast] = useState<string | null>(null);
   const toastAnim = useRef(new Animated.Value(0)).current;
   const [levelOpen, setLevelOpen] = useState(false);
-  const [draft, setDraft] = useState<LibraryTask | undefined>();
   const [celebration, setCelebration] = useState<CelebrationEvent | null>(null);
   /** Perfect days and streak milestones waiting to be celebrated, after any level-up. */
   const [moments, setMoments] = useState<Moment[]>([]);
@@ -157,6 +158,8 @@ export default function App() {
   const [shownThemeId, setShownThemeId] = useState<string | null>(null);
   const [focusOpen, setFocusOpen] = useState(false);
   const [photo, setPhoto] = useState<string>();
+  /** The wheel is turning: the header and tabs hold still until it lands. */
+  const [spinBusy, setSpinBusy] = useState(false);
 
   // Recomputed on each render so the list rolls over after midnight.
   const today = dayKey();
@@ -215,7 +218,34 @@ export default function App() {
   const season = useMemo(() => seasonStatus(state, today), [state.completions, state.tasks, state.seasonClaims, today]);
   const emblems = useMemo(() => emblemStatuses(state), [state.completions, state.tasks]);
   const recovery = loaded ? recoveryOffer(state, today) : undefined;
-  const bagCount = Object.values(tokens).reduce((sum, n) => sum + Math.max(0, n), 0);
+  // Badges show only what is new: items added since the bag was opened, looks won but not seen yet.
+  const bagCounts: Record<BagItem, number> = { ticket: tickets.tickets, ...tokens };
+  const bagNew = newInBag(bagCounts, state.settings.bagSeen);
+  const allLookKeys = useMemo(
+    () => lookKeys(THEMES.filter((t) => t.reward && unlockedThemes.has(t.id)).map((t) => t.id), owned),
+    [unlockedThemes, owned],
+  );
+  const freshLooks = useMemo(() => newLooks(allLookKeys, state.settings.seenLooks), [allLookKeys, state.settings.seenLooks]);
+  const freshInBag = newOfKind(freshLooks, 'theme').size + newOfKind(freshLooks, 'celebration').size;
+  const freshFlames = newOfKind(freshLooks, 'flame').size;
+  const seeLook = (key: string) => setState((s) => updateSettings(s, { seenLooks: markLooksSeen(s.settings.seenLooks, [key]) }));
+  const bagKey = JSON.stringify(bagSnapshot(bagCounts));
+  // Players from before the badges start with everything seen, so only what comes next is new.
+  useEffect(() => {
+    if (!loaded || (state.settings.seenLooks && state.settings.bagSeen)) return;
+    setState((s) =>
+      updateSettings(s, {
+        seenLooks: s.settings.seenLooks ?? allLookKeys,
+        bagSeen: s.settings.bagSeen ?? bagSnapshot(bagCounts),
+      }),
+    );
+  }, [loaded, state.settings.seenLooks, state.settings.bagSeen]);
+  // Looking in the bag clears its badge, and keeps it clear while items are used there.
+  useEffect(() => {
+    if (loaded && page === 'inventory' && bagChanged(bagCounts, state.settings.bagSeen)) {
+      setState((s) => updateSettings(s, { bagSeen: bagSnapshot(bagCounts) }));
+    }
+  }, [loaded, page, bagKey, state.settings.bagSeen]);
   const level = levelInfo(xp);
   const initials = state.profile.name.trim().slice(0, 2).toUpperCase() || '?';
   const recap = loaded ? recapToShow(state, today, new Date().getHours()) : undefined;
@@ -473,16 +503,19 @@ export default function App() {
             {page ? (
               <BackBar backTo={TABS.find((t) => t.key === tab)!.label} title={PAGE_TITLES[page]} onBack={() => setPage(null)} />
             ) : (
-              <TopBar
-                level={level.level}
-                progress={level.progress}
-                initials={initials}
-                bagCount={bagCount}
-                toClaim={awardsToClaim}
-                onHome={() => openTab('today')}
-                onInventory={() => setPage('inventory')}
-                onProfile={() => setPage('profile')}
-              />
+              <View pointerEvents={spinBusy ? 'none' : 'auto'}>
+                <TopBar
+                  level={level.level}
+                  progress={level.progress}
+                  initials={initials}
+                  bagCount={bagNew + freshInBag}
+                  toClaim={awardsToClaim}
+                  newLooks={freshFlames}
+                  onHome={() => openTab('today')}
+                  onInventory={() => setPage('inventory')}
+                  onProfile={() => setPage('profile')}
+                />
+              </View>
             )}
 
             <View style={{ flex: 1 }}>
@@ -505,6 +538,12 @@ export default function App() {
                   }}
                   onOpenChallenges={() => openTab('challenges')}
                   onOpenProfile={() => setPage('profile')}
+                  settings={state.settings}
+                  owned={owned}
+                  unlockedThemes={unlockedThemes}
+                  freshLooks={freshLooks}
+                  onSeenLook={seeLook}
+                  onSettings={(changes) => setState((s) => updateSettings(s, changes))}
                 />
               )}
               {page === 'profile' && (
@@ -528,11 +567,13 @@ export default function App() {
                   today={today}
                   onClaimAchievement={onClaimAchievement}
                   onRename={(name) => setState(setName(state, name))}
-                  onSettings={(changes) => setState(updateSettings(state, changes))}
+                  onSettings={(changes) => setState((s) => updateSettings(s, changes))}
                   onPhoto={(next) => {
                     setPhoto(next);
                     savePhoto(next);
                   }}
+                  freshLooks={freshLooks}
+                  onSeenLook={seeLook}
                 />
               )}
               {(page === 'friends' || page === 'leaderboard') && (
@@ -547,7 +588,7 @@ export default function App() {
                 />
               )}
               {page === 'settings' && (
-                <SettingsScreen settings={state.settings} onSettings={(changes) => setState(updateSettings(state, changes))} onRedoSetup={() => setRedoSetup(true)} />
+                <SettingsScreen settings={state.settings} onSettings={(changes) => setState((s) => updateSettings(s, changes))} onRedoSetup={() => setRedoSetup(true)} />
               )}
               {page === 'apps' && <ConnectedAppsScreen />}
               {page === 'help' && <HelpScreen />}
@@ -588,8 +629,6 @@ export default function App() {
                       });
                     }
                   }}
-                  draft={draft}
-                  onDraftUsed={() => setDraft(undefined)}
                   onOpenLibrary={() => setLibraryOpen(true)}
                   onToggle={onToggle}
                   onStep={onStep}
@@ -597,6 +636,7 @@ export default function App() {
                   recap={recap && <WeeklyRecap recap={recap} onSeen={() => setState(updateSettings(state, { recapSeen: recap.week }))} />}
                   focusingId={focusTask?.id}
                   onFocus={onFocus}
+                  combo={comboShown}
                   focusBar={focusTask && state.focus && !focusOpen ? <FocusBar task={focusTask} session={state.focus} onOpen={() => setFocusOpen(true)} /> : undefined}
                 />
               )}
@@ -630,6 +670,7 @@ export default function App() {
                     ownsTheme={ownsWheelTheme(state)}
                     spins={state.wheelSpins ?? []}
                     onSpin={onSpin}
+                    onBusy={setSpinBusy}
                     onWearTheme={() => {
                       setState(updateSettings(state, { theme: 'fortune' }));
                       showToast('Fortuna is on. Good luck!');
@@ -640,7 +681,7 @@ export default function App() {
               {!page && tab === 'menu' && <MenuScreen onOpen={setPage} />}
             </View>
 
-            <View style={styles.tabBar}>
+            <View style={styles.tabBar} pointerEvents={spinBusy ? 'none' : 'auto'}>
               {TABS.map((t) => (
                 <Pressable
                   key={t.key}
@@ -669,11 +710,22 @@ export default function App() {
             <LibraryModal
               visible={libraryOpen}
               addedTitles={addedTitles}
-              onAdd={(t) => {
-                // Picked tasks open in the add form, so days and frequency can be set first.
-                setDraft(t);
+              today={today}
+              onAddMany={(picks) => {
+                let next = state;
+                for (const p of picks) {
+                  const { repeat, plan } = scheduleToTask(p.schedule, p.task.title, today);
+                  next = addTask(next, p.task.title, repeat, undefined, p.task.minutes, { ...plan, category: p.task.category });
+                }
+                setState(next);
                 setLibraryOpen(false);
                 openTab('today');
+                if (REMINDERS_SUPPORTED && picks.some((p) => p.schedule.remind)) {
+                  askReminderPermission().then((ok) => {
+                    if (!ok) showToast('Notifications are off. Allow them in your phone settings to get reminders.');
+                  });
+                }
+                setTimeout(() => showToast(`${picks.length} ${picks.length === 1 ? 'task' : 'tasks'} added`), 300);
               }}
               onClose={() => setLibraryOpen(false)}
             />
@@ -712,8 +764,6 @@ export default function App() {
                 }}
               />
             )}
-
-            <ComboPill count={comboShown.count} play={comboShown.play} />
 
             {!celebration && moments.length > 0 && (
               <MomentCelebration

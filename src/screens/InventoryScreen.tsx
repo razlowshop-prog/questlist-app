@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { bagCapacity, layoutBag, nextSlotLevel, STACK_SIZE, type BagItem, type BagStack } from '../bag';
-import type { GameState } from '../game';
-import { nextTokenLevel } from '../inventory';
+import type { GameState, Settings } from '../game';
+import { equippedLooks, newOfKind, nextTokenLevel, type OwnedLooks } from '../inventory';
 import { card, eyebrow, themed, useStyles, useTheme } from '../theme';
 import { adFreeActive, doubleXpActive, restOffer, TOKEN_INFO, tokenCounts } from '../tokens';
 import { XP_PER_TICKET } from '../wheel';
+import { CelebrationGrid, ThemeGrid } from '../components/LooksPickers';
 import { Sheet } from '../components/Sheet';
-import { BRAND_FILL_SMALL, BRAND_INK, BRAND_TEXT_SHADOW, Sticker, VIVID_HEAVY } from '../components/Vivid';
+import { BRAND_FILL_SMALL, BRAND_INK, BRAND_TEXT_SHADOW, CountBadge, Sticker, VIVID_HEAVY } from '../components/Vivid';
 import type { GlyphName } from '../glyphs';
 import { brandLine, RARITY, TOKEN_LOOKS, type Grad } from '../vivid';
 
@@ -18,15 +19,20 @@ const ITEM_INFO: Record<BagItem, { name: string; description: string }> = {
   ...TOKEN_INFO,
 };
 
+/** The name under each slot, short enough for a fifth of a phone's width. */
+const SHORT_NAME: Record<BagItem, string> = { ticket: 'Ticket', rest: 'Rest day', double: 'Double XP', reroll: 'Swap', adfree: 'Ad-free' };
+
 function itemLook(item: BagItem): { grad: Grad; glyph: GlyphName } {
   return item === 'ticket' ? { grad: RARITY.legendary, glyph: 'Ticket' } : { grad: TOKEN_LOOKS[item], glyph: TOKEN_LOOKS[item].glyph };
 }
 
 /**
- * The bag, opened from the header: wheel tickets and tokens in slots, five of
- * a kind to a slot. When the slots are full the rest waits in a tray below and
- * can still be used. Tap a slot to see what it does and use it. The looks to
- * wear live on the profile.
+ * The inventory, opened from the header, in two tabs. Bag: wheel tickets and
+ * tokens in slots, five of a kind to a slot, each named underneath. When the
+ * slots are full the rest waits in a tray below and can still be used. Tap a
+ * slot to see what it does and use it. Customize: the theme and the tick
+ * celebration (also still on the profile). Frames, flames and titles stay on
+ * the profile.
  */
 export function InventoryScreen({
   state,
@@ -39,6 +45,12 @@ export function InventoryScreen({
   onAdFree,
   onOpenChallenges,
   onOpenProfile,
+  settings,
+  owned,
+  unlockedThemes,
+  freshLooks,
+  onSeenLook,
+  onSettings,
 }: {
   state: GameState;
   today: string;
@@ -51,9 +63,22 @@ export function InventoryScreen({
   onAdFree: () => void;
   onOpenChallenges: () => void;
   onOpenProfile: () => void;
+  settings: Settings;
+  owned: OwnedLooks;
+  /** Ids of themes the player may use. */
+  unlockedThemes: Set<string>;
+  /** Won looks not seen yet, as "kind:id" keys. */
+  freshLooks: Set<string>;
+  onSeenLook: (key: string) => void;
+  onSettings: (s: Partial<Settings>) => void;
 }) {
   const s = useStyles(makeStyles);
   const [open, setOpen] = useState<BagItem | null>(null);
+  const freshThemes = newOfKind(freshLooks, 'theme');
+  const freshCelebrations = newOfKind(freshLooks, 'celebration');
+  const freshLooksHere = freshThemes.size + freshCelebrations.size;
+  // New looks and nothing else new: open on Customize, where they are.
+  const [tab, setTab] = useState<'bag' | 'customize'>(freshLooksHere > 0 ? 'customize' : 'bag');
   const counts: Record<BagItem, number> = { ticket: tickets, ...tokenCounts(state) };
   const capacity = bagCapacity(level);
   const { slots, waiting } = layoutBag(counts, capacity);
@@ -86,8 +111,56 @@ export function InventoryScreen({
 
   const picked = open ? action(open) : undefined;
 
+  const { celebration } = equippedLooks(settings, owned);
+  const themeId = unlockedThemes.has(settings.theme) ? settings.theme : 'classic';
+
+  const tabs = (
+    <View style={s.segment} accessibilityRole="tablist">
+      {(['bag', 'customize'] as const).map((v) => (
+        <Pressable
+          key={v}
+          onPress={() => setTab(v)}
+          style={[s.segmentItem, tab === v && s.segmentActive]}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: tab === v }}
+          accessibilityLabel={v === 'bag' ? 'Bag' : `Customize${freshLooksHere ? `, ${freshLooksHere} new` : ''}`}
+        >
+          <Text style={[s.segmentText, tab === v && s.segmentTextActive]}>{v === 'bag' ? 'Bag' : 'Customize'}</Text>
+          {v === 'customize' && <CountBadge count={freshLooksHere} style={s.segmentBadge} />}
+        </Pressable>
+      ))}
+    </View>
+  );
+
+  if (tab === 'customize') {
+    return (
+      <ScrollView contentContainerStyle={s.content}>
+        {tabs}
+        <Text style={[s.section, s.lookHeading]}>Theme</Text>
+        <ThemeGrid
+          current={themeId}
+          unlocked={unlockedThemes}
+          onPick={(id) => onSettings({ theme: id })}
+          fresh={{ ids: freshThemes, onSeen: (id) => onSeenLook(`theme:${id}`) }}
+        />
+        <Text style={[s.section, s.lookHeading]}>Tick celebration</Text>
+        <CelebrationGrid
+          owned={owned.celebrations}
+          equipped={celebration}
+          onPick={(id) => onSettings({ celebration: id })}
+          fresh={{ ids: freshCelebrations, onSeen: (id) => onSeenLook(`celebration:${id}`) }}
+        />
+        <Pressable onPress={onOpenProfile} style={s.looksLink} accessibilityRole="button">
+          <Text style={s.muted}>Frames, flames and titles are on your profile.</Text>
+          <Text style={s.linkText}>Open profile</Text>
+        </Pressable>
+      </ScrollView>
+    );
+  }
+
   return (
     <ScrollView contentContainerStyle={s.content}>
+      {tabs}
       <View style={s.head}>
         <Text style={s.section}>Bag</Text>
         <Text style={s.note}>
@@ -126,7 +199,7 @@ export function InventoryScreen({
       )}
 
       <Pressable onPress={onOpenProfile} style={s.looksLink} accessibilityRole="button">
-        <Text style={s.muted}>Themes, frames, flames and titles are on your profile.</Text>
+        <Text style={s.muted}>Frames, flames and titles are on your profile.</Text>
         <Text style={s.linkText}>Open profile</Text>
       </Pressable>
 
@@ -162,7 +235,10 @@ function Slot({ stack, onPress }: { stack: BagStack; onPress: () => void }) {
   const full = stack.count >= STACK_SIZE;
   return (
     <Pressable onPress={onPress} style={[s.slot, full && { borderColor: brandLine(c.dark) }]} accessibilityRole="button" accessibilityLabel={`${ITEM_INFO[stack.item].name}, ${stack.count}`}>
-      <Sticker {...itemLook(stack.item)} size={34} flat />
+      <Sticker {...itemLook(stack.item)} size={28} flat />
+      <Text style={s.slotName} numberOfLines={1} adjustsFontSizeToFit>
+        {SHORT_NAME[stack.item]}
+      </Text>
       {stack.count > 1 && <Text style={s.slotCount}>{stack.count}</Text>}
     </Pressable>
   );
@@ -176,12 +252,13 @@ const makeStyles = themed((c) => ({
   note: { color: c.faint, fontSize: 12, lineHeight: 17 },
   slots: { gap: 8 },
   row: { flexDirection: 'row', gap: 8 },
-  slot: { ...card(c), flex: 1, aspectRatio: 1, alignItems: 'center', justifyContent: 'center', padding: 0 },
+  slot: { ...card(c), flex: 1, aspectRatio: 1, alignItems: 'center', justifyContent: 'center', gap: 3, padding: 0, paddingHorizontal: 2 },
+  slotName: { color: c.muted, fontSize: 10, fontWeight: '700', textAlign: 'center' },
   slotEmpty: { backgroundColor: 'transparent', borderStyle: 'dashed', boxShadow: 'none' },
   slotCount: {
     position: 'absolute',
     right: 5,
-    bottom: 3,
+    top: 3,
     color: c.text,
     fontFamily: VIVID_HEAVY,
     fontSize: 13,
@@ -194,6 +271,14 @@ const makeStyles = themed((c) => ({
   trayItem: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 999, borderWidth: 1, borderColor: c.border },
   trayCount: { color: c.text, fontFamily: VIVID_HEAVY, fontSize: 14, fontVariant: ['tabular-nums'] },
   looksLink: { marginTop: 14, gap: 4, alignItems: 'center' },
+  lookHeading: { marginTop: 8 },
+  // Same switch as Awards / Stats on the profile.
+  segment: { flexDirection: 'row', gap: 4, padding: 4, borderRadius: c.radius + 6, backgroundColor: c.surface, marginTop: 4, marginBottom: 6 },
+  segmentItem: { flex: 1, minHeight: 38, alignItems: 'center', justifyContent: 'center', borderRadius: c.radius + 2 },
+  segmentActive: { ...BRAND_FILL_SMALL },
+  segmentText: { color: c.muted, fontWeight: '700', fontSize: 14 },
+  segmentTextActive: { color: BRAND_INK, fontFamily: VIVID_HEAVY, ...BRAND_TEXT_SHADOW },
+  segmentBadge: { position: 'absolute', top: -6, right: 10 },
   linkText: { color: c.accent, fontSize: 14, fontWeight: '700' },
   detail: { alignItems: 'center', gap: 8, paddingVertical: 6 },
   detailCount: { color: c.text, fontFamily: VIVID_HEAVY, fontSize: 22, fontVariant: ['tabular-nums'] },

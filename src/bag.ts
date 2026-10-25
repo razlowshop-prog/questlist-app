@@ -45,3 +45,21 @@ export function layoutBag(counts: Record<BagItem, number>, capacity: number): { 
   }
   return { slots, waiting };
 }
+
+/**
+ * Items added since the player last looked in the bag, for the badge on the
+ * backpack. Items used up don't count against new ones of another kind.
+ */
+export function newInBag(counts: Record<BagItem, number>, seen: Partial<Record<string, number>> | undefined): number {
+  return BAG_ITEMS.reduce((sum, item) => sum + Math.max(0, Math.floor(counts[item] ?? 0) - (seen?.[item] ?? 0)), 0);
+}
+
+/** The bag as just seen, to store in settings.bagSeen. */
+export function bagSnapshot(counts: Record<BagItem, number>): Record<BagItem, number> {
+  return Object.fromEntries(BAG_ITEMS.map((item) => [item, Math.max(0, Math.floor(counts[item] ?? 0))])) as Record<BagItem, number>;
+}
+
+/** True when the stored snapshot differs from the bag now. */
+export function bagChanged(counts: Record<BagItem, number>, seen: Partial<Record<string, number>> | undefined): boolean {
+  return BAG_ITEMS.some((item) => Math.max(0, Math.floor(counts[item] ?? 0)) !== (seen?.[item] ?? -1));
+}

@@ -1,5 +1,5 @@
 import * as Haptics from 'expo-haptics';
-import { useEffect } from 'react';
+import { useEffect, type ComponentProps } from 'react';
 import { Modal, Platform, Pressable, Share, Text, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import { APP_NAME } from '../brand';
@@ -67,7 +67,7 @@ export function MomentCelebration({ moment, onClose }: { moment: Moment; onClose
  * "×3 combo": pops up for a moment when tasks are ticked in quick
  * succession. Just for fun; it gives no extra XP.
  */
-export function ComboPill({ count, play }: { count: number; play: number }) {
+export function ComboPill({ count, play, style: place }: { count: number; play: number; style?: ComponentProps<typeof Animated.View>['style'] }) {
   const s = useStyles(makeStyles);
   const t = useSharedValue(0);
   useEffect(() => {
@@ -79,7 +79,7 @@ export function ComboPill({ count, play }: { count: number; play: number }) {
   const style = useAnimatedStyle(() => ({ opacity: Math.min(1, t.value * 1.4), transform: [{ scale: 0.5 + 0.5 * t.value }, { translateY: 8 * (1 - t.value) }] }));
   if (!play) return null;
   return (
-    <Animated.View style={[s.combo, style]} pointerEvents="none" accessibilityLiveRegion="polite" accessibilityLabel={`${count} times combo`}>
+    <Animated.View style={[s.combo, place, style]} pointerEvents="none" accessibilityLiveRegion="polite" accessibilityLabel={`${count} times combo`}>
       <GradientText style={s.comboText} colors={FLAMES.ember} glow={FLAMES.ember.c2} glowRadius={10}>
         ×{count} combo
       </GradientText>
@@ -97,6 +97,6 @@ const makeStyles = themed((c) => ({
   body: { color: c.muted, fontSize: 15, lineHeight: 21, textAlign: 'center' },
   buttons: { flexDirection: 'row', gap: 10, marginTop: 8 },
   small: { fontSize: 12, marginTop: 4 },
-  combo: { position: 'absolute', top: 64, alignSelf: 'center', paddingHorizontal: 16, paddingVertical: 6, borderRadius: 999, backgroundColor: 'rgba(20,14,30,0.85)', borderWidth: 1, borderColor: 'rgba(255,122,60,0.5)' },
-  comboText: { fontFamily: VIVID_HEAVY, fontSize: 18 },
+  combo: { position: 'absolute', top: 6, alignSelf: 'center', paddingHorizontal: 14, paddingVertical: 3, borderRadius: 999, backgroundColor: 'rgba(20,14,30,0.85)', borderWidth: 1, borderColor: 'rgba(255,122,60,0.5)' },
+  comboText: { fontFamily: VIVID_HEAVY, fontSize: 15 },
 }));

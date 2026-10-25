@@ -12,9 +12,9 @@ const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Satu
 const DOT_WORDS: Record<WeekDot, string> = { done: 'done', rest: 'rest day', today: 'today', missed: 'missed', future: 'to come' };
 
 /**
- * The streak on the home screen (home variant F): one calm row with a still
- * flame, the big glowing day count, the fire's name and this week's days
- * as small dots, inside a thin border in the fire tier's gradient. The XP
+ * The streak on the home screen: a still flame, the big glowing day count and
+ * the fire's name on top, this week's days spread over the full width below,
+ * inside a thin border in the fire tier's gradient. The XP
  * multiplier sits on the right while it is above 1. Tapping the card opens the
  * level sheet with the streak bonus and the fire tiers.
  */
@@ -44,22 +44,29 @@ export function StreakCard({
     >
       <View style={s.card}>
         <View style={s.row}>
-          <Fire tier={streak.tier} size={40} still />
+          <Fire tier={streak.tier} size={48} still />
           <StreakNumber days={streak.days} tier={streak.tier} />
-          <View style={{ flex: 1, gap: 6 }}>
-            {/* The multiplier shares the label's line, so a long streak still fits on small phones. */}
+          <View style={{ flex: 1, gap: 4 }}>
+            <Text style={s.label} numberOfLines={1}>
+              day streak
+            </Text>
+            {/* The multiplier shares the tier's line, so a long streak still fits on small phones. */}
             <View style={s.labelRow}>
-              <Text style={s.label} numberOfLines={1}>
-                day streak · {streakTierName(streak.tier)}
+              <Text style={s.tier} numberOfLines={1}>
+                {streakTierName(streak.tier)}
               </Text>
               {multiplier.total > 1 && <MultiplierPill multiplier={multiplier} size="small" />}
             </View>
-            <View style={s.week}>
-              {week.map((d, i) => (
-                <Dot key={i} state={d} grad={grad} />
-              ))}
-            </View>
           </View>
+        </View>
+        {/* This week's days spread over the whole card, each with its letter. */}
+        <View style={s.week}>
+          {week.map((d, i) => (
+            <View key={i} style={s.day}>
+              <Dot state={d} grad={grad} />
+              <Text style={[s.dayLetter, d === 'today' && s.dayToday]}>{DAY_NAMES[i][0]}</Text>
+            </View>
+          ))}
         </View>
         {streak.atRisk && <Text style={s.risk}>Nothing done today yet. One task keeps your streak.</Text>}
         {streak.days === 0 && <Text style={s.note}>Finish a task today to light your streak.</Text>}
@@ -138,14 +145,18 @@ function Dot({ state, grad }: { state: WeekDot; grad?: { c1: string; c2: string 
 
 const makeStyles = themed((c) => ({
   border: { borderRadius: c.radius + 1.5, padding: 1.5, marginTop: 16 },
-  card: { ...card(c), borderWidth: 0, borderRadius: c.radius, paddingVertical: 12, paddingHorizontal: 14, gap: 8 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  days: { fontFamily: VIVID_HEAVY, fontSize: 52, lineHeight: 58, fontVariant: ['lining-nums'], minWidth: 34, textAlign: 'center' },
-  daysLong: { fontFamily: VIVID_HEAVY, fontSize: 42, lineHeight: 50 },
+  card: { ...card(c), borderWidth: 0, borderRadius: c.radius, paddingVertical: 14, paddingHorizontal: 16, gap: 10 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  days: { fontFamily: VIVID_HEAVY, fontSize: 72, lineHeight: 80, fontVariant: ['lining-nums'], minWidth: 44, textAlign: 'center' },
+  daysLong: { fontFamily: VIVID_HEAVY, fontSize: 56, lineHeight: 66 },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  label: { flexShrink: 1, color: c.text, fontSize: 13, fontWeight: '700' },
-  week: { flexDirection: 'row', gap: 5 },
-  dot: { width: 12, height: 12, borderRadius: 6, borderWidth: 1.5, borderColor: c.outline },
+  label: { color: c.text, fontSize: 18, fontWeight: '800' },
+  tier: { flexShrink: 1, color: c.muted, fontSize: 13, fontWeight: '700' },
+  week: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 4, paddingTop: 2 },
+  day: { alignItems: 'center', gap: 4 },
+  dayLetter: { color: c.faint, fontSize: 11, fontWeight: '700' },
+  dayToday: { color: c.text },
+  dot: { width: 18, height: 18, borderRadius: 9, borderWidth: 1.5, borderColor: c.outline },
   note: { color: c.muted, fontSize: 12 },
   risk: { color: c.flame, fontSize: 13, fontWeight: '600' },
 }));

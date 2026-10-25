@@ -3,7 +3,22 @@ import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { card, eyebrow, FONTS, headingCase, themed, useStyles } from '../theme';
 
 /** A centred sheet over a dim backdrop, closed by tapping outside or Done. */
-export function Sheet({ title, eyebrow: kicker, visible, onClose, children }: { title: string; eyebrow?: string; visible: boolean; onClose: () => void; children: ReactNode }) {
+export function Sheet({
+  title,
+  eyebrow: kicker,
+  visible,
+  onClose,
+  closeLabel = 'Done',
+  children,
+}: {
+  title: string;
+  eyebrow?: string;
+  visible: boolean;
+  onClose: () => void;
+  /** The word on the close button, e.g. "Cancel" when closing drops a choice. */
+  closeLabel?: string;
+  children: ReactNode;
+}) {
   const s = useStyles(makeStyles);
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -16,7 +31,7 @@ export function Sheet({ title, eyebrow: kicker, visible, onClose, children }: { 
               <Text style={s.title}>{title}</Text>
             </View>
             <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button">
-              <Text style={s.done}>Done</Text>
+              <Text style={s.done}>{closeLabel}</Text>
             </Pressable>
           </View>
           <ScrollView contentContainerStyle={{ gap: 10, paddingBottom: 4 }}>{children}</ScrollView>

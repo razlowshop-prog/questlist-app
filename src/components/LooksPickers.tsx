@@ -7,14 +7,21 @@ import { card, THEMES, themeById, themed, useStyles, useTheme } from '../theme';
 import { brandGlow, brandLine, CELEBRATION_GLYPHS, CELEBRATION_LOOKS } from '../vivid';
 import { Fire } from './Fire';
 import { Avatar, ProfileFrame } from './ProfileFrame';
-import { BRAND_FILL_SMALL, BRAND_INK, BRAND_TEXT_SHADOW, Sticker, VIVID_HEAVY } from './Vivid';
+import { BRAND_FILL_SMALL, BRAND_INK, BRAND_TEXT_SHADOW, CountBadge, Sticker, VIVID_HEAVY } from './Vivid';
 
 // The pickers for every look: theme, profile frame, flame, title and tick
-// celebration. Looks not won yet show where they come from.
+// celebration. Looks not won yet show where they come from. A look won but not
+// seen yet wears a small "1" until it is tapped (or hovered on the web).
+
+/** Ids of new looks in a picker, and what to call when one has been seen. */
+export interface Fresh {
+  ids?: Set<string>;
+  onSeen?: (id: string) => void;
+}
 
 const isTrophyFrame = (id: string) => TROPHY_FRAMES.some((f) => f.id === id);
 
-export function ThemeGrid({ current, unlocked, onPick }: { current: string; unlocked: Set<string>; onPick: (id: string) => void }) {
+export function ThemeGrid({ current, unlocked, onPick, fresh }: { current: string; unlocked: Set<string>; onPick: (id: string) => void; fresh?: Fresh }) {
   const s = useStyles(makeStyles);
   return (
     <>
@@ -28,6 +35,8 @@ export function ThemeGrid({ current, unlocked, onPick }: { current: string; unlo
               active={current === t.id}
               lockedLabel={has ? undefined : t.id === 'fortune' ? 'Wheel' : 'Trophy'}
               onPress={has ? () => onPick(t.id) : undefined}
+              isNew={has && fresh?.ids?.has(t.id)}
+              onSeen={() => fresh?.onSeen?.(t.id)}
             >
               <ThemeSwatch id={t.id} />
             </Tile>
@@ -100,7 +109,19 @@ export function frameList(owned: string[], eventFrame: string): string[] {
   return [...FRAMES.map((f) => f.id as string), ...TROPHY_FRAMES_ON.map((f) => f.id as string), ...(seasonal.includes(eventFrame) ? seasonal : [...seasonal, eventFrame])];
 }
 
-export function FlameGrid({ owned, equipped, fireTier, onPick }: { owned: string[]; equipped?: FlameStyleId; fireTier: number; onPick: (id: FlameStyleId) => void }) {
+export function FlameGrid({
+  owned,
+  equipped,
+  fireTier,
+  onPick,
+  fresh,
+}: {
+  owned: string[];
+  equipped?: FlameStyleId;
+  fireTier: number;
+  onPick: (id: FlameStyleId) => void;
+  fresh?: Fresh;
+}) {
   const s = useStyles(makeStyles);
   return (
     <View style={s.grid}>
@@ -113,6 +134,8 @@ export function FlameGrid({ owned, equipped, fireTier, onPick }: { owned: string
             active={equipped === f.id}
             lockedLabel={has ? undefined : `Lvl ${levelForLook('flame', f.id)}`}
             onPress={has ? () => onPick(f.id as FlameStyleId) : undefined}
+            isNew={has && fresh?.ids?.has(f.id)}
+            onSeen={() => fresh?.onSeen?.(f.id)}
           >
             <Fire tier={Math.max(1, fireTier)} size={30} look={f.id} />
           </Tile>
@@ -135,7 +158,7 @@ export function TitleChoices({ owned, equipped, onPick }: { owned: string[]; equ
   );
 }
 
-export function CelebrationGrid({ owned, equipped, onPick }: { owned: string[]; equipped?: CelebrationId; onPick: (id: CelebrationId) => void }) {
+export function CelebrationGrid({ owned, equipped, onPick, fresh }: { owned: string[]; equipped?: CelebrationId; onPick: (id: CelebrationId) => void; fresh?: Fresh }) {
   const s = useStyles(makeStyles);
   return (
     <>
@@ -149,6 +172,8 @@ export function CelebrationGrid({ owned, equipped, onPick }: { owned: string[]; 
               active={equipped === cel.id}
               lockedLabel={has ? undefined : `Lvl ${levelForLook('celebration', cel.id)}`}
               onPress={has ? () => onPick(cel.id as CelebrationId) : undefined}
+              isNew={has && fresh?.ids?.has(cel.id)}
+              onSeen={() => fresh?.onSeen?.(cel.id)}
             >
               <Sticker grad={CELEBRATION_LOOKS[cel.id]} glyph={CELEBRATION_GLYPHS[cel.id]} size={36} />
             </Tile>
@@ -165,6 +190,8 @@ function Tile({
   active,
   lockedLabel,
   onPress,
+  isNew,
+  onSeen,
   children,
 }: {
   label: string;
@@ -172,19 +199,27 @@ function Tile({
   /** Shown instead of the name while the look isn't won yet. */
   lockedLabel?: string;
   onPress?: () => void;
+  /** Won but not seen yet: a "1" sits on the corner until tapped or hovered. */
+  isNew?: boolean;
+  onSeen?: () => void;
   children: React.ReactNode;
 }) {
   const s = useStyles(makeStyles);
   const c = useTheme();
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => {
+        if (isNew) onSeen?.();
+        onPress?.();
+      }}
+      onHoverIn={isNew ? onSeen : undefined}
       disabled={!onPress}
       style={[s.tile, active && s.tileActive]}
       accessibilityRole="radio"
       accessibilityState={{ checked: active, disabled: !onPress }}
-      accessibilityLabel={lockedLabel ? `${label}, unlocks at ${lockedLabel}` : label}
+      accessibilityLabel={lockedLabel ? `${label}, unlocks at ${lockedLabel}` : `${label}${isNew ? ', new' : ''}`}
     >
+      {isNew && <CountBadge count={1} style={s.newBadge} />}
       <View style={[s.tilePic, lockedLabel ? { opacity: 0.45 } : null]}>{children}</View>
       {lockedLabel ? (
         <View style={s.lockRow}>
@@ -237,13 +272,28 @@ const makeStyles = themed((c) => ({
   tileLabel: { color: c.text, fontSize: 11, fontWeight: '600', textAlign: 'center' },
   lockRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   lockText: { color: c.faint, fontSize: 11, fontWeight: '600' },
+  newBadge: { position: 'absolute', top: -6, right: -6, zIndex: 2 },
 }));
 
 /** A card row for the profile: a picture, a name and what it is, opening a picker. */
-export function LookRow({ label, value, onPress, children }: { label: string; value: string; onPress: () => void; children: React.ReactNode }) {
+export function LookRow({
+  label,
+  value,
+  onPress,
+  fresh = 0,
+  children,
+}: {
+  label: string;
+  value: string;
+  onPress: () => void;
+  /** New looks waiting inside, shown as a badge. */
+  fresh?: number;
+  children: React.ReactNode;
+}) {
   const s = useStyles(rowStyles);
   return (
-    <Pressable onPress={onPress} style={s.row} accessibilityRole="button" accessibilityLabel={`${label}: ${value}. Change`}>
+    <Pressable onPress={onPress} style={s.row} accessibilityRole="button" accessibilityLabel={`${label}: ${value}${fresh ? `, ${fresh} new` : ''}. Change`}>
+      <CountBadge count={fresh} style={s.badge} />
       <View style={s.pic}>{children}</View>
       <View style={{ flex: 1 }}>
         <Text style={s.label}>{label}</Text>
@@ -260,4 +310,5 @@ const rowStyles = themed((c) => ({
   label: { color: c.muted, fontSize: 12 },
   value: { color: c.text, fontSize: 15, fontWeight: '700' },
   change: { color: c.accent, fontSize: 13, fontWeight: '700' },
+  badge: { position: 'absolute', top: -6, right: -6, zIndex: 2 },
 }));

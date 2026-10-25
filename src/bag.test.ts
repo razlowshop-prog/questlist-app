@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { bagCapacity, layoutBag, nextSlotLevel } from './bag.ts';
+import { bagCapacity, bagChanged, bagSnapshot, layoutBag, newInBag, nextSlotLevel } from './bag.ts';
 
 const none = { ticket: 0, rest: 0, double: 0, reroll: 0, adfree: 0 };
 
@@ -36,4 +36,19 @@ test('what does not fit waits in the tray, nothing is lost', () => {
 
 test('an empty bag has no stacks', () => {
   assert.deepEqual(layoutBag(none, 30), { slots: [], waiting: [] });
+});
+
+test('the backpack badge counts only items added since the bag was last opened', () => {
+  const now = { ...none, ticket: 3, rest: 1 };
+  // Never opened: everything is new once.
+  assert.equal(newInBag(now, undefined), 4);
+  const seen = bagSnapshot(now);
+  assert.equal(newInBag(now, seen), 0);
+  assert.equal(bagChanged(now, seen), false);
+  // Two more tickets, one rest day used: the used one doesn't cancel the new ones.
+  const later = { ...none, ticket: 5, rest: 0 };
+  assert.equal(newInBag(later, seen), 2);
+  assert.equal(bagChanged(later, seen), true);
+  // Negative or fractional counts never show.
+  assert.equal(newInBag({ ...none, ticket: -2, double: 1.7 }, {}), 1);
 });
