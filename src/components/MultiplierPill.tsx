@@ -5,7 +5,7 @@ import { nextStreakBonus, type xpMultiplier } from '../game';
 import { card, eyebrow, FONTS, themed, useStyles, useTheme } from '../theme';
 import { GOLD } from './Fortuna';
 import { BRAND } from '../vivid';
-import { BRAND_FILL, BRAND_INK, BRAND_TEXT_SHADOW, VIVID_HEAVY } from './Vivid';
+import { BRAND_TEXT_SHADOW, brandFill, brandInk, brandTextShadow, VIVID_HEAVY } from './Vivid';
 
 type Multiplier = ReturnType<typeof xpMultiplier>;
 
@@ -16,14 +16,14 @@ export function fmtX(x: number): string {
 
 /**
  * The XP multiplier as a pill ("× 1.5 XP"). Tapping it opens what it's made
- * of and the next streak step. Fortuna uses its own gold; every other theme
- * the blue-violet brand gradient with white text.
+ * of and the next streak step. Fortuna and Gold use their own gold; every
+ * other theme the blue-violet brand gradient with white text.
  */
 export function MultiplierPill({ multiplier, size = 'normal' }: { multiplier: Multiplier; size?: 'small' | 'normal' }) {
   const s = useStyles(makeStyles);
   const c = useTheme();
   const [open, setOpen] = useState(false);
-  const fortuna = c.check === 'coin';
+  const fortuna = c.check === 'coin' || !!c.brand;
   const colors = fortuna ? [GOLD.light, GOLD.mid, GOLD.deep] : [BRAND.c1, BRAND.c2];
   const ink = fortuna ? GOLD.ink : BRAND.ink;
   const boosted = multiplier.total > 1;
@@ -101,6 +101,6 @@ const makeStyles = themed((c) => ({
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   rowLabel: { color: c.text, fontSize: 15 },
   rowValue: { color: c.text, fontSize: 15, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  button: { marginTop: 6, minHeight: 50, borderRadius: 14, ...BRAND_FILL, alignItems: 'center', justifyContent: 'center' },
-  buttonText: { color: BRAND_INK, fontFamily: VIVID_HEAVY, fontSize: 16, ...BRAND_TEXT_SHADOW },
+  button: { marginTop: 6, minHeight: 50, borderRadius: 14, ...brandFill(c), alignItems: 'center', justifyContent: 'center' },
+  buttonText: { color: brandInk(c), fontFamily: VIVID_HEAVY, fontSize: 16, ...brandTextShadow(c) },
 }));

@@ -5,7 +5,7 @@ import { APP_NAME } from '../brand';
 import { FONTS, themed, useStyles, useTheme } from '../theme';
 import { BRAND, brandLine, KEYLINE } from '../vivid';
 import { Avatar } from './ProfileFrame';
-import { CountBadge, fill, GradientText, VIVID_HEAVY } from './Vivid';
+import { brandFillSmall, CountBadge, fill, GradientText, VIVID_HEAVY } from './Vivid';
 
 /** Avatar size in the header and the ring around it. */
 const RING = 34;
@@ -85,7 +85,7 @@ export function TopBar({
                 cx={RING / 2}
                 cy={RING / 2}
                 r={r}
-                stroke={BRAND.c1}
+                stroke={c.brand?.line ?? BRAND.c1}
                 strokeWidth={STROKE}
                 fill="none"
                 strokeLinecap="round"
@@ -96,7 +96,7 @@ export function TopBar({
             )}
           </Svg>
           <Avatar initials={initials.slice(0, 1)} size={RING - 2 * STROKE - 2} />
-          <View style={[s.level, fill(BRAND, 135)]}>
+          <View style={[s.level, c.brand ? brandFillSmall(c) : fill(BRAND, 135)]}>
             <Text style={s.levelText}>{level}</Text>
           </View>
         </View>
@@ -113,7 +113,7 @@ export function BackBar({ backTo, title, onBack }: { backTo: string; title: stri
   return (
     <View style={s.bar}>
       <Pressable onPress={onBack} hitSlop={8} style={s.back} accessibilityRole="button" accessibilityLabel={`Back to ${backTo}`}>
-        <ChevronLeft size={22} color={brandLine(c.dark)} strokeWidth={2} aria-hidden />
+        <ChevronLeft size={22} color={brandLine(c)} strokeWidth={2} aria-hidden />
         <Text style={s.backText}>{backTo}</Text>
       </Pressable>
       <View style={s.middle} pointerEvents="none">
@@ -149,9 +149,9 @@ const makeStyles = themed((c) => ({
     borderWidth: 1.5,
     borderColor: KEYLINE,
   },
-  levelText: { color: '#FFFFFF', fontFamily: VIVID_HEAVY, fontSize: 10, lineHeight: 12 },
+  levelText: { color: c.brand?.ink ?? '#FFFFFF', fontFamily: VIVID_HEAVY, fontSize: 10, lineHeight: 12 },
   claim: { position: 'absolute', top: -4, right: -4 },
   back: { flexDirection: 'row', alignItems: 'center', gap: 2, minHeight: 40, paddingRight: 8, zIndex: 1 },
-  backText: { color: brandLine(c.dark), fontSize: 16, fontWeight: '700' },
+  backText: { color: brandLine(c), fontSize: 16, fontWeight: '700' },
   title: { fontFamily: FONTS.serif, color: c.text, fontSize: 20, maxWidth: '55%' },
 }));

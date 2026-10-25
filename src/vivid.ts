@@ -23,8 +23,16 @@ const g = (c1: string, c2: string, ink = '#FFFFFF'): Grad => ({ c1, c2, ink });
  */
 export const BRAND: Grad = g('#7FD6FF', '#6A5BFF');
 
-/** One solid brand colour for outlines, highlighted cards and the active tab label. */
-export function brandLine(dark: boolean): string {
+/** A theme that may bring its own accent in place of the brand (theme.tsx Palette). */
+export interface BrandHost {
+  dark: boolean;
+  brand?: { line: string; text: { c1: string; c2: string } };
+}
+
+/** One solid brand colour for outlines, highlighted cards and the active tab label; a theme's own accent if it has one. */
+export function brandLine(c: BrandHost | boolean): string {
+  if (typeof c !== 'boolean' && c.brand) return c.brand.line;
+  const dark = typeof c === 'boolean' ? c : c.dark;
   return dark ? '#9FB4FF' : '#4A3BD6';
 }
 

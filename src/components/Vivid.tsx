@@ -4,7 +4,7 @@ import { Animated, Easing, Platform, Pressable, Switch, Text, View, type StylePr
 import Reanimated, { useAnimatedStyle, useSharedValue, type SharedValue } from 'react-native-reanimated';
 import Svg, { Circle, Defs, LinearGradient, Path, Polygon, Stop } from 'react-native-svg';
 import { GLYPHS, type GlyphName } from '../glyphs';
-import { nativeDriver, useTheme } from '../theme';
+import { nativeDriver, useTheme, type Palette } from '../theme';
 import { BADGE_RED, BRAND, brandGlow, KEYLINE, levelBand, linear, MYTHIC, PRISM, RARITY, textGradient, textSolid, type Grad, type Rarity } from '../vivid';
 import { useReduceMotion } from './FireAura';
 
@@ -46,6 +46,13 @@ export const BRAND_FILL_SMALL: ViewStyle = {
 export const BRAND_INK = BRAND.ink;
 /** White text on the light end of the brand gradient needs a soft shadow to stay readable. */
 export const BRAND_TEXT_SHADOW: TextStyle = { textShadowColor: 'rgba(24,18,70,0.45)', textShadowRadius: 3, textShadowOffset: { width: 0, height: 1 } };
+
+// The same, for the theme on screen: a theme with its own accent (Gold) gets its fill and ink instead.
+type BrandPalette = Pick<Palette, 'brand'>;
+export const brandFill = (c: BrandPalette): ViewStyle => (c.brand ? { backgroundColor: c.brand.color, backgroundImage: c.brand.fill, boxShadow: 'inset 0px 1.5px 0px rgba(255,255,255,0.35)' } : BRAND_FILL);
+export const brandFillSmall = (c: BrandPalette): ViewStyle => (c.brand ? { backgroundColor: c.brand.color, backgroundImage: c.brand.fill } : BRAND_FILL_SMALL);
+export const brandInk = (c: BrandPalette): string => c.brand?.ink ?? BRAND_INK;
+export const brandTextShadow = (c: BrandPalette): TextStyle => (c.brand ? {} : BRAND_TEXT_SHADOW);
 
 /** A filled glyph (Phosphor "fill"), in one colour or a top-to-bottom gradient. */
 export function Glyph({ name, size, color = '#FFFFFF', grad, style }: { name: GlyphName; size: number; color?: string; grad?: { c1: string; c2: string }; style?: StyleProp<ViewStyle> }) {
@@ -202,7 +209,7 @@ export function GradientText({
   glowRadius?: number;
 }) {
   const c = useTheme();
-  const theme = textGradient(c.dark);
+  const theme: { c1: string; c2: string; glow?: string } = c.brand ? c.brand.text : textGradient(c.dark);
   const t = colors ? { ...colors, glow } : { ...theme, glow: glow ?? theme.glow };
   const web =
     Platform.OS === 'web'
@@ -258,14 +265,16 @@ export function VividButton({
   const scale = useRef(new Animated.Value(1)).current;
   const to = (v: number) => Animated.spring(scale, { toValue: v, speed: 40, bounciness: 4, useNativeDriver: nativeDriver }).start();
   const primary = kind === 'primary';
+  // A theme with its own accent (Gold) replaces the brand gradient: square-ish, spaced capitals.
+  const own = primary ? c.brand : undefined;
   const height = compact ? 40 : 54;
-  const radius = compact ? 12 : 14;
+  const radius = own ? c.radius : compact ? 12 : 14;
   const text: TextStyle = {
     fontFamily: VIVID_HEAVY,
     fontSize: compact ? 14 : 17,
-    color: primary ? BRAND_INK : c.text,
+    color: own ? own.ink : primary ? BRAND_INK : c.text,
     textAlign: 'center',
-    ...(primary && BRAND_TEXT_SHADOW),
+    ...(own ? { textTransform: 'uppercase', letterSpacing: 1.6, fontSize: compact ? 13 : 15 } : primary && BRAND_TEXT_SHADOW),
   };
   const inner = (
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
@@ -290,7 +299,13 @@ export function VividButton({
         accessibilityLabel={accessibilityLabel}
         style={
           primary
-            ? { ...(compact ? BRAND_FILL_SMALL : BRAND_FILL), minHeight: height, borderRadius: radius, paddingHorizontal: compact ? 14 : 22, justifyContent: 'center' }
+            ? {
+                ...(own ? brandFillSmall(c) : compact ? BRAND_FILL_SMALL : BRAND_FILL),
+                minHeight: height,
+                borderRadius: radius,
+                paddingHorizontal: compact ? 14 : 22,
+                justifyContent: 'center',
+              }
             : { ...fill(PRISM, 90), borderRadius: radius, padding: 1.5 }
         }
       >

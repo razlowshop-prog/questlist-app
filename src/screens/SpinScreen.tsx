@@ -1,12 +1,14 @@
 import * as Haptics from 'expo-haptics';
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Animated, Easing, Modal, PanResponder, Platform, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
-import Reanimated, { cancelAnimation, Easing as REasing, useAnimatedReaction, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
+import Reanimated, { cancelAnimation, Easing as REasing, useAnimatedReaction, useAnimatedStyle, useSharedValue, withRepeat, withTiming, type SharedValue } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
-import Svg, { Circle, Defs, G, LinearGradient, Mask, Path, RadialGradient, Rect, Stop, Text as SvgText } from 'react-native-svg';
+import Svg, { Circle, Defs, G, LinearGradient, Mask, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { CoinCheck, CoinShower, GOLD, GoldDust, GoldText, HOLO, HoloBorder, ShimmerBar, Star4, StarRule, TicketStub } from '../components/Fortuna';
 import { KEYLINE, MYTHIC, prizeIcon, PrizeSticker, RARITY_COLORS } from '../components/PrizeSticker';
 import { TOKEN_INFO } from '../tokens';
+import { fill, VIVID_HEAVY } from '../components/Vivid';
+import { BRAND } from '../vivid';
 import { useReduceMotion } from '../components/FireAura';
 import { eyebrow, FONTS, headingCase, themed, useStyles } from '../theme';
 import {
@@ -28,22 +30,27 @@ const TURNS = 6;
 const SWIPE_TURNS = [3, 9];
 /** Slowest flick that still spins the wheel, in radians per millisecond. */
 const MIN_FLICK = 0.003;
-const SPIN_MS = 5200;
-const BULBS = 24;
+const SPIN_MS = 3200;
 /** At most one haptic tick per this many ms. */
 const TICK_MS = 40;
 const CINZEL = 'Cinzel_800ExtraBold';
 
-/** Each slice's colour and label (design thread, "Fortuna theme and wheel spec"). The theme slice is a rainbow. */
-const SLICES: Record<string, { color: string; ink: string; font: number; lines: string[] }> = {
-  xp20: { color: '#34E3C4', ink: '#063a33', font: 16, lines: ['20 XP'] },
-  xp50: { color: '#1FC7AE', ink: '#063a33', font: 16, lines: ['50 XP'] },
-  double: { color: '#4A7BFF', ink: '#FFFFFF', font: 16, lines: ['2× XP'] },
-  xp100: { color: '#0E9BB0', ink: '#FFFFFF', font: 14, lines: ['100 XP'] },
-  rest: { color: '#3557FF', ink: '#FFFFFF', font: 13, lines: ['REST', 'DAY'] },
-  reroll: { color: '#2E46C8', ink: '#FFFFFF', font: 9.5, lines: ['CHALLENGE', 'SWAP'] },
-  adfree: { color: '#C03CE0', ink: '#FFFFFF', font: 11, lines: ['AD-FREE', 'DAY'] },
+/** Each slice's short label on the wheel (design "Calm"); rarity shows as the rim arc and icon colour. */
+const LABELS: Record<string, string> = {
+  xp20: '20 XP',
+  xp50: '50 XP',
+  xp100: '100 XP',
+  double: '2× XP',
+  rest: 'Rest day',
+  reroll: 'Swap',
+  adfree: 'Ad-free',
+  theme: 'Fortuna',
+  jackpot: 'Jackpot',
 };
+/** The two slice colours, alternating round the wheel. */
+const SLICE_FILLS = ['#1d2335', '#252c42'];
+const LABEL_INK = '#eef1fa';
+const FORTUNA_INK = '#f2c55c';
 
 /** What a slice gives, for the note under the wheel when it is tapped. */
 function prizeAbout(prize: WheelPrize, ownsTheme: boolean): string {
@@ -52,9 +59,9 @@ function prizeAbout(prize: WheelPrize, ownsTheme: boolean): string {
   return `${prize.xp} XP straight onto your level bar. Wheel XP doesn’t earn new tickets.`;
 }
 
-/** A prize's colour on the wheel, for dots and rays; the theme (and its jackpot) is rainbow. */
+/** A prize's colour, for dots and rays: its rarity's colour; the theme (and its jackpot) is rainbow. */
 function prizeColor(prize: WheelPrize): string {
-  return SLICES[prize.id]?.color ?? '#FFE066';
+  return RARITY_COLORS[prize.rarity].c1;
 }
 
 const isMythic = (prize: WheelPrize) => !!prize.theme || prize.id === JACKPOT.id;
@@ -170,7 +177,7 @@ export function SpinScreen({
     rotation.value = withTiming(
       to,
       // Fast start, long slow-down: the last slices crawl past. More turns take a little longer.
-      { duration: reduceMotion ? 400 : SPIN_MS + (turns - TURNS) * 300, easing: REasing.bezier(0.12, 0.72, 0.08, 1) },
+      { duration: reduceMotion ? 400 : SPIN_MS + (turns - TURNS) * 300, easing: REasing.bezier(0.12, 0.75, 0.15, 1) },
       () => scheduleOnRN(landed, prize),
     );
   }
@@ -259,10 +266,10 @@ export function SpinScreen({
         </HoloBorder>
 
         <View style={[s.wheelBox, { width: size, height: size, borderRadius: size / 2, marginTop: 34 * k + 14 }]}>
-          <Rim size={size} spinning={spinning && !reduceMotion} />
+          <Rim size={size} />
           <Reanimated.View style={[{ position: 'absolute', width: size, height: size }, wheelStyle]}>
             <WheelFace size={size} ownsTheme={ownsTheme} />
-            {!ownsTheme && <ThemeSliceLive size={size} still={reduceMotion} />}
+            <SliceLabels size={size} ownsTheme={ownsTheme} rotation={rotation} still={reduceMotion} />
           </Reanimated.View>
           {/* Doesn't turn, so touch positions stay simple; the hub coin sits above it. */}
           <View
@@ -277,11 +284,11 @@ export function SpinScreen({
             accessibilityRole="button"
             accessibilityLabel={has ? `Spin the wheel, ${tickets.tickets} ${tickets.tickets === 1 ? 'ticket' : 'tickets'}` : 'No tickets yet'}
           >
-            <HubCoin size={64 * k} />
+            <Hub size={64 * k} />
           </Pressable>
           <Reanimated.View
             pointerEvents="none"
-            style={[{ position: 'absolute', top: -22 * k, width: 34 * k, height: 44 * k, transformOrigin: `${17 * k}px ${16 * k}px` }, pointerStyle]}
+            style={[{ position: 'absolute', top: -20 * k, width: 28 * k, height: 34 * k, transformOrigin: `${14 * k}px ${11 * k}px` }, pointerStyle]}
           >
             <Pointer scale={k} />
           </Reanimated.View>
@@ -478,7 +485,7 @@ function GoldFill({ id }: { id: string }) {
 // ---------- the wheel (drawn in a 320 box, scaled to fit) ----------
 
 const C = 160;
-const FACE = 136;
+const FACE = 151;
 
 /** The slice under the pointer at a wheel rotation in degrees. */
 function segmentAt(rotation: number): number {
@@ -503,231 +510,141 @@ function wedge(from: number, to: number, r: number): string {
   return `M${C} ${C} L${x1} ${y1} A${r} ${r} 0 ${to - from > 180 ? 1 : 0} 1 ${x2} ${y2} Z`;
 }
 
-/** A five-pointed star centred on x, y. */
-function star(x: number, y: number, r: number): string {
-  const pts = Array.from({ length: 10 }, (_, i) => {
-    const a = (i * Math.PI) / 5 - Math.PI / 2;
-    const rr = i % 2 ? r * 0.45 : r;
-    return `${x + rr * Math.cos(a)} ${y + rr * Math.sin(a)}`;
-  });
-  return `M${pts.join(' L')} Z`;
-}
-
-/** Where the Fortuna slice sits on the disc: its middle, in degrees. */
-const THEME_SLICE_MID = (() => {
+/** The slices with their middle angle (degrees clockwise from the top) and prize. */
+const SLICE_LIST = (() => {
   let at = 0;
-  for (const seg of WHEEL_SEGMENTS) {
-    if (prizeById(seg.prize).theme) return (at + seg.share / 2) * 3.6;
+  return WHEEL_SEGMENTS.map((seg, i) => {
+    const from = at * 3.6;
     at += seg.share;
-  }
-  return 0;
+    const to = at * 3.6;
+    return { i, from, to, mid: (from + to) / 2, prize: prizeById(seg.prize) };
+  });
 })();
 
-/**
- * A tiny live preview of Fortuna on its slice: a gold coin turning over and
- * glints twinkling round it, as on the theme. Turns with the wheel.
- */
-function ThemeSliceLive({ size, still }: { size: number; still: boolean }) {
-  const k = size / 320;
-  const [x, y] = point(THEME_SLICE_MID, FACE * 0.84);
-  const t = useSharedValue(0);
-  useEffect(() => {
-    if (still) return;
-    t.value = withRepeat(withTiming(1, { duration: 2400, easing: REasing.linear }), -1, false);
-    return () => cancelAnimation(t);
-  }, [still]);
-  const coin = useAnimatedStyle(() => ({ transform: [{ scaleX: still ? 1 : Math.max(0.08, Math.abs(Math.cos(Math.PI * t.value))) }] }));
-  const glint = (phase: number) => {
-    'worklet';
-    const p = (t.value + phase) % 1;
-    return 0.15 + 0.85 * Math.max(0, Math.sin(Math.PI * 2 * p));
-  };
-  const g1 = useAnimatedStyle(() => ({ opacity: still ? 0.8 : glint(0) }));
-  const g2 = useAnimatedStyle(() => ({ opacity: still ? 0.6 : glint(0.45) }));
-  const coinSize = 30 * k;
-  return (
-    <View pointerEvents="none" style={{ position: 'absolute', left: x * k - coinSize / 2, top: y * k - coinSize / 2, width: coinSize, height: coinSize, transform: [{ rotate: `${THEME_SLICE_MID}deg` }] }}>
-      <Reanimated.View style={[{ width: coinSize, height: coinSize }, coin]}>
-        <Svg width={coinSize} height={coinSize} viewBox="0 0 26 26">
-          <Defs>
-            <LinearGradient id="sliceCoin" x1="0" y1="0" x2="1" y2="1">
-              <Stop offset="0" stopColor={GOLD.light} />
-              <Stop offset="0.55" stopColor={GOLD.mid} />
-              <Stop offset="1" stopColor={GOLD.deep} />
-            </LinearGradient>
-          </Defs>
-          <Circle cx={13} cy={13} r={12} fill="url(#sliceCoin)" stroke={KEYLINE} strokeWidth={1.2} />
-          <Circle cx={13} cy={13} r={8.5} fill="none" stroke="#FFF1B8" strokeOpacity={0.7} strokeWidth={1} />
-          <Path d={star(13, 13, 5)} fill="#FFF8D6" />
-        </Svg>
-      </Reanimated.View>
-      <Reanimated.View style={[{ position: 'absolute', left: -7 * k, top: -6 * k }, g1]}>
-        <Star4 size={9 * k} color="#FFF1B8" />
-      </Reanimated.View>
-      <Reanimated.View style={[{ position: 'absolute', right: -8 * k, bottom: -5 * k }, g2]}>
-        <Star4 size={7 * k} color={HOLO[1]} />
-      </Reanimated.View>
-    </View>
-  );
+/** The rim arc just inside a slice's edge, a little short of its sides. */
+function rimArc(from: number, to: number, r: number): string {
+  const [x1, y1] = point(from + 4, r);
+  const [x2, y2] = point(to - 4, r);
+  return `M${x1} ${y1} A${r} ${r} 0 0 1 ${x2} ${y2}`;
 }
 
-/** The turning disc: one slice per prize, sized by its chance, labelled along the radius. */
+/** The turning disc (design "Calm"): dark slices in two shades, each with a rim arc in its rarity's colours. */
 // Memoised: the disc only turns, so it never needs to redraw while spinning.
 const WheelFace = memo(function WheelFace({ size, ownsTheme }: { size: number; ownsTheme: boolean }) {
-  const slices = useMemo(() => {
-    let at = 0;
-    return WHEEL_SEGMENTS.map((seg, i) => {
-      const from = at * 3.6;
-      at += seg.share;
-      return { ...seg, i, from, to: at * 3.6, prize: prizeById(seg.prize) };
-    });
-  }, []);
   return (
     <Svg width={size} height={size} viewBox="0 0 320 320">
       <Defs>
-        <RadialGradient id="faceShade" cx="50%" cy="50%" r="50%">
-          <Stop offset="0.55" stopColor="#000000" stopOpacity={0} />
-          <Stop offset="1" stopColor="#000000" stopOpacity={0.22} />
-        </RadialGradient>
-        <RadialGradient id="fortunaSlice" cx={C} cy={C} r={FACE} fx={C} fy={C} gradientUnits="userSpaceOnUse">
-          <Stop offset="0.3" stopColor="#120a1f" />
-          <Stop offset="0.75" stopColor="#3d2d5c" />
-          <Stop offset="1" stopColor="#5a3f8a" />
+        {(Object.keys(RARITY_COLORS) as (keyof typeof RARITY_COLORS)[]).map((r) => (
+          <LinearGradient key={r} id={`rim-${r}`} x1="0" y1="0" x2="1" y2="1">
+            <Stop offset="0" stopColor={RARITY_COLORS[r].c1} />
+            <Stop offset="1" stopColor={RARITY_COLORS[r].c2} />
+          </LinearGradient>
+        ))}
+        <RadialGradient id="fortunaSlice" cx="50%" cy="20%" r="80%">
+          <Stop offset="0" stopColor="#3a2350" />
+          <Stop offset="1" stopColor="#120a1f" />
         </RadialGradient>
       </Defs>
-      {slices.map((sl) => {
-        const mid = (sl.from + sl.to) / 2;
-        if (sl.prize.theme && !ownsTheme) {
-          // Fortuna's own colours, deep violet with a gold rim and its name; its live coin turns on top (ThemeSliceLive).
-          const [lx, ly] = point(mid, FACE * 0.55);
-          const turn = mid <= 180 ? mid - 90 : mid + 90;
-          return (
-            <G key={sl.i}>
-              <Path d={wedge(sl.from, sl.to, FACE)} fill="url(#fortunaSlice)" stroke="#120a1f" strokeWidth={1.5} strokeLinejoin="round" />
-              <Path d={wedge(sl.from + 1, sl.to - 1, FACE - 4)} fill="none" stroke={GOLD.mid} strokeWidth={2} strokeLinejoin="round" />
-              <SvgText x={lx} y={ly + 4} fill={GOLD.light} fontFamily={CINZEL} fontSize={12} letterSpacing={0.6} textAnchor="middle" transform={`rotate(${turn} ${lx} ${ly})`}>
-                FORTUNA
-              </SvgText>
-            </G>
-          );
-        }
-        if (sl.prize.theme) {
-          // Owned: the jackpot, six rainbow stripes and a big glowing star.
-          const step = (sl.to - sl.from) / MYTHIC.length;
-          const [sx, sy] = point(mid, FACE * 0.66);
-          return (
-            <G key={sl.i}>
-              {MYTHIC.map((col, j) => (
-                <Path key={col} d={wedge(sl.from + j * step, sl.from + (j + 1) * step, FACE)} fill={col} />
-              ))}
-              <Path d={wedge(sl.from, sl.to, FACE)} fill="none" stroke="#120a1f" strokeWidth={1.5} strokeLinejoin="round" />
-              <Circle cx={sx} cy={sy} r={18} fill="#FFF1B8" opacity={0.35} />
-              <Path d={star(sx, sy, 13)} fill={ownsTheme ? GOLD.light : '#FFFFFF'} stroke={KEYLINE} strokeWidth={1.5} />
-            </G>
-          );
-        }
-        const look = SLICES[sl.prize.id];
-        const Icon = prizeIcon(sl.prize);
-        const [lx, ly] = point(mid, FACE * 0.58);
-        const [ix, iy] = point(mid, FACE * 0.86);
-        // Labels run along the radius, turned so none reads upside down at rest.
-        const turn = mid <= 180 ? mid - 90 : mid + 90;
-        const lineGap = look.font * 1.1;
+      {SLICE_LIST.map((sl, n) => {
+        const prize = sl.prize.theme && ownsTheme ? JACKPOT : sl.prize;
         return (
           <G key={sl.i}>
-            <Path d={wedge(sl.from, sl.to, FACE)} fill={look.color} stroke="#120a1f" strokeWidth={1.5} strokeLinejoin="round" />
-            {look.lines.map((line, j) => (
-              <SvgText
-                key={line}
-                x={lx}
-                y={ly + look.font * 0.36 + (j - (look.lines.length - 1) / 2) * lineGap}
-                fill={look.ink}
-                fontFamily={CINZEL}
-                fontSize={look.font}
-                letterSpacing={look.font < 14 ? 0.4 : 0}
-                textAnchor="middle"
-                transform={`rotate(${turn} ${lx} ${ly})`}
-              >
-                {line}
-              </SvgText>
-            ))}
-            {/* The prize's icon near the rim, upright towards the outside. */}
-            <G transform={`rotate(${mid} ${ix} ${iy}) translate(${ix - 8} ${iy - 8})`}>
-              <Icon size={16} color={look.ink} strokeWidth={2.4} />
-            </G>
+            <Path d={wedge(sl.from, sl.to, FACE)} fill={sl.prize.theme ? 'url(#fortunaSlice)' : SLICE_FILLS[n % 2]} stroke="#12151f" strokeWidth={1.5} strokeLinejoin="round" />
+            <Path d={rimArc(sl.from, sl.to, FACE - 3)} fill="none" stroke={`url(#rim-${prize.rarity})`} strokeWidth={5} strokeLinecap="round" />
           </G>
         );
       })}
-      <Circle cx={C} cy={C} r={FACE} fill="url(#faceShade)" />
-      <Circle cx={C} cy={C} r={42} fill="#1f1530" stroke={GOLD.mid} strokeWidth={1.5} />
     </Svg>
   );
 });
 
-/** The fixed rim: dark violet with two gold rings and 24 bulbs that blink while the wheel turns. */
-function Rim({ size, spinning }: { size: number; spinning: boolean }) {
-  // Kept here, so only the rim redraws on each blink.
-  const [phase, setPhase] = useState(0);
-  useEffect(() => {
-    if (!spinning) return;
-    const id = setInterval(() => setPhase((p) => p + 1), 120);
-    return () => clearInterval(id);
-  }, [spinning]);
+/**
+ * Each slice's icon (near the rim, in its rarity's colour) and label, kept
+ * upright while the wheel turns: each turns back by the wheel's angle.
+ */
+const SliceLabels = memo(function SliceLabels({ size, ownsTheme, rotation, still }: { size: number; ownsTheme: boolean; rotation: SharedValue<number>; still: boolean }) {
+  const k = size / 320;
   return (
     <View style={{ position: 'absolute', width: size, height: size }} pointerEvents="none">
+      {SLICE_LIST.map((sl) => {
+        const prize = sl.prize.theme && ownsTheme ? JACKPOT : sl.prize;
+        const [ix, iy] = point(sl.mid, FACE - 32);
+        const [lx, ly] = point(sl.mid, FACE - 66);
+        const label = LABELS[prize.id];
+        const Icon = prizeIcon(prize);
+        const fortuna = !!sl.prize.theme && !ownsTheme;
+        return (
+          <View key={sl.i}>
+            <Upright x={ix * k} y={iy * k} box={24 * k} rotation={rotation}>
+              {fortuna ? <Twinkle size={18 * k} still={still} /> : <Icon size={18 * k} color={RARITY_COLORS[prize.rarity].c1} strokeWidth={2.4} />}
+            </Upright>
+            <Upright x={lx * k} y={ly * k} box={72 * k} rotation={rotation}>
+              <Text style={{ fontFamily: VIVID_HEAVY, fontSize: (label.length > 6 ? 12 : 13.5) * k, color: fortuna ? FORTUNA_INK : LABEL_INK, textAlign: 'center' }} numberOfLines={1}>
+                {label}
+              </Text>
+            </Upright>
+          </View>
+        );
+      })}
+    </View>
+  );
+});
+
+/** A box centred on x, y that turns back by the wheel's angle, so what's in it stays upright. */
+function Upright({ x, y, box, rotation, children }: { x: number; y: number; box: number; rotation: SharedValue<number>; children: ReactNode }) {
+  const style = useAnimatedStyle(() => ({ transform: [{ rotate: `${-rotation.value}deg` }] }));
+  return <Reanimated.View style={[{ position: 'absolute', left: x - box / 2, top: y - box / 2, width: box, height: box, alignItems: 'center', justifyContent: 'center' }, style]}>{children}</Reanimated.View>;
+}
+
+/** Fortuna's live preview on its slice: a gold star twinkling, as on the theme. */
+function Twinkle({ size, still }: { size: number; still: boolean }) {
+  const t = useSharedValue(0);
+  useEffect(() => {
+    if (still) return;
+    t.value = withRepeat(withTiming(1, { duration: 2400, easing: REasing.inOut(REasing.sin) }), -1, false);
+    return () => cancelAnimation(t);
+  }, [still]);
+  const style = useAnimatedStyle(() => {
+    const p = Math.sin(Math.PI * t.value);
+    return { opacity: 1 - 0.3 * p, transform: [{ scale: 1 + 0.35 * p }, { rotate: `${45 * p}deg` }] };
+  });
+  return (
+    <Reanimated.View style={style}>
+      <Svg width={size} height={size} viewBox="0 0 24 24">
+        <Path d="M12 0l2.6 9.4L24 12l-9.4 2.6L12 24l-2.6-9.4L0 12l9.4-2.6z" fill={FORTUNA_INK} />
+      </Svg>
+    </Reanimated.View>
+  );
+}
+
+/** The fixed outer ring round the disc. */
+function Rim({ size }: { size: number }) {
+  return (
+    <View style={{ position: 'absolute', width: size, height: size, borderRadius: size / 2, boxShadow: '0px 14px 40px rgba(0,0,0,0.5)' }} pointerEvents="none">
       <Svg width={size} height={size} viewBox="0 0 320 320">
-        <Circle cx={C} cy={C} r={159} fill="#1f1530" stroke={GOLD.deep} strokeWidth={2} />
-        <Circle cx={C} cy={C} r={154.75} fill="none" stroke={GOLD.mid} strokeWidth={1.5} />
-        <Circle cx={C} cy={C} r={FACE + 1.5} fill="none" stroke={GOLD.mid} strokeWidth={1.5} />
-        {Array.from({ length: BULBS }, (_, i) => {
-          const [x, y] = point((i / BULBS) * 360, 146);
-          const lit = !spinning || (i + phase) % 2 === 0;
-          return (
-            <G key={i}>
-              {lit && <Circle cx={x} cy={y} r={6} fill={GOLD.bright} opacity={0.3} />}
-              <Circle cx={x} cy={y} r={3.2} fill={lit ? GOLD.light : GOLD.deep} opacity={lit ? 1 : 0.6} />
-            </G>
-          );
-        })}
+        <Circle cx={C} cy={C} r={159.5} fill="#3a4262" />
+        <Circle cx={C} cy={C} r={158.5} fill="#262c40" />
       </Svg>
     </View>
   );
 }
 
-/** The 64 px gold coin at the centre, with an italic S. Tapping it spins. */
-function HubCoin({ size }: { size: number }) {
+/** The 64 px brand-gradient hub that says SPIN. Tapping it spins. */
+function Hub({ size }: { size: number }) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 64 64">
-      <Defs>
-        <LinearGradient id="hubCoin" x1="0" y1="0" x2="1" y2="1">
-          <Stop offset="0" stopColor={GOLD.light} />
-          <Stop offset="0.45" stopColor={GOLD.mid} />
-          <Stop offset="0.75" stopColor={GOLD.deep} />
-          <Stop offset="1" stopColor={GOLD.bright} />
-        </LinearGradient>
-      </Defs>
-      <Circle cx={32} cy={32} r={31} fill="url(#hubCoin)" stroke={KEYLINE} strokeWidth={2} />
-      <Circle cx={32} cy={32} r={26.5} fill="none" stroke="#FFFFFF" strokeOpacity={0.4} strokeWidth={1.5} />
-      <SvgText x={32} y={42} fill={GOLD.ink} fontFamily={CINZEL} fontSize={30} textAnchor="middle" transform="skewX(-12) translate(8 0)">
-        S
-      </SvgText>
-    </Svg>
+    <View style={[{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center' }, fill(BRAND, 135)]}>
+      <Text style={{ color: '#FFFFFF', fontFamily: VIVID_HEAVY, fontSize: 14 * (size / 64), letterSpacing: 0.8 }}>SPIN</Text>
+    </View>
   );
 }
 
-/** The gold teardrop pointer at the top, with a dark star. */
+/** The white pin at the top. */
 function Pointer({ scale }: { scale: number }) {
   return (
-    <Svg width={34 * scale} height={44 * scale} viewBox="0 0 34 44">
-      <Defs>
-        <LinearGradient id="pointer" x1="0" y1="0" x2="1" y2="1">
-          <Stop offset="0" stopColor={GOLD.light} />
-          <Stop offset="0.55" stopColor={GOLD.mid} />
-          <Stop offset="1" stopColor={GOLD.deep} />
-        </LinearGradient>
-      </Defs>
-      <Path d="M17 42C11 33 3 25 3 16a14 14 0 1 1 28 0c0 9-8 17-14 26z" fill="url(#pointer)" stroke={KEYLINE} strokeWidth={2} strokeLinejoin="round" />
-      <Path d="M17 9l1.6 5.4L24 16l-5.4 1.6L17 23l-1.6-5.4L10 16l5.4-1.6z" fill={GOLD.ink} />
+    <Svg width={28 * scale} height={34 * scale} viewBox="0 0 28 34">
+      <Path d="M14 33 2.6 10.6A12 12 0 1 1 25.4 10.6z" fill="#000000" opacity={0.35} transform="translate(0 1.5)" />
+      <Path d="M14 33 2.6 10.6A12 12 0 1 1 25.4 10.6z" fill="#FFFFFF" />
+      <Circle cx={14} cy={11} r={4} fill="#12151f" />
     </Svg>
   );
 }

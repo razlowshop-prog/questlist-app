@@ -8,7 +8,7 @@ import { adFreeActive, doubleXpActive, restOffer, TOKEN_INFO, tokenCounts } from
 import { XP_PER_TICKET } from '../wheel';
 import { CelebrationGrid, ThemeGrid } from '../components/LooksPickers';
 import { Sheet } from '../components/Sheet';
-import { BRAND_FILL_SMALL, BRAND_INK, BRAND_TEXT_SHADOW, CountBadge, Sticker, VIVID_HEAVY } from '../components/Vivid';
+import { brandFillSmall, brandInk, brandTextShadow, CountBadge, Sticker, VIVID_HEAVY } from '../components/Vivid';
 import type { GlyphName } from '../glyphs';
 import { brandLine, RARITY, TOKEN_LOOKS, type Grad } from '../vivid';
 
@@ -234,7 +234,7 @@ function Slot({ stack, onPress }: { stack: BagStack; onPress: () => void }) {
   const c = useTheme();
   const full = stack.count >= STACK_SIZE;
   return (
-    <Pressable onPress={onPress} style={[s.slot, full && { borderColor: brandLine(c.dark) }]} accessibilityRole="button" accessibilityLabel={`${ITEM_INFO[stack.item].name}, ${stack.count}`}>
+    <Pressable onPress={onPress} style={[s.slot, full && { borderColor: brandLine(c) }]} accessibilityRole="button" accessibilityLabel={`${ITEM_INFO[stack.item].name}, ${stack.count}`}>
       <Sticker {...itemLook(stack.item)} size={28} flat />
       <Text style={s.slotName} numberOfLines={1} adjustsFontSizeToFit>
         {SHORT_NAME[stack.item]}
@@ -275,13 +275,13 @@ const makeStyles = themed((c) => ({
   // Same switch as Awards / Stats on the profile.
   segment: { flexDirection: 'row', gap: 4, padding: 4, borderRadius: c.radius + 6, backgroundColor: c.surface, marginTop: 4, marginBottom: 6 },
   segmentItem: { flex: 1, minHeight: 38, alignItems: 'center', justifyContent: 'center', borderRadius: c.radius + 2 },
-  segmentActive: { ...BRAND_FILL_SMALL },
+  segmentActive: { ...brandFillSmall(c) },
   segmentText: { color: c.muted, fontWeight: '700', fontSize: 14 },
-  segmentTextActive: { color: BRAND_INK, fontFamily: VIVID_HEAVY, ...BRAND_TEXT_SHADOW },
+  segmentTextActive: { color: brandInk(c), fontFamily: VIVID_HEAVY, ...brandTextShadow(c) },
   segmentBadge: { position: 'absolute', top: -6, right: 10 },
   linkText: { color: c.accent, fontSize: 14, fontWeight: '700' },
   detail: { alignItems: 'center', gap: 8, paddingVertical: 6 },
   detailCount: { color: c.text, fontFamily: VIVID_HEAVY, fontSize: 22, fontVariant: ['tabular-nums'] },
-  use: { ...BRAND_FILL_SMALL, borderRadius: 14, paddingHorizontal: 18, minHeight: 44, justifyContent: 'center', marginTop: 6 },
-  useText: { color: BRAND_INK, fontFamily: VIVID_HEAVY, fontSize: 15, ...BRAND_TEXT_SHADOW },
+  use: { ...brandFillSmall(c), borderRadius: 14, paddingHorizontal: 18, minHeight: 44, justifyContent: 'center', marginTop: 6 },
+  useText: { color: brandInk(c), fontFamily: VIVID_HEAVY, fontSize: 15, ...brandTextShadow(c) },
 }));

@@ -1,6 +1,6 @@
 import { Pressable, Text } from 'react-native';
 import { useStyles, type Palette } from '../theme';
-import { BRAND_FILL_SMALL, BRAND_INK, VIVID_HEAVY, BRAND_TEXT_SHADOW } from './Vivid';
+import { brandFillSmall, brandInk, brandTextShadow, VIVID_HEAVY } from './Vivid';
 
 export function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
   const s = useStyles(makeStyles);
@@ -25,7 +25,7 @@ const makeStyles = (c: Palette) => ({
     borderColor: c.border,
   },
   // Selected chips wear the gold gradient on every theme (vivid spec).
-  active: { ...BRAND_FILL_SMALL, borderColor: 'transparent' },
+  active: { ...brandFillSmall(c), borderColor: 'transparent' },
   text: { color: c.muted, fontSize: 13, fontWeight: '600' as const },
-  textActive: { color: BRAND_INK, fontFamily: VIVID_HEAVY, ...BRAND_TEXT_SHADOW },
+  textActive: { color: brandInk(c), fontFamily: VIVID_HEAVY, ...brandTextShadow(c) },
 });

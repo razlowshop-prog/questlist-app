@@ -1,4 +1,4 @@
-import { View } from 'react-native';
+import { View, type ViewStyle } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, type SharedValue } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Path, RadialGradient, Stop } from 'react-native-svg';
 import type { BarDecor as DecorKind } from '../../themeFx';
@@ -20,6 +20,8 @@ export function BarDecor({ kind, width, height, live }: { kind: DecorKind; width
       return <Arcs width={width} height={height} />;
     case 'coals':
       return <Coals width={width} height={height} />;
+    case 'sheen':
+      return <Sheen width={width} height={height} />;
   }
 }
 
@@ -126,5 +128,21 @@ function Coals({ width, height }: { width: number; height: number }) {
         ))}
       </Svg>
     </Animated.View>
+  );
+}
+
+/** Gold: a white sheen sweeping over the gold fill every 4.5 s (the bar clips it to the fill). */
+function Sheen({ width, height }: { width: number; height: number }) {
+  const on = useLoopsOn();
+  const t = useLoop(4500, on, { restart: true, easing: Easing.inOut(Easing.ease) });
+  const band = width * 0.35;
+  const style = useAnimatedStyle(() => {
+    const p = Math.max(0, (t.value - 0.6) / 0.4);
+    return { opacity: t.value > 0.6 ? 1 : 0, transform: [{ translateX: -band + (width + band) * p }] };
+  });
+  return (
+    <View style={{ width, height, overflow: 'hidden' }}>
+      <Animated.View style={[{ position: 'absolute', top: 0, bottom: 0, width: band, backgroundImage: 'linear-gradient(100deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.85) 50%, rgba(255,255,255,0) 100%)' } as ViewStyle, style]} />
+    </View>
   );
 }

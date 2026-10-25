@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { StyleSheet, View, type ViewStyle } from 'react-native';
 import Animated, { Easing, useAnimatedStyle } from 'react-native-reanimated';
-import Svg, { ClipPath, Defs, G, Line, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
+import Svg, { G, Path, Rect } from 'react-native-svg';
 import type { AmbientKind } from '../../themeFx';
+import { BLINK_GROUPS, skyline, SKYLINE_HEIGHT, WINDOW_H, WINDOW_W, type Window as SkylineWindow } from '../../skyline';
 import { keyframes, LEAF, seeded, stepframes, useLoop, useLoopsOn } from './hooks';
 
 // The theme's background layer: a few slow particles behind everything,
@@ -26,8 +27,10 @@ function Layer({ kind, w, h }: { kind: AmbientKind; w: number; h: number }) {
       return <Leaves w={w} h={h} />;
     case 'sea':
       return <Sea w={w} h={h} />;
-    case 'synth':
-      return <Synth w={w} h={h} />;
+    case 'skyline':
+      return <Skyline w={w} />;
+    case 'noir':
+      return <Noir w={w} h={h} />;
     case 'floor':
       return <Floor />;
     case 'dusk':
@@ -214,93 +217,40 @@ function Bubble({ x, size, duration, delay, h }: { x: number; size: number; dura
   );
 }
 
-const GRID = 34;
-
-/** Neon: a synthwave sunset, a glowing grid floor rolling towards you, and neon rain. */
-function Synth({ w, h }: { w: number; h: number }) {
-  const drops = useMemo(
-    () =>
-      Array.from({ length: 7 }, (_, i) => ({
-        x: Math.round(seeded(i, 16) * (w - 4)),
-        len: 48 + Math.round(seeded(i, 17) * 40),
-        duration: 1500 + Math.round(seeded(i, 18) * 1000),
-        delay: Math.round(seeded(i, 19) * 2500),
-      })),
-    [w],
-  );
+/** Neon: a dark city skyline along the bottom with a soft magenta glow; now and then a window blinks. */
+function Skyline({ w }: { w: number }) {
+  const { towers, windows } = useMemo(() => skyline(w), [w]);
   return (
     <>
-      <SynthSun left={w / 2 - 80} />
-      <GridFloor w={w} />
-      {drops.map((d, i) => (
-        <Drop key={i} {...d} h={h} />
+      <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 230, backgroundImage: 'linear-gradient(0deg, rgba(255,43,214,0.10), rgba(255,43,214,0))' } as ViewStyle} />
+      <Svg width={w} height={SKYLINE_HEIGHT} style={{ position: 'absolute', left: 0, bottom: 0 }}>
+        {towers.map((t, i) => (
+          <G key={i}>
+            <Rect x={t.x} y={SKYLINE_HEIGHT - t.height} width={t.width} height={t.height} fill="#170a2a" />
+            {t.antenna && <Rect x={t.x + t.width / 2 - 1} y={SKYLINE_HEIGHT - t.height - 10} width={2} height={10} fill="#170a2a" />}
+          </G>
+        ))}
+        <Rect x={0} y={SKYLINE_HEIGHT - 6} width={w} height={6} fill="#0c0518" />
+      </Svg>
+      {Array.from({ length: BLINK_GROUPS }, (_, g) => (
+        <WindowGroup key={g} group={g} w={w} windows={windows.filter((win) => win.group === g)} />
       ))}
     </>
   );
 }
 
-/** A half sun cut into stripes, low over the grid. */
-function SynthSun({ left }: { left: number }) {
-  // 10 px bands with 3 px gaps, as the board's stripe mask.
-  const bands = Array.from({ length: 7 }, (_, i) => i * 13);
+/** One group of lit windows: on, then off for a blink, at its own moment of a 9 s loop. */
+function WindowGroup({ group, w, windows }: { group: number; w: number; windows: SkylineWindow[] }) {
+  const t = useLoop(9000, true, { delay: group * 2300, restart: true, easing: Easing.linear });
+  const style = useAnimatedStyle(() => ({ opacity: t.value > 0.7 && t.value < 0.72 ? 0.15 : 0.9 }));
   return (
-    <Svg width={160} height={80} style={{ position: 'absolute', left, bottom: 68, opacity: 0.55 }}>
-      <Defs>
-        <LinearGradient id="sun" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor="#ffb347" />
-          <Stop offset="0.7" stopColor="#ff2bd6" />
-        </LinearGradient>
-        <ClipPath id="sunDisc">
-          <Path d="M0 80A80 80 0 0 1 160 80z" />
-        </ClipPath>
-      </Defs>
-      <G clipPath="url(#sunDisc)">
-        {bands.map((y) => (
-          <Rect key={y} x={0} y={y} width={160} height={10} fill="url(#sun)" />
+    <Animated.View style={[{ position: 'absolute', left: 0, bottom: 0, width: w, height: SKYLINE_HEIGHT }, style]}>
+      <Svg width={w} height={SKYLINE_HEIGHT}>
+        {windows.map((win, i) => (
+          <Rect key={i} x={win.x} y={win.y} width={WINDOW_W} height={WINDOW_H} fill={win.color} />
         ))}
-      </G>
-    </Svg>
-  );
-}
-
-/** The grid laid flat in perspective, its lines rolling forward. */
-function GridFloor({ w }: { w: number }) {
-  const t = useLoop(1600, true, { restart: true, easing: Easing.linear });
-  const width = w * 2;
-  const height = 150;
-  const roll = useAnimatedStyle(() => ({ transform: [{ translateY: GRID * t.value }] }));
-  const rows = Array.from({ length: Math.ceil(height / GRID) + 2 }, (_, i) => (i - 1) * GRID);
-  const cols = Array.from({ length: Math.ceil(width / GRID) + 1 }, (_, i) => i * GRID);
-  return (
-    <View style={{ position: 'absolute', left: -w / 2, width, bottom: 0, height, overflow: 'hidden' }}>
-      <View style={[StyleSheet.absoluteFill, { opacity: 0.35, transform: [{ perspective: 220 }, { rotateX: '62deg' }], transformOrigin: '50% 100%' } as ViewStyle]}>
-        <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
-          {cols.map((x) => (
-            <Line key={x} x1={x} y1={0} x2={x} y2={height} stroke="#ff2bd6" strokeWidth={1.5} />
-          ))}
-        </Svg>
-        <Animated.View style={[StyleSheet.absoluteFill, roll]}>
-          <Svg width={width} height={height + 2 * GRID} style={{ position: 'absolute', top: -GRID }}>
-            {rows.map((y) => (
-              <Line key={y} x1={0} y1={y + GRID} x2={width} y2={y + GRID} stroke="#ff2bd6" strokeWidth={1.5} />
-            ))}
-          </Svg>
-        </Animated.View>
-      </View>
-      {/* Fades the far end of the grid into the night. */}
-      <View style={[StyleSheet.absoluteFill, { backgroundImage: 'linear-gradient(180deg, #0a0614 0%, rgba(10,6,20,0) 55%)' } as ViewStyle]} />
-    </View>
-  );
-}
-
-function Drop({ x, len, duration, delay, h }: { x: number; len: number; duration: number; delay: number; h: number }) {
-  const t = useLoop(duration, true, { delay, restart: true, easing: Easing.linear });
-  const fall = h + 120;
-  const style = useAnimatedStyle(() => ({ transform: [{ translateY: fall * t.value }] }));
-  return (
-    <Animated.View
-      style={[{ position: 'absolute', left: x, top: -100, width: 1, height: len, backgroundColor: 'rgba(34,232,255,0.5)', backgroundImage: 'linear-gradient(180deg, rgba(34,232,255,0), #22e8ff)' } as ViewStyle, style]}
-    />
+      </Svg>
+    </Animated.View>
   );
 }
 
@@ -454,6 +404,42 @@ function ShootingStar({ w }: { w: number }) {
   return (
     <Animated.View
       style={[{ position: 'absolute', left: w - 90, top: 60, width: 90, height: 2, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.6)', backgroundImage: 'linear-gradient(90deg, #fff, rgba(255,255,255,0))' } as ViewStyle, style]}
+    />
+  );
+}
+
+/** Gold: a thin double gold frame round the screen and a few gold motes fading in and out as they drift. */
+function Noir({ w, h }: { w: number; h: number }) {
+  const motes = useMemo(
+    () =>
+      Array.from({ length: 12 }, (_, i) => ({
+        x: Math.round(seeded(i, 40) * (w - 6)),
+        y: Math.round(seeded(i, 41) * (h - 60)) + 30,
+        size: seeded(i, 42) < 0.25 ? 3 : 2,
+        duration: 9000 + Math.round(seeded(i, 43) * 7000),
+        delay: Math.round(seeded(i, 44) * 9000),
+      })),
+    [w, h],
+  );
+  return (
+    <>
+      <Svg width={w} height={h} style={{ position: 'absolute', left: 0, top: 0, opacity: 0.18 }}>
+        <Rect x={20} y={20} width={w - 40} height={h - 40} fill="none" stroke="#e8c66c" strokeWidth={0.8} />
+        <Rect x={28} y={28} width={w - 56} height={h - 56} fill="none" stroke="#e8c66c" strokeWidth={0.4} />
+      </Svg>
+      {motes.map((m, i) => (
+        <Mote key={i} {...m} />
+      ))}
+    </>
+  );
+}
+
+function Mote({ x, y, size, duration, delay }: { x: number; y: number; size: number; duration: number; delay: number }) {
+  const t = useLoop(duration, true, { delay });
+  const style = useAnimatedStyle(() => ({ opacity: 0.8 * t.value, transform: [{ translateX: 14 * t.value }, { translateY: -40 * t.value }] }));
+  return (
+    <Animated.View
+      style={[{ position: 'absolute', left: x, top: y, width: size, height: size, borderRadius: size / 2, backgroundColor: '#f7dc8a', boxShadow: '0px 0px 6px #e8c66c' } as ViewStyle, style]}
     />
   );
 }

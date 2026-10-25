@@ -1,7 +1,7 @@
 import { Pressable, Text, View } from 'react-native';
 import { TIER_NAMES, type AchievementStatus, type Reward } from '../achievements';
 import { card, themed, useStyles, FONTS, headingCase } from '../theme';
-import { fill, BRAND_FILL_SMALL, BRAND_INK, GradientText, Sticker, StickerHeading, VIVID_HEAVY, BRAND_TEXT_SHADOW } from './Vivid';
+import { brandFillSmall, brandInk, brandTextShadow, fill, GradientText, Sticker, StickerHeading, VIVID_HEAVY } from './Vivid';
 import { achievementTierLook, brandGlow, brandLine, ICON_GLYPHS, RARITY } from '../vivid';
 
 /**
@@ -122,13 +122,13 @@ const makeStyles = themed((c) => ({
   subHeading: { fontSize: 19, lineHeight: 24, marginTop: 22 },
   sub: { color: c.muted, fontSize: 14, marginTop: 4, marginBottom: 16 },
   card: { ...card(c), padding: 14, marginBottom: 10, gap: 10 },
-  cardClaimable: { borderWidth: 1.5, borderColor: brandLine(c.dark), boxShadow: `0px 0px 16px ${brandGlow(0.3)}` },
+  cardClaimable: { borderWidth: 1.5, borderColor: brandLine(c), boxShadow: `0px 0px 16px ${brandGlow(0.3)}` },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   title: { color: c.text, fontSize: 16, fontWeight: '700' },
   desc: { color: c.muted, fontSize: 13, marginTop: 2 },
   reward: { fontFamily: VIVID_HEAVY, fontSize: 14 },
-  claim: { ...BRAND_FILL_SMALL, paddingHorizontal: 14, minHeight: 38, justifyContent: 'center', borderRadius: 12 },
-  claimText: { color: BRAND_INK, fontFamily: VIVID_HEAVY, fontSize: 13, ...BRAND_TEXT_SHADOW },
+  claim: { ...brandFillSmall(c), paddingHorizontal: 14, minHeight: 38, justifyContent: 'center', borderRadius: 12 },
+  claimText: { color: brandInk(c), fontFamily: VIVID_HEAVY, fontSize: 13, ...brandTextShadow(c) },
   tiers: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
   tierDot: {
     minWidth: 34,
@@ -146,6 +146,6 @@ const makeStyles = themed((c) => ({
   progress: { color: c.muted, fontSize: 12, marginTop: -4 },
   unlock: { color: c.gold, fontSize: 12, fontWeight: '700' },
   rewards: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
-  rewardChip: { ...card(c), borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, borderColor: brandLine(c.dark), borderWidth: 1.5 },
+  rewardChip: { ...card(c), borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, borderColor: brandLine(c), borderWidth: 1.5 },
   rewardChipText: { color: c.text, fontSize: 13, fontWeight: '600' },
 }));

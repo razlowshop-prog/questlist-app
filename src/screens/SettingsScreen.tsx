@@ -1,7 +1,7 @@
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { APP_NAME } from '../brand';
 import { STREAK_REMINDER_HOUR, type Settings } from '../game';
-import { BRAND_FILL_SMALL, BRAND_INK, BRAND_TEXT_SHADOW, VIVID_HEAVY, VividButton, VividSwitch } from '../components/Vivid';
+import { brandFillSmall, brandInk, brandTextShadow, VIVID_HEAVY, VividButton, VividSwitch } from '../components/Vivid';
 import { themed, useStyles, useTheme } from '../theme';
 import { MenuGroup, MenuRow } from './MenuScreen';
 
@@ -98,7 +98,7 @@ const makeStyles = themed((c) => ({
   visibility: { gap: 8, paddingVertical: 12 },
   choices: { flexDirection: 'row', gap: 8 },
   choice: { paddingHorizontal: 14, minHeight: 36, justifyContent: 'center', borderRadius: 999, backgroundColor: c.surfaceAlt },
-  choiceActive: { ...BRAND_FILL_SMALL },
+  choiceActive: { ...brandFillSmall(c) },
   choiceText: { color: c.muted, fontWeight: '700', fontSize: 14 },
-  choiceTextActive: { color: BRAND_INK, fontFamily: VIVID_HEAVY, ...BRAND_TEXT_SHADOW },
+  choiceTextActive: { color: brandInk(c), fontFamily: VIVID_HEAVY, ...brandTextShadow(c) },
 }));

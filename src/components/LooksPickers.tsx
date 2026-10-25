@@ -7,7 +7,7 @@ import { card, THEMES, themeById, themed, useStyles, useTheme } from '../theme';
 import { brandGlow, brandLine, CELEBRATION_GLYPHS, CELEBRATION_LOOKS } from '../vivid';
 import { Fire } from './Fire';
 import { Avatar, ProfileFrame } from './ProfileFrame';
-import { BRAND_FILL_SMALL, BRAND_INK, BRAND_TEXT_SHADOW, CountBadge, Sticker, VIVID_HEAVY } from './Vivid';
+import { brandFillSmall, brandInk, brandTextShadow, CountBadge, Sticker, VIVID_HEAVY } from './Vivid';
 
 // The pickers for every look: theme, profile frame, flame, title and tick
 // celebration. Looks not won yet show where they come from. A look won but not
@@ -253,8 +253,8 @@ const makeStyles = themed((c) => ({
   wrapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   choice: { paddingHorizontal: 13, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: c.border },
   choiceText: { color: c.muted, fontSize: 13, fontWeight: '600' },
-  choiceActive: { ...BRAND_FILL_SMALL, borderColor: 'transparent' },
-  choiceTextActive: { color: BRAND_INK, fontFamily: VIVID_HEAVY, ...BRAND_TEXT_SHADOW },
+  choiceActive: { ...brandFillSmall(c), borderColor: 'transparent' },
+  choiceTextActive: { color: brandInk(c), fontFamily: VIVID_HEAVY, ...brandTextShadow(c) },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   // Three to a row: (100% - 2 gaps of 8) / 3 stays above 31% from phone width up.
   tile: {
@@ -267,7 +267,7 @@ const makeStyles = themed((c) => ({
     borderWidth: 1,
     borderColor: c.border,
   },
-  tileActive: { borderColor: brandLine(c.dark), borderWidth: 1.5, backgroundColor: c.surface, boxShadow: `0px 0px 12px ${brandGlow(0.35)}` },
+  tileActive: { borderColor: brandLine(c), borderWidth: 1.5, backgroundColor: c.surface, boxShadow: `0px 0px 12px ${brandGlow(0.35)}` },
   tilePic: { height: 46, alignItems: 'center', justifyContent: 'center' },
   tileLabel: { color: c.text, fontSize: 11, fontWeight: '600', textAlign: 'center' },
   lockRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
