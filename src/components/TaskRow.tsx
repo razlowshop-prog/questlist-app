@@ -1,4 +1,4 @@
-import { Bell, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { Bell, ChevronDown, ChevronUp, Timer } from 'lucide-react-native';
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, Text, View } from 'react-native';
 import {
@@ -40,6 +40,8 @@ export function TaskRow({
   onToggle,
   onStep,
   onDelete,
+  focusing,
+  onFocus,
 }: {
   /** Position in today's list, shown as 01, 02 … */
   index: number;
@@ -52,6 +54,10 @@ export function TaskRow({
   /** Ticks or unticks a step; `finished` when it was the last one and completed the task. */
   onStep: (step: number) => { xp: number; finished: boolean; note?: string };
   onDelete: () => void;
+  /** The focus timer runs for this task. */
+  focusing?: boolean;
+  /** Opens the focus timer for this task. */
+  onFocus?: () => void;
 }) {
   const s = useStyles(makeStyles);
   const c = useTheme();
@@ -197,6 +203,12 @@ export function TaskRow({
                 {repeatLabel(task)}
                 {weekly}
               </Text>
+              {onFocus && !done && (
+                <Pressable onPress={onFocus} hitSlop={8} style={[s.focus, focusing && s.focusOn]} accessibilityRole="button" accessibilityLabel={focusing ? `Open the focus timer for ${task.title}` : `Start a focus timer for ${task.title}`}>
+                  <Timer size={12} color={focusing ? c.accent : c.muted} strokeWidth={2} aria-hidden />
+                  <Text style={[s.focusText, focusing && { color: c.accent }]}>{focusing ? 'Focusing' : 'Focus'}</Text>
+                </Pressable>
+              )}
               {task.reminder && (
                 <View style={s.reminder} accessibilityLabel={`Reminder at ${task.reminder}`}>
                   <Bell size={12} color={c.faint} strokeWidth={1.5} aria-hidden />
@@ -467,6 +479,9 @@ const makeStyles = themed((c) => ({
   meta: { color: c.faint, fontSize: 13, marginTop: 2 },
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 8 },
   reminder: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
+  focus: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2, paddingHorizontal: 7, paddingVertical: 1, borderRadius: 999, borderWidth: 1, borderColor: c.border },
+  focusOn: { borderColor: brandLine(c.dark) },
+  focusText: { color: c.muted, fontSize: 11, fontWeight: '700' },
   wait: { color: c.flame, fontWeight: '600' },
   xp: { color: brandLine(c.dark), fontFamily: 'Vivid_800ExtraBold', fontSize: 14, fontVariant: ['tabular-nums'] },
   checkWrap: { width: c.check === 'coin' ? 30 : 24, height: c.check === 'coin' ? 30 : 24, alignItems: 'center', justifyContent: 'center' },

@@ -25,6 +25,7 @@ import {
   levelInfo,
   limitMessage,
   profileStats,
+  secondsUntilTickable,
   setName,
   toggleTask,
   totalXp,
@@ -74,6 +75,8 @@ import { GoldDust } from './src/components/Fortuna';
 import { RecoveryModal } from './src/components/RecoveryModal';
 import { FlameStyleContext } from './src/components/Fire';
 import { AvatarDiscContext, AvatarPhotoContext } from './src/components/ProfileFrame';
+import { FocusBar, FocusTimer } from './src/components/FocusTimer';
+import { focusBonus, pauseFocus, resumeFocus, startFocus } from './src/focus';
 import { CelebrationContext } from './src/components/TaskRow';
 import { emblemStatuses } from './src/emblems';
 import { equippedLooks, ownedLooks } from './src/inventory';
@@ -142,6 +145,7 @@ export default function App() {
   // Theme whose fonts are loaded and which is on screen; a newly picked theme
   // shows once its fonts are ready, so text never flashes in a missing font.
   const [shownThemeId, setShownThemeId] = useState<string | null>(null);
+  const [focusOpen, setFocusOpen] = useState(false);
   const [photo, setPhoto] = useState<string>();
 
   // Recomputed on each render so the list rolls over after midnight.
@@ -204,6 +208,8 @@ export default function App() {
   const bagCount = Object.values(tokens).reduce((sum, n) => sum + Math.max(0, n), 0);
   const level = levelInfo(xp);
   const initials = state.profile.name.trim().slice(0, 2).toUpperCase() || '?';
+  // A timer for a task that is gone or already done today no longer shows.
+  const focusTask = state.focus ? state.tasks.find((t) => t.id === state.focus!.taskId && !isDoneToday(state, t, today)) : undefined;
   const wantedTheme = themeById(unlockedThemes.has(state.settings.theme) ? state.settings.theme : 'classic');
   const theme = themeById(shownThemeId ?? wantedTheme.id);
   const c = theme.palette;
@@ -317,9 +323,9 @@ export default function App() {
     showToast(day === today ? 'Rest day: your streak is safe today' : 'Streak saved with a rest day');
   }
 
-  function onToggle(task: Task): { xp: number; note?: string } {
+  function onToggle(task: Task, focusXp = 0): { xp: number; note?: string } {
     const wasDone = isDoneToday(state, task, today);
-    let next = toggleTask(state, task.id, today, Date.now());
+    let next = toggleTask(state, task.id, today, Date.now(), focusXp);
     if (next === state) return { xp: 0 };
     // On the phone, the first finished task asks once whether streak reminders may notify.
     if (!wasDone && REMINDERS_SUPPORTED && !next.settings.askedNotifications && next.settings.streakReminders !== false) {
@@ -334,6 +340,23 @@ export default function App() {
     if (combo.current.count >= 2) setComboShown({ count: combo.current.count, play: now });
     const limited = next.completions[next.completions.length - 1].limited;
     return { xp: gained, note: limited ? limitMessage(limited) : undefined };
+  }
+
+  function onFocus(task: Task) {
+    if (state.focus?.taskId !== task.id) setState({ ...state, focus: startFocus(task.id, Date.now()) });
+    setFocusOpen(true);
+  }
+
+  function finishFocus(task: Task) {
+    const bonus = focusBonus(state.focus, task, Date.now());
+    if (secondsUntilTickable(task, Date.now()) > 0) {
+      showToast('New tasks can be ticked a few seconds after adding');
+      setFocusOpen(false);
+      return;
+    }
+    const { xp: gained, note } = onToggle(task, bonus);
+    setFocusOpen(false);
+    showToast(gained > 0 ? `${task.title} done · +${gained} XP${bonus ? `, with a +${bonus} focus bonus` : ''}` : note ?? `${task.title} done`);
   }
 
   /**
@@ -534,6 +557,9 @@ export default function App() {
                   onToggle={onToggle}
                   onStep={onStep}
                   onDelete={(task) => setState(deleteTask(state, task.id))}
+                  focusingId={focusTask?.id}
+                  onFocus={onFocus}
+                  focusBar={focusTask && state.focus && !focusOpen ? <FocusBar task={focusTask} session={state.focus} onOpen={() => setFocusOpen(true)} /> : undefined}
                 />
               )}
               {!page && tab === 'challenges' && (
@@ -618,6 +644,23 @@ export default function App() {
               <Animated.View style={[styles.toast, toastStyle]} pointerEvents="none">
                 <Text style={styles.toastText}>{toast}</Text>
               </Animated.View>
+            )}
+
+            {focusTask && state.focus && (
+              <FocusTimer
+                task={focusTask}
+                session={state.focus}
+                visible={focusOpen}
+                onPause={() => setState({ ...state, focus: pauseFocus(state.focus!, Date.now()) })}
+                onResume={() => setState({ ...state, focus: resumeFocus(state.focus!, Date.now()) })}
+                onFinish={() => finishFocus(focusTask)}
+                onStop={() => {
+                  const { focus: _stopped, ...rest } = state;
+                  setState(rest);
+                  setFocusOpen(false);
+                }}
+                onHide={() => setFocusOpen(false)}
+              />
             )}
 
             <LevelDetails visible={levelOpen} totalXp={xp} streak={streakInfo} onClose={() => setLevelOpen(false)} />

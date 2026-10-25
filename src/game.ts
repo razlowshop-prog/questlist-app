@@ -1,4 +1,5 @@
 import type { CelebrationId, FlameStyleId } from './cosmetics.ts';
+import type { FocusSession } from './focus.ts';
 import type { IconName } from './icons.ts';
 
 // Pure game rules: XP, levels, ranks and streaks. No React or storage here,
@@ -59,6 +60,8 @@ export interface Completion {
   title?: string;
   /** Set when an anti-cheat rule reduced the XP. */
   limited?: Limit;
+  /** The focus timer bonus, already part of `xp`. */
+  focusXp?: number;
   /** Local hour (0–23) it was ticked, for the daily "before noon" challenges. Missing on older saves. */
   hour?: number;
 }
@@ -126,6 +129,8 @@ export interface GameState {
   wheelSpins?: WheelSpin[];
   /** Steps of long tasks ticked off on the way (see steps.ts). */
   stepTicks?: StepTick[];
+  /** The focus timer that is running, if any (see focus.ts). */
+  focus?: FocusSession;
   /** Daily challenges claimed (see daily.ts). */
   dailyClaims?: DailyClaim[];
   /** Days every task was done, with their small bonus (see moments.ts). */
@@ -637,7 +642,9 @@ export function addTask(
 
 export function deleteTask(state: GameState, taskId: string): GameState {
   // Earned XP stays: deleting a task should not take away levels.
-  return { ...state, tasks: state.tasks.filter((t) => t.id !== taskId) };
+  const next = { ...state, tasks: state.tasks.filter((t) => t.id !== taskId) };
+  if (state.focus?.taskId === taskId) delete next.focus;
+  return next;
 }
 
 /**
@@ -655,7 +662,8 @@ export function secondsUntilTickable(task: Task, now: number): number {
  * `now` (ms) enables the wait after adding: within QUICK_TICK_MS of creation
  * the tick is refused and the state is returned unchanged.
  */
-export function toggleTask(state: GameState, taskId: string, today: string, now?: number): GameState {
+/** `focusXp` is the focus timer bonus, added on top when the task is finished (see focus.ts). */
+export function toggleTask(state: GameState, taskId: string, today: string, now?: number, focusXp = 0): GameState {
   const task = state.tasks.find((t) => t.id === taskId);
   if (!task) return state;
 
@@ -692,13 +700,17 @@ export function toggleTask(state: GameState, taskId: string, today: string, now?
   const completion: Completion = {
     taskId,
     date: today,
-    xp: Math.round(xp),
+    xp: Math.round(xp) + focusXp,
     minutes,
     title: task.title,
   };
   if (limited) completion.limited = limited;
+  if (focusXp) completion.focusXp = focusXp;
   if (now !== undefined) completion.hour = new Date(now).getHours();
-  return { ...state, completions: [...state.completions, completion] };
+  // Finishing the task ends its focus timer.
+  const next = { ...state, completions: [...state.completions, completion] };
+  if (state.focus?.taskId === taskId) delete next.focus;
+  return next;
 }
 
 export function limitMessage(limit: Limit): string {
