@@ -265,7 +265,7 @@ export function SpinScreen({
               <ShimmerBar progress={tickets.progress / XP_PER_TICKET} ghost={tickets.progress / XP_PER_TICKET} />
             </View>
             <Text style={s.copy}>
-              You earn 1 ticket for every {XP_PER_TICKET} XP from finished tasks. Tickets are free and can never be bought.
+              You earn 1 ticket for every {XP_PER_TICKET} XP from tasks, challenges and achievements. Tickets are free and can never be bought.
             </Text>
           </View>
         </HoloBorder>
@@ -317,7 +317,7 @@ export function SpinScreen({
         <Text style={s.section}>How tickets work</Text>
         <View style={s.panel}>
           <Info text={`Every ${XP_PER_TICKET} XP from tasks, weekly challenges and achievements gives one ticket.`} />
-          <Info text="XP won on the wheel counts for your level, but doesn't earn new tickets." />
+          <Info text="XP won on the wheel counts for your level, but doesn’t earn new tickets." />
           <Info text="Tickets are never sold and never come from ads. They only come from what you get done." />
         </View>
 
@@ -401,7 +401,7 @@ function OddsSheet({ ownsTheme, onClose }: { ownsTheme: boolean; onClose: () => 
               All slices look the same, but the chances differ as listed.{' '}
               {ownsTheme
                 ? `You own Fortuna, so its slice now pays a ${JACKPOT.xp} XP jackpot.`
-                : `If you haven't won the Fortuna theme after ${PITY_SPINS} spins, spin ${PITY_SPINS} gives it to you.`}
+                : `If you haven’t won the Fortuna theme after ${PITY_SPINS} spins, spin ${PITY_SPINS} gives it to you.`}
             </Text>
             <GoldAction label="Got it" onPress={onClose} />
           </View>

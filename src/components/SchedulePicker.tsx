@@ -72,7 +72,7 @@ export function scheduleSummary(s: Schedule, title: string, today: string): stri
   else {
     const n = timesOf(s, title);
     const days = daysOf(s, title);
-    when = n >= 7 ? 'Every day' : days.length === n ? days.map((d) => WEEKDAYS[d]).join(', ') : `${n}× a week`;
+    when = n >= 7 ? 'Every day' : days.length === n ? days.map((d) => WEEKDAYS[d]).join(', ') : n === 1 ? 'Once a week' : `${n}× a week`;
   }
   return s.remind ? `${when} · ${reminderTime(s)}` : when;
 }

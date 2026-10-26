@@ -44,9 +44,9 @@ export function ConnectedAppsScreen() {
 }
 
 const FAQ: { q: string; a: string }[] = [
-  { q: 'How do I earn XP?', a: 'Finish tasks. Longer tasks give more XP, and a streak multiplies it.' },
+  { q: 'How do I earn XP?', a: 'Finish tasks. Longer and harder tasks give more XP, and a streak multiplies it.' },
   { q: 'What keeps my streak alive?', a: 'Finishing at least one task a day. A rest day token saves a day you can’t make it.' },
-  { q: 'Where do wheel tickets come from?', a: `Only from XP: one ticket for every ${XP_PER_TICKET} XP from finished tasks. They are never sold. The odds are behind the ? on the Spin tab.` },
+  { q: 'Where do wheel tickets come from?', a: `Only from XP: one ticket for every ${XP_PER_TICKET} XP from tasks, challenges and achievements. They are never sold. The odds are behind the ? on the Spin tab.` },
   { q: 'Is my data shared?', a: 'No. Everything stays on this phone until accounts arrive, and sharing with friends stays off unless you turn it on.' },
 ];
 

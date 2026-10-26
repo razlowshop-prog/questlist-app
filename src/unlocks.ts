@@ -36,7 +36,7 @@ export function unlockFor(look: LockedLook, ctx: UnlockContext): Unlock {
       const odds = WHEEL_PRIZES.find((p) => p.theme)?.odds ?? 1;
       const left = ctx.spinsToPity ?? PITY_SPINS;
       return {
-        how: `Win it on the Spin wheel: the ★ slice, a ${odds}% chance on every spin. If it hasn't come up by then, it's yours on spin ${PITY_SPINS}.`,
+        how: `Win it on the lucky wheel: the ★ slice, a ${odds}% chance on every spin. If it hasn’t come up by then, it’s yours on spin ${PITY_SPINS}.`,
         progress: { value: PITY_SPINS - left, goal: PITY_SPINS, unit: 'spins' },
       };
     }
@@ -50,7 +50,7 @@ export function unlockFor(look: LockedLook, ctx: UnlockContext): Unlock {
       return {
         how: `Win ${TIER_NAMES[tier]} in the ${def.title} award: ${lower(def.description(goal))}.`,
         progress: { value, goal, unit: def.unit },
-        ready: reached ? 'Reached! Claim it under Awards on your Profile to unlock the theme.' : undefined,
+        ready: reached ? 'Reached! Claim it under Awards on your profile to unlock the theme.' : undefined,
       };
     }
     return { how: 'Won with an award.' };

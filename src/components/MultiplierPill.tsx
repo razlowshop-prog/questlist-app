@@ -39,7 +39,7 @@ export function MultiplierPill({ multiplier, size = 'normal' }: { multiplier: Mu
         hitSlop={8}
         style={[s.pill, small && s.pillSmall, !boosted && { opacity: 0.75 }]}
         accessibilityRole="button"
-        accessibilityLabel={`XP multiplier times ${fmtX(multiplier.total)}. Show what it's made of`}
+        accessibilityLabel={`XP multiplier times ${fmtX(multiplier.total)}. Show what it’s made of`}
       >
         <Svg width="100%" height="100%" style={{ position: 'absolute', left: 0, top: 0 }} preserveAspectRatio="none" viewBox="0 0 100 20">
           <Defs>

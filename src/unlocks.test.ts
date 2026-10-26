@@ -22,7 +22,7 @@ function withCompletions(n: number): GameState {
 
 test('a locked theme names its award tier and shows the progress', () => {
   const u = unlockFor({ kind: 'theme', reward: 'Notepad theme' }, ctx(withCompletions(120)));
-  assert.equal(u.how, 'Win Diamond in the Task Master award: complete 250 tasks in total.');
+  assert.equal(u.how, 'Win Diamond in the Task Master award: finish 250 tasks in total.');
   assert.deepEqual(u.progress, { value: 120, goal: 250, unit: 'tasks' });
   assert.equal(u.ready, undefined);
 });
@@ -30,12 +30,12 @@ test('a locked theme names its award tier and shows the progress', () => {
 test('a theme whose tier is reached but not claimed says where to claim it', () => {
   const u = unlockFor({ kind: 'theme', reward: 'Forest theme' }, ctx(withCompletions(130)));
   assert.deepEqual(u.progress, { value: 100, goal: 100, unit: 'tasks' });
-  assert.match(u.ready ?? '', /Claim it under Awards on your Profile/);
+  assert.match(u.ready ?? '', /Claim it under Awards on your profile/);
 });
 
 test('Fortuna is won on the wheel, with the guarantee counting down', () => {
   const u = unlockFor({ kind: 'theme', reward: 'Fortuna theme' }, ctx(emptyState, 3, 140));
-  assert.match(u.how, /Spin wheel.*1% chance.*spin 150/);
+  assert.match(u.how, /lucky wheel.*1% chance.*spin 150/);
   assert.deepEqual(u.progress, { value: 10, goal: 150, unit: 'spins' });
 });
 

@@ -142,7 +142,7 @@ export function SetupScreen({
         {step === 1 && (
           <>
             <Text style={styles.heading}>What do you want to work on?</Text>
-            <Text style={styles.sub}>Pick as many areas as you like. We'll suggest tasks for each.</Text>
+            <Text style={styles.sub}>Pick as many areas as you like. We’ll suggest tasks for each.</Text>
             <View style={styles.grid}>
               {CATEGORIES.map((c) => {
                 const on = goals.includes(c.id);
@@ -167,7 +167,7 @@ export function SetupScreen({
           <>
             <Text style={styles.heading}>Pick your tasks</Text>
             <Text style={styles.sub}>
-              Tap a task to choose its days and a reminder. XP is based on how long each task takes.
+              Tap a task to choose its days and a reminder. XP is based on how long and how hard each task is.
             </Text>
             {goals.map((g) => {
               const cat = categoryOf(g);
@@ -214,7 +214,7 @@ export function SetupScreen({
                 </View>
               );
             })}
-            <Text style={styles.hint}>You can add more anytime from the task library.</Text>
+            <Text style={styles.hint}>You can add more any time from the task library.</Text>
           </>
         )}
       </ScrollView>

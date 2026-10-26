@@ -101,7 +101,7 @@ export const TROPHIES: TrophyDef[] = [
   {
     id: 'polymath',
     name: 'Polymath',
-    description: 'Finish tasks from 12 different categories.',
+    description: 'Finish tasks from 12 different areas.',
     icon: 'Compass',
     rarity: 'rare',
     target: 12,

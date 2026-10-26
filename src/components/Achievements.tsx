@@ -112,7 +112,7 @@ export function Achievements({
           ))}
         </View>
       )}
-      <Text style={[s.sub, { marginTop: 10 }]}>Tokens are in your bag at the top right, where you can also wear your looks.</Text>
+      <Text style={[s.sub, { marginTop: 10 }]}>Tokens, themes, flames and tick celebrations are in your inventory at the top right. Frames and titles are on your profile.</Text>
     </View>
   );
 }

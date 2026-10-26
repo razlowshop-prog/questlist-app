@@ -13,7 +13,7 @@ const GROUPS: { label: string; rows: Row[] }[] = [
   {
     label: 'Social',
     rows: [
-      { page: 'activity', label: 'Activity', sub: 'Your tasks, level ups and rewards', Icon: Bell, grad: ['#FF84DC', '#FF3D9A'] },
+      { page: 'activity', label: 'Activity', sub: 'Your tasks, level-ups and rewards', Icon: Bell, grad: ['#FF84DC', '#FF3D9A'] },
       { page: 'friends', label: 'Friends', sub: 'Arrive with accounts', Icon: Users, grad: ['#7FD6FF', '#3557FF'] },
       { page: 'leaderboard', label: 'Leaderboard', sub: 'Opens with accounts', Icon: Medal, grad: ['#FFE066', '#FF7A00'] },
     ],
@@ -21,7 +21,7 @@ const GROUPS: { label: string; rows: Row[] }[] = [
   {
     label: 'App',
     rows: [
-      { page: 'settings', label: 'Settings', sub: 'Reminders, emails, privacy', Icon: Settings, grad: ['#9AA3BD', '#59607a'] },
+      { page: 'settings', label: 'Settings', sub: 'Reminders, vibration, backup, privacy', Icon: Settings, grad: ['#9AA3BD', '#59607a'] },
       { page: 'apps', label: 'Connected apps', sub: 'Yazio, adidas Running, Health', Icon: Link, grad: ['#7CFFC0', '#12B886'] },
     ],
   },

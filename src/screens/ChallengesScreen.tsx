@@ -60,7 +60,7 @@ export function ChallengesScreen({
       <EventCard season={season} onClaim={onClaimSeason} />
 
       <StickerHeading glyph="Sun" grad={RARITY.rare} style={{ marginTop: 24 }}>
-        <Text style={[s.heading, s.subHeading, { marginTop: 0 }]}>Today's challenges</Text>
+        <Text style={[s.heading, s.subHeading, { marginTop: 0 }]}>Today’s challenges</Text>
       </StickerHeading>
       <Text style={s.sub}>Two new ones every day · reset at midnight</Text>
       {daily.map((ch) => (
@@ -111,10 +111,10 @@ export function ChallengesScreen({
       )}
 
       {/* Friends' challenges need accounts; the card shows where they will be. */}
-      <View style={s.join} accessible accessibilityLabel="Join a friend's challenge. Arrives with friends and accounts">
+      <View style={s.join} accessible accessibilityLabel="Join a friend’s challenge. Arrives with friends and accounts">
         <Plus size={20} color={brandLine(c)} strokeWidth={2} aria-hidden />
         <View style={{ flex: 1 }}>
-          <Text style={s.joinTitle}>Join a friend's challenge</Text>
+          <Text style={s.joinTitle}>Join a friend’s challenge</Text>
           <Text style={s.progress}>Arrives with friends and accounts</Text>
         </View>
       </View>
@@ -122,7 +122,7 @@ export function ChallengesScreen({
       <StickerHeading glyph="DeviceMobile" grad={RARITY.rare} style={{ marginTop: 24 }}>
         <Text style={[s.heading, s.subHeading, { marginTop: 0 }]}>Coming with the phone app</Text>
       </StickerHeading>
-      <Text style={s.sub}>These use your phone's sensors and health data, so they can't run in the browser.</Text>
+      <Text style={s.sub}>These use your phone’s sensors and health data, so they can’t run in the browser.</Text>
       {SENSOR_CHALLENGES.map((def) => (
         <ChallengeCard key={def.id} def={def} progress={0} locked>
           <Text style={[s.reward, { color: c.muted }]}>+{def.rewardXp} XP</Text>

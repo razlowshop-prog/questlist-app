@@ -68,7 +68,7 @@ export function StreakCard({
             </View>
           ))}
         </View>
-        {streak.atRisk && <Text style={s.risk}>Nothing done today yet. One task keeps your streak.</Text>}
+        {streak.atRisk && <Text style={s.risk}>Nothing done yet today. One task keeps your streak going.</Text>}
         {streak.days === 0 && <Text style={s.note}>Finish a task today to light your streak.</Text>}
         {/* Flame lights the moment the streak has earned its XP. */}
         {streak.days > 0 && streak.tier === 0 && (
