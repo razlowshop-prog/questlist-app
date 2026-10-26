@@ -102,3 +102,9 @@ test('a claimed or finished challenge can not be swapped', () => {
   });
   for (const c of weeklyChallenges(busy, TODAY).filter((c) => c.complete)) assert.equal(swapChallenge(busy, c.def.id, TODAY), busy);
 });
+
+test('token counts never go below zero', () => {
+  // More rest days used than the ladder now gives (e.g. after a level's token became a look).
+  const s = withLevel(3, { restDays: ['2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04'] });
+  assert.equal(tokenCounts(s).rest, 0);
+});
