@@ -27,6 +27,8 @@ export interface Task {
   reminder?: string;
   /** Library category id, for grouping the day. */
   category?: string;
+  /** The library task it was added from (library.ts ids), so it is hidden there while on the list. */
+  libraryId?: string;
   /**
    * Steps on the way to finishing a long task, each paying a little XP (see
    * steps.ts). Missing = the library's steps for this title, if any; [] = none.
@@ -41,6 +43,7 @@ export interface TaskPlan {
   date?: string;
   reminder?: string;
   category?: string;
+  libraryId?: string;
   steps?: string[];
 }
 
@@ -666,6 +669,7 @@ export function addTask(
   }
   if (plan.reminder && /^([01]\d|2[0-3]):[0-5]\d$/.test(plan.reminder)) task.reminder = plan.reminder;
   if (plan.category) task.category = plan.category;
+  if (plan.libraryId) task.libraryId = plan.libraryId;
   if (plan.steps) task.steps = cleanSteps(plan.steps);
   return { ...state, tasks: [...state.tasks, task] };
 }

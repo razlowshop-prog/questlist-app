@@ -13,16 +13,16 @@ export function perWeekLabel(n: number): string {
 }
 
 /** A library task with a one-tap add button. `picked`: on the list to add, tap again to change it. */
-export function LibraryRow({ task, added, picked, onAdd }: { task: LibraryTask; added: boolean; picked?: boolean; onAdd: () => void }) {
+export function LibraryRow({ task, picked, onAdd }: { task: LibraryTask; picked?: boolean; onAdd: () => void }) {
   const s = useStyles(makeStyles);
   const cat = categoryOf(task.category);
   return (
     <Pressable
-      onPress={added ? undefined : onAdd}
+      onPress={onAdd}
       style={[s.row, picked && s.picked]}
       accessibilityRole="button"
-      accessibilityState={{ selected: !!picked, disabled: added }}
-      accessibilityLabel={`${task.title}, +${xpFor(task.minutes)} XP${added ? ', already in your tasks' : picked ? ', on your list, change' : ''}`}
+      accessibilityState={{ selected: !!picked }}
+      accessibilityLabel={`${task.title}, +${xpFor(task.minutes)} XP${picked ? ', on your list, change' : ''}`}
     >
       <View style={s.iconWrap}>
         {cat && <Sticker grad={categoryLook(cat.id)} glyph={categoryLook(cat.id).glyph} size={32} />}
@@ -30,12 +30,12 @@ export function LibraryRow({ task, added, picked, onAdd }: { task: LibraryTask; 
       <View style={{ flex: 1 }}>
         <Text style={s.title}>{task.title}</Text>
         <Text style={s.meta}>
-          {durationLabel(task.minutes)} · {perWeekLabel(task.perWeek)}
+          {task.measure ? (task.measure === 'steps' ? 'Your own step count' : 'Your own time or distance') : durationLabel(task.minutes)} · {perWeekLabel(task.perWeek)}
         </Text>
       </View>
       <Text style={s.xp}>+{xpFor(task.minutes)} XP</Text>
-      <View style={[s.add, (added || picked) && s.added]}>
-        <Text style={[s.addText, (added || picked) && s.addedText]}>{added || picked ? '✓' : '+'}</Text>
+      <View style={[s.add, picked && s.added]}>
+        <Text style={[s.addText, picked && s.addedText]}>{picked ? '✓' : '+'}</Text>
       </View>
     </Pressable>
   );

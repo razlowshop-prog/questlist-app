@@ -35,6 +35,7 @@ test('a stated time or distance counts within what is believable', () => {
   assert.equal(min('Read 40 pages'), 60);
   assert.equal(min('walk 10 km'), 120);
   assert.equal(min('run 5km'), 30);
+  assert.equal(min('Go for a 10-minute walk'), 10);
   assert.equal(min('run 100 km'), 150);
   assert.equal(min('Study 2 hours'), 120);
   assert.equal(min('Study 1,5 h'), 90);

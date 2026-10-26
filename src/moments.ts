@@ -1,3 +1,4 @@
+import { coveredBy } from './covers.ts';
 import { isDoneToday, restDaysOf, streakStatus, visibleTasks, type GameState } from './game.ts';
 
 // Big moments on Today: a perfect day (every task for today done) and streak
@@ -10,7 +11,7 @@ export const STREAK_MILESTONES = [7, 30, 100, 365];
 
 /**
  * Keeps today's perfect day in step with the tasks: earned when every task
- * shown for today is done (at least PERFECT_DAY_MIN_TASKS), taken back only if
+ * shown for today is done or covered (at least PERFECT_DAY_MIN_TASKS), taken back only if
  * a task is unticked again. Adding a new task later doesn't take it away.
  * `earned` is true when this change made the day perfect.
  */
@@ -18,7 +19,8 @@ export function syncPerfectDay(state: GameState, today: string): { state: GameSt
   const tasks = visibleTasks(state, today);
   const doneCount = state.completions.filter((c) => c.date === today).length;
   const had = state.perfectDays?.find((d) => d.date === today);
-  const allDone = tasks.length >= PERFECT_DAY_MIN_TASKS && tasks.every((t) => isDoneToday(state, t, today));
+  // A task covered by a bigger one that is done counts as done here.
+  const allDone = tasks.length >= PERFECT_DAY_MIN_TASKS && tasks.every((t) => isDoneToday(state, t, today) || coveredBy(state, t, today));
   if (had) {
     if (doneCount >= had.tasks) return { state, earned: false };
     return { state: { ...state, perfectDays: state.perfectDays!.filter((d) => d !== had) }, earned: false };

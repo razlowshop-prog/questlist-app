@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { CATEGORIES, categoryForTitle, guessCategory, LIBRARY, searchLibrary, sortTasks, suggestionsFor, taskCategory } from './library.ts';
 
 test('library is big and every task has a known category', () => {
-  assert.ok(LIBRARY.length >= 200, `only ${LIBRARY.length} tasks`);
+  assert.ok(LIBRARY.length >= 300, `only ${LIBRARY.length} tasks`);
+  for (const c of CATEGORIES) assert.ok(LIBRARY.filter((t) => t.category === c.id).length >= 10, c.id);
   const ids = new Set(CATEGORIES.map((c) => c.id));
   for (const t of LIBRARY) assert.ok(ids.has(t.category), t.title);
 });
@@ -15,7 +16,8 @@ test('no duplicate titles', () => {
 
 test('search ranks title prefix first and also matches tags', () => {
   assert.equal(searchLibrary('dish')[0].title, 'Do the dishes');
-  assert.equal(searchLibrary('walk 5')[0].title, 'Walk 5 km');
+  assert.equal(searchLibrary('walk')[0].title, 'Walk');
+  assert.equal(searchLibrary('jog')[0].title, 'Run');
   assert.ok(searchLibrary('instagram').some((t) => t.title.includes('social media')));
   assert.equal(searchLibrary('zzzzqqq').length, 0);
 });
@@ -46,4 +48,16 @@ test('library sorts by most XP and quickest', () => {
   for (let i = 1; i < quick.length; i++) assert.ok(quick[i - 1].minutes <= quick[i].minutes);
   assert.notEqual(xp, LIBRARY); // a copy, the library itself stays in order
   assert.equal(LIBRARY[0].category, 'home');
+});
+
+test('the focus timer is offered for sit-down tasks only', () => {
+  const focus = LIBRARY.filter((t) => t.focus);
+  assert.ok(focus.length >= 50, `only ${focus.length}`);
+  assert.ok(focus.every((t) => t.minutes >= 5 && !t.measure));
+  const on = (title: string) => LIBRARY.find((t) => t.title === title)!.focus;
+  assert.equal(on('Do the dishes'), false);
+  assert.equal(on('Go to the gym'), false);
+  assert.equal(on('Do your taxes'), true);
+  assert.equal(on('Practise a language for 15 minutes'), true);
+  assert.equal(on('Listen to a podcast'), false);
 });

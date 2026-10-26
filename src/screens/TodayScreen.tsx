@@ -31,7 +31,11 @@ import {
   weekDots,
   type xpMultiplier,
 } from '../game';
-import { CATEGORIES, FEATURED, guessCategory, librarySteps, OTHER_CATEGORY, searchLibrary, taskCategory, type LibraryTask } from '../library';
+import { CATEGORIES, FEATURED, guessCategory, libraryMatch, librarySteps, OTHER_CATEGORY, searchLibrary, taskCategory, type LibraryTask } from '../library';
+import { DEFAULT_AMOUNTS, measuredTitle, parseMeasured } from '../measure';
+import { focusOffered } from '../focus';
+import { coveredBy } from '../covers';
+import { AmountPicker } from '../components/AmountPicker';
 import { STEP_SHARE, suggestedSteps } from '../steps';
 import { estimateMinutes } from '../estimate';
 import { nonsenseReason } from '../sense';
@@ -50,7 +54,7 @@ export function TodayScreen({
   guide,
   today,
   loaded,
-  addedTitles,
+  owned,
   onAdd,
   onOpenLibrary,
   onToggle,
@@ -79,7 +83,8 @@ export function TodayScreen({
   guide?: React.ReactNode;
   today: string;
   loaded: boolean;
-  addedTitles: Set<string>;
+  /** Library tasks already on the list (library ids), left out of the suggestions. */
+  owned: Set<string>;
   onAdd: (title: string, repeat: Repeat, minutes: number, plan: TaskPlan) => void;
   onOpenLibrary: () => void;
   onToggle: (task: Task) => { xp: number; note?: string };
@@ -129,11 +134,17 @@ export function TodayScreen({
   const quote = quoteOfTheDay(today);
   const typed = title.trim();
   const suggestions = useMemo(
-    () => (typed.length >= 2 ? searchLibrary(typed, 4).filter((t) => t.title.toLowerCase() !== typed.toLowerCase()) : []),
-    [typed],
+    () => (typed.length >= 2 ? searchLibrary(typed, 12).filter((t) => t.title.toLowerCase() !== typed.toLowerCase() && !owned.has(t.id)).slice(0, 4) : []),
+    [typed, owned],
   );
   // Common tasks to start from while the field is empty.
-  const quick = useMemo(() => FEATURED.filter((t) => !addedTitles.has(t.title)).slice(0, 10), [addedTitles]);
+  const quick = useMemo(() => FEATURED.filter((t) => !owned.has(t.id)).slice(0, 10), [owned]);
+  // Walk, Run and Steps: the amount is part of the title, set with the picker
+  // ("Walk" on its own starts at half an hour).
+  const bare = libraryMatch(typed);
+  const measured = parseMeasured(typed) ?? (bare?.measure && bare.title.toLowerCase() === typed.toLowerCase() ? { measure: bare.measure, amount: DEFAULT_AMOUNTS[bare.measure] } : undefined);
+  /** The title it is saved under: "Walk 30 min" for a bare "Walk". */
+  const finalTitle = measured ? measuredTitle(measured.measure, measured.amount) : typed;
   const chosenCategory = category ?? guessCategory(typed) ?? OTHER_CATEGORY;
   // The planned day can't be left behind after midnight.
   const shownSchedule = schedule.date < today ? { ...schedule, date: today } : schedule;
@@ -145,7 +156,7 @@ export function TodayScreen({
   // Keyboard mash earns nothing: the title has to be made of words.
   const nonsense = typed ? nonsenseReason(typed) : undefined;
   const canAdd = typed.length > 0 && chosenMinutes > 0 && !problem && !nonsense;
-  const suggested = useMemo(() => suggestedSteps(typed, chosenMinutes), [typed, chosenMinutes]);
+  const suggested = useMemo(() => suggestedSteps(finalTitle, chosenMinutes), [finalTitle, chosenMinutes]);
   const shownSteps = stepDraft ?? suggested;
   // Steps are offered for longer tasks, or whenever some are already there.
   const offerSteps = typed.length > 0 && (shownSteps.length > 0 || chosenMinutes >= 30);
@@ -160,7 +171,7 @@ export function TodayScreen({
 
   /** Fills the form from a library task so its days and frequency can be picked before adding. */
   function prefill(t: LibraryTask) {
-    setTitle(t.title);
+    setTitle(t.measure ? measuredTitle(t.measure, DEFAULT_AMOUNTS[t.measure]) : t.title);
     setSchedule({ ...defaultSchedule(today), repeat: t.perWeek > 0, perWeek: t.perWeek > 0 ? t.perWeek : 3 });
     setCategory(t.category);
     setStepDraft(undefined);
@@ -176,10 +187,11 @@ export function TodayScreen({
 
   function add() {
     if (!canAdd) return;
-    const { repeat, plan } = scheduleToTask(shownSchedule, typed, today);
+    const { repeat, plan } = scheduleToTask(shownSchedule, finalTitle, today);
     // Library steps follow the library; anything else is saved with the task.
-    const steps = stepDraft ?? (librarySteps(typed) || !suggested.length ? undefined : suggested);
-    onAdd(typed, repeat, chosenMinutes, { ...plan, category: chosenCategory, ...(steps && { steps }) });
+    const steps = stepDraft ?? (librarySteps(finalTitle) || !suggested.length ? undefined : suggested);
+    const libraryId = bare?.id;
+    onAdd(finalTitle, repeat, chosenMinutes, { ...plan, category: chosenCategory, ...(steps && { steps }), ...(libraryId && { libraryId }) });
     reset();
     onCloseAdd();
   }
@@ -198,7 +210,10 @@ export function TodayScreen({
   // A ticked task plays its theme's finish animation, then leaves the list for "Done today".
   const [leaving, setLeaving] = useState<Set<string>>(() => new Set());
   const [showDone, setShowDone] = useState(false);
-  const openTasks = sorted.filter((t) => !isDoneToday(state, t, today) || leaving.has(t.id));
+  // Tasks covered by a bigger one that is done sink to the end of the open list.
+  const openTasks = sorted
+    .filter((t) => !isDoneToday(state, t, today) || leaving.has(t.id))
+    .sort((x, y) => Number(!!coveredBy(state, x, today)) - Number(!!coveredBy(state, y, today)));
   const doneTasks = sorted.filter((t) => isDoneToday(state, t, today) && !leaving.has(t.id));
   const leave = (id: string) => setLeaving((l) => new Set(l).add(id));
   const left = (id: string) =>
@@ -231,8 +246,10 @@ export function TodayScreen({
           return result;
         }}
         onDelete={() => setRemoving(item)}
+        coveredBy={coveredBy(state, item, today)?.title}
         focusing={focusingId === item.id}
-        onFocus={() => onFocus(item)}
+        // Only where a timer fits; a timer already running stays reachable.
+        onFocus={focusOffered(item) || focusingId === item.id ? () => onFocus(item) : undefined}
       />
     );
   }
@@ -394,7 +411,7 @@ export function TodayScreen({
                 <Text style={s.small}>Suggestions</Text>
                 <View style={{ marginTop: 8 }}>
                   {suggestions.map((t) => (
-                    <LibraryRow key={t.title} task={t} added={addedTitles.has(t.title)} onAdd={() => prefill(t)} />
+                    <LibraryRow key={t.id} task={t} onAdd={() => prefill(t)} />
                   ))}
                 </View>
               </View>
@@ -417,6 +434,16 @@ export function TodayScreen({
                     </Text>
                     <Text style={s.estimateNote}>{estimate.source === 'default' ? 'standard time' : 'estimated from the title'}</Text>
                   </View>
+                )}
+                {measured && (
+                  <AmountPicker
+                    measure={measured.measure}
+                    value={measured.amount}
+                    onChange={(amount) => {
+                      setTitle(measuredTitle(measured.measure, amount));
+                      setStepDraft(undefined);
+                    }}
+                  />
                 )}
                 <SchedulePicker value={shownSchedule} onChange={setSchedule} title={typed} today={today} />
                 {offerSteps && (

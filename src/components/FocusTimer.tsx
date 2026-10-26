@@ -3,10 +3,11 @@ import { useEffect, useState } from 'react';
 import { Modal, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
-import { clockLabel, focusElapsed, focusGoalMinutes, FOCUS_BONUS_XP, type FocusSession } from '../focus';
+import { clockLabel, focusBonusFor, focusElapsed, focusGoalMinutes, MAX_FOCUS_MINUTES, MIN_FOCUS_MINUTES, type FocusSession } from '../focus';
 import type { Task } from '../game';
 import { card, eyebrow, FONTS, headingCase, themed, useStyles, useTheme } from '../theme';
 import { BRAND, brandLine } from '../vivid';
+import { Stepper } from './Stepper';
 import { brandFill, brandInk, brandTextShadow, useSvgId, VIVID_HEAVY } from './Vivid';
 
 const RING = 240;
@@ -25,9 +26,10 @@ function useNow(running: boolean): number {
 }
 
 /**
- * The focus timer, full screen: a ring that fills over the task's time, the
- * time left, and Finish. Finishing after the time is up adds the focus bonus.
- * Hide keeps it running; a bar on Today brings it back.
+ * The focus timer, full screen: a ring that fills over the set time, the time
+ * left, − / + to change the length a minute at a time, and Finish. Finishing
+ * after the time is up adds the focus bonus for that length. Hide keeps it
+ * running; a bar on Today brings it back.
  */
 export function FocusTimer({
   task,
@@ -35,6 +37,7 @@ export function FocusTimer({
   visible,
   onPause,
   onResume,
+  onGoal,
   onFinish,
   onStop,
   onHide,
@@ -44,6 +47,8 @@ export function FocusTimer({
   visible: boolean;
   onPause: () => void;
   onResume: () => void;
+  /** The length was changed with − / +, in minutes. */
+  onGoal: (minutes: number) => void;
   onFinish: () => void;
   onStop: () => void;
   onHide: () => void;
@@ -53,7 +58,9 @@ export function FocusTimer({
   const id = useSvgId('focus');
   const paused = !!session.pausedAt;
   const now = useNow(visible && !paused);
-  const goal = focusGoalMinutes(task) * 60_000;
+  const goalMinutes = focusGoalMinutes(task, session);
+  const goal = goalMinutes * 60_000;
+  const bonus = focusBonusFor(goalMinutes);
   const elapsed = focusElapsed(session, now);
   const reached = elapsed >= goal;
   const progress = Math.min(1, elapsed / goal);
@@ -103,8 +110,16 @@ export function FocusTimer({
             </View>
           </View>
 
+          <Stepper
+            value={goalMinutes}
+            min={MIN_FOCUS_MINUTES}
+            max={MAX_FOCUS_MINUTES}
+            format={(m) => `${m} min`}
+            onChange={onGoal}
+            label="of focus"
+          />
           <Text style={[s.bonus, reached && s.bonusReady]}>
-            {reached ? `Focus bonus ready: +${FOCUS_BONUS_XP} XP when you finish` : `Stay with it until the end for +${FOCUS_BONUS_XP} XP`}
+            {reached ? `Focus bonus ready: +${bonus} XP when you finish` : `Stay with it until the end for +${bonus} XP`}
           </Text>
         </View>
 
@@ -135,7 +150,7 @@ export function FocusBar({ task, session, onOpen }: { task: Task; session: Focus
   const c = useTheme();
   const paused = !!session.pausedAt;
   const now = useNow(!paused);
-  const goal = focusGoalMinutes(task) * 60_000;
+  const goal = focusGoalMinutes(task, session) * 60_000;
   const elapsed = focusElapsed(session, now);
   const left = goal - elapsed;
   return (
@@ -157,7 +172,7 @@ const makeStyles = themed((c) => ({
   middle: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },
   eyebrow: { ...eyebrow(c, 12), color: c.muted },
   title: { fontFamily: FONTS.serif, color: c.text, fontSize: 28, lineHeight: 34, textAlign: 'center', maxWidth: 420, ...headingCase(c) },
-  ringWrap: { width: RING, height: RING, marginVertical: 18, alignItems: 'center', justifyContent: 'center' },
+  ringWrap: { width: RING, height: RING, marginTop: 18, marginBottom: 6, alignItems: 'center', justifyContent: 'center' },
   ringCenter: { position: 'absolute', alignItems: 'center' },
   clock: { fontFamily: VIVID_HEAVY, color: c.text, fontSize: 52, lineHeight: 60, fontVariant: ['tabular-nums'] },
   clockNote: { color: c.muted, fontSize: 14 },

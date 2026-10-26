@@ -60,15 +60,15 @@ import { InventoryScreen } from './src/screens/InventoryScreen';
 import { MenuScreen, type MenuPage } from './src/screens/MenuScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 import { LibraryModal } from './src/screens/LibraryModal';
-import { scheduleToTask } from './src/components/SchedulePicker';
-import { SetupScreen, type SetupPick } from './src/screens/SetupScreen';
+import { SetupScreen } from './src/screens/SetupScreen';
+import { pickToTask, type LibraryPick } from './src/components/PickSheet';
+import { coveredBy, ownedLibraryIds } from './src/covers';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { SpinScreen } from './src/screens/SpinScreen';
 import { TodayScreen } from './src/screens/TodayScreen';
 import { ownsWheelTheme, spinsToPity, spinWheel, ticketStatus, XP_PER_TICKET } from './src/wheel';
 import { tickStep } from './src/steps';
 import { claimDaily, dailyChallenges } from './src/daily';
-import type { LibraryTask } from './src/library';
 import { fontFilesFor, VIVID_FONTS, WHEEL_FONTS } from './src/fonts';
 import { trophyStatuses } from './src/trophies';
 import { withEstimatedTimes } from './src/estimate';
@@ -81,7 +81,7 @@ import { RecoveryModal } from './src/components/RecoveryModal';
 import { FlameStyleContext } from './src/components/Fire';
 import { AvatarDiscContext, AvatarPhotoContext } from './src/components/ProfileFrame';
 import { FocusBar, FocusTimer } from './src/components/FocusTimer';
-import { focusBonus, pauseFocus, resumeFocus, startFocus } from './src/focus';
+import { focusBonus, pauseFocus, resumeFocus, setFocusGoal, startFocus } from './src/focus';
 import { CelebrationContext } from './src/components/TaskRow';
 import { emblemStatuses } from './src/emblems';
 import { equippedLooks, isProfileLook, lookKeys, markLooksSeen, newLooks, ownedLooks, seedProfileLooks } from './src/inventory';
@@ -220,7 +220,8 @@ function Succedo() {
   const trophies = useMemo(() => trophyStatuses(state, today), [state, today]);
   const tokens = tokenCounts(state);
   const awardsToClaim = claimableCount(state, today);
-  const addedTitles = useMemo(() => new Set(state.tasks.map((t) => t.title)), [state.tasks]);
+  /** Library tasks already on the list, left out of the library and suggestions. */
+  const ownedTasks = useMemo(() => ownedLibraryIds(state, today), [state.tasks, state.completions, today]);
   const week = useMemo(() => activitySummary(state, today), [state, today]);
   const rewards = useMemo(() => unlockedRewards(state), [state.achievementClaims, state.levelRewards, state.wheelSpins]);
   const unlockedThemes = useMemo(() => {
@@ -316,15 +317,26 @@ function Succedo() {
   }
   const statusBar = c.dark ? 'light' : 'dark';
 
-  function addFromLibrary(s: GameState, t: LibraryTask, perWeek = t.perWeek): GameState {
-    return addTask(s, t.title, perWeek === 0 ? false : perWeek, undefined, t.minutes);
+  /** Adds library picks (setup, the library) with their days, reminder and amount. */
+  function addPicks(s: GameState, picks: LibraryPick[]): GameState {
+    let next = s;
+    for (const p of picks) {
+      const { title, repeat, minutes, plan } = pickToTask(p, today);
+      next = addTask(next, title, repeat, undefined, minutes, plan);
+    }
+    return next;
   }
 
-  function onSetupDone(name: string, goals: string[], picks: SetupPick[]) {
-    let next = finishSetup(state, name, goals);
-    for (const p of picks) {
-      if (!next.tasks.some((t) => t.title === p.task.title)) next = addFromLibrary(next, p.task, p.perWeek);
-    }
+  function askForReminders(picks: LibraryPick[]) {
+    if (!REMINDERS_SUPPORTED || !picks.some((p) => p.schedule.remind)) return;
+    askReminderPermission().then((ok) => {
+      if (!ok) showToast('Notifications are off. Allow them in your phone settings to get reminders.');
+    });
+  }
+
+  function onSetupDone(name: string, goals: string[], picks: LibraryPick[]) {
+    const next = addPicks(finishSetup(state, name, goals), picks.filter((p) => !ownedTasks.has(p.task.id)));
+    askForReminders(picks);
     setState(next);
     setRedoSetup(false);
     openTab('today');
@@ -413,6 +425,8 @@ function Succedo() {
 
   function onToggle(task: Task, focusXp = 0): { xp: number; note?: string } {
     const wasDone = isDoneToday(state, task, today);
+    // Already part of a bigger task that is done (covers.ts).
+    if (!wasDone && coveredBy(state, task, today)) return { xp: 0 };
     let next = toggleTask(state, task.id, today, Date.now(), focusXp);
     if (next === state) return { xp: 0 };
     // On the phone, the first finished task asks once whether streak reminders may notify.
@@ -443,6 +457,12 @@ function Succedo() {
       setFocusOpen(false);
       return;
     }
+    const cover = coveredBy(state, task, today);
+    if (cover) {
+      showToast(`Already part of “${cover.title}”`);
+      setFocusOpen(false);
+      return;
+    }
     const { xp: gained, note } = onToggle(task, bonus);
     setFocusOpen(false);
     showToast(gained > 0 ? `${task.title} done · +${gained} XP${bonus ? `, with a +${bonus} focus bonus` : ''}` : note ?? `${task.title} done`);
@@ -467,6 +487,7 @@ function Succedo() {
   }
 
   function onStep(task: Task, step: number): { xp: number; finished: boolean; note?: string } {
+    if (coveredBy(state, task, today)) return { xp: 0, finished: false };
     const { state: next, finished } = tickStep(state, task.id, step, today, Date.now());
     if (next === state) return { xp: 0, finished: false };
     const gained = apply(next);
@@ -510,6 +531,8 @@ function Succedo() {
         <SetupScreen
           initialName={state.profile.name}
           initialGoals={state.goals}
+          owned={ownedTasks}
+          today={today}
           onFinish={onSetupDone}
           onSkip={() => {
             setState({ ...state, onboarded: true });
@@ -664,7 +687,7 @@ function Succedo() {
                   }
                   today={today}
                   loaded={loaded}
-                  addedTitles={addedTitles}
+                  owned={ownedTasks}
                   onAdd={(title, repeat, minutes, plan) => {
                     setState(addTask(state, title, repeat, undefined, minutes, plan));
                     if (plan.reminder && REMINDERS_SUPPORTED) {
@@ -767,22 +790,13 @@ function Succedo() {
 
             <LibraryModal
               visible={libraryOpen}
-              addedTitles={addedTitles}
+              owned={ownedTasks}
               today={today}
               onAddMany={(picks) => {
-                let next = state;
-                for (const p of picks) {
-                  const { repeat, plan } = scheduleToTask(p.schedule, p.task.title, today);
-                  next = addTask(next, p.task.title, repeat, undefined, p.task.minutes, { ...plan, category: p.task.category });
-                }
-                setState(next);
+                setState(addPicks(state, picks));
                 setLibraryOpen(false);
                 openTab('today');
-                if (REMINDERS_SUPPORTED && picks.some((p) => p.schedule.remind)) {
-                  askReminderPermission().then((ok) => {
-                    if (!ok) showToast('Notifications are off. Allow them in your phone settings to get reminders.');
-                  });
-                }
+                askForReminders(picks);
                 setTimeout(() => showToast(`${picks.length} ${picks.length === 1 ? 'task' : 'tasks'} added`), 300);
               }}
               onClose={() => setLibraryOpen(false)}
@@ -801,6 +815,7 @@ function Succedo() {
                 visible={focusOpen}
                 onPause={() => setState({ ...state, focus: pauseFocus(state.focus!, Date.now()) })}
                 onResume={() => setState({ ...state, focus: resumeFocus(state.focus!, Date.now()) })}
+                onGoal={(minutes) => setState((s) => (s.focus ? { ...s, focus: setFocusGoal(s.focus, minutes) } : s))}
                 onFinish={() => finishFocus(focusTask)}
                 onStop={() => {
                   const { focus: _stopped, ...rest } = state;
