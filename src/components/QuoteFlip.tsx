@@ -5,12 +5,14 @@ import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, w
 import type { QuoteSide } from '../game';
 import { buzz } from '../haptics';
 import { eyebrow, FONTS, headingCase, themed, useStyles, useTheme, type Palette } from '../theme';
+import { quoted, t } from '../i18n';
 
+/** "morning" for "Good morning"; German "Morgen", "Tag" and "Abend" follow "Guten". */
 function partOfDay(hour: number): string {
-  if (hour < 5) return 'evening';
-  if (hour < 12) return 'morning';
-  if (hour < 18) return 'afternoon';
-  return 'evening';
+  if (hour < 5) return t('evening');
+  if (hour < 12) return t('morning');
+  if (hour < 18) return t('afternoon');
+  return t('evening');
 }
 
 /** Until both sides are measured: about one short quote. */
@@ -71,21 +73,21 @@ export function QuoteFlip({
       accessibilityRole="button"
       accessibilityLabel={
         greet
-          ? `Good ${partOfDay(new Date().getHours())}, ${name}.${summary ? ` ${summary}.` : ''} Double tap to show the quote of the day`
-          : `Quote of the day: ${quote.text}, ${quote.author}. Double tap to show the greeting`
+          ? `${t('Good')} ${partOfDay(new Date().getHours())}, ${name}.${summary ? ` ${summary}.` : ''} ${t('Double tap to show the quote of the day')}`
+          : `${t('Quote of the day: {quote}, {author}.', { quote: quote.text, author: quote.author })} ${t('Double tap to show the greeting')}`
       }
     >
       <Animated.View style={[s.face, frontStyle]} pointerEvents="none">
         <View style={s.content} onLayout={(e) => measure('quote')(e.nativeEvent.layout.height)}>
-          <Text style={s.eyebrow}>Quote of the day</Text>
-          <Text style={[s.quote, quoteSize(c)]}>“{quote.text}”</Text>
+          <Text style={s.eyebrow}>{t('Quote of the day')}</Text>
+          <Text style={[s.quote, quoteSize(c)]}>{quoted(quote.text)}</Text>
           <Text style={s.author}>— {quote.author}</Text>
         </View>
       </Animated.View>
       <Animated.View style={[s.face, backStyle]} pointerEvents="none">
         <View style={s.content} onLayout={(e) => measure('greet')(e.nativeEvent.layout.height)}>
           <Text style={s.greeting}>
-            Good <Text style={s.greetingEm}>{partOfDay(new Date().getHours())}</Text>, {name}.
+            {t('Good')} <Text style={s.greetingEm}>{partOfDay(new Date().getHours())}</Text>, {name}.
           </Text>
           {summary ? <Text style={s.summary}>{summary}</Text> : null}
         </View>

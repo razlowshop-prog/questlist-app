@@ -1,19 +1,21 @@
 import { LEVEL_LADDER, type TokenKind } from './achievements.ts';
 import { wheelTokens } from './wheel.ts';
+import { N } from './i18n.ts';
 import { addDays, restDaysOf, streakStatus, swapCandidate, weekStart, weeklyChallenges, type GameState } from './game.ts';
 
 // One-time tokens from level rewards: rest days, double XP days and
 // challenge swaps. What a player holds is worked out from the levels reached
 // minus the tokens already used, so it can't drift out of step.
 
+/** In English; shown with t(). */
 export const TOKEN_INFO: Record<TokenKind, { name: string; description: string }> = {
   rest: {
-    name: 'Rest day',
-    description: 'Take a day off: your streak and fire stay as they are. Works for today, or for yesterday if you missed it.',
+    name: N('Rest day'),
+    description: N('Take a day off: your streak and fire stay as they are. Works for today, or for yesterday if you missed it.'),
   },
-  double: { name: 'Double XP', description: 'Every task you finish for the rest of today earns twice the XP.' },
-  reroll: { name: 'Challenge swap', description: 'Swap a weekly challenge you don’t like for another one.' },
-  adfree: { name: 'Ad-free day', description: 'No ads for the rest of today.' },
+  double: { name: N('Double XP'), description: N('Every task you finish for the rest of today earns twice the XP.') },
+  reroll: { name: N('Challenge swap'), description: N('Swap a weekly challenge you don’t like for another one.') },
+  adfree: { name: N('Ad-free day'), description: N('No ads for the rest of today.') },
 };
 
 export function tokenCounts(state: GameState): Record<TokenKind, number> {

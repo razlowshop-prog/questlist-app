@@ -1,6 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { reminderPlan, type GameState } from './game';
+import { t } from './i18n';
 
 // Phone build: task reminders as local notifications. The whole schedule is
 // rebuilt from the saved state after every change, so ticking a task off
@@ -22,7 +23,7 @@ let channelReady: Promise<unknown> | undefined;
 function ensureChannel() {
   if (Platform.OS !== 'android') return Promise.resolve();
   channelReady ??= Notifications.setNotificationChannelAsync(CHANNEL, {
-    name: 'Task reminders',
+    name: t('Task reminders'),
     importance: Notifications.AndroidImportance.DEFAULT,
   });
   return channelReady;
@@ -44,7 +45,7 @@ export async function syncReminders(state: GameState): Promise<void> {
   await ensureChannel();
   for (const r of plan) {
     await Notifications.scheduleNotificationAsync({
-      content: { title: r.title, body: r.body ?? 'Time for this task. Tick it off to earn your XP.', data: { taskId: r.taskId } },
+      content: { title: r.title, body: r.body ?? t('Time for this task. Tick it off to earn your XP.'), data: { taskId: r.taskId } },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: r.at, channelId: CHANNEL },
     });
   }

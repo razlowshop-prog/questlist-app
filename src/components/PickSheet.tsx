@@ -1,15 +1,16 @@
 import { Pressable, Text } from 'react-native';
 import { libraryEffort } from '../effort';
 import { estimateMinutes } from '../estimate';
-import { xpFor, type Repeat, type TaskPlan } from '../game';
-import type { LibraryTask } from '../library';
+import { perWeekLabel, xpFor, type Repeat, type TaskPlan } from '../game';
+import { shownTitle, type LibraryTask } from '../library';
 import { DEFAULT_AMOUNTS, measuredTitle, type Amount } from '../measure';
 import { themed, useStyles } from '../theme';
 import { AmountPicker } from './AmountPicker';
-import { perWeekLabel, sizeLabel } from './LibraryRow';
+import { sizeLabel } from './LibraryRow';
 import { defaultSchedule, scheduleProblem, SchedulePicker, scheduleToTask, type Schedule } from './SchedulePicker';
 import { Sheet } from './Sheet';
 import { VividButton } from './Vivid';
+import { t } from '../i18n';
 
 /** A library task picked to add, with its days, reminder and, for Walk, Run and Steps, the amount. */
 export interface LibraryPick {
@@ -30,6 +31,11 @@ export function newPick(task: LibraryTask, today: string): LibraryPick {
 /** The title it is added under: "Walk 3 km" for a sized one, else the library title. */
 export function pickTitle(pick: LibraryPick): string {
   return pick.task.measure && pick.amount ? measuredTitle(pick.task.measure, pick.amount) : pick.task.title;
+}
+
+/** The pick's title as shown, in the current language. */
+export function pickName(pick: LibraryPick): string {
+  return shownTitle(pickTitle(pick));
 }
 
 export function pickMinutes(pick: LibraryPick): number {
@@ -74,23 +80,24 @@ export function PickSheet({
   const s = useStyles(makeStyles);
   const title = pick ? pickTitle(pick) : '';
   const problem = pick ? scheduleProblem(pick.schedule, title) : undefined;
+  const name = pick ? pickName(pick) : '';
   const minutes = pick ? pickMinutes(pick) : 0;
   return (
-    <Sheet visible={pick !== null} onClose={onClose} closeLabel="Cancel" eyebrow="Add to your list" title={title}>
+    <Sheet visible={pick !== null} onClose={onClose} closeLabel={t('Cancel')} eyebrow={t('Add to your list')} title={name}>
       {pick && (
         <>
           <Text style={s.meta}>
-            {sizeLabel(pick.task, minutes, 'About ')} · +{pickXp(pick)} XP · usually {perWeekLabel(pick.task.perWeek).toLowerCase()}
+            {sizeLabel(pick.task, minutes, true)} · +{pickXp(pick)} XP · {t('usually {freq}', { freq: perWeekLabel(pick.task.perWeek).toLowerCase() })}
           </Text>
           {pick.task.measure && pick.amount && (
             <AmountPicker measure={pick.task.measure} value={pick.amount} onChange={(amount) => onChange({ ...pick, amount })} />
           )}
           <SchedulePicker value={pick.schedule} onChange={(schedule) => onChange({ ...pick, schedule })} title={title} today={today} />
           {/* The schedule picker says what is missing. */}
-          <VividButton label={picked ? 'Save' : 'Add to list'} onPress={onKeep} disabled={!!problem} />
+          <VividButton label={picked ? t('Save') : t('Add to list')} onPress={onKeep} disabled={!!problem} />
           {picked && (
             <Pressable onPress={onRemove} style={s.remove} accessibilityRole="button">
-              <Text style={s.removeText}>Take off the list</Text>
+              <Text style={s.removeText}>{t('Take off the list')}</Text>
             </Pressable>
           )}
         </>

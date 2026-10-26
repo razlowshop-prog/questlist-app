@@ -106,7 +106,7 @@ test('tokens won on the wheel land in the bag', () => {
 test('winning the theme unlocks Fortuna', () => {
   // theme.tsx needs React Native, so its entry is checked as text.
   const themes = readFileSync(new URL('./theme.tsx', import.meta.url), 'utf8');
-  assert.match(themes, new RegExp(`id: 'fortune',\\s*name: 'Fortuna',\\s*reward: '${WHEEL_THEME_REWARD}'`));
+  assert.match(themes, new RegExp(`id: 'fortune',\\s*name: N\\('Fortuna'\\),\\s*reward: '${WHEEL_THEME_REWARD}'`));
   assert.ok(!unlockedRewards(player(0)).some((r) => r.label === WHEEL_THEME_REWARD));
   assert.ok(unlockedRewards(player(0, [spin('theme')])).some((r) => r.kind === 'theme' && r.label === WHEEL_THEME_REWARD));
 });

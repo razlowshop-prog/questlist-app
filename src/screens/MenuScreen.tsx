@@ -4,6 +4,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { APP_NAME } from '../brand';
 import { CountBadge, fill } from '../components/Vivid';
 import { card, eyebrow, FONTS, headingCase, themed, useStyles, useTheme } from '../theme';
+import { N, t } from '../i18n';
 
 export type MenuPage = 'activity' | 'friends' | 'leaderboard' | 'settings' | 'apps' | 'help' | 'legal';
 
@@ -11,25 +12,25 @@ type Row = { page: MenuPage; label: string; sub: string; Icon: LucideIcon; grad:
 
 const GROUPS: { label: string; rows: Row[] }[] = [
   {
-    label: 'Social',
+    label: N('Social'),
     rows: [
-      { page: 'activity', label: 'Activity', sub: 'Your tasks, level-ups and rewards', Icon: Bell, grad: ['#FF84DC', '#FF3D9A'] },
-      { page: 'friends', label: 'Friends', sub: 'Arrive with accounts', Icon: Users, grad: ['#7FD6FF', '#3557FF'] },
-      { page: 'leaderboard', label: 'Leaderboard', sub: 'Opens with accounts', Icon: Medal, grad: ['#FFE066', '#FF7A00'] },
+      { page: 'activity', label: N('Activity'), sub: N('Your tasks, level-ups and rewards'), Icon: Bell, grad: ['#FF84DC', '#FF3D9A'] },
+      { page: 'friends', label: N('Friends'), sub: N('Arrive with accounts'), Icon: Users, grad: ['#7FD6FF', '#3557FF'] },
+      { page: 'leaderboard', label: N('Leaderboard'), sub: N('Opens with accounts'), Icon: Medal, grad: ['#FFE066', '#FF7A00'] },
     ],
   },
   {
-    label: 'App',
+    label: N('App'),
     rows: [
-      { page: 'settings', label: 'Settings', sub: 'Reminders, vibration, backup, privacy', Icon: Settings, grad: ['#9AA3BD', '#59607a'] },
-      { page: 'apps', label: 'Connected apps', sub: 'Yazio, adidas Running, Health', Icon: Link, grad: ['#7CFFC0', '#12B886'] },
+      { page: 'settings', label: N('Settings'), sub: N('Reminders, vibration, backup, privacy'), Icon: Settings, grad: ['#9AA3BD', '#59607a'] },
+      { page: 'apps', label: N('Connected apps'), sub: N('Yazio, adidas Running, Health'), Icon: Link, grad: ['#7CFFC0', '#12B886'] },
     ],
   },
   {
-    label: 'Info',
+    label: N('Info'),
     rows: [
-      { page: 'help', label: 'Contact & help', sub: 'Questions and answers, write to us', Icon: Mail, grad: ['#C9B6FF', '#6A5BFF'] },
-      { page: 'legal', label: 'Legal', sub: 'Terms, privacy, imprint', Icon: FileText, grad: ['#9AA3BD', '#59607a'] },
+      { page: 'help', label: N('Contact & help'), sub: N('Questions and answers, write to us'), Icon: Mail, grad: ['#C9B6FF', '#6A5BFF'] },
+      { page: 'legal', label: N('Legal'), sub: N('Terms, privacy, imprint'), Icon: FileText, grad: ['#9AA3BD', '#59607a'] },
     ],
   },
 ];
@@ -39,15 +40,15 @@ export function MenuScreen({ counts, onOpen }: { /** Small pink counts on rows, 
   const s = useStyles(makeStyles);
   return (
     <ScrollView contentContainerStyle={s.content}>
-      <Text style={s.heading}>Menu</Text>
+      <Text style={s.heading}>{t('Menu')}</Text>
       {GROUPS.map((g) => (
-        <MenuGroup key={g.label} label={g.label}>
+        <MenuGroup key={g.label} label={t(g.label)}>
           {g.rows.map((r, i) => (
-            <MenuRow key={r.page} first={i === 0} label={r.label} sub={r.sub} Icon={r.Icon} grad={r.grad} count={counts?.[r.page]} onPress={() => onOpen(r.page)} />
+            <MenuRow key={r.page} first={i === 0} label={t(r.label)} sub={t(r.sub)} Icon={r.Icon} grad={r.grad} count={counts?.[r.page]} onPress={() => onOpen(r.page)} />
           ))}
         </MenuGroup>
       ))}
-      <Text style={s.footer}>{APP_NAME} 1.0 · made in Austria</Text>
+      <Text style={s.footer}>{t('{app} 1.0 · made in Austria', { app: APP_NAME })}</Text>
     </ScrollView>
   );
 }
@@ -103,7 +104,7 @@ export function MenuRow({
   );
   if (!onPress) return <View style={[s.row, !first && s.divider]}>{body}</View>;
   return (
-    <Pressable onPress={onPress} style={[s.row, !first && s.divider]} accessibilityRole="button" accessibilityLabel={`${label}${sub ? `. ${sub}` : ''}${count ? `. ${count} new` : ''}`}>
+    <Pressable onPress={onPress} style={[s.row, !first && s.divider]} accessibilityRole="button" accessibilityLabel={`${label}${sub ? `. ${sub}` : ''}${count ? `. ${t('{n} new', { n: count })}` : ''}`}>
       {body}
     </Pressable>
   );

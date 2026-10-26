@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, Text, View } from 'react-native';
-import type { LevelMilestone } from '../achievements';
+import { milestoneLabel, type LevelMilestone } from '../achievements';
 import { eyebrow, FONTS, nativeDriver, themed, useStyles, useTheme } from '../theme';
 import { CoinShower } from './Fortuna';
 import { TOKEN_INFO } from '../tokens';
 import { RewardPicture } from './RewardPicture';
 import { brandFill, brandInk, brandTextShadow, ConfettiBurst, LevelBadge, VIVID_HEAVY } from './Vivid';
 import { brandGlow, brandLine, MYTHIC } from '../vivid';
+import { t } from '../i18n';
 
 export interface CelebrationEvent {
   level: number;
@@ -90,7 +91,7 @@ export function Celebration({
 
   return (
     <Animated.View style={[s.overlay, { opacity: backdrop }]}>
-      <Pressable style={s.fill} onPress={phase === 'level' ? next : undefined} accessibilityRole="button" accessibilityLabel={phase === 'level' ? 'Continue' : undefined}>
+      <Pressable style={s.fill} onPress={phase === 'level' ? next : undefined} accessibilityRole="button" accessibilityLabel={phase === 'level' ? t('Continue') : undefined}>
         <View style={s.backdrop} />
         {/* Fortuna: a shower of gold coins on every level-up. */}
         {c.check === 'coin' && <CoinShower />}
@@ -119,7 +120,7 @@ export function Celebration({
               <Animated.Text
                 style={[s.eyebrow, { opacity: intro, transform: [{ translateY: intro.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] }]}
               >
-                Level up
+                {t('Level up')}
               </Animated.Text>
               <Animated.View
                 style={{
@@ -132,20 +133,20 @@ export function Celebration({
                   ],
                 }}
                 accessible
-                accessibilityLabel={`Level ${event.level}`}
+                accessibilityLabel={t('Level {n}', { n: event.level })}
               >
                 <ConfettiBurst scale={2.2} />
                 <LevelBadge level={event.level} size={132} />
               </Animated.View>
               <Animated.Text style={[s.rank, { opacity: intro }]}>
-                {event.newRank ? `New rank · ${event.rank}` : event.rank}
+                {event.newRank ? t('New rank · {rank}', { rank: event.rank }) : event.rank}
               </Animated.Text>
-              <Text style={s.hint}>{milestone ? 'Tap to see your reward' : 'Tap to continue'}</Text>
+              <Text style={s.hint}>{milestone ? t('Tap to see your reward') : t('Tap to continue')}</Text>
             </>
           ) : (
             milestone && (
               <>
-                <Animated.Text style={[s.eyebrow, { opacity: item }]}>New item unlocked</Animated.Text>
+                <Animated.Text style={[s.eyebrow, { opacity: item }]}>{t('New item unlocked')}</Animated.Text>
                 <View style={s.itemWrap}>
                   {SPARKS.map((a, i) => (
                     <Animated.View
@@ -182,20 +183,21 @@ export function Celebration({
                     <View style={s.itemIcon}>
                       <RewardPicture milestone={milestone} size={72} />
                     </View>
-                    <Text style={s.itemName}>{milestone.reward?.label ?? `+${milestone.bonusXp} XP bonus`}</Text>
-                    {milestone.reward?.token && <Text style={s.itemDesc}>{TOKEN_INFO[milestone.reward.token].description}</Text>}
-                    {(milestone.reward?.kind === 'frame' || milestone.reward?.kind === 'title') && <Text style={s.itemDesc}>Wear it from your profile.</Text>}
+                    <Text style={s.itemName}>{milestoneLabel(milestone)}</Text>
+                    {milestone.reward?.token && <Text style={s.itemDesc}>{t(TOKEN_INFO[milestone.reward.token].description)}</Text>}
+                    {(milestone.reward?.kind === 'frame' || milestone.reward?.kind === 'title') && <Text style={s.itemDesc}>{t('Wear it from your profile.')}</Text>}
                     {(milestone.reward?.kind === 'flame' || milestone.reward?.kind === 'celebration') && (
-                      <Text style={s.itemDesc}>Pick it in your inventory at the top right, under Customise your app.</Text>
+                      <Text style={s.itemDesc}>{t('Pick it in your inventory at the top right, under Customise your app.')}</Text>
                     )}
                     <Text style={s.itemMeta}>
-                      Level {milestone.level} reward{milestone.reward && milestone.bonusXp ? ` · +${milestone.bonusXp} XP` : ''}
+                      {t('Level {n} reward', { n: milestone.level })}
+                      {milestone.reward && milestone.bonusXp ? ` · +${milestone.bonusXp} XP` : ''}
                     </Text>
                   </Animated.View>
                 </View>
                 <Animated.View style={{ opacity: item }}>
                   <Pressable onPress={() => close(onCollect)} style={s.collect} accessibilityRole="button">
-                    <Text style={s.collectText}>Collect</Text>
+                    <Text style={s.collectText}>{t('Collect')}</Text>
                   </Pressable>
                 </Animated.View>
               </>

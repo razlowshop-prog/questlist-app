@@ -1,5 +1,6 @@
 import type { IconName } from './icons.ts';
 import { APP_NAME } from './brand.ts';
+import { N, t, tn } from './i18n.ts';
 import { ownsWheelTheme, WHEEL_THEME_REWARD } from './wheel.ts';
 import { CELEBRATIONS, FLAME_STYLES, FRAMES, type CelebrationId, type FlameStyleId, type LevelFrameId } from './cosmetics.ts';
 import {
@@ -51,7 +52,8 @@ export interface AchievementDef {
   value: (state: GameState, today: string) => number;
 }
 
-export const TIER_NAMES = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Master', 'Legend'];
+/** In English; shown with t(). */
+export const TIER_NAMES = [N('Bronze'), N('Silver'), N('Gold'), N('Platinum'), N('Diamond'), N('Master'), N('Legend')];
 /** Muted metal tones that sit well on the dark brass look and stay distinct. */
 export const TIER_COLORS = ['#C08A5B', '#BDB7AE', '#D4B27A', '#D9D4CA', '#A9C6D0', '#B7A6D6', '#E0A08C'];
 /** Deeper versions of the same tones, readable on the light themes. */
@@ -64,16 +66,16 @@ export function tierColor(tier: number, dark: boolean): string {
 const theme = (label: string): Reward => ({ kind: 'theme', label: `${label} theme` });
 const title = (label: string): Reward => ({ kind: 'title', label: `"${label}" title` });
 const TOKEN_NAMES: Record<TokenKind, [string, string]> = {
-  rest: ['Rest day token', 'Rest day tokens'],
-  double: ['Double XP token', 'Double XP tokens'],
-  reroll: ['Challenge swap', 'Challenge swaps'],
-  adfree: ['Ad-free day', 'Ad-free days'],
+  rest: [N('Rest day token'), N('{n} Rest day tokens')],
+  double: [N('Double XP token'), N('{n} Double XP tokens')],
+  reroll: [N('Challenge swap'), N('{n} Challenge swaps')],
+  adfree: [N('Ad-free day'), N('{n} Ad-free days')],
 };
 const token = (kind: TokenKind, count = 1): Reward => ({
   kind: 'token',
   token: kind,
   count,
-  label: count === 1 ? TOKEN_NAMES[kind][0] : `${count} ${TOKEN_NAMES[kind][1]}`,
+  label: count === 1 ? TOKEN_NAMES[kind][0] : TOKEN_NAMES[kind][1].replace('{n}', String(count)),
 });
 const frame = (id: LevelFrameId): Reward => ({ kind: 'frame', item: id, label: `${FRAMES.find((f) => f.id === id)!.name} frame` });
 const flame = (id: FlameStyleId): Reward => ({ kind: 'flame', item: id, label: `${FLAME_STYLES.find((f) => f.id === id)!.name} flame` });
@@ -82,6 +84,31 @@ const celebration = (id: CelebrationId): Reward => ({
   item: id,
   label: `${CELEBRATIONS.find((c) => c.id === id)!.name} celebration`,
 });
+
+/**
+ * A reward's name in the current language. Its `label` stays in English
+ * because it also identifies themes and titles in saved data.
+ */
+export function rewardLabel(r: Reward): string {
+  switch (r.kind) {
+    case 'theme':
+      return t('{name} theme', { name: t(r.label.replace(/ theme$/, '')) });
+    case 'title':
+      return t('“{name}” title', { name: t(r.label.replace(/^"(.+)" title$/, '$1')) });
+    case 'token': {
+      const [one, many] = TOKEN_NAMES[r.token!];
+      return (r.count ?? 1) === 1 ? t(one) : t(many, { n: r.count! });
+    }
+    case 'frame':
+      return t('{name} frame', { name: t(FRAMES.find((f) => f.id === r.item)?.name ?? r.label) });
+    case 'flame':
+      return t('{name} flame', { name: t(FLAME_STYLES.find((f) => f.id === r.item)?.name ?? r.label) });
+    case 'celebration':
+      return t('{name} celebration', { name: t(CELEBRATIONS.find((c) => c.id === r.item)?.name ?? r.label) });
+    default:
+      return t(r.label);
+  }
+}
 
 /** The level whose ladder reward is this look, for "Lvl N" on locked items. */
 export function levelForLook(kind: 'frame' | 'flame' | 'celebration' | 'title', item: string): number | undefined {
@@ -124,122 +151,122 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   {
     id: 'tasks',
     icon: 'ListChecks',
-    title: 'Task Master',
-    description: (g) => `Finish ${g} ${g === 1 ? 'task' : 'tasks'} in total`,
-    unit: 'tasks',
+    title: N('Task Master'),
+    description: (g) => tn(g, 'Finish {n} task in total', 'Finish {n} tasks in total'),
+    unit: N('tasks'),
     value: (s) => s.completions.length,
     tiers: [
       { goal: 1, xp: 10 },
       { goal: 10, xp: 25 },
       { goal: 50, xp: 60 },
-      { goal: 100, xp: 100, reward: theme('Forest') },
-      { goal: 250, xp: 200, reward: theme('Notepad') },
-      { goal: 500, xp: 350, reward: title('Unstoppable') },
-      { goal: 1000, xp: 600, reward: { kind: 'adfree', label: '1 month ad-free' } },
+      { goal: 100, xp: 100, reward: theme(N('Forest')) },
+      { goal: 250, xp: 200, reward: theme(N('Notepad')) },
+      { goal: 500, xp: 350, reward: title(N('Unstoppable')) },
+      { goal: 1000, xp: 600, reward: { kind: 'adfree', label: N('1 month ad-free') } },
     ],
   },
   {
     id: 'bestDay',
     icon: 'Zap',
-    title: 'Power Day',
-    description: (g) => `Finish ${g} tasks in one day`,
-    unit: 'tasks in a day',
+    title: N('Power Day'),
+    description: (g) => t('Finish {n} tasks in one day', { n: g }),
+    unit: N('tasks in a day'),
     value: bestDay,
     tiers: [
       { goal: 3, xp: 15 },
       { goal: 5, xp: 30 },
       { goal: 10, xp: 75 },
-      { goal: 15, xp: 150, reward: theme('Thunder') },
-      { goal: 20, xp: 250, reward: title('Machine') },
+      { goal: 15, xp: 150, reward: theme(N('Thunder')) },
+      { goal: 20, xp: 250, reward: title(N('Machine')) },
     ],
   },
   {
     id: 'bestWeek',
     icon: 'CalendarDays',
-    title: 'Power Week',
-    description: (g) => `Finish ${g} tasks in one week`,
-    unit: 'tasks in a week',
+    title: N('Power Week'),
+    description: (g) => t('Finish {n} tasks in one week', { n: g }),
+    unit: N('tasks in a week'),
     value: bestWeek,
     tiers: [
       { goal: 10, xp: 25 },
       { goal: 25, xp: 60 },
       { goal: 50, xp: 120 },
-      { goal: 75, xp: 200, reward: theme('Ocean') },
-      { goal: 100, xp: 300, reward: title('Relentless') },
+      { goal: 75, xp: 200, reward: theme(N('Ocean')) },
+      { goal: 100, xp: 300, reward: title(N('Relentless')) },
     ],
   },
   {
     id: 'bigTask',
     icon: 'Weight',
-    title: 'Heavy Lifter',
-    description: (g) => `Earn ${g} XP from a single task`,
-    unit: 'XP in one task',
+    title: N('Heavy Lifter'),
+    description: (g) => t('Earn {n} XP from a single task', { n: g }),
+    unit: N('XP in one task'),
     value: bestTaskXp,
     tiers: [
       { goal: 20, xp: 15 },
       { goal: 40, xp: 30 },
       { goal: 60, xp: 60 },
-      { goal: 90, xp: 120, reward: title('Marathoner') },
-      { goal: 120, xp: 200, reward: theme('Summit') },
+      { goal: 90, xp: 120, reward: title(N('Marathoner')) },
+      { goal: 120, xp: 200, reward: theme(N('Summit')) },
     ],
   },
   {
     id: 'member',
     icon: 'Cake',
-    title: 'Member Since',
-    description: (g) => `Stay with ${APP_NAME} for ${g} ${g === 1 ? 'month' : 'months'}`,
-    unit: 'months',
+    title: N('Member Since'),
+    description: (g) => tn(g, 'Stay with {app} for {n} month', 'Stay with {app} for {n} months', { app: APP_NAME }),
+    unit: N('months'),
     value: (s, today) => monthsSince(s.joinedAt, today),
     tiers: [
-      { goal: 1, xp: 50, reward: theme('Sunset') },
-      { goal: 3, xp: 150, reward: title('Regular') },
-      { goal: 6, xp: 300, reward: { kind: 'adfree', label: '1 week ad-free' } },
-      { goal: 12, xp: 750, reward: { kind: 'premium', label: '1 month Premium for free' } },
+      { goal: 1, xp: 50, reward: theme(N('Sunset')) },
+      { goal: 3, xp: 150, reward: title(N('Regular')) },
+      { goal: 6, xp: 300, reward: { kind: 'adfree', label: N('1 week ad-free') } },
+      { goal: 12, xp: 750, reward: { kind: 'premium', label: N('1 month Premium for free') } },
     ],
   },
   {
     id: 'streak',
     icon: 'Flame',
-    title: 'On Fire',
-    description: (g) => `Reach a ${g}-day streak`,
-    unit: 'days in a row',
+    title: N('On Fire'),
+    description: (g) => t('Reach a {n}-day streak', { n: g }),
+    unit: N('days in a row'),
     value: (s) => longestStreak(s.completions, restDaysOf(s)),
     tiers: [
       { goal: 3, xp: 20 },
       { goal: 7, xp: 50 },
-      { goal: 14, xp: 100, reward: theme('Gym') },
-      { goal: 30, xp: 250, reward: theme('Ember') },
-      { goal: 100, xp: 750, reward: title('Eternal Flame') },
+      { goal: 14, xp: 100, reward: theme(N('Gym')) },
+      { goal: 30, xp: 250, reward: theme(N('Ember')) },
+      { goal: 100, xp: 750, reward: title(N('Eternal Flame')) },
     ],
   },
   {
     id: 'level',
     icon: 'Award',
-    title: 'Climber',
-    description: (g) => `Reach level ${g}`,
-    unit: 'level',
+    title: N('Climber'),
+    description: (g) => t('Reach level {n}', { n: g }),
+    unit: N('level'),
     // The level shown in the header, so a level's reward is ready the moment it is reached.
     value: (s) => levelInfo(totalXp(s)).level,
     tiers: [
       { goal: 5, xp: 25 },
-      { goal: 10, xp: 75, reward: theme('Midnight') },
-      { goal: 25, xp: 200, reward: theme('Neon') },
-      { goal: 50, xp: 500, reward: { kind: 'premium', label: '1 month Premium for free' } },
-      { goal: 100, xp: 2000, reward: title('Immortal') },
+      { goal: 10, xp: 75, reward: theme(N('Midnight')) },
+      { goal: 25, xp: 200, reward: theme(N('Neon')) },
+      { goal: 50, xp: 500, reward: { kind: 'premium', label: N('1 month Premium for free') } },
+      { goal: 100, xp: 2000, reward: title(N('Immortal')) },
     ],
   },
   {
     id: 'challenges',
     icon: 'Target',
-    title: 'Challenger',
-    description: (g) => `Win ${g} weekly ${g === 1 ? 'challenge' : 'challenges'}`,
-    unit: 'challenges',
+    title: N('Challenger'),
+    description: (g) => tn(g, 'Win {n} weekly challenge', 'Win {n} weekly challenges'),
+    unit: N('challenges'),
     value: (s) => s.claims.length,
     tiers: [
       { goal: 1, xp: 25 },
       { goal: 5, xp: 75 },
-      { goal: 10, xp: 150, reward: theme('Gold') },
-      { goal: 25, xp: 400, reward: title('Champion') },
+      { goal: 10, xp: 150, reward: theme(N('Gold')) },
+      { goal: 25, xp: 400, reward: title(N('Champion')) },
     ],
   },
 ];
@@ -288,40 +315,40 @@ export function claimAchievement(
 
 /** Levels whose reward is a look or a title rather than a token. */
 const SPECIAL_REWARDS: Record<number, Reward> = {
-  5: title('Rising Star'),
+  5: title(N('Rising Star')),
   6: frame('ring'),
   8: flame('outline'),
   12: frame('double'),
   14: celebration('confetti'),
-  15: title('Steady'),
+  15: title(N('Steady')),
   16: flame('solid'),
   18: frame('dotted'),
-  20: title('Trailblazer'),
+  20: title(N('Trailblazer')),
   24: frame('hex'),
   26: flame('kindling'),
   28: celebration('ink'),
-  30: title('Relentless'),
+  30: title(N('Relentless')),
   32: frame('rays'),
   34: frame('platinum'),
   36: flame('twin'),
-  40: title('Vanguard'),
+  40: title(N('Vanguard')),
   42: frame('laurel'),
   44: flame('plasma'),
   46: celebration('embers'),
   48: frame('titanium'),
   52: frame('stars'),
   55: flame('glow'),
-  60: title('Paragon'),
+  60: title(N('Paragon')),
   63: celebration('starfall'),
   65: frame('diamond'),
   67: flame('ink'),
-  70: title('Titan'),
+  70: title(N('Titan')),
   75: flame('sparks'),
   77: frame('ember'),
-  80: title('Mythic'),
+  80: title(N('Mythic')),
   83: flame('lava'),
   88: frame('crown'),
-  90: title('Legend'),
+  90: title(N('Legend')),
 };
 /** An ad-free day every 7 levels or so (they start to matter once the free version shows ads). */
 const ADFREE_LEVELS = [11, 22, 33, 45, 58, 68, 85, 95];
@@ -375,6 +402,11 @@ export interface LevelMilestone {
   reward?: Reward;
   /** Index of the Climber tier for this level, if there is one. */
   climberTier?: number;
+}
+
+/** What a level brings, as shown: its reward, or its bonus XP. */
+export function milestoneLabel(m: LevelMilestone): string {
+  return m.reward ? rewardLabel(m.reward) : t('+{n} XP bonus', { n: m.bonusXp });
 }
 
 const CLIMBER_TIERS = ACHIEVEMENTS.find((a) => a.id === 'level')!.tiers;

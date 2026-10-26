@@ -9,6 +9,8 @@ import { durationLabel, streakTierName, type GameState } from '../game';
 import { card, eyebrow, FONTS, themed, useStyles, useTheme } from '../theme';
 import { fill, GradientText, VIVID_HEAVY } from '../components/Vivid';
 import { BRAND } from '../vivid';
+import { t, tn } from '../i18n';
+import { shownTitle } from '../library';
 
 /** Days shown before "Show older"; each tap adds this many more. */
 const PAGE = 10;
@@ -27,15 +29,15 @@ export function ActivityScreen({ state, today }: { state: GameState; today: stri
 
   return (
     <ScrollView contentContainerStyle={s.content}>
-      <Text style={s.intro}>Your finished tasks, level-ups and rewards. Friends’ streaks and level-ups will show here once accounts arrive.</Text>
+      <Text style={s.intro}>{t('Your finished tasks, level-ups and rewards. Friends’ streaks and level-ups will show here once accounts arrive.')}</Text>
       {days.length === 0 ? (
-        <Text style={s.empty}>Nothing here yet. Finish your first task and it shows up here.</Text>
+        <Text style={s.empty}>{t('Nothing here yet. Finish your first task and it shows up here.')}</Text>
       ) : (
         days.slice(0, shown).map((d) => <DayCard key={d.date} day={d} today={today} />)
       )}
       {days.length > shown && (
         <Pressable onPress={() => setShown(shown + PAGE)} style={s.more} accessibilityRole="button">
-          <Text style={s.moreText}>Show older</Text>
+          <Text style={s.moreText}>{t('Show older')}</Text>
         </Pressable>
       )}
     </ScrollView>
@@ -49,24 +51,24 @@ export function WeekCard({ summary, today }: { summary: ReturnType<typeof activi
   const top = Math.max(1, ...week.map((d) => d.xp));
   return (
     <View style={s.card}>
-      <Text style={s.cardEyebrow}>This week</Text>
+      <Text style={s.cardEyebrow}>{t('This week')}</Text>
       <View style={s.stats}>
-        <Stat label="Tasks" value={String(thisWeek.tasks)} delta={delta(thisWeek, lastWeekSoFar, 'tasks')} />
-        <Stat label="Time" value={thisWeek.minutes ? durationLabel(thisWeek.minutes) : '0 h'} delta={delta(thisWeek, lastWeekSoFar, 'minutes')} />
+        <Stat label={t('Tasks')} value={String(thisWeek.tasks)} delta={delta(thisWeek, lastWeekSoFar, 'tasks')} />
+        <Stat label={t('Time')} value={thisWeek.minutes ? durationLabel(thisWeek.minutes) : t('{n} h', { n: 0 })} delta={delta(thisWeek, lastWeekSoFar, 'minutes')} />
         <Stat label="XP" value={String(thisWeek.xp)} delta={delta(thisWeek, lastWeekSoFar, 'xp')} />
       </View>
-      <View style={s.chart} accessibilityLabel={`XP per day this week: ${week.map((d) => d.xp).join(', ')}`}>
+      <View style={s.chart} accessibilityLabel={t('XP per day this week: {list}', { list: week.map((d) => d.xp).join(', ') })}>
         {week.map((d, i) => (
           <View key={d.date} style={s.barCol}>
             <View style={s.barTrack}>
               {d.xp > 0 && <View style={[s.bar, d.date === today && s.barToday, { height: `${Math.max(6, (d.xp / top) * 100)}%` }]} />}
               {d.xp === 0 && <View style={[s.barEmpty, d.future && s.barFuture]} />}
             </View>
-            <Text style={[s.barLabel, d.date === today && s.barLabelToday]}>{'MTWTFSS'[i]}</Text>
+            <Text style={[s.barLabel, d.date === today && s.barLabelToday]}>{t('MTWTFSS')[i]}</Text>
           </View>
         ))}
       </View>
-      <Text style={s.small}>Arrows compare with the same days last week.</Text>
+      <Text style={s.small}>{t('Arrows compare with the same days last week.')}</Text>
     </View>
   );
 }
@@ -105,7 +107,7 @@ function DayCard({ day, today }: { day: ActivityDay; today: string }) {
       </View>
       {day.taskCount > 0 && (
         <Text style={s.small}>
-          {day.taskCount} {day.taskCount === 1 ? 'task' : 'tasks'} · {durationLabel(day.minutes)}
+          {tn(day.taskCount, '{n} task', '{n} tasks')} · {durationLabel(day.minutes)}
         </Text>
       )}
       {day.events.map((e, i) => (
@@ -113,19 +115,19 @@ function DayCard({ day, today }: { day: ActivityDay; today: string }) {
       ))}
       {tasks.length > 0 && (
         <View style={s.tasks}>
-          {tasks.map((t) => (
-            <View key={t.title} style={s.taskRow}>
+          {tasks.map((task) => (
+            <View key={task.title} style={s.taskRow}>
               <View style={s.taskDot} />
               <Text style={s.taskTitle} numberOfLines={1}>
-                {t.title}
-                {t.count > 1 && <Text style={s.taskCount}> ×{t.count}</Text>}
+                {shownTitle(task.title)}
+                {task.count > 1 && <Text style={s.taskCount}> ×{task.count}</Text>}
               </Text>
-              <Text style={s.taskXp}>+{t.xp}</Text>
+              <Text style={s.taskXp}>+{task.xp}</Text>
             </View>
           ))}
           {(hidden > 0 || open) && day.tasks.length > TASKS_SHOWN && (
             <Pressable onPress={() => setOpen(!open)} hitSlop={8} accessibilityRole="button">
-              <Text style={s.showAll}>{open ? 'Show less' : `+${hidden} more`}</Text>
+              <Text style={s.showAll}>{open ? t('Show less') : t('+{n} more', { n: hidden })}</Text>
             </Pressable>
           )}
         </View>
@@ -145,57 +147,57 @@ function EventRow({ event }: { event: ActivityEvent }) {
   switch (event.kind) {
     case 'level':
       icon = <Crown size={18} color={c.accent} strokeWidth={1.6} aria-hidden />;
-      title = event.level - event.from > 1 ? `Levels ${event.from + 1} to ${event.level} reached` : `Reached level ${event.level}`;
-      sub = event.rank && `New rank: ${event.rank}`;
+      title = event.level - event.from > 1 ? t('Levels {from} to {to} reached', { from: event.from + 1, to: event.level }) : t('Reached level {n}', { n: event.level });
+      sub = event.rank && t('New rank: {rank}', { rank: event.rank });
       color = c.accent;
       break;
     case 'challenge':
       icon = <AppIcon name={event.icon} size={18} color={c.muted} />;
-      title = event.title;
-      sub = event.daily ? 'Daily challenge claimed' : 'Weekly challenge claimed';
+      title = t(event.title);
+      sub = event.daily ? t('Daily challenge claimed') : t('Weekly challenge claimed');
       xp = event.xp;
       break;
     case 'achievement':
       icon = <AppIcon name={event.icon} size={18} color={c.muted} />;
-      title = `${event.title}${event.tier ? ` · ${event.tier}` : ''}`;
-      sub = 'Achievement claimed';
+      title = `${t(event.title)}${event.tier ? ` · ${t(event.tier)}` : ''}`;
+      sub = t('Achievement claimed');
       xp = event.xp;
       break;
     case 'token': {
       const Icon = TOKEN_ICONS[event.token === 'recovery' ? 'rest' : event.token];
       color = event.token === 'double' ? c.accent : c.muted;
       icon = <Icon size={18} color={color} strokeWidth={1.5} aria-hidden />;
-      title = { rest: 'Rest day: streak kept', recovery: 'Free save: streak kept', double: 'Double XP day', adfree: 'Ad-free day' }[event.token];
+      title = { rest: t('Rest day: streak kept'), recovery: t('Free save: streak kept'), double: t('Double XP day'), adfree: t('Ad-free day') }[event.token];
       break;
     }
     case 'wheel':
       color = event.rarity === 'legendary' || event.rarity === 'rare' ? c.accent : c.text;
       icon = <FerrisWheel size={18} color={event.rarity === 'common' ? c.muted : c.accent} strokeWidth={1.5} aria-hidden />;
-      title = `Lucky wheel: ${event.prize}`;
+      title = t('Lucky wheel: {prize}', { prize: event.prize });
       xp = event.xp || undefined;
       break;
     case 'steps':
       icon = <ListChecks size={18} color={c.muted} strokeWidth={1.5} aria-hidden />;
-      title = `${event.count} ${event.count === 1 ? 'step' : 'steps'} of ${event.title}`;
+      title = tn(event.count, '{n} step of {task}', '{n} steps of {task}', { task: shownTitle(event.title) });
       xp = event.xp || undefined;
       break;
     case 'season':
       icon = <Sparkles size={18} color={c.accent} strokeWidth={1.5} aria-hidden />;
-      title = `Monthly event won: ${event.frame} frame`;
+      title = t('Monthly event won: {frame} frame', { frame: event.frame });
       color = c.accent;
       break;
     case 'fire':
       icon = <Fire tier={event.tier} size={18} />;
       if (event.change === 'up') {
-        title = `Your fire rose to ${streakTierName(event.tier)}`;
-        sub = `${event.days}-day streak`;
+        title = t('Your fire rose to {tier}', { tier: streakTierName(event.tier) });
+        sub = t('{n}-day streak', { n: event.days });
         color = fireColor(event.tier, c, c.text);
       } else if (event.change === 'down') {
-        title = `Missed a day: fire dropped to ${streakTierName(event.tier)}`;
-        sub = `Streak kept at ${event.days} days`;
+        title = t('Missed a day: fire dropped to {tier}', { tier: streakTierName(event.tier) });
+        sub = tn(event.days, 'Streak kept at {n} day', 'Streak kept at {n} days');
         color = c.muted;
       } else {
-        title = `Missed a day: ${event.days}-day streak ended`;
+        title = t('Missed a day: {n}-day streak ended', { n: event.days });
         color = c.muted;
       }
       break;

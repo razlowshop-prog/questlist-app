@@ -2,6 +2,8 @@
 // The only part of the rewards layer that follows the theme; themes without
 // an entry use Indigo's.
 
+import { N } from './i18n.ts';
+
 export type ComboEntrance = 'pop' | 'grow' | 'bob' | 'rise' | 'zap' | 'flick' | 'slam';
 export type ComboIcon = 'star' | 'leaf' | 'bubbles' | 'sun' | 'bolt' | 'peak' | 'embers' | 'moon' | 'coin';
 
@@ -172,7 +174,7 @@ export const COMBO_LOOKS: Record<string, ComboLook> = {
     textGlow: '#ff2bd6',
     entrance: 'flick',
   },
-  notepad: { radius: 0, font: 'serifItalic', size: 24, color: '#c0392b', rotate: -4, circle: '#c0392b', entrance: 'grow', suffix: ' combo!' },
+  notepad: { radius: 0, font: 'serifItalic', size: 24, color: '#c0392b', rotate: -4, circle: '#c0392b', entrance: 'grow', suffix: N(' combo!') },
   gym: {
     radius: 3,
     fill: '#ff5a1f',

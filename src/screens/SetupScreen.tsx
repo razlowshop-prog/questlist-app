@@ -2,14 +2,19 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LogoMark } from '../components/LogoMark';
-import { newPick, pickMinutes, PickSheet, pickTitle, pickToTask, pickXp, type LibraryPick } from '../components/PickSheet';
+import { newPick, pickMinutes, pickName, PickSheet, pickTitle, pickToTask, pickXp, type LibraryPick } from '../components/PickSheet';
 import { scheduleProblem, scheduleSummary } from '../components/SchedulePicker';
 import { sizeLabel } from '../components/LibraryRow';
+import { DEFAULT_NAME } from '../game';
 import { CATEGORIES, categoryOf, suggestionsFor, type LibraryTask } from '../library';
 import { eyebrow, themed, useStyles, useTheme, FONTS, headingCase } from '../theme';
 import { BRAND_FILL_SMALL, brandFill, brandFillSmall, brandInk, brandTextShadow, VIVID_HEAVY } from '../components/Vivid';
 import { Sticker } from '../components/Vivid';
 import { brandGlow, brandLine, categoryLook } from '../vivid';
+import { LANGS, t, tn, type Lang } from '../i18n';
+
+/** In both languages on purpose: whoever picks up the phone can read it. */
+const LANGUAGE_LABEL = 'Language · Sprache';
 
 /** How often a pick happens in a week, for the XP estimate: once for a one-off. */
 function weeklyTimes(pick: LibraryPick, today: string): number {
@@ -28,6 +33,8 @@ export function SetupScreen({
   initialGoals,
   owned,
   today,
+  language,
+  onLanguage,
   onFinish,
   onSkip,
 }: {
@@ -36,13 +43,16 @@ export function SetupScreen({
   /** Library tasks already on the list (when setup is run again), left out of the suggestions. */
   owned: Set<string>;
   today: string;
+  /** Asked first, starting from the phone's language; the screen redraws in it straight away. */
+  language: Lang;
+  onLanguage: (lang: Lang) => void;
   onFinish: (name: string, goals: string[], picks: LibraryPick[]) => void;
   onSkip: () => void;
 }) {
   const styles = useStyles(makeStyles);
   const C = useTheme();
   const [step, setStep] = useState(0);
-  const [name, setName] = useState(initialName === 'Player' ? '' : initialName);
+  const [name, setName] = useState(initialName === DEFAULT_NAME ? '' : initialName);
   const [goals, setGoals] = useState<string[]>(initialGoals);
   // library id -> pick; only picked tasks are in here
   const [picks, setPicks] = useState<Record<string, LibraryPick>>({});
@@ -110,27 +120,43 @@ export function SetupScreen({
           ))}
         </View>
         <Pressable onPress={onSkip} hitSlop={10} accessibilityRole="button">
-          <Text style={styles.skip}>Skip</Text>
+          <Text style={styles.skip}>{t('Skip')}</Text>
         </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {step === 0 && (
           <>
+            <View style={styles.langRow} accessibilityRole="radiogroup" accessibilityLabel={LANGUAGE_LABEL}>
+              {LANGS.map((l) => (
+                <Pressable
+                  key={l.id}
+                  onPress={() => onLanguage(l.id)}
+                  style={[styles.lang, language === l.id && styles.langOn]}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: language === l.id }}
+                >
+                  <Text style={[styles.langText, language === l.id && styles.langTextOn]}>{l.label}</Text>
+                </Pressable>
+              ))}
+            </View>
             <View style={styles.mark}>
               <LogoMark textStyle={styles.wordmark} />
             </View>
             <Text style={styles.heading}>
-              Small tasks. <Text style={styles.headingEm}>Steady</Text> rise.
+              {/* The word between the stars is set in italics. */}
+              {t('Small tasks. *Steady* rise.')
+                .split('*')
+                .map((part, i) => (i % 2 ? <Text key={i} style={styles.headingEm}>{part}</Text> : part))}
             </Text>
             <Text style={styles.sub}>
-              Turn your goals into daily tasks. Finish them, earn XP, level up and keep your streak going.
+              {t('Turn your goals into daily tasks. Finish them, earn XP, level up and keep your streak going.')}
             </Text>
-            <Text style={styles.label}>What should we call you?</Text>
+            <Text style={styles.label}>{t('What should we call you?')}</Text>
             <TextInput
               value={name}
               onChangeText={setName}
-              placeholder="Your name"
+              placeholder={t('Your name')}
               placeholderTextColor={C.muted}
               style={styles.input}
               maxLength={24}
@@ -141,8 +167,8 @@ export function SetupScreen({
 
         {step === 1 && (
           <>
-            <Text style={styles.heading}>What do you want to work on?</Text>
-            <Text style={styles.sub}>Pick as many areas as you like. We’ll suggest tasks for each.</Text>
+            <Text style={styles.heading}>{t('What do you want to work on?')}</Text>
+            <Text style={styles.sub}>{t('Pick as many areas as you like. We’ll suggest tasks for each.')}</Text>
             <View style={styles.grid}>
               {CATEGORIES.map((c) => {
                 const on = goals.includes(c.id);
@@ -155,7 +181,7 @@ export function SetupScreen({
                     accessibilityState={{ checked: on }}
                   >
                     <Sticker grad={categoryLook(c.id)} glyph={categoryLook(c.id).glyph} size={34} dim={!on} />
-                    <Text style={styles.goalLabel}>{c.label}</Text>
+                    <Text style={styles.goalLabel}>{t(c.label)}</Text>
                   </Pressable>
                 );
               })}
@@ -165,9 +191,9 @@ export function SetupScreen({
 
         {step === 2 && (
           <>
-            <Text style={styles.heading}>Pick your tasks</Text>
+            <Text style={styles.heading}>{t('Pick your tasks')}</Text>
             <Text style={styles.sub}>
-              Tap a task to choose its days and a reminder. XP is based on how long and how hard each task is.
+              {t('Tap a task to choose its days and a reminder. XP is based on how long and how hard each task is.')}
             </Text>
             {goals.map((g) => {
               const cat = categoryOf(g);
@@ -176,22 +202,22 @@ export function SetupScreen({
               return (
                 <View key={g} style={{ marginBottom: 14 }}>
                   <Text style={styles.section}>
-                    {cat.label}
+                    {t(cat.label)}
                   </Text>
-                  {tasks.map((t) => {
-                    const pick = picks[t.id];
-                    const shown = pick ?? newPick(t, today);
+                  {tasks.map((task) => {
+                    const pick = picks[task.id];
+                    const shown = pick ?? newPick(task, today);
                     const minutes = pickMinutes(shown);
                     return (
-                      <View key={t.id} style={[styles.taskCard, pick && styles.taskCardOn]}>
+                      <View key={task.id} style={[styles.taskCard, pick && styles.taskCardOn]}>
                         <View style={styles.taskMain}>
                           <Pressable
-                            onPress={() => togglePick(t)}
+                            onPress={() => togglePick(task)}
                             hitSlop={8}
                             style={[styles.check, pick && styles.checkOn]}
                             accessibilityRole="checkbox"
                             accessibilityState={{ checked: !!pick }}
-                            accessibilityLabel={pickTitle(shown)}
+                            accessibilityLabel={pickName(shown)}
                           >
                             {pick && <Text style={styles.checkMark}>✓</Text>}
                           </Pressable>
@@ -199,13 +225,13 @@ export function SetupScreen({
                             onPress={() => setEditing(shown)}
                             style={{ flex: 1 }}
                             accessibilityRole="button"
-                            accessibilityLabel={`${pickTitle(shown)}. ${pick ? 'Change days and reminder' : 'Choose days and a reminder'}`}
+                            accessibilityLabel={`${pickName(shown)}. ${pick ? t('Change days and reminder') : t('Choose days and a reminder')}`}
                           >
-                            <Text style={styles.taskTitle}>{pickTitle(shown)}</Text>
+                            <Text style={styles.taskTitle}>{pickName(shown)}</Text>
                             <Text style={styles.taskMeta}>
-                              {sizeLabel(shown.task, minutes)} · +{pickXp(shown)} XP each time
+                              {sizeLabel(shown.task, minutes)} · {t('+{xp} XP each time', { xp: pickXp(shown) })}
                             </Text>
-                            {pick && <Text style={styles.taskWhen}>{scheduleSummary(pick.schedule, pickTitle(pick), today)} · Change</Text>}
+                            {pick && <Text style={styles.taskWhen}>{scheduleSummary(pick.schedule, pickTitle(pick), today)} · {t('Change')}</Text>}
                           </Pressable>
                         </View>
                       </View>
@@ -214,7 +240,7 @@ export function SetupScreen({
                 </View>
               );
             })}
-            <Text style={styles.hint}>You can add more any time from the task library.</Text>
+            <Text style={styles.hint}>{t('You can add more any time from the task library.')}</Text>
           </>
         )}
       </ScrollView>
@@ -232,7 +258,7 @@ export function SetupScreen({
       <View style={styles.footer}>
         {step > 0 && (
           <Pressable onPress={() => setStep(step - 1)} style={styles.back} accessibilityRole="button">
-            <Text style={styles.backText}>Back</Text>
+            <Text style={styles.backText}>{t('Back')}</Text>
           </Pressable>
         )}
         <Pressable
@@ -244,9 +270,9 @@ export function SetupScreen({
           <Text style={styles.nextText}>
             {step === 2
               ? pickedCount > 0
-                ? `Add ${pickedCount} ${pickedCount === 1 ? 'task' : 'tasks'} · ~${weeklyXp} XP/week`
-                : 'Start without tasks'
-              : 'Continue'}
+                ? tn(pickedCount, 'Add {n} task · ~{xp} XP/week', 'Add {n} tasks · ~{xp} XP/week', { xp: weeklyXp })
+                : t('Start without tasks')
+              : t('Continue')}
           </Text>
         </Pressable>
       </View>
@@ -261,7 +287,12 @@ const makeStyles = themed((c) => ({
   dot: { width: 28, height: 6, borderRadius: 3, backgroundColor: c.border },
   skip: { color: c.muted, fontSize: 15, fontWeight: '700' },
   content: { padding: 16, paddingBottom: 32, maxWidth: 640, width: '100%', alignSelf: 'center' },
-  mark: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 28, marginBottom: 28 },
+  langRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
+  lang: { paddingHorizontal: 16, minHeight: 38, justifyContent: 'center', borderRadius: 999, backgroundColor: c.surface },
+  langOn: { ...brandFillSmall(c) },
+  langText: { color: c.muted, fontWeight: '700', fontSize: 14 },
+  langTextOn: { color: brandInk(c), fontFamily: VIVID_HEAVY, ...brandTextShadow(c) },
+  mark: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 24, marginBottom: 28 },
   wordmark: { fontFamily: FONTS.serif, color: c.text, fontSize: 24, letterSpacing: 4.8 },
   headingEm: c.italicAccent ? { fontFamily: FONTS.serifItalic, color: c.accent } : { fontFamily: FONTS.serif, color: c.text },
   heading: { fontFamily: FONTS.serif, color: c.text, fontSize: 30, lineHeight: 36, marginTop: 8, ...headingCase(c) },

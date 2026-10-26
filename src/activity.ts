@@ -1,7 +1,8 @@
 import { ACHIEVEMENTS, TIER_NAMES } from './achievements.ts';
 import { frameName, seasonFrameId } from './cosmetics.ts';
 import { DAILY_POOL } from './daily.ts';
-import { prizeById, type Rarity } from './wheel.ts';
+import { lang, N, t } from './i18n.ts';
+import { prizeById, prizeLabel, type Rarity } from './wheel.ts';
 import {
   addDays,
   CHALLENGE_POOL,
@@ -73,7 +74,7 @@ export function activityTimeline(state: GameState, today: string): ActivityDay[]
   for (const c of state.completions) {
     if (c.date > today) continue;
     const day = dayOf(c.date);
-    const title = (c.title ?? state.tasks.find((t) => t.id === c.taskId)?.title ?? 'Task').trim();
+    const title = (c.title ?? state.tasks.find((t) => t.id === c.taskId)?.title ?? t('Task')).trim();
     const same = day.tasks.find((t) => t.title.toLowerCase() === title.toLowerCase());
     if (same) {
       same.count++;
@@ -92,7 +93,7 @@ export function activityTimeline(state: GameState, today: string): ActivityDay[]
     const def = CHALLENGE_POOL.find((d) => d.id === c.challengeId);
     const day = dayOf(date);
     day.xp += c.xp;
-    day.events.push({ kind: 'challenge', title: def?.title ?? 'Weekly challenge', icon: def?.icon ?? 'Target', xp: c.xp });
+    day.events.push({ kind: 'challenge', title: def?.title ?? N('Weekly challenge'), icon: def?.icon ?? 'Target', xp: c.xp });
     items.push({ date, xp: c.xp });
   }
 
@@ -101,7 +102,7 @@ export function activityTimeline(state: GameState, today: string): ActivityDay[]
     const def = DAILY_POOL.find((d) => d.id === c.challengeId);
     const day = dayOf(c.date);
     day.xp += c.xp;
-    day.events.push({ kind: 'challenge', title: def?.title ?? 'Daily challenge', icon: def?.icon ?? 'Target', xp: c.xp, daily: true });
+    day.events.push({ kind: 'challenge', title: def?.title ?? N('Daily challenge'), icon: def?.icon ?? 'Target', xp: c.xp, daily: true });
     items.push({ date: c.date, xp: c.xp });
   }
 
@@ -113,7 +114,7 @@ export function activityTimeline(state: GameState, today: string): ActivityDay[]
     day.xp += c.xp;
     day.events.push({
       kind: 'achievement',
-      title: def?.title ?? 'Achievement',
+      title: def?.title ?? N('Achievement'),
       tier: TIER_NAMES[c.tier] ?? '',
       icon: def?.icon ?? 'Award',
       xp: c.xp,
@@ -126,24 +127,24 @@ export function activityTimeline(state: GameState, today: string): ActivityDay[]
     const prize = prizeById(s.prize);
     const day = dayOf(s.date);
     day.xp += s.xp ?? 0;
-    day.events.push({ kind: 'wheel', prize: prize?.label ?? 'Prize', rarity: prize?.rarity ?? 'common', xp: s.xp ?? 0 });
+    day.events.push({ kind: 'wheel', prize: prize ? prizeLabel(prize) : t('Prize'), rarity: prize?.rarity ?? 'common', xp: s.xp ?? 0 });
     if (s.xp) items.push({ date: s.date, xp: s.xp });
   }
 
   // Steps of tasks not finished (yet); a finished task's steps are part of its XP.
   const steps = new Map<string, Extract<ActivityEvent, { kind: 'steps' }>>();
-  for (const t of state.stepTicks ?? []) {
-    if (t.date > today || stepAbsorbed(t, state.completions)) continue;
-    const day = dayOf(t.date);
-    day.xp += t.xp;
-    if (t.xp) items.push({ date: t.date, xp: t.xp });
-    const key = `${t.date}|${t.taskId}`;
+  for (const tick of state.stepTicks ?? []) {
+    if (tick.date > today || stepAbsorbed(tick, state.completions)) continue;
+    const day = dayOf(tick.date);
+    day.xp += tick.xp;
+    if (tick.xp) items.push({ date: tick.date, xp: tick.xp });
+    const key = `${tick.date}|${tick.taskId}`;
     const event = steps.get(key);
     if (event) {
       event.count++;
-      event.xp += t.xp;
+      event.xp += tick.xp;
     } else {
-      const created = { kind: 'steps' as const, title: state.tasks.find((task) => task.id === t.taskId)?.title ?? 'a task', count: 1, xp: t.xp };
+      const created = { kind: 'steps' as const, title: state.tasks.find((task) => task.id === tick.taskId)?.title ?? t('a task'), count: 1, xp: tick.xp };
       steps.set(key, created);
       day.events.push(created);
     }
@@ -213,12 +214,19 @@ export function activitySummary(state: GameState, today: string): ActivitySummar
   return { thisWeek: totals(monday, today), lastWeekSoFar: totals(lastMonday, addDays(lastMonday, elapsed)), week };
 }
 
-/** "Today", "Yesterday", else e.g. "Mon 19 Oct" (with the year when it isn't this year). */
+/** "Today", "Yesterday", else e.g. "Mon 19 Oct" or "Mo., 19. Okt." (with the year when it isn't this year). */
 export function activityDayLabel(date: string, today: string): string {
-  if (date === today) return 'Today';
-  if (date === addDays(today, -1)) return 'Yesterday';
+  if (date === today) return t('Today');
+  if (date === addDays(today, -1)) return t('Yesterday');
   const [y, m, d] = date.split('-').map(Number);
-  const weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date(y, m - 1, d, 12).getDay()];
+  const day = new Date(y, m - 1, d, 12).getDay();
+  const year = y !== Number(today.slice(0, 4)) ? ` ${y}` : '';
+  if (lang() === 'de') {
+    const weekday = ['So.', 'Mo.', 'Di.', 'Mi.', 'Do.', 'Fr.', 'Sa.'][day];
+    const month = ['Jän.', 'Feb.', 'März', 'Apr.', 'Mai', 'Juni', 'Juli', 'Aug.', 'Sep.', 'Okt.', 'Nov.', 'Dez.'][m - 1];
+    return `${weekday}, ${d}. ${month}${year}`;
+  }
+  const weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][day];
   const month = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][m - 1];
-  return `${weekday} ${d} ${month}${y !== Number(today.slice(0, 4)) ? ` ${y}` : ''}`;
+  return `${weekday} ${d} ${month}${year}`;
 }

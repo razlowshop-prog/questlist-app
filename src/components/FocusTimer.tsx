@@ -9,6 +9,8 @@ import { card, eyebrow, FONTS, headingCase, themed, useStyles, useTheme } from '
 import { BRAND, brandLine } from '../vivid';
 import { Stepper } from './Stepper';
 import { brandFill, brandInk, brandTextShadow, useSvgId, VIVID_HEAVY } from './Vivid';
+import { t } from '../i18n';
+import { shownTitle } from '../library';
 
 const RING = 240;
 const STROKE = 14;
@@ -71,19 +73,19 @@ export function FocusTimer({
     <Modal visible={visible} animationType="slide" onRequestClose={onHide}>
       <SafeAreaView style={s.screen}>
         <View style={s.top}>
-          <Pressable onPress={onHide} hitSlop={10} style={s.hide} accessibilityRole="button" accessibilityLabel="Hide the timer. It keeps running">
+          <Pressable onPress={onHide} hitSlop={10} style={s.hide} accessibilityRole="button" accessibilityLabel={t('Hide the timer. It keeps running')}>
             <ChevronDown size={22} color={c.muted} strokeWidth={1.75} aria-hidden />
-            <Text style={s.hideText}>Hide</Text>
+            <Text style={s.hideText}>{t('Hide')}</Text>
           </Pressable>
         </View>
 
         <View style={s.middle}>
-          <Text style={s.eyebrow}>Focus</Text>
+          <Text style={s.eyebrow}>{t('Focus')}</Text>
           <Text style={s.title} numberOfLines={2}>
-            {task.title}
+            {shownTitle(task.title)}
           </Text>
 
-          <View style={s.ringWrap} accessible accessibilityRole="timer" accessibilityLabel={reached ? 'Time is up' : `${clockLabel(goal - elapsed)} left`}>
+          <View style={s.ringWrap} accessible accessibilityRole="timer" accessibilityLabel={reached ? t('Time is up') : t('{time} left', { time: clockLabel(goal - elapsed) })}>
             <Svg width={RING} height={RING} style={{ transform: [{ rotate: '-90deg' }] }}>
               <Defs>
                 <LinearGradient id={id} x1="0" y1="0" x2="1" y2="1">
@@ -106,7 +108,7 @@ export function FocusTimer({
             </Svg>
             <View style={s.ringCenter} pointerEvents="none">
               <Text style={[s.clock, paused && { opacity: 0.5 }]}>{reached ? `+${clockLabel(elapsed - goal)}` : clockLabel(goal - elapsed)}</Text>
-              <Text style={s.clockNote}>{paused ? 'Paused' : reached ? 'Time is up' : `of ${clockLabel(goal)}`}</Text>
+              <Text style={s.clockNote}>{paused ? t('Paused') : reached ? t('Time is up') : t('of {time}', { time: clockLabel(goal) })}</Text>
             </View>
           </View>
 
@@ -114,12 +116,12 @@ export function FocusTimer({
             value={goalMinutes}
             min={MIN_FOCUS_MINUTES}
             max={MAX_FOCUS_MINUTES}
-            format={(m) => `${m} min`}
+            format={(m) => t('{n} min', { n: m })}
             onChange={onGoal}
-            label="of focus"
+            label={t('of focus')}
           />
           <Text style={[s.bonus, reached && s.bonusReady]}>
-            {reached ? `Focus bonus ready: +${bonus} XP when you finish` : `Stay with it until the end for +${bonus} XP`}
+            {reached ? t('Focus bonus ready: +{xp} XP when you finish', { xp: bonus }) : t('Stay with it until the end for +{xp} XP', { xp: bonus })}
           </Text>
         </View>
 
@@ -128,16 +130,16 @@ export function FocusTimer({
             onPress={paused ? onResume : onPause}
             style={s.round}
             accessibilityRole="button"
-            accessibilityLabel={paused ? 'Resume' : 'Pause'}
+            accessibilityLabel={paused ? t('Resume') : t('Pause')}
           >
             {paused ? <Play size={22} color={c.text} strokeWidth={2} aria-hidden /> : <Pause size={22} color={c.text} strokeWidth={2} aria-hidden />}
           </Pressable>
           <Pressable onPress={onFinish} style={s.finish} accessibilityRole="button">
-            <Text style={s.finishText}>Finish task</Text>
+            <Text style={s.finishText}>{t('Finish task')}</Text>
           </Pressable>
         </View>
         <Pressable onPress={onStop} hitSlop={8} style={s.stop} accessibilityRole="button">
-          <Text style={s.stopText}>Stop the timer</Text>
+          <Text style={s.stopText}>{t('Stop the timer')}</Text>
         </Pressable>
       </SafeAreaView>
     </Modal>
@@ -154,12 +156,12 @@ export function FocusBar({ task, session, onOpen }: { task: Task; session: Focus
   const elapsed = focusElapsed(session, now);
   const left = goal - elapsed;
   return (
-    <Pressable onPress={onOpen} style={s.bar} accessibilityRole="button" accessibilityLabel={`Focus on ${task.title}, ${left > 0 ? `${clockLabel(left)} left` : 'time is up'}. Open the timer`}>
+    <Pressable onPress={onOpen} style={s.bar} accessibilityRole="button" accessibilityLabel={t('Focus on {task}, {left}. Open the timer', { task: shownTitle(task.title), left: left > 0 ? t('{time} left', { time: clockLabel(left) }) : t('time is up') })}>
       <Timer size={18} color={c.accent} strokeWidth={2} aria-hidden />
       <Text style={s.barTitle} numberOfLines={1}>
-        {task.title}
+        {shownTitle(task.title)}
       </Text>
-      <Text style={s.barClock}>{paused ? 'Paused' : left > 0 ? clockLabel(left) : 'Time is up'}</Text>
+      <Text style={s.barClock}>{paused ? t('Paused') : left > 0 ? clockLabel(left) : t('Time is up')}</Text>
     </Pressable>
   );
 }

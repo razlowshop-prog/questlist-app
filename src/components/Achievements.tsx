@@ -1,8 +1,9 @@
 import { Pressable, Text, View } from 'react-native';
-import { TIER_NAMES, type AchievementStatus, type Reward } from '../achievements';
+import { rewardLabel, TIER_NAMES, type AchievementStatus, type Reward } from '../achievements';
 import { card, themed, useStyles, FONTS, headingCase } from '../theme';
 import { brandFillSmall, brandInk, brandTextShadow, fill, GradientText, Sticker, StickerHeading, VIVID_HEAVY } from './Vivid';
 import { achievementTierLook, brandGlow, brandLine, ICON_GLYPHS, RARITY } from '../vivid';
+import { t } from '../i18n';
 
 /**
  * Achievement tiers to reach and claim, claimable ones first, then the rewards
@@ -30,10 +31,10 @@ export function Achievements({
   return (
     <View>
       <StickerHeading glyph="Medal" grad={RARITY.legendary}>
-        <Text style={s.heading}>Achievements</Text>
+        <Text style={s.heading}>{t('Achievements')}</Text>
       </StickerHeading>
       <Text style={s.sub}>
-        {earned} of {total} tiers claimed · reach a tier, then claim your XP and rewards
+        {t('{n} of {total} tiers claimed · reach a tier, then claim your XP and rewards', { n: earned, total })}
       </Text>
 
       {sorted.map((a) => {
@@ -47,33 +48,33 @@ export function Achievements({
             <View style={s.row}>
               <Sticker grad={achievementTierLook(Math.max(0, a.claimed - 1))} mythic={a.claimed >= 7} glyph={ICON_GLYPHS[a.def.icon]} size={48} dim={a.claimed === 0} />
               <View style={{ flex: 1 }}>
-                <Text style={s.title}>{a.def.title}</Text>
+                <Text style={s.title}>{t(a.def.title)}</Text>
                 <Text style={s.desc}>
-                  {shownTier ? a.def.description(shownTier.goal) : 'All tiers complete!'}
+                  {shownTier ? a.def.description(shownTier.goal) : t('All tiers complete!')}
                 </Text>
               </View>
               {claimable ? (
                 <Pressable onPress={() => onClaim(a.def.id)} style={s.claim} accessibilityRole="button">
-                  <Text style={s.claimText}>Claim +{tierToClaim.xp}</Text>
+                  <Text style={s.claimText}>{t('Claim +{n}', { n: tierToClaim.xp })}</Text>
                 </Pressable>
               ) : shownTier ? (
                 <GradientText style={s.reward}>+{shownTier.xp} XP</GradientText>
               ) : (
-                <GradientText style={s.reward}>COMPLETE</GradientText>
+                <GradientText style={s.reward}>{t('COMPLETE')}</GradientText>
               )}
             </View>
 
             <View style={s.tiers}>
-              {a.def.tiers.map((t, i) => (
+              {a.def.tiers.map((tier, i) => (
                 <View
-                  key={t.goal}
+                  key={tier.goal}
                   style={[
                     s.tierDot,
                     i < a.claimed && { ...fill(achievementTierLook(i)), borderColor: 'transparent' },
                     i >= a.claimed && i < a.reached && { borderColor: achievementTierLook(i).c2 },
                   ]}
                 >
-                  <Text style={[s.tierGoal, i < a.claimed && { color: achievementTierLook(i).ink }]}>{t.goal}</Text>
+                  <Text style={[s.tierGoal, i < a.claimed && { color: achievementTierLook(i).ink }]}>{tier.goal}</Text>
                 </View>
               ))}
             </View>
@@ -84,35 +85,35 @@ export function Achievements({
                   <View style={[s.fill, fill(achievementTierLook(a.reached), 90), { width: `${Math.round(pct * 100)}%` }]} />
                 </View>
                 <Text style={s.progress}>
-                  {a.value} / {a.next.goal} {a.def.unit} · next: {TIER_NAMES[a.reached]}
-                  {a.next.reward ? ` · unlocks ${a.next.reward.label}` : ''}
+                  {a.value} / {a.next.goal} {t(a.def.unit)} · {t('next: {tier}', { tier: t(TIER_NAMES[a.reached]) })}
+                  {a.next.reward ? ` · ${t('unlocks {reward}', { reward: rewardLabel(a.next.reward) })}` : ''}
                 </Text>
               </>
             )}
             {claimable && tierToClaim.reward && (
-              <Text style={s.unlock}>Claim to unlock {tierToClaim.reward.label}</Text>
+              <Text style={s.unlock}>{t('Claim to unlock {reward}', { reward: rewardLabel(tierToClaim.reward) })}</Text>
             )}
           </View>
         );
       })}
 
       <StickerHeading glyph="Gift" grad={RARITY.epic} style={{ marginTop: 22 }}>
-        <Text style={[s.heading, s.subHeading, { marginTop: 0 }]}>Your rewards</Text>
+        <Text style={[s.heading, s.subHeading, { marginTop: 0 }]}>{t('Your rewards')}</Text>
       </StickerHeading>
       {shown.length === 0 ? (
-        <Text style={s.sub}>Claim achievement tiers and reach new levels to unlock themes, titles, frames and more.</Text>
+        <Text style={s.sub}>{t('Claim achievement tiers and reach new levels to unlock themes, titles, frames and more.')}</Text>
       ) : (
         <View style={s.rewards}>
           {shown.map((r, i) => (
             <View key={i} style={s.rewardChip}>
               <Text style={s.rewardChipText}>
-                {r.label}
+                {rewardLabel(r)}
               </Text>
             </View>
           ))}
         </View>
       )}
-      <Text style={[s.sub, { marginTop: 10 }]}>Tokens, themes, flames and tick celebrations are in your inventory at the top right. Frames and titles are on your profile.</Text>
+      <Text style={[s.sub, { marginTop: 10 }]}>{t('Tokens, themes, flames and tick celebrations are in your inventory at the top right. Frames and titles are on your profile.')}</Text>
     </View>
   );
 }

@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import Animated, { Easing, useAnimatedReaction, useAnimatedStyle, useDerivedValue, useSharedValue, withDelay, withSequence, withTiming } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
-import { nextLevelReward } from '../achievements';
+import { milestoneLabel, nextLevelReward } from '../achievements';
+import { num, t } from '../i18n';
 import { levelInfo, MAX_LEVEL, xpToNext } from '../game';
 import { eyebrow, themed, useStyles, useTheme } from '../theme';
 import { ShimmerBar } from './Fortuna';
@@ -107,7 +108,7 @@ export function XpProgress({ totalXp, onPress }: { totalXp: number; onPress: () 
         onPress={onPress}
         style={s.press}
         accessibilityRole="button"
-        accessibilityLabel={`Level ${real.level}, ${real.rank}. ${real.maxed ? 'Max level' : `${real.xpIntoLevel} of ${real.xpForLevel} XP to level ${real.level + 1}`}. Show level details`}
+        accessibilityLabel={`${t('Level {n}', { n: real.level })}, ${real.rank}. ${real.maxed ? t('Max level') : t('{n} of {total} XP to level {level}', { n: real.xpIntoLevel, total: real.xpForLevel, level: real.level + 1 })}. ${t('Show level details')}`}
       >
         {fx.bar ? (
           <ThemeXpBar spec={fx.bar} mascot={fx.mascot} scale={fx.mascotScale} live={fraction} ghost={ghost} progress={real.progress} gainKey={gainKey} />
@@ -117,7 +118,7 @@ export function XpProgress({ totalXp, onPress }: { totalXp: number; onPress: () 
           <PrismBar progress={real.progress} live={fraction} ghost={ghost} />
         )}
         <View style={s.labels}>
-          <Text style={s.level}>{maxed ? `Level ${shown.level} · max` : `Level ${shown.level} → ${shown.level + 1}`}</Text>
+          <Text style={s.level}>{maxed ? t('Level {n} · max', { n: shown.level }) : t('Level {n} → {next}', { n: shown.level, next: shown.level + 1 })}</Text>
           <View style={s.xpWrap}>
             {gain > 0 && (
               <Animated.View style={gainStyle}>
@@ -148,12 +149,12 @@ function NextReward({ totalXp }: { totalXp: number }) {
   const { milestone, levels } = next;
   // Long gaps: the first few levels, a gap mark, then the reward level.
   const shown = levels.length > 5 ? [...levels.slice(0, 3), null, levels[levels.length - 1]] : levels;
-  const label = milestone.reward?.label ?? `+${milestone.bonusXp} XP bonus`;
+  const label = milestoneLabel(milestone);
   return (
     <View
       style={s.next}
       accessible
-      accessibilityLabel={`Next reward at level ${milestone.level}: ${label}. ${next.xpInto} of ${next.xpNeeded} XP.`}
+      accessibilityLabel={t('Next reward at level {n}: {reward}. {into} of {needed} XP.', { n: milestone.level, reward: label, into: next.xpInto, needed: next.xpNeeded })}
     >
       <View style={s.slots}>
         {shown.map((l, i) =>
@@ -169,12 +170,12 @@ function NextReward({ totalXp }: { totalXp: number }) {
         )}
       </View>
       <Text style={s.nextLabel} numberOfLines={1}>
-        Lvl {milestone.level} · {label}
+        {t('Lvl {n}', { n: milestone.level })} · {label}
       </Text>
       {/* When the reward is the very next level, the bar above already shows these numbers. */}
       {levels.length > 1 && (
         <Text style={s.nextXp}>
-          {next.xpInto.toLocaleString()} / {next.xpNeeded.toLocaleString()} XP
+          {num(next.xpInto)} / {num(next.xpNeeded)} XP
         </Text>
       )}
     </View>

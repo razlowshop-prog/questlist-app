@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, ScrollView, Text, View } from 'react-native';
 import { bagCapacity, freshStacks, layoutBag, newByItem, nextSlotLevel, STACK_SIZE, type BagItem, type BagStack } from '../bag';
-import type { GameState, Settings } from '../game';
+import { shownName, type GameState, type Settings } from '../game';
 import { equippedLooks, newOfKind, nextTokenLevel, type OwnedLooks } from '../inventory';
 import { card, eyebrow, nativeDriver, themeById, themed, useStyles, useTheme } from '../theme';
 import { useReduceMotion } from '../components/FireAura';
@@ -17,16 +17,20 @@ import { Sheet } from '../components/Sheet';
 import { brandFillSmall, brandInk, brandTextShadow, CountBadge, Sticker, VIVID_HEAVY } from '../components/Vivid';
 import type { GlyphName } from '../glyphs';
 import { brandLine, RARITY, TOKEN_LOOKS, type Grad } from '../vivid';
+import { N, t } from '../i18n';
 
 const PER_ROW = 5;
 
 const ITEM_INFO: Record<BagItem, { name: string; description: string }> = {
-  ticket: { name: 'Wheel ticket', description: `One spin of the lucky wheel. You get a ticket for every ${XP_PER_TICKET} XP.` },
+  ticket: { name: N('Wheel ticket'), description: N('One spin of the lucky wheel. You get a ticket for every {n} XP.') },
   ...TOKEN_INFO,
 };
 
 /** The name under each slot, short enough for a fifth of a phone's width. */
-const SHORT_NAME: Record<BagItem, string> = { ticket: 'Ticket', rest: 'Rest day', double: 'Double XP', reroll: 'Swap', adfree: 'Ad-free' };
+const SHORT_NAME: Record<BagItem, string> = { ticket: N('Ticket'), rest: N('Rest day'), double: N('Double XP'), reroll: N('Swap'), adfree: N('Ad-free') };
+
+const itemName = (item: BagItem) => t(ITEM_INFO[item].name);
+const itemDescription = (item: BagItem) => t(ITEM_INFO[item].description, { n: XP_PER_TICKET });
 
 function itemLook(item: BagItem): { grad: Grad; glyph: GlyphName } {
   return item === 'ticket' ? { grad: RARITY.legendary, glyph: 'Ticket' } : { grad: TOKEN_LOOKS[item], glyph: TOKEN_LOOKS[item].glyph };
@@ -103,23 +107,23 @@ export function InventoryScreen({
 
   function action(item: BagItem): { label: string; onPress?: () => void; note?: string } {
     if (counts[item] <= 0) {
-      if (item === 'ticket') return { label: '', note: `Earn ${XP_PER_TICKET} XP for your next ticket.` };
+      if (item === 'ticket') return { label: '', note: t('Earn {n} XP for your next ticket.', { n: XP_PER_TICKET }) };
       const next = nextTokenLevel(item, level);
-      return { label: '', note: next ? `Next one at level ${next}, or win one on the wheel.` : 'Win more on the wheel.' };
+      return { label: '', note: next ? t('Next one at level {n}, or win one on the wheel.', { n: next }) : t('Win more on the wheel.') };
     }
     switch (item) {
       case 'ticket':
-        return { label: 'Spin the wheel', onPress: onOpenSpin };
+        return { label: t('Spin the wheel'), onPress: onOpenSpin };
       case 'rest':
         return offer
-          ? { label: offer.missed ? 'Save yesterday' : 'Take today off', onPress: () => onRest(offer.day) }
-          : { label: '', note: 'Nothing to save right now. Use it on a day you can’t do a task.' };
+          ? { label: offer.missed ? t('Save yesterday') : t('Take today off'), onPress: () => onRest(offer.day) }
+          : { label: '', note: t('Nothing to save right now. Use it on a day you can’t do a task.') };
       case 'double':
-        return doubleXpActive(state, today) ? { label: '', note: 'On for the rest of today.' } : { label: 'Use now', onPress: onDouble };
+        return doubleXpActive(state, today) ? { label: '', note: t('On for the rest of today.') } : { label: t('Use now'), onPress: onDouble };
       case 'reroll':
-        return { label: 'Pick a challenge', onPress: onOpenChallenges };
+        return { label: t('Pick a challenge'), onPress: onOpenChallenges };
       case 'adfree':
-        return adFreeActive(state, today) ? { label: '', note: 'No ads until midnight.' } : { label: 'Use now', onPress: onAdFree };
+        return adFreeActive(state, today) ? { label: '', note: t('No ads until midnight.') } : { label: t('Use now'), onPress: onAdFree };
     }
   }
 
@@ -149,9 +153,9 @@ export function InventoryScreen({
           style={[s.segmentItem, tab === v && s.segmentActive]}
           accessibilityRole="tab"
           accessibilityState={{ selected: tab === v }}
-          accessibilityLabel={v === 'bag' ? 'Bag' : `Customise your app${freshLooksHere ? `, ${freshLooksHere} new` : ''}`}
+          accessibilityLabel={v === 'bag' ? t('Bag') : freshLooksHere ? t('Customise your app, {n} new', { n: freshLooksHere }) : t('Customise your app')}
         >
-          <Text style={[s.segmentText, tab === v && s.segmentTextActive]}>{v === 'bag' ? 'Bag' : 'Customise your app'}</Text>
+          <Text style={[s.segmentText, tab === v && s.segmentTextActive]}>{v === 'bag' ? t('Bag') : t('Customise your app')}</Text>
           {v === 'customize' && <CountBadge count={freshLooksHere} style={s.segmentBadge} />}
         </Pressable>
       ))}
@@ -162,7 +166,7 @@ export function InventoryScreen({
     return (
       <ScrollView contentContainerStyle={s.content}>
         {tabs}
-        <Text style={[s.section, s.lookHeading]}>Theme</Text>
+        <Text style={[s.section, s.lookHeading]}>{t('Theme')}</Text>
         <ThemeGrid
           current={themeId}
           unlocked={unlockedThemes}
@@ -170,7 +174,7 @@ export function InventoryScreen({
           fresh={{ ids: freshThemes, onSeen: (id) => onSeenLook(`theme:${id}`) }}
           onLocked={(id) => setLocked({ kind: 'theme', id })}
         />
-        <Text style={[s.section, s.lookHeading]}>Tick celebration</Text>
+        <Text style={[s.section, s.lookHeading]}>{t('Tick celebration')}</Text>
         <CelebrationGrid
           owned={owned.celebrations}
           equipped={celebration}
@@ -178,7 +182,7 @@ export function InventoryScreen({
           fresh={{ ids: freshCelebrations, onSeen: (id) => onSeenLook(`celebration:${id}`) }}
           onLocked={(id) => setLocked({ kind: 'celebration', id })}
         />
-        <Text style={[s.section, s.lookHeading]}>Streak flame</Text>
+        <Text style={[s.section, s.lookHeading]}>{t('Streak flame')}</Text>
         <FlameGrid
           owned={owned.flames}
           equipped={flameStyle}
@@ -187,12 +191,12 @@ export function InventoryScreen({
           fresh={{ ids: freshFlames, onSeen: (id) => onSeenLook(`flame:${id}`) }}
           onLocked={(id) => setLocked({ kind: 'flame', id })}
         />
-        <Text style={s.muted}>Your fire grows with your streak. The style is yours to pick.</Text>
+        <Text style={s.muted}>{t('Your fire grows with your streak. The style is yours to pick.')}</Text>
         <Pressable onPress={onOpenProfile} style={s.looksLink} accessibilityRole="button">
-          <Text style={s.muted}>Frames and titles are on your profile.</Text>
-          <Text style={s.linkText}>Open profile</Text>
+          <Text style={s.muted}>{t('Frames and titles are on your profile.')}</Text>
+          <Text style={s.linkText}>{t('Open profile')}</Text>
         </Pressable>
-        <UnlockSheet look={locked} unlock={unlock} initials={state.profile.name.trim().slice(0, 2).toUpperCase() || '?'} fireTier={fireTier} onClose={() => setLocked(null)} />
+        <UnlockSheet look={locked} unlock={unlock} initials={shownName(state.profile.name).trim().slice(0, 2).toUpperCase() || '?'} fireTier={fireTier} onClose={() => setLocked(null)} />
       </ScrollView>
     );
   }
@@ -201,9 +205,10 @@ export function InventoryScreen({
     <ScrollView contentContainerStyle={s.content}>
       {tabs}
       <View style={s.head}>
-        <Text style={s.section}>Bag</Text>
+        <Text style={s.section}>{t('Bag')}</Text>
         <Text style={s.note}>
-          {slots.length} of {capacity} slots{nextSlots ? ` · 5 more at level ${nextSlots}` : ''}
+          {t('{n} of {total} slots', { n: slots.length, total: capacity })}
+          {nextSlots ? ` · ${t('5 more at level {n}', { n: nextSlots })}` : ''}
         </Text>
       </View>
 
@@ -220,12 +225,12 @@ export function InventoryScreen({
           </View>
         ))}
       </View>
-      {slots.length === 0 && <Text style={s.muted}>Empty for now. Every {XP_PER_TICKET} XP gives you a wheel ticket, and levels bring tokens.</Text>}
+      {slots.length === 0 && <Text style={s.muted}>{t('Empty for now. Every {n} XP gives you a wheel ticket, and levels bring tokens.', { n: XP_PER_TICKET })}</Text>}
 
       {waiting.length > 0 && (
         <View style={s.tray}>
-          <Text style={s.section}>Rewards waiting</Text>
-          <Text style={s.muted}>Your bag is full, so these wait here. You can still use every one of them.</Text>
+          <Text style={s.section}>{t('Rewards waiting')}</Text>
+          <Text style={s.muted}>{t('Your bag is full, so these wait here. You can still use every one of them.')}</Text>
           <View style={s.trayRow}>
             {waiting.map((w) => (
               <Pressable
@@ -233,7 +238,7 @@ export function InventoryScreen({
                 onPress={() => setOpen(w.item)}
                 style={s.trayItem}
                 accessibilityRole="button"
-                accessibilityLabel={`${w.count} more ${ITEM_INFO[w.item].name}${tags.waiting.has(w.item) ? ', new' : ''}`}
+                accessibilityLabel={`${t('{n} more: {item}', { n: w.count, item: itemName(w.item) })}${tags.waiting.has(w.item) ? `, ${t('new')}` : ''}`}
               >
                 <Sticker {...itemLook(w.item)} size={30} flat />
                 <Text style={s.trayCount}>×{w.count}</Text>
@@ -245,16 +250,16 @@ export function InventoryScreen({
       )}
 
       <Pressable onPress={onOpenProfile} style={s.looksLink} accessibilityRole="button">
-        <Text style={s.muted}>Frames and titles are on your profile.</Text>
-        <Text style={s.linkText}>Open profile</Text>
+        <Text style={s.muted}>{t('Frames and titles are on your profile.')}</Text>
+        <Text style={s.linkText}>{t('Open profile')}</Text>
       </Pressable>
 
-      <Sheet visible={open !== null} onClose={() => setOpen(null)} eyebrow="In your bag" title={open ? ITEM_INFO[open].name : ''}>
+      <Sheet visible={open !== null} onClose={() => setOpen(null)} eyebrow={t('In your bag')} title={open ? itemName(open) : ''}>
         {open && picked && (
           <View style={s.detail}>
             <Sticker {...itemLook(open)} size={64} />
             <Text style={s.detailCount}>×{Math.max(0, counts[open])}</Text>
-            <Text style={[s.muted, { textAlign: 'center' }]}>{ITEM_INFO[open].description}</Text>
+            <Text style={[s.muted, { textAlign: 'center' }]}>{itemDescription(open)}</Text>
             {picked.note && <Text style={[s.note, { textAlign: 'center' }]}>{picked.note}</Text>}
             {picked.onPress && (
               <Pressable
@@ -295,7 +300,7 @@ function NewTag({ onFaded }: { onFaded: () => void }) {
   }, [reduce]);
   return (
     <Animated.View style={[s.newTag, { opacity }]} pointerEvents="none">
-      <Text style={s.newTagText}>NEW</Text>
+      <Text style={s.newTagText}>{t('NEW')}</Text>
     </Animated.View>
   );
 }
@@ -309,12 +314,12 @@ function Slot({ stack, isNew, onFaded, onPress }: { stack: BagStack; isNew: bool
       onPress={onPress}
       style={[s.slot, full && { borderColor: brandLine(c) }]}
       accessibilityRole="button"
-      accessibilityLabel={`${ITEM_INFO[stack.item].name}, ${stack.count}${isNew ? ', new' : ''}`}
+      accessibilityLabel={`${itemName(stack.item)}, ${stack.count}${isNew ? `, ${t('new')}` : ''}`}
     >
       {isNew && <NewTag onFaded={onFaded} />}
       <Sticker {...itemLook(stack.item)} size={28} flat />
       <Text style={s.slotName} numberOfLines={1} adjustsFontSizeToFit>
-        {SHORT_NAME[stack.item]}
+        {t(SHORT_NAME[stack.item])}
       </Text>
       {stack.count > 1 && <Text style={s.slotCount}>{stack.count}</Text>}
     </Pressable>

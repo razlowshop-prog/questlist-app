@@ -7,12 +7,14 @@ import { card, eyebrow, FONTS, themed, useStyles, useTheme } from '../theme';
 import { GOLD } from './Fortuna';
 import { BRAND } from '../vivid';
 import { BRAND_TEXT_SHADOW, brandFill, brandInk, brandTextShadow, VIVID_HEAVY } from './Vivid';
+import { lang, t, tn } from '../i18n';
 
 type Multiplier = ReturnType<typeof xpMultiplier>;
 
-/** 1.5 -> "1.5", 1.875 -> "1.88" */
+/** 1.5 -> "1.5", 1.875 -> "1.88" (with a decimal comma in German) */
 export function fmtX(x: number): string {
-  return `${Math.round(x * 100) / 100}`;
+  const text = String(Math.round(x * 100) / 100);
+  return lang() === 'de' ? text.replace('.', ',') : text;
 }
 
 /**
@@ -39,7 +41,7 @@ export function MultiplierPill({ multiplier, size = 'normal' }: { multiplier: Mu
         hitSlop={8}
         style={[s.pill, small && s.pillSmall, !boosted && { opacity: 0.75 }]}
         accessibilityRole="button"
-        accessibilityLabel={`XP multiplier times ${fmtX(multiplier.total)}. Show what it’s made of`}
+        accessibilityLabel={t('XP multiplier times {x}. Show what it’s made of', { x: fmtX(multiplier.total) })}
       >
         <Svg width="100%" height="100%" style={{ position: 'absolute', left: 0, top: 0 }} preserveAspectRatio="none" viewBox="0 0 100 20">
           <Defs>
@@ -55,17 +57,17 @@ export function MultiplierPill({ multiplier, size = 'normal' }: { multiplier: Mu
       </Pressable>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-        <Pressable style={s.backdrop} onPress={() => setOpen(false)} accessibilityLabel="Close" />
+        <Pressable style={s.backdrop} onPress={() => setOpen(false)} accessibilityLabel={t('Close')} />
         <SafeAreaView style={s.center} pointerEvents="box-none">
           <View style={s.sheet}>
-            <Text style={s.eyebrow}>XP multiplier</Text>
+            <Text style={s.eyebrow}>{t('XP multiplier')}</Text>
             <Text style={s.big}>× {fmtX(multiplier.total)}</Text>
-            <Text style={s.note}>Every task you finish today earns its XP times this.</Text>
+            <Text style={s.note}>{t('Every task you finish today earns its XP times this.')}</Text>
             <View style={s.rows}>
               {multiplier.parts.map((p) => (
                 <View key={p.label} style={s.row}>
                   <Text style={s.rowLabel}>
-                    {p.label === 'Streak' ? `Streak · ${multiplier.streak} ${multiplier.streak === 1 ? 'day' : 'days'}` : p.label}
+                    {p.label === 'Streak' ? `${t('Streak')} · ${tn(multiplier.streak, '{n} day', '{n} days')}` : t(p.label)}
                   </Text>
                   <Text style={[s.rowValue, p.x > 1 && { color: c.accent }]}>× {fmtX(p.x)}</Text>
                 </View>
@@ -73,12 +75,12 @@ export function MultiplierPill({ multiplier, size = 'normal' }: { multiplier: Mu
             </View>
             {next && (
               <Text style={s.note}>
-                Keep your streak {next.daysLeft} more {next.daysLeft === 1 ? 'day' : 'days'} for × {fmtX(1 + next.bonus)}.
+                {tn(next.daysLeft, 'Keep your streak {n} more day for × {x}.', 'Keep your streak {n} more days for × {x}.', { x: fmtX(1 + next.bonus) })}
               </Text>
             )}
-            {!boosted && <Text style={s.note}>Streaks, Double XP tokens and comeback days raise it.</Text>}
+            {!boosted && <Text style={s.note}>{t('Streaks, Double XP tokens and comeback days raise it.')}</Text>}
             <Pressable onPress={() => setOpen(false)} style={s.button} accessibilityRole="button">
-              <Text style={s.buttonText}>Got it</Text>
+              <Text style={s.buttonText}>{t('Got it')}</Text>
             </Pressable>
           </View>
         </SafeAreaView>

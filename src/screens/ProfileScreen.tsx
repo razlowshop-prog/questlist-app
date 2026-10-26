@@ -21,6 +21,7 @@ import { card, eyebrow, themed, useStyles, useTheme, FONTS, headingCase } from '
 import { WeekCard } from './ActivityScreen';
 import { brandFillSmall, brandInk, brandTextShadow, CountBadge, GradientText, LevelBadge, Sticker, StickerHeading, VIVID_HEAVY } from '../components/Vivid';
 import { AVATAR_DISCS, brandLine, categoryLook, EMBLEM_METALS, RARITY } from '../vivid';
+import { locale, num, t, tn } from '../i18n';
 
 export function ProfileScreen({
   name,
@@ -95,7 +96,7 @@ export function ProfileScreen({
   const showcase = showcaseTrophies(trophies, settings.showcase);
   const initials = name.trim().slice(0, 2).toUpperCase() || '?';
   const memberSince = joinedAt
-    ? new Date(`${joinedAt}T12:00:00`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+    ? new Date(`${joinedAt}T12:00:00`).toLocaleDateString(locale(), { month: 'long', year: 'numeric' })
     : '';
 
   async function choosePhoto(from: 'library' | 'camera') {
@@ -118,7 +119,7 @@ export function ProfileScreen({
           onPress={() => setSheet('look')}
           style={{ marginVertical: frameReach(frame, 92) }}
           accessibilityRole="button"
-          accessibilityLabel={`Change your photo, colour, frame and title${freshHere ? `, ${freshHere} new` : ''}`}
+          accessibilityLabel={freshHere ? t('Change your photo, colour, frame and title, {n} new', { n: freshHere }) : t('Change your photo, colour, frame and title')}
         >
           <ProfileFrame frame={frame} size={92}>
             <Avatar initials={initials} size={92} />
@@ -142,44 +143,44 @@ export function ProfileScreen({
               setDraft(name);
               setEditing(true);
             }}
-            accessibilityHint="Edit your name"
+            accessibilityHint={t('Edit your name')}
           >
             <Text style={s.name}>
               {name} <Text style={s.edit}>✎</Text>
             </Text>
           </Pressable>
         )}
-        {title ? <Text style={s.title}>{title}</Text> : null}
+        {title ? <Text style={s.title}>{t(title)}</Text> : null}
         <View style={s.levelRow}>
           <View style={s.levelPill}>
             <LevelBadge level={stats.level} size={26} />
             <Text style={s.levelPillText}>
-              Level {stats.level} · {stats.rank}
+              {t('Level {n}', { n: stats.level })} · {stats.rank}
             </Text>
           </View>
           <MultiplierPill multiplier={multiplier} />
         </View>
         {showcase.length > 0 && (
-          <View style={s.showcase} accessibilityLabel={`Pinned trophies: ${showcase.map((t) => t.def.name).join(', ')}`}>
-            {showcase.map((t) => (
-              <View key={t.def.id} style={s.showcaseItem}>
-                <TrophyBadge trophy={t} size={44} />
+          <View style={s.showcase} accessibilityLabel={t('Pinned trophies: {names}', { names: showcase.map((tr) => t(tr.def.name)).join(', ') })}>
+            {showcase.map((tr) => (
+              <View key={tr.def.id} style={s.showcaseItem}>
+                <TrophyBadge trophy={tr} size={44} />
                 <Text style={s.showcaseName} numberOfLines={1}>
-                  {t.def.name}
+                  {t(tr.def.name)}
                 </Text>
               </View>
             ))}
           </View>
         )}
-        {memberSince ? <Text style={s.small}>Member since {memberSince}</Text> : null}
+        {memberSince ? <Text style={s.small}>{t('Member since {date}', { date: memberSince })}</Text> : null}
       </View>
 
       <View style={s.grid}>
-        <Stat label="Total XP" value={stats.totalXp.toLocaleString()} />
-        <Stat label="Streak" value={String(stats.currentStreak)}>
+        <Stat label={t('Total XP')} value={num(stats.totalXp)} />
+        <Stat label={t('Streak')} value={String(stats.currentStreak)}>
           <Fire tier={Math.max(1, fireTier)} size={22} still />
         </Stat>
-        <Stat label="Trophies" value={`${earnedTrophies}/${trophies.length}`} />
+        <Stat label={t('Trophies')} value={`${earnedTrophies}/${trophies.length}`} />
       </View>
 
       <View style={s.segment} accessibilityRole="tablist">
@@ -190,9 +191,9 @@ export function ProfileScreen({
             style={[s.segmentItem, view === v && s.segmentActive]}
             accessibilityRole="tab"
             accessibilityState={{ selected: view === v }}
-            accessibilityLabel={v === 'awards' ? `Awards${toClaim ? `, ${toClaim} to claim` : ''}` : 'Stats'}
+            accessibilityLabel={v === 'awards' ? (toClaim ? t('Awards, {n} to claim', { n: toClaim }) : t('Awards')) : t('Stats')}
           >
-            <Text style={[s.segmentText, view === v && s.segmentTextActive]}>{v === 'awards' ? 'Awards' : 'Stats'}</Text>
+            <Text style={[s.segmentText, view === v && s.segmentTextActive]}>{v === 'awards' ? t('Awards') : t('Stats')}</Text>
             {v === 'awards' && <CountBadge count={toClaim} style={s.segmentBadge} />}
           </Pressable>
         ))}
@@ -200,14 +201,14 @@ export function ProfileScreen({
 
       {view === 'awards' ? (
         <>
-          <StickerHeading glyph="Trophy" grad={RARITY.legendary} style={s.headingFirst} right={<Text style={s.small}>{earnedTrophies} of {trophies.length} · tap one</Text>}>
-            <Text style={s.sectionTitle}>Trophies</Text>
+          <StickerHeading glyph="Trophy" grad={RARITY.legendary} style={s.headingFirst} right={<Text style={s.small}>{t('{n} of {total} · tap one', { n: earnedTrophies, total: trophies.length })}</Text>}>
+            <Text style={s.sectionTitle}>{t('Trophies')}</Text>
           </StickerHeading>
           <TrophyCabinet trophies={trophies} pinned={settings.showcase} onPin={(id) => onSettings({ showcase: toggleShowcase(settings.showcase, id) })} />
 
           <StickerHeading glyph="Medal" grad={EMBLEM_METALS[2]} style={s.headingRow}>
-            <Text style={s.sectionTitle}>Emblems</Text>
-            <Text style={s.small}>{EMBLEM_TIERS.map((t) => `${t.name} ${t.goal}`).join(' · ')} tasks</Text>
+            <Text style={s.sectionTitle}>{t('Emblems')}</Text>
+            <Text style={s.small}>{t('{tiers} tasks', { tiers: EMBLEM_TIERS.map((tier) => `${t(tier.name)} ${tier.goal}`).join(' · ') })}</Text>
           </StickerHeading>
           <Emblems emblems={emblems} />
 
@@ -219,30 +220,30 @@ export function ProfileScreen({
         <>
           <WeekCard summary={week} today={today} />
           <View style={s.grid}>
-            <Stat label="Tasks done" value={String(stats.tasksDone)} />
-            <Stat label="Best streak" value={String(stats.bestStreak)} />
-            <Stat label="Challenges" value={String(stats.challengesWon)} />
+            <Stat label={t('Tasks done')} value={String(stats.tasksDone)} />
+            <Stat label={t('Best streak')} value={String(stats.bestStreak)} />
+            <Stat label={t('Challenges')} value={String(stats.challengesWon)} />
           </View>
         </>
       )}
 
-      <Sheet visible={sheet === 'look'} onClose={() => setSheet(null)} eyebrow="Your look" title="Profile picture">
+      <Sheet visible={sheet === 'look'} onClose={() => setSheet(null)} eyebrow={t('Your look')} title={t('Profile picture')}>
         <View style={[s.photoRow, { paddingVertical: frameReach(frame, 72) }]}>
           <ProfileFrame frame={frame} size={72}>
             <Avatar initials={initials} size={72} />
           </ProfileFrame>
           <View style={{ flex: 1, gap: 8 }}>
             <View style={s.photoButtons}>
-              <SmallButton label={photo ? 'New photo' : 'Choose photo'} onPress={() => choosePhoto('library')} />
-              {Platform.OS !== 'web' && <SmallButton label="Take photo" onPress={() => choosePhoto('camera')} />}
-              {photo ? <SmallButton label="Remove" quiet onPress={() => onPhoto(undefined)} /> : null}
+              <SmallButton label={photo ? t('New photo') : t('Choose photo')} onPress={() => choosePhoto('library')} />
+              {Platform.OS !== 'web' && <SmallButton label={t('Take photo')} onPress={() => choosePhoto('camera')} />}
+              {photo ? <SmallButton label={t('Remove')} quiet onPress={() => onPhoto(undefined)} /> : null}
             </View>
-            <Text style={s.small}>Your photo stays on this phone.</Text>
+            <Text style={s.small}>{t('Your photo stays on this phone.')}</Text>
           </View>
         </View>
         {photoError ? <Text style={s.error}>{photoError}</Text> : null}
-        <Text style={s.eyebrow}>Colour{photo ? ' (shown without a photo)' : ''}</Text>
-        <View style={s.discs} accessibilityRole="radiogroup" accessibilityLabel="Avatar colour">
+        <Text style={s.eyebrow}>{photo ? t('Colour (shown without a photo)') : t('Colour')}</Text>
+        <View style={s.discs} accessibilityRole="radiogroup" accessibilityLabel={t('Avatar colour')}>
           {AVATAR_DISCS.map((_, i) => {
             const active = (settings.avatar ?? 0) === i;
             return (
@@ -253,17 +254,17 @@ export function ProfileScreen({
                 style={[s.disc, active && s.discActive]}
                 accessibilityRole="radio"
                 accessibilityState={{ checked: active }}
-                accessibilityLabel={`Avatar colour ${i + 1}`}
+                accessibilityLabel={t('Avatar colour {n}', { n: i + 1 })}
               >
                 <Avatar initials="" size={24} disc={i} />
               </Pressable>
             );
           })}
         </View>
-        <Text style={s.eyebrow}>Frame</Text>
+        <Text style={s.eyebrow}>{t('Frame')}</Text>
         <FrameGrid owned={owned.frames} equipped={frame} frames={frameList(owned.frames, eventFrame)} eventFrame={eventFrame} initials={initials} onPick={(id) => onSettings({ frame: id })} fresh={{ ids: freshFrames, onSeen: (id) => onSeenLook(`frame:${id}`) }} onLocked={setLockedFrame} />
-        <Text style={s.eyebrow}>Title</Text>
-        <TitleChoices owned={owned.titles} equipped={title} onPick={(t) => onSettings({ title: t })} fresh={{ ids: freshTitles, onSeen: (t) => onSeenLook(`title:${t}`) }} />
+        <Text style={s.eyebrow}>{t('Title')}</Text>
+        <TitleChoices owned={owned.titles} equipped={title} onPick={(picked) => onSettings({ title: picked })} fresh={{ ids: freshTitles, onSeen: (picked) => onSeenLook(`title:${picked}`) }} />
       </Sheet>
       <UnlockSheet
         look={lockedFrame ? { kind: 'frame', id: lockedFrame } : null}
@@ -292,7 +293,7 @@ function Emblems({ emblems }: { emblems: EmblemStatus[] }) {
               onPress={() => setOpen(open === e.category ? null : e.category)}
               style={[s.emblem, open === e.category && s.emblemOpen]}
               accessibilityRole="button"
-              accessibilityLabel={`${e.label}: ${e.done} tasks${e.tier ? `, ${EMBLEM_TIERS[e.tier - 1].name}` : ''}`}
+              accessibilityLabel={`${tn(e.done, '{area}: {n} task', '{area}: {n} tasks', { area: t(e.label) })}${e.tier ? `, ${t(EMBLEM_TIERS[e.tier - 1].name)}` : ''}`}
             >
               {e.tier ? <Sticker grad={EMBLEM_METALS[e.tier - 1]} glyph={glyph} size={42} /> : <Sticker grad={categoryLook(e.category)} glyph={glyph} size={42} dim />}
             </Pressable>
@@ -301,9 +302,9 @@ function Emblems({ emblems }: { emblems: EmblemStatus[] }) {
       </View>
       {picked && (
         <Text style={s.small}>
-          {picked.label}: {picked.done} {picked.done === 1 ? 'task' : 'tasks'}
-          {picked.tier ? ` · ${EMBLEM_TIERS[picked.tier - 1].name} emblem` : ''}
-          {picked.next ? ` · ${picked.next - picked.done} more for ${EMBLEM_TIERS[picked.tier].name}` : ' · all emblems earned'}
+          {tn(picked.done, '{area}: {n} task', '{area}: {n} tasks', { area: t(picked.label) })}
+          {picked.tier ? ` · ${t('{tier} emblem', { tier: t(EMBLEM_TIERS[picked.tier - 1].name) })}` : ''}
+          {picked.next ? ` · ${t('{n} more for {tier}', { n: picked.next - picked.done, tier: t(EMBLEM_TIERS[picked.tier].name) })}` : ` · ${t('all emblems earned')}`}
         </Text>
       )}
     </View>

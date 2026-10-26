@@ -1,5 +1,6 @@
 import { DEFAULT_MINUTES, type GameState } from './game.ts';
 import type { IconName } from './icons.ts';
+import { N } from './i18n.ts';
 
 // Two small challenges a day, the same for everyone, reset at midnight. They
 // only count tasks finished today, and pay a little XP when claimed.
@@ -30,13 +31,13 @@ export interface DailyDef {
 }
 
 export const DAILY_POOL: DailyDef[] = [
-  { id: 'tasks3', title: 'Finish 3 tasks today', icon: 'ListChecks', rewardXp: 20, target: 3, unit: 'tasks', metric: 'tasksDone' },
-  { id: 'focus20', title: 'Finish a task of 20 minutes or more', icon: 'Timer', rewardXp: 15, target: 1, unit: 'task', metric: 'focusDone' },
-  { id: 'morning2', title: 'Finish 2 tasks before noon', icon: 'Sun', rewardXp: 25, target: 2, unit: 'tasks', metric: 'morningDone', untilHour: 12 },
-  { id: 'variety3', title: 'Do 3 different tasks', icon: 'Shuffle', rewardXp: 20, target: 3, unit: 'tasks', metric: 'variety' },
-  { id: 'xp60', title: 'Earn 60 XP from tasks', icon: 'Zap', rewardXp: 25, target: 60, unit: 'XP', metric: 'xpEarned' },
-  { id: 'early1', title: 'Finish a task before 9:00', icon: 'Rocket', rewardXp: 20, target: 1, unit: 'task', metric: 'earlyDone', untilHour: 9 },
-  { id: 'tasks5', title: 'Finish 5 tasks today', icon: 'Trophy', rewardXp: 30, target: 5, unit: 'tasks', metric: 'tasksDone' },
+  { id: 'tasks3', title: N('Finish 3 tasks today'), icon: 'ListChecks', rewardXp: 20, target: 3, unit: N('tasks'), metric: 'tasksDone' },
+  { id: 'focus20', title: N('Finish a task of 20 minutes or more'), icon: 'Timer', rewardXp: 15, target: 1, unit: N('task'), metric: 'focusDone' },
+  { id: 'morning2', title: N('Finish 2 tasks before noon'), icon: 'Sun', rewardXp: 25, target: 2, unit: N('tasks'), metric: 'morningDone', untilHour: 12 },
+  { id: 'variety3', title: N('Do 3 different tasks'), icon: 'Shuffle', rewardXp: 20, target: 3, unit: N('tasks'), metric: 'variety' },
+  { id: 'xp60', title: N('Earn 60 XP from tasks'), icon: 'Zap', rewardXp: 25, target: 60, unit: N('XP'), metric: 'xpEarned' },
+  { id: 'early1', title: N('Finish a task before 9:00'), icon: 'Rocket', rewardXp: 20, target: 1, unit: N('task'), metric: 'earlyDone', untilHour: 9 },
+  { id: 'tasks5', title: N('Finish 5 tasks today'), icon: 'Trophy', rewardXp: 30, target: 5, unit: N('tasks'), metric: 'tasksDone' },
 ];
 
 export function dayStats(state: Pick<GameState, 'completions'>, today: string): DayStats {

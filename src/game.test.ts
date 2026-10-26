@@ -327,6 +327,9 @@ test('weekday of a date, Monday first', () => {
 test('week-long tasks can only repeat once a week', () => {
   assert.equal(maxPerWeek('Meal prep for the week'), 1);
   assert.equal(maxPerWeek('Weekly review'), 1);
+  assert.equal(maxPerWeek('Wochenplanung'), 1);
+  assert.equal(maxPerWeek('Einmal wöchentlich Bad putzen'), 1);
+  assert.equal(maxPerWeek('Gehen'), 7);
   assert.equal(maxPerWeek('Clean the bathroom'), 7);
   let s = addTask(emptyState, 'Meal prep for the week', 5, 'm');
   assert.equal(s.tasks[0].perWeek, 1);

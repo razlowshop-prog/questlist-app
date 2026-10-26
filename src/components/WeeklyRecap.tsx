@@ -6,10 +6,8 @@ import { recapShareText, type WeekRecap } from '../recap';
 import { card, eyebrow, FONTS, headingCase, themed, useStyles, useTheme } from '../theme';
 import { brandLine, RARITY } from '../vivid';
 import { GradientText, Sticker, VIVID_HEAVY, VividButton } from './Vivid';
-
-function hours(minutes: number): string {
-  return minutes < 60 ? `${minutes} min` : `${Math.round((minutes / 60) * 10) / 10} h`;
-}
+import { t, tn } from '../i18n';
+import { durationLabel } from '../game';
 
 /**
  * The weekly recap on Today: a card that opens the full look back at the
@@ -21,47 +19,54 @@ export function WeeklyRecap({ recap, onSeen }: { recap: WeekRecap; onSeen: () =>
   const [open, setOpen] = useState(false);
   const diff = recap.tasks - recap.lastWeekTasks;
   const compare =
-    recap.lastWeekTasks === 0 ? 'Your first full week. Nice start!' : diff > 0 ? `${diff} more ${diff === 1 ? 'task' : 'tasks'} than the week before.` : diff === 0 ? 'As many tasks as the week before.' : 'A quieter week than the one before. Next week is a fresh start.';
+    recap.lastWeekTasks === 0
+      ? t('Your first full week. Nice start!')
+      : diff > 0
+        ? tn(diff, '{n} more task than the week before.', '{n} more tasks than the week before.')
+        : diff === 0
+          ? t('As many tasks as the week before.')
+          : t('A quieter week than the one before. Next week is a fresh start.');
 
   return (
     <>
-      <Pressable onPress={() => setOpen(true)} style={s.card} accessibilityRole="button" accessibilityLabel={`Your week: ${recap.tasks} tasks, ${recap.xp} XP. Open the recap`}>
+      <Pressable onPress={() => setOpen(true)} style={s.card} accessibilityRole="button" accessibilityLabel={t('Your week: {n} tasks, {xp} XP. Open the recap', { n: recap.tasks, xp: recap.xp })}>
         <Sticker grad={RARITY.epic} glyph="CalendarCheck" size={38} flat />
         <View style={{ flex: 1 }}>
-          <Text style={s.cardEyebrow}>Your week</Text>
+          <Text style={s.cardEyebrow}>{t('Your week')}</Text>
           <Text style={s.cardText}>
-            {recap.tasks} {recap.tasks === 1 ? 'task' : 'tasks'} · +{recap.xp} XP
+            {tn(recap.tasks, '{n} task', '{n} tasks')} · +{recap.xp} XP
           </Text>
         </View>
-        <Text style={s.open}>See recap</Text>
-        <Pressable onPress={onSeen} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close the weekly recap">
+        <Text style={s.open}>{t('See recap')}</Text>
+        <Pressable onPress={onSeen} hitSlop={10} accessibilityRole="button" accessibilityLabel={t('Close the weekly recap')}>
           <Text style={s.close}>✕</Text>
         </Pressable>
       </Pressable>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-        <Pressable style={s.backdrop} onPress={() => setOpen(false)} accessibilityLabel="Close" />
+        <Pressable style={s.backdrop} onPress={() => setOpen(false)} accessibilityLabel={t('Close')} />
         <SafeAreaView style={s.wrap} pointerEvents="box-none">
           <View style={s.sheet}>
             <Sticker grad={RARITY.epic} glyph="CalendarCheck" size={64} />
-            <Text style={s.eyebrow}>Weekly recap</Text>
-            <Text style={s.title}>Your week</Text>
+            <Text style={s.eyebrow}>{t('Weekly recap')}</Text>
+            <Text style={s.title}>{t('Your week')}</Text>
             <View style={s.grid}>
-              <Stat value={String(recap.tasks)} label={recap.tasks === 1 ? 'task done' : 'tasks done'} />
-              <Stat value={`+${recap.xp}`} label="XP from tasks" />
-              <Stat value={`${recap.activeDays}/7`} label="active days" />
-              <Stat value={hours(recap.minutes)} label="of tasks" />
+              <Stat value={String(recap.tasks)} label={recap.tasks === 1 ? t('task done') : t('tasks done')} />
+              <Stat value={`+${recap.xp}`} label={t('XP from tasks')} />
+              <Stat value={`${recap.activeDays}/7`} label={t('active days')} />
+              <Stat value={durationLabel(recap.minutes)} label={t('of tasks')} />
             </View>
             {recap.bestDay && (
               <Text style={s.line}>
-                Best day: <Text style={{ color: brandLine(c), fontWeight: '700' }}>{recap.bestDay.name}</Text> with {recap.bestDay.tasks} {recap.bestDay.tasks === 1 ? 'task' : 'tasks'}
+                {t('Best day:')} <Text style={{ color: brandLine(c), fontWeight: '700' }}>{t(recap.bestDay.name)}</Text>{' '}
+                {tn(recap.bestDay.tasks, 'with {n} task', 'with {n} tasks')}
               </Text>
             )}
             <Text style={s.line}>{compare}</Text>
             <View style={s.buttons}>
-              <VividButton label="Share" onPress={() => Share.share({ message: recapShareText(recap, APP_NAME) }).catch(() => {})} style={{ flex: 1 }} />
+              <VividButton label={t('Share')} onPress={() => Share.share({ message: recapShareText(recap, APP_NAME) }).catch(() => {})} style={{ flex: 1 }} />
               <VividButton
-                label="Done"
+                label={t('Done')}
                 kind="secondary"
                 onPress={() => {
                   setOpen(false);

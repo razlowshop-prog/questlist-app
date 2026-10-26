@@ -6,6 +6,7 @@ import { themed, useStyles, useTheme } from '../theme';
 import { tierFlame } from '../vivid';
 import { Fire } from './Fire';
 import { brandFillSmall, GradientText, VIVID_HEAVY } from './Vivid';
+import { t } from '../i18n';
 
 /** Height of the bar, so what pins below it (the combo pill) can leave room. */
 export const STICKY_HEIGHT = 40;
@@ -36,7 +37,7 @@ export function StickyStatus({ totalXp, streak, shown, onPress }: { totalXp: num
         onPress={onPress}
         style={s.row}
         accessibilityRole="button"
-        accessibilityLabel={`${streak.days} day streak. Level ${info.level}, ${info.maxed ? 'max level' : `${info.xpIntoLevel} of ${info.xpForLevel} XP`}. Show level details`}
+        accessibilityLabel={`${t('{n}-day streak', { n: streak.days })}. ${t('Level {n}', { n: info.level })}, ${info.maxed ? t('max level') : t('{n} of {total} XP', { n: info.xpIntoLevel, total: info.xpForLevel })}. ${t('Show level details')}`}
       >
         <View style={s.streak}>
           <Fire tier={streak.tier} size={18} still />
@@ -48,7 +49,7 @@ export function StickyStatus({ totalXp, streak, shown, onPress }: { totalXp: num
           <Animated.View style={[s.fill, fillStyle]} />
         </View>
         <Text style={s.level} numberOfLines={1}>
-          Lvl {info.level}
+          {t('Lvl {n}', { n: info.level })}
           {!info.maxed && (
             <Text style={{ color: c.muted }}>
               {' '}

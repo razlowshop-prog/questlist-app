@@ -1,6 +1,8 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import { APP_NAME } from './brand';
+import { t } from './i18n';
 
 // Phone app: the backup is written to a temporary file and handed to the share
 // sheet, so the player can keep it in Files, Drive, an email to themselves and
@@ -12,7 +14,7 @@ export async function saveBackupFile(name: string, text: string): Promise<boolea
   const file = new File(Paths.cache, name);
   file.create({ overwrite: true });
   await file.write(text);
-  await Sharing.shareAsync(file.uri, { mimeType: 'application/json', UTI: 'public.json', dialogTitle: 'Keep your Succedo backup' });
+  await Sharing.shareAsync(file.uri, { mimeType: 'application/json', UTI: 'public.json', dialogTitle: t('Keep your {app} backup', { app: APP_NAME }) });
   return true;
 }
 

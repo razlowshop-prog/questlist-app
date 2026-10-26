@@ -5,6 +5,7 @@ import { guideSteps } from '../guide';
 import { card, eyebrow, themed, useStyles, useTheme } from '../theme';
 import { brandLine } from '../vivid';
 import { brandFillSmall, brandInk, brandTextShadow, VIVID_HEAVY } from './Vivid';
+import { t } from '../i18n';
 
 /**
  * A small card on Today for new players: three steps that show how the game
@@ -34,13 +35,13 @@ export function FirstDayGuide({
   return (
     <View style={s.card}>
       <View style={s.head}>
-        <Text style={s.eyebrow}>Your first steps · {steps.filter((st) => st.done).length} / 3</Text>
-        <Pressable onPress={onHide} hitSlop={10} accessibilityRole="button" accessibilityLabel="Hide the first steps">
-          <Text style={s.hide}>Hide</Text>
+        <Text style={s.eyebrow}>{t('Your first steps · {n} / 3', { n: steps.filter((st) => st.done).length })}</Text>
+        <Pressable onPress={onHide} hitSlop={10} accessibilityRole="button" accessibilityLabel={t('Hide the first steps')}>
+          <Text style={s.hide}>{t('Hide')}</Text>
         </Pressable>
       </View>
       {steps.map((st, i) => (
-        <View key={st.label} style={s.row} accessible accessibilityLabel={`Step ${i + 1}: ${st.label}${st.done ? ', done' : ''}`}>
+        <View key={st.label} style={s.row} accessible accessibilityLabel={`${t('Step {n}: {label}', { n: i + 1, label: st.label })}${st.done ? `, ${t('done')}` : ''}`}>
           <View style={[s.dot, st.done && s.dotDone, i === next && s.dotNext]}>
             {st.done ? <Check size={13} color={brandInk(c)} strokeWidth={3} aria-hidden /> : <Text style={[s.num, i === next && { color: c.text }]}>{i + 1}</Text>}
           </View>
@@ -50,7 +51,7 @@ export function FirstDayGuide({
           </View>
           {!st.done && 'ready' in st && st.ready && (
             <Pressable onPress={onOpenSpin} style={s.go} accessibilityRole="button">
-              <Text style={s.goText}>Spin</Text>
+              <Text style={s.goText}>{t('Spin')}</Text>
             </Pressable>
           )}
         </View>

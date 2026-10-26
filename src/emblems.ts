@@ -1,14 +1,15 @@
 import { CATEGORIES, taskCategory } from './library.ts';
 import type { GameState } from './game.ts';
 import type { IconName } from './icons.ts';
+import { N } from './i18n.ts';
 
 // Category emblems: finish enough tasks of one kind (fitness, home, …) and
 // its emblem appears on the profile, in bronze, then silver, then gold.
 
 export const EMBLEM_TIERS = [
-  { name: 'Bronze', goal: 25 },
-  { name: 'Silver', goal: 100 },
-  { name: 'Gold', goal: 250 },
+  { name: N('Bronze'), goal: 25 },
+  { name: N('Silver'), goal: 100 },
+  { name: N('Gold'), goal: 250 },
 ];
 
 export interface EmblemStatus {

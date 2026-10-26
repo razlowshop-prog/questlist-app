@@ -9,6 +9,7 @@ import type { SeasonStatus } from '../seasons';
 import { card, themed, useStyles, useTheme, FONTS, headingCase } from '../theme';
 import { brandFillSmall, brandInk, brandTextShadow, fill, Glyph, GradientText, ProgressRing, StickerHeading, VIVID_HEAVY } from '../components/Vivid';
 import { brandGlow, brandLine, challengeRarity, ICON_GLYPHS, RARITY, SEASON_PILL } from '../vivid';
+import { num, quoted, t, tn } from '../i18n';
 
 export function ChallengesScreen({
   challenges,
@@ -45,9 +46,9 @@ export function ChallengesScreen({
     <ScrollView contentContainerStyle={s.content}>
       <ConfirmSheet
         visible={!!swapping}
-        title="Swap this challenge?"
-        body={swapping ? `“${swapping.title}” is replaced by a new challenge. ${swapsLeft === 1 ? 'This uses your last swap.' : `This uses 1 of your ${swapsLeft} swaps.`}` : undefined}
-        confirmLabel="Swap"
+        title={t('Swap this challenge?')}
+        body={swapping ? `${t('{challenge} is replaced by a new challenge.', { challenge: quoted(t(swapping.title)) })} ${swapsLeft === 1 ? t('This uses your last swap.') : t('This uses 1 of your {n} swaps.', { n: swapsLeft })}` : undefined}
+        confirmLabel={t('Swap')}
         onCancel={() => setSwapping(null)}
         onConfirm={() => {
           if (swapping) onSwap(swapping.id);
@@ -55,21 +56,21 @@ export function ChallengesScreen({
         }}
       />
       <StickerHeading glyph="CalendarStar" grad={SEASON_PILL} style={{ marginBottom: 14 }}>
-        <Text style={[s.heading, s.subHeading, { marginTop: 0 }]}>Monthly event</Text>
+        <Text style={[s.heading, s.subHeading, { marginTop: 0 }]}>{t('Monthly event')}</Text>
       </StickerHeading>
       <EventCard season={season} onClaim={onClaimSeason} />
 
       <StickerHeading glyph="Sun" grad={RARITY.rare} style={{ marginTop: 24 }}>
-        <Text style={[s.heading, s.subHeading, { marginTop: 0 }]}>Today’s challenges</Text>
+        <Text style={[s.heading, s.subHeading, { marginTop: 0 }]}>{t('Today’s challenges')}</Text>
       </StickerHeading>
-      <Text style={s.sub}>Two new ones every day · reset at midnight</Text>
+      <Text style={s.sub}>{t('Two new ones every day · reset at midnight')}</Text>
       {daily.map((ch) => (
-        <ChallengeCard key={ch.def.id} def={ch.def} progress={ch.progress} highlight={ch.complete && !ch.claimed} locked={ch.ended} lockedNote="Ended for today">
+        <ChallengeCard key={ch.def.id} def={ch.def} progress={ch.progress} highlight={ch.complete && !ch.claimed} locked={ch.ended} lockedNote={t('Ended for today')}>
           {ch.claimed ? (
-            <Text style={s.claimed}>✓ Claimed</Text>
+            <Text style={s.claimed}>{t('✓ Claimed')}</Text>
           ) : ch.complete ? (
             <Pressable style={s.claim} onPress={() => onClaimDaily(ch.def.id)} accessibilityRole="button">
-              <Text style={s.claimText}>Claim +{ch.def.rewardXp} XP</Text>
+              <Text style={s.claimText}>{t('Claim +{n} XP', { n: ch.def.rewardXp })}</Text>
             </Pressable>
           ) : (
             <GradientText style={s.reward}>+{ch.def.rewardXp} XP</GradientText>
@@ -78,26 +79,26 @@ export function ChallengesScreen({
       ))}
 
       <StickerHeading glyph="Target" grad={RARITY.epic} style={{ marginTop: 24 }}>
-        <Text style={[s.heading, s.subHeading, { marginTop: 0 }]}>Weekly challenges</Text>
+        <Text style={[s.heading, s.subHeading, { marginTop: 0 }]}>{t('Weekly challenges')}</Text>
       </StickerHeading>
       <Text style={s.sub}>
-        New challenges every Monday · {daysLeft} {daysLeft === 1 ? 'day' : 'days'} left
+        {t('New challenges every Monday')} · {tn(daysLeft, '{n} day left', '{n} days left')}
       </Text>
 
       {challenges.map((ch) => (
         <ChallengeCard key={ch.def.id} def={ch.def} progress={ch.progress} highlight={ch.complete && !ch.claimed}>
           {ch.claimed ? (
-            <Text style={s.claimed}>✓ Claimed</Text>
+            <Text style={s.claimed}>{t('✓ Claimed')}</Text>
           ) : ch.complete ? (
             <Pressable style={s.claim} onPress={() => onClaim(ch.def.id)} accessibilityRole="button">
-              <Text style={s.claimText}>Claim +{ch.def.rewardXp} XP</Text>
+              <Text style={s.claimText}>{t('Claim +{n} XP', { n: ch.def.rewardXp })}</Text>
             </Pressable>
           ) : (
             <>
               <GradientText style={s.reward}>+{ch.def.rewardXp} XP</GradientText>
               {swapsLeft > 0 && (
-                <Pressable onPress={() => setSwapping(ch.def)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Swap ${ch.def.title}`}>
-                  <Text style={s.swap}>Swap</Text>
+                <Pressable onPress={() => setSwapping(ch.def)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t('Swap {challenge}', { challenge: t(ch.def.title) })}>
+                  <Text style={s.swap}>{t('Swap')}</Text>
                 </Pressable>
               )}
             </>
@@ -106,23 +107,23 @@ export function ChallengesScreen({
       ))}
       {swapsLeft > 0 && (
         <Text style={s.swapNote}>
-          You have {swapsLeft} challenge {swapsLeft === 1 ? 'swap' : 'swaps'}. A new challenge counts everything you did this week.
+          {tn(swapsLeft, 'You have {n} challenge swap. A new challenge counts everything you did this week.', 'You have {n} challenge swaps. A new challenge counts everything you did this week.')}
         </Text>
       )}
 
       {/* Friends' challenges need accounts; the card shows where they will be. */}
-      <View style={s.join} accessible accessibilityLabel="Join a friend’s challenge. Arrives with friends and accounts">
+      <View style={s.join} accessible accessibilityLabel={t('Join a friend’s challenge. Arrives with friends and accounts')}>
         <Plus size={20} color={brandLine(c)} strokeWidth={2} aria-hidden />
         <View style={{ flex: 1 }}>
-          <Text style={s.joinTitle}>Join a friend’s challenge</Text>
-          <Text style={s.progress}>Arrives with friends and accounts</Text>
+          <Text style={s.joinTitle}>{t('Join a friend’s challenge')}</Text>
+          <Text style={s.progress}>{t('Arrives with friends and accounts')}</Text>
         </View>
       </View>
 
       <StickerHeading glyph="DeviceMobile" grad={RARITY.rare} style={{ marginTop: 24 }}>
-        <Text style={[s.heading, s.subHeading, { marginTop: 0 }]}>Coming with the phone app</Text>
+        <Text style={[s.heading, s.subHeading, { marginTop: 0 }]}>{t('Coming with the phone app')}</Text>
       </StickerHeading>
-      <Text style={s.sub}>These use your phone’s sensors and health data, so they can’t run in the browser.</Text>
+      <Text style={s.sub}>{t('These use your phone’s sensors and health data, so they can’t run in the browser.')}</Text>
       {SENSOR_CHALLENGES.map((def) => (
         <ChallengeCard key={def.id} def={def} progress={0} locked>
           <Text style={[s.reward, { color: c.muted }]}>+{def.rewardXp} XP</Text>
@@ -136,7 +137,7 @@ function ChallengeCard({
   def,
   progress,
   locked,
-  lockedNote = 'Coming soon',
+  lockedNote,
   highlight,
   children,
 }: {
@@ -157,11 +158,11 @@ function ChallengeCard({
         <Glyph name={ICON_GLYPHS[def.icon]} size={20} grad={locked ? undefined : grad} color={c.faint} />
       </ProgressRing>
       <View style={{ flex: 1, gap: 6 }}>
-        <Text style={s.title}>{def.title}</Text>
+        <Text style={s.title}>{t(def.title)}</Text>
         <View style={s.track}>
           <View style={[s.fill, fill(grad, 90), { width: `${pct}%` }]} />
         </View>
-        <Text style={s.progress}>{locked ? lockedNote : `${progress} / ${def.target} ${def.unit}`}</Text>
+        <Text style={s.progress}>{locked ? (lockedNote ?? t('Coming soon')) : `${num(progress)} / ${num(def.target)} ${t(def.unit)}`}</Text>
       </View>
       <View style={{ alignItems: 'flex-end' }}>{children}</View>
     </View>

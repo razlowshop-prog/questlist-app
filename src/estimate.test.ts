@@ -60,3 +60,19 @@ test('hand-picked times from older versions are replaced, completions untouched'
   assert.equal(next.completions, s.completions);
   assert.equal(withEstimatedTimes(next), next); // nothing left to change
 });
+
+test('German titles are timed like the English ones, whatever the app language', () => {
+  assert.equal(min('Gehen'), min('Walk'), 'a German library title');
+  assert.equal(estimateMinutes('Gehen').source, 'library');
+  assert.equal(min('Wäsche waschen'), 20);
+  assert.equal(min('Wocheneinkauf'), 45);
+  assert.equal(min('Lesen 30 Seiten'), 45);
+  assert.equal(min('Rad fahren 20 km'), 60);
+  assert.equal(min('Lernen 2 Stunden'), 120);
+  assert.equal(min('Klavier 45 Minuten'), 45);
+  assert.equal(min('10.000 Schritte'), min('10,000 steps'));
+  assert.equal(estimateMinutes('Wandern').effort, 'hard');
+  // German words only count at the start of a word, so English titles keep their meaning.
+  assert.equal(min('back stretches'), 10);
+  assert.equal(estimateMinutes('listen to the radio').source, 'default');
+});

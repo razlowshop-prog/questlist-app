@@ -5,6 +5,7 @@ import { card, eyebrow, FONTS, headingCase, themed, useStyles } from '../theme';
 import type { RestOffer } from '../tokens';
 import { Fire } from './Fire';
 import { brandFill, brandInk, brandTextShadow, VIVID_HEAVY } from './Vivid';
+import { t } from '../i18n';
 
 /**
  * The one-time free save, the first time a missed day would end the streak
@@ -14,8 +15,10 @@ export function RecoveryModal({ offer, onAnswer }: { offer: RestOffer; onAnswer:
   const s = useStyles(makeStyles);
   const fire = streakTierName(offer.tier);
   const keep = offer.streakLost
-    ? `your ${offer.keeps}-day streak${offer.tier > 0 ? ` and your ${fire} fire` : ''} going`
-    : `your ${fire} fire burning`;
+    ? offer.tier > 0
+      ? t('your {n}-day streak and your {fire} fire going', { n: offer.keeps, fire })
+      : t('your {n}-day streak going', { n: offer.keeps })
+    : t('your {fire} fire burning', { fire });
   return (
     <Modal visible transparent animationType="fade" onRequestClose={() => onAnswer(false)}>
       <View style={s.backdrop} />
@@ -24,18 +27,17 @@ export function RecoveryModal({ offer, onAnswer }: { offer: RestOffer; onAnswer:
           <View style={s.fire}>
             <Fire tier={offer.tier} size={44} />
           </View>
-          <Text style={s.eyebrow}>You missed yesterday</Text>
-          <Text style={s.title}>That’s okay.</Text>
+          <Text style={s.eyebrow}>{t('You missed yesterday')}</Text>
+          <Text style={s.title}>{t('That’s okay.')}</Text>
           <Text style={s.body}>
-            Building a habit is hard, and every streak has a day like this. One missed day doesn’t undo the work you’ve
-            put in. We’re here to help, so just this once we’ll keep {keep}.
+            {t('Building a habit is hard, and every streak has a day like this. One missed day doesn’t undo the work you’ve put in. We’re here to help, so just this once we’ll keep {keep}.', { keep })}
           </Text>
-          <Text style={s.note}>This free save only comes once. Later, rest day tokens from levels can cover a missed day.</Text>
+          <Text style={s.note}>{t('This free save only comes once. Later, rest day tokens from levels can cover a missed day.')}</Text>
           <Pressable onPress={() => onAnswer(true)} style={s.primary} accessibilityRole="button">
-            <Text style={s.primaryText}>Keep my streak</Text>
+            <Text style={s.primaryText}>{t('Keep my streak')}</Text>
           </Pressable>
           <Pressable onPress={() => onAnswer(false)} style={s.secondary} accessibilityRole="button">
-            <Text style={s.secondaryText}>No thanks</Text>
+            <Text style={s.secondaryText}>{t('No thanks')}</Text>
           </Pressable>
         </View>
       </SafeAreaView>

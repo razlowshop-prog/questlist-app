@@ -1,6 +1,7 @@
 import { ACHIEVEMENTS, levelForLook, TIER_NAMES, type AchievementStatus } from './achievements.ts';
 import { TROPHY_FRAMES } from './cosmetics.ts';
-import { CATEGORIES } from './library.ts';
+import { lang, locale, t } from './i18n.ts';
+import { areaList } from './library.ts';
 import type { SeasonStatus } from './seasons.ts';
 import type { TrophyStatus } from './trophies.ts';
 import { PITY_SPINS, WHEEL_PRIZES, WHEEL_THEME_REWARD } from './wheel.ts';
@@ -36,7 +37,7 @@ export function unlockFor(look: LockedLook, ctx: UnlockContext): Unlock {
       const odds = WHEEL_PRIZES.find((p) => p.theme)?.odds ?? 1;
       const left = ctx.spinsToPity ?? PITY_SPINS;
       return {
-        how: `Win it on the lucky wheel: the ★ slice, a ${odds}% chance on every spin. If it hasn’t come up by then, it’s yours on spin ${PITY_SPINS}.`,
+        how: t('Win it on the lucky wheel: the ★ slice, a {odds}% chance on every spin. If it hasn’t come up by then, it’s yours on spin {n}.', { odds, n: PITY_SPINS }),
         progress: { value: PITY_SPINS - left, goal: PITY_SPINS, unit: 'spins' },
       };
     }
@@ -48,12 +49,12 @@ export function unlockFor(look: LockedLook, ctx: UnlockContext): Unlock {
       const value = Math.min(goal, status?.value ?? 0);
       const reached = (status?.reached ?? 0) > tier;
       return {
-        how: `Win ${TIER_NAMES[tier]} in the ${def.title} award: ${lower(def.description(goal))}.`,
+        how: t('Win {tier} in the {award} award: {how}.', { tier: t(TIER_NAMES[tier]), award: t(def.title), how: lower(def.description(goal)) }),
         progress: { value, goal, unit: def.unit },
-        ready: reached ? 'Reached! Claim it under Awards on your profile to unlock the theme.' : undefined,
+        ready: reached ? t('Reached! Claim it under Awards on your profile to unlock the theme.') : undefined,
       };
     }
-    return { how: 'Won with an award.' };
+    return { how: t('Won with an award.') };
   }
 
   if (look.kind === 'frame') {
@@ -62,30 +63,31 @@ export function unlockFor(look: LockedLook, ctx: UnlockContext): Unlock {
       const status = ctx.trophies.find((t) => t.def.id === trophyFrame.trophy);
       if (status) {
         return {
-          how: `Win the ${status.def.name} trophy: ${lower(status.def.description).replace(/\.$/, '')}.`,
+          how: t('Win the {trophy} trophy: {how}.', { trophy: t(status.def.name), how: lower(t(status.def.description)).replace(/\.$/, '') }),
           progress: { value: status.value, goal: status.def.target, unit: status.def.unit },
         };
       }
     }
     if (look.id.startsWith('season-')) {
       const { season } = ctx;
-      const kinds = season.season.categories.map((id) => (CATEGORIES.find((c) => c.id === id)?.label ?? id).split(' & ')[0].toLowerCase());
-      const month = new Date(`${season.month}-15T12:00:00`).toLocaleDateString('en', { month: 'long' });
+      const month = new Date(`${season.month}-15T12:00:00`).toLocaleDateString(locale(), { month: 'long' });
       return {
-        how: `Finish ${season.season.target} ${orList(kinds)} tasks in ${month} for the ${season.season.name} event, then claim it on the Challenges tab. Only this month.`,
+        how: t('Finish {n} {areas} tasks in {month} for the {event} event, then claim it on the Challenges tab. Only this month.', {
+          n: season.season.target,
+          areas: areaList(season.season.categories),
+          month,
+          event: t(season.season.name),
+        }),
         progress: { value: season.progress, goal: season.season.target, unit: 'tasks' },
-        ready: season.complete && !season.claimed ? 'Done! Claim it on the Challenges tab.' : undefined,
+        ready: season.complete && !season.claimed ? t('Done! Claim it on the Challenges tab.') : undefined,
       };
     }
   }
 
   const level = levelForLook(look.kind, look.id);
-  if (level === undefined) return { how: 'Won with a reward.' };
-  return { how: `Reach level ${level}.`, progress: { value: Math.min(level, ctx.level), goal: level, unit: 'level' } };
+  if (level === undefined) return { how: t('Won with a reward.') };
+  return { how: t('Reach level {n}.', { n: level }), progress: { value: Math.min(level, ctx.level), goal: level, unit: 'level' } };
 }
 
-const lower = (text: string) => text.charAt(0).toLowerCase() + text.slice(1);
-
-function orList(words: string[]): string {
-  return words.length < 2 ? words.join('') : `${words.slice(0, -1).join(', ')} or ${words[words.length - 1]}`;
-}
+/** For the middle of a sentence; German keeps its capitals, as nouns need them. */
+const lower = (text: string) => (lang() === 'de' ? text : text.charAt(0).toLowerCase() + text.slice(1));

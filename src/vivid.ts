@@ -1,6 +1,7 @@
 import type { GlyphName } from './glyphs.ts';
 import type { IconName } from './icons.ts';
 import type { CelebrationId, FlameStyleId, FrameId } from './cosmetics.ts';
+import { N } from './i18n.ts';
 
 // Succedo Vivid (design thread, "vivid-app-wide-spec" and "rewards-layer-spec"):
 // everything you can press, everything that shows progress and everything you
@@ -64,11 +65,11 @@ export function textSolid(dark: boolean): string {
 export type Rarity = 'common' | 'rare' | 'epic' | 'legendary' | 'mythic';
 
 export const RARITY: Record<Rarity, Grad & { label: string; name: string }> = {
-  common: { ...g('#5BF0D2', '#0E9BB0'), label: '#34E3C4', name: 'Common' },
-  rare: { ...g('#7FD6FF', '#3557FF'), label: '#5AC8FF', name: 'Rare' },
-  epic: { ...g('#E77BFF', '#FF3D9A'), label: '#E77BFF', name: 'Epic' },
-  legendary: { ...g('#FFE066', '#FF7A00', '#4A2600'), label: '#FFC53D', name: 'Legendary' },
-  mythic: { ...g('#FF4D6D', '#A45CFF'), label: '#FF8FB1', name: 'Mythic' },
+  common: { ...g('#5BF0D2', '#0E9BB0'), label: '#34E3C4', name: N('Common') },
+  rare: { ...g('#7FD6FF', '#3557FF'), label: '#5AC8FF', name: N('Rare') },
+  epic: { ...g('#E77BFF', '#FF3D9A'), label: '#E77BFF', name: N('Epic') },
+  legendary: { ...g('#FFE066', '#FF7A00', '#4A2600'), label: '#FFC53D', name: N('Legendary') },
+  mythic: { ...g('#FF4D6D', '#A45CFF'), label: '#FF8FB1', name: N('Mythic') },
 };
 
 /** Rarity labels are bright for dark themes; on light themes the deep end of the gradient reads better. */
@@ -181,39 +182,39 @@ export type FrameArt = 'metal' | 'flames' | 'laurel' | 'crystal' | 'sunrise' | '
  */
 export const FRAME_LOOKS: Record<FrameId, FrameLook> = {
   // The metal rings sweep round from the lower left (conic, from 210°), as on the frames board.
-  ring: { name: 'Bronze', rarity: 'common', stops: ['#7a4a26', '#e0a070', '#8a5530', '#f2c299', '#7a4a26'], art: 'metal' },
-  double: { name: 'Silver', rarity: 'common', stops: ['#7c8591', '#f4f7fa', '#9aa4b0', '#ffffff', '#7c8591'], art: 'metal' },
-  dotted: { name: 'Gold', rarity: 'rare', stops: ['#9a6412', '#ffe7a0', '#c48a20', '#fff6d0', '#9a6412'], art: 'metal' },
-  hex: { name: 'Emerald', rarity: 'rare', stops: ['#9DFFD2', '#0BA360', '#047A47'] },
-  rays: { name: 'Sapphire', rarity: 'rare', stops: ['#9AD9FF', '#2340FF', '#14208F'] },
-  platinum: { name: 'Platinum', rarity: 'rare', stops: ['#8fa3b8', '#ffffff', '#c9d6e3', '#eef4fa', '#8fa3b8'], art: 'metal' },
-  laurel: { name: 'Ruby', rarity: 'epic', stops: ['#FFA3B3', '#E0123A', '#8A0620'] },
-  titanium: { name: 'Titanium', rarity: 'epic', stops: ['#2b3140', '#9aa6bf', '#3a4256', '#d7deeb', '#2b3140'], art: 'metal' },
-  stars: { name: 'Amethyst', rarity: 'epic', stops: ['#ECBDFF', '#7A2CFF', '#3F0F99'] },
-  diamond: { name: 'Neon', rarity: 'legendary', stops: ['#00F0FF', '#FF00E5', '#00F0FF'], conic: true, spin: true, glow: true },
-  ember: { name: 'Inferno', rarity: 'legendary', stops: ['#FFE066', '#FF5A1F', '#FF2D7A', '#FFE066'], conic: true, spin: true, glow: true },
-  crown: { name: 'Aurora', rarity: 'mythic', stops: [...MYTHIC, MYTHIC[0]], conic: true, spin: true, glow: true },
+  ring: { name: N('Bronze'), rarity: 'common', stops: ['#7a4a26', '#e0a070', '#8a5530', '#f2c299', '#7a4a26'], art: 'metal' },
+  double: { name: N('Silver'), rarity: 'common', stops: ['#7c8591', '#f4f7fa', '#9aa4b0', '#ffffff', '#7c8591'], art: 'metal' },
+  dotted: { name: N('Gold'), rarity: 'rare', stops: ['#9a6412', '#ffe7a0', '#c48a20', '#fff6d0', '#9a6412'], art: 'metal' },
+  hex: { name: N('Emerald'), rarity: 'rare', stops: ['#9DFFD2', '#0BA360', '#047A47'] },
+  rays: { name: N('Sapphire'), rarity: 'rare', stops: ['#9AD9FF', '#2340FF', '#14208F'] },
+  platinum: { name: N('Platinum'), rarity: 'rare', stops: ['#8fa3b8', '#ffffff', '#c9d6e3', '#eef4fa', '#8fa3b8'], art: 'metal' },
+  laurel: { name: N('Ruby'), rarity: 'epic', stops: ['#FFA3B3', '#E0123A', '#8A0620'] },
+  titanium: { name: N('Titanium'), rarity: 'epic', stops: ['#2b3140', '#9aa6bf', '#3a4256', '#d7deeb', '#2b3140'], art: 'metal' },
+  stars: { name: N('Amethyst'), rarity: 'epic', stops: ['#ECBDFF', '#7A2CFF', '#3F0F99'] },
+  diamond: { name: N('Neon'), rarity: 'legendary', stops: ['#00F0FF', '#FF00E5', '#00F0FF'], conic: true, spin: true, glow: true },
+  ember: { name: N('Inferno'), rarity: 'legendary', stops: ['#FFE066', '#FF5A1F', '#FF2D7A', '#FFE066'], conic: true, spin: true, glow: true },
+  crown: { name: N('Aurora'), rarity: 'mythic', stops: [...MYTHIC, MYTHIC[0]], conic: true, spin: true, glow: true },
   // Trophy frames (the trophy's rarity on the frames board).
-  ironWill: { name: 'Iron Will', rarity: 'legendary', stops: ['#FF2D1C', '#FF7A00', '#FFE29A', '#FF7A00', '#FF2D1C', '#FF7A00', '#FFE29A', '#FF2D1C'], art: 'flames' },
-  marathonMind: { name: 'Marathon Mind', rarity: 'legendary', stops: ['#FFF1A8', '#E8B33A', '#9A6412'], art: 'laurel' },
-  crystalClear: { name: 'Crystal Clear', rarity: 'epic', stops: ['#E6FBFF', '#9BE8FF', '#C9B6FF', '#ffffff', '#7FD6FF', '#E2C9FF', '#E6FBFF'], art: 'crystal' },
-  dawnBreaker: { name: 'Dawn Breaker', rarity: 'epic', stops: ['#FF7A00', '#FFD36B', '#FFF3C4', '#FFD36B', '#FF7A00'], art: 'sunrise' },
-  dreamWalker: { name: 'Dream Walker', rarity: 'epic', stops: ['#3CFFB0', '#2BD9FF', '#7A5CFF', '#E77BFF', '#3CFFB0'], art: 'aurora' },
-  pathfinder: { name: 'Pathfinder', rarity: 'legendary', stops: ['#7FD6FF'], art: 'orbit' },
+  ironWill: { name: N('Iron Will'), rarity: 'legendary', stops: ['#FF2D1C', '#FF7A00', '#FFE29A', '#FF7A00', '#FF2D1C', '#FF7A00', '#FFE29A', '#FF2D1C'], art: 'flames' },
+  marathonMind: { name: N('Marathon Mind'), rarity: 'legendary', stops: ['#FFF1A8', '#E8B33A', '#9A6412'], art: 'laurel' },
+  crystalClear: { name: N('Crystal Clear'), rarity: 'epic', stops: ['#E6FBFF', '#9BE8FF', '#C9B6FF', '#ffffff', '#7FD6FF', '#E2C9FF', '#E6FBFF'], art: 'crystal' },
+  dawnBreaker: { name: N('Dawn Breaker'), rarity: 'epic', stops: ['#FF7A00', '#FFD36B', '#FFF3C4', '#FFD36B', '#FF7A00'], art: 'sunrise' },
+  dreamWalker: { name: N('Dream Walker'), rarity: 'epic', stops: ['#3CFFB0', '#2BD9FF', '#7A5CFF', '#E77BFF', '#3CFFB0'], art: 'aurora' },
+  pathfinder: { name: N('Pathfinder'), rarity: 'legendary', stops: ['#7FD6FF'], art: 'orbit' },
 };
 
 /** Monthly event frames: the Aurora ring with a month pill. */
-export const SEASON_FRAME: FrameLook = { ...FRAME_LOOKS.crown, name: 'Event' };
+export const SEASON_FRAME: FrameLook = { ...FRAME_LOOKS.crown, name: N('Event') };
 export const SEASON_PILL = g('#FF4D6D', '#A45CFF');
 
 /** Flame colours: the streak's fire tier picks Ember, Blaze or Inferno; some won styles have their own. */
 export const FLAMES = {
-  ember: { ...g('#FFE29A', '#FF4A1C'), name: 'Ember' },
-  blaze: { ...g('#C6F4FF', '#2F7BFF'), name: 'Blaze' },
-  inferno: { ...g('#FFB3EF', '#9B30FF'), name: 'Inferno' },
-  toxic: { ...g('#EEFF8A', '#22C55E'), name: 'Toxic' },
-  solar: { ...g('#FFFBE0', '#FFB000'), name: 'Solar' },
-  phantom: { ...g('#E0FFFB', '#7C5CFF'), name: 'Phantom' },
+  ember: { ...g('#FFE29A', '#FF4A1C'), name: N('Ember') },
+  blaze: { ...g('#C6F4FF', '#2F7BFF'), name: N('Blaze') },
+  inferno: { ...g('#FFB3EF', '#9B30FF'), name: N('Inferno') },
+  toxic: { ...g('#EEFF8A', '#22C55E'), name: N('Toxic') },
+  solar: { ...g('#FFFBE0', '#FFB000'), name: N('Solar') },
+  phantom: { ...g('#E0FFFB', '#7C5CFF'), name: N('Phantom') },
 };
 
 /** The flame's colours for a fire tier (0 = no fire yet: undefined, drawn as an outline). */
