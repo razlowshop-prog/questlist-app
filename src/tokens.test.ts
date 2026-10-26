@@ -67,7 +67,7 @@ test('a rest day keeps a streak through today, or saves a missed yesterday', () 
 
 test('double XP doubles every task finished that day, once per token', () => {
   let s = withLevel(3);
-  s = addTask(s, 'Go for a run', true, 'run', 30);
+  s = addTask(s, 'Read', true, 'run', 30);
   s = spendDoubleXp(s, TODAY);
   assert.deepEqual(s.doubleDays, [TODAY]);
   assert.equal(spendDoubleXp(s, TODAY), s); // already on today

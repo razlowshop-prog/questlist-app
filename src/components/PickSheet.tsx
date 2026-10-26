@@ -1,11 +1,12 @@
 import { Pressable, Text } from 'react-native';
+import { libraryEffort } from '../effort';
 import { estimateMinutes } from '../estimate';
-import { durationLabel, xpFor, type Repeat, type TaskPlan } from '../game';
+import { xpFor, type Repeat, type TaskPlan } from '../game';
 import type { LibraryTask } from '../library';
 import { DEFAULT_AMOUNTS, measuredTitle, type Amount } from '../measure';
 import { themed, useStyles } from '../theme';
 import { AmountPicker } from './AmountPicker';
-import { perWeekLabel } from './LibraryRow';
+import { perWeekLabel, sizeLabel } from './LibraryRow';
 import { defaultSchedule, scheduleProblem, SchedulePicker, scheduleToTask, type Schedule } from './SchedulePicker';
 import { Sheet } from './Sheet';
 import { VividButton } from './Vivid';
@@ -33,6 +34,11 @@ export function pickTitle(pick: LibraryPick): string {
 
 export function pickMinutes(pick: LibraryPick): number {
   return pick.task.measure ? estimateMinutes(pickTitle(pick)).minutes : pick.task.minutes;
+}
+
+/** XP for one finish of a pick, before multipliers. */
+export function pickXp(pick: LibraryPick): number {
+  return xpFor(pickMinutes(pick), libraryEffort(pick.task.id));
 }
 
 /** What addTask takes for a pick. */
@@ -74,7 +80,7 @@ export function PickSheet({
       {pick && (
         <>
           <Text style={s.meta}>
-            About {durationLabel(minutes)} · +{xpFor(minutes)} XP · usually {perWeekLabel(pick.task.perWeek).toLowerCase()}
+            {sizeLabel(pick.task, minutes, 'About ')} · +{pickXp(pick)} XP · usually {perWeekLabel(pick.task.perWeek).toLowerCase()}
           </Text>
           {pick.task.measure && pick.amount && (
             <AmountPicker measure={pick.task.measure} value={pick.amount} onChange={(amount) => onChange({ ...pick, amount })} />

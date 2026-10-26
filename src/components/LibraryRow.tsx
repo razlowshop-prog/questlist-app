@@ -1,10 +1,16 @@
 import { Pressable, Text, View } from 'react-native';
+import { libraryEffort } from '../effort';
 import { durationLabel, xpFor } from '../game';
 import { categoryOf, type LibraryTask } from '../library';
 import { card, useStyles, type Palette } from '../theme';
 import { brandFillSmall, brandInk, brandTextShadow } from './Vivid';
 import { Sticker } from './Vivid';
 import { categoryLook } from '../vivid';
+
+/** How big a library task is: its usual time, or "Willpower" for all-day tasks, whose time says nothing. */
+export function sizeLabel(task: LibraryTask, minutes = task.minutes, about = ''): string {
+  return libraryEffort(task.id) === 'willpower' ? 'Willpower' : `${about}${durationLabel(minutes)}`;
+}
 
 export function perWeekLabel(n: number): string {
   if (n === 0) return 'One-time';
@@ -22,7 +28,7 @@ export function LibraryRow({ task, picked, onAdd }: { task: LibraryTask; picked?
       style={[s.row, picked && s.picked]}
       accessibilityRole="button"
       accessibilityState={{ selected: !!picked }}
-      accessibilityLabel={`${task.title}, +${xpFor(task.minutes)} XP${picked ? ', on your list, change' : ''}`}
+      accessibilityLabel={`${task.title}, +${xpFor(task.minutes, libraryEffort(task.id))} XP${picked ? ', on your list, change' : ''}`}
     >
       <View style={s.iconWrap}>
         {cat && <Sticker grad={categoryLook(cat.id)} glyph={categoryLook(cat.id).glyph} size={32} />}
@@ -30,10 +36,10 @@ export function LibraryRow({ task, picked, onAdd }: { task: LibraryTask; picked?
       <View style={{ flex: 1 }}>
         <Text style={s.title}>{task.title}</Text>
         <Text style={s.meta}>
-          {task.measure ? (task.measure === 'steps' ? 'Your own step count' : 'Your own time or distance') : durationLabel(task.minutes)} · {perWeekLabel(task.perWeek)}
+          {task.measure ? (task.measure === 'steps' ? 'Your own step count' : 'Your own time or distance') : sizeLabel(task)} · {perWeekLabel(task.perWeek)}
         </Text>
       </View>
-      <Text style={s.xp}>+{xpFor(task.minutes)} XP</Text>
+      <Text style={s.xp}>+{xpFor(task.minutes, libraryEffort(task.id))} XP</Text>
       <View style={[s.add, picked && s.added]}>
         <Text style={[s.addText, picked && s.addedText]}>{picked ? '✓' : '+'}</Text>
       </View>

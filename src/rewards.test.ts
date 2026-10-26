@@ -133,7 +133,7 @@ test('the free recovery also saves a fire tier', () => {
 });
 
 test('the comeback boost gives extra XP on the first 3 active days after a lost streak', () => {
-  let s = addTask(player(1), 'Go for a run', true, 'run', 30);
+  let s = addTask(player(1), 'Read', true, 'run', 30);
   assert.equal(comebackDaysLeft(s, TODAY), 0); // never lost a streak
   // A streak that ended four days ago.
   s = { ...s, completions: run(4, addDays(TODAY, -5)).map((c) => ({ ...c, taskId: 'run' })) };

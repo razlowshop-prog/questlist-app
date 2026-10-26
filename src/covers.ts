@@ -19,6 +19,17 @@ const INCLUDES: Record<string, string[]> = {
   'write-a-short-story': ['write-for-20-minutes'],
   'finish-a-book': ['read-a-chapter-of-a-book', 'read-for-20-minutes'],
   'have-dinner-together-without-phones': ['eat-without-screens'],
+  'home-workout': ['20-push-ups', 'do-50-squats', 'plank-for-2-minutes', 'do-30-crunches'],
+  'walk-in-a-park-or-forest': ['walk'],
+  'take-a-mindful-walk': ['walk'],
+  'walk-the-dog': ['walk'],
+  'spend-30-minutes-outside': ['get-15-minutes-of-sunlight'],
+  'learn-something-new-for-30-minutes': ['take-an-online-course-lesson', 'learn-to-code-for-30-minutes', 'watch-an-educational-video'],
+  'practise-a-language-for-15-minutes': ['learn-10-new-words'],
+  'review-your-budget': ['track-your-spending', 'check-your-bank-accounts'],
+  'clear-your-email-inbox': ['reply-to-important-messages'],
+  'host-friends-at-home': ['meet-a-friend'],
+  'phone-free-evening': ['do-a-digital-free-hour'],
 };
 
 /** The same thing under two names: either one covers the other. */
@@ -29,6 +40,7 @@ const SAME: [string, string][] = [
   ['read-for-20-minutes', 'read-a-chapter-of-a-book'],
   ['practise-an-instrument', 'play-music'],
   ['go-swimming', 'go-for-a-swim-in-a-lake'],
+  ['hiit-session', 'home-workout'],
 ];
 
 /** Smaller task -> the tasks that cover it. */
