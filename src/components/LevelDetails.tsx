@@ -18,7 +18,7 @@ import { RewardPicture } from './RewardPicture';
 import { brandLine, brandGlow } from '../vivid';
 import { decimal, num, t, tn } from '../i18n';
 
-/** Opened by tapping the level: XP, the streak multiplier and fire tiers, the next reward. */
+/** Opened by tapping the streak card: XP, the streak multiplier and fire tiers, the next reward. */
 export function LevelDetails({
   visible,
   totalXp,

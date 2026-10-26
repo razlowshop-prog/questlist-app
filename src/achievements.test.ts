@@ -9,9 +9,11 @@ import {
   claimAchievement,
   monthsSince,
   nextLevelReward,
+  upcomingLevelRewards,
+  UPCOMING_REWARDS,
   unlockedRewards,
 } from './achievements.ts';
-import { addDays, emptyState, levelInfo, totalXp, xpToNext, type Completion, type GameState } from './game.ts';
+import { addDays, emptyState, levelInfo, MAX_LEVEL, totalXp, xpToNext, type Completion, type GameState } from './game.ts';
 
 const TODAY = '2026-10-21';
 
@@ -117,4 +119,26 @@ test('no next level reward at the top', () => {
   for (let l = 1; l < 100; l++) xp += xpToNext(l);
   assert.equal(nextLevelReward(xp), undefined);
   assert.equal(nextLevelReward(xp - 1)!.milestone.level, 100);
+});
+
+test('the XP bar preview lists the next levels with the XP still to go', () => {
+  const first = upcomingLevelRewards(0);
+  assert.equal(first.length, UPCOMING_REWARDS);
+  assert.equal(first[0].milestone.level, 2);
+  assert.equal(first[0].xpAway, xpToNext(1));
+  // Each next level is one level's worth of XP further away.
+  for (let i = 1; i < first.length; i++) {
+    const prev = first[i - 1].milestone.level;
+    assert.ok(first[i].milestone.level > prev);
+    if (first[i].milestone.level === prev + 1) assert.equal(first[i].xpAway - first[i - 1].xpAway, xpToNext(prev));
+  }
+  // Halfway through a level, the first one is only the rest of it away.
+  const mid = xpToNext(1) + Math.floor(xpToNext(2) / 2);
+  const info = levelInfo(mid);
+  assert.equal(upcomingLevelRewards(mid)[0].xpAway, info.xpForLevel - info.xpIntoLevel);
+  // Near the top it runs out; at the top it's empty.
+  let top = 0;
+  for (let l = 1; l < MAX_LEVEL; l++) top += xpToNext(l);
+  assert.ok(upcomingLevelRewards(top - 1).length <= 1);
+  assert.deepEqual(upcomingLevelRewards(top + 5000), []);
 });

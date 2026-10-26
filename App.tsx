@@ -54,6 +54,7 @@ import {
 import { shownTitle } from './src/library';
 import { Celebration, type CelebrationEvent } from './src/components/Celebration';
 import { LevelDetails } from './src/components/LevelDetails';
+import { LevelRewards } from './src/components/LevelRewards';
 import { ActivityScreen } from './src/screens/ActivityScreen';
 import { ChallengesScreen } from './src/screens/ChallengesScreen';
 import { FriendsScreen } from './src/screens/FriendsScreen';
@@ -165,6 +166,7 @@ function Succedo() {
   const [toast, setToast] = useState<string | null>(null);
   const toastAnim = useRef(new Animated.Value(0)).current;
   const [levelOpen, setLevelOpen] = useState(false);
+  const [rewardsOpen, setRewardsOpen] = useState(false);
   const [celebration, setCelebration] = useState<CelebrationEvent | null>(null);
   /** Perfect days and streak milestones waiting to be celebrated, after any level-up. */
   const [moments, setMoments] = useState<Moment[]>([]);
@@ -728,8 +730,9 @@ function Succedo() {
                   upcoming={upcoming}
                   streak={streakInfo}
                   multiplier={multiplier}
-                  xpProgress={<XpProgress totalXp={xp} onPress={() => setLevelOpen(true)} />}
+                  xpProgress={<XpProgress totalXp={xp} onPress={() => setRewardsOpen(true)} />}
                   onOpenStreak={() => setLevelOpen(true)}
+                  onOpenRewards={() => setRewardsOpen(true)}
                   tokenStrip={
                     <TokenStrip
                       state={state}
@@ -890,6 +893,7 @@ function Succedo() {
             )}
 
             <LevelDetails visible={levelOpen} totalXp={xp} streak={streakInfo} onClose={() => setLevelOpen(false)} />
+            <LevelRewards visible={rewardsOpen} totalXp={xp} onClose={() => setRewardsOpen(false)} />
 
             {recovery && !celebration && (
               <RecoveryModal

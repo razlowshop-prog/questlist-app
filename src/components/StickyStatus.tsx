@@ -14,9 +14,22 @@ export const STICKY_HEIGHT = 40;
 /**
  * The streak and the XP bar in one slim line, pinned to the top of Today once
  * the big streak card has scrolled away, so both stay in sight down the list.
- * `shown` runs from 0 (hidden) to 1; tapping opens the level details.
+ * `shown` runs from 0 (hidden) to 1. Like the big ones: the streak opens the
+ * streak and fire details, the XP bar the coming level rewards.
  */
-export function StickyStatus({ totalXp, streak, shown, onPress }: { totalXp: number; streak: StreakStatus; shown: SharedValue<number>; onPress: () => void }) {
+export function StickyStatus({
+  totalXp,
+  streak,
+  shown,
+  onStreak,
+  onLevel,
+}: {
+  totalXp: number;
+  streak: StreakStatus;
+  shown: SharedValue<number>;
+  onStreak: () => void;
+  onLevel: () => void;
+}) {
   const s = useStyles(makeStyles);
   const c = useTheme();
   const info = levelInfo(totalXp);
@@ -33,31 +46,39 @@ export function StickyStatus({ totalXp, streak, shown, onPress }: { totalXp: num
 
   return (
     <Animated.View style={[s.wrap, wrapStyle]}>
-      <Pressable
-        onPress={onPress}
-        style={s.row}
-        accessibilityRole="button"
-        accessibilityLabel={`${t('{n}-day streak', { n: streak.days })}. ${t('Level {n}', { n: info.level })}, ${info.maxed ? t('max level') : t('{n} of {total} XP', { n: info.xpIntoLevel, total: info.xpForLevel })}. ${t('Show level details')}`}
-      >
-        <View style={s.streak}>
+      <View style={s.row}>
+        <Pressable
+          onPress={onStreak}
+          hitSlop={8}
+          style={s.streak}
+          accessibilityRole="button"
+          accessibilityLabel={`${t('{n}-day streak', { n: streak.days })}. ${t('Show streak details')}`}
+        >
           <Fire tier={streak.tier} size={18} still />
           <GradientText style={s.days} colors={grad}>
             {streak.days}
           </GradientText>
-        </View>
-        <View style={s.track}>
-          <Animated.View style={[s.fill, fillStyle]} />
-        </View>
-        <Text style={s.level} numberOfLines={1}>
-          {t('Lvl {n}', { n: info.level })}
-          {!info.maxed && (
-            <Text style={{ color: c.muted }}>
-              {' '}
-              · {info.xpIntoLevel}/{info.xpForLevel}
-            </Text>
-          )}
-        </Text>
-      </Pressable>
+        </Pressable>
+        <Pressable
+          onPress={onLevel}
+          style={s.levelPart}
+          accessibilityRole="button"
+          accessibilityLabel={`${t('Level {n}', { n: info.level })}, ${info.maxed ? t('max level') : t('{n} of {total} XP', { n: info.xpIntoLevel, total: info.xpForLevel })}. ${t('Show upcoming rewards')}`}
+        >
+          <View style={s.track}>
+            <Animated.View style={[s.fill, fillStyle]} />
+          </View>
+          <Text style={s.level} numberOfLines={1}>
+            {t('Lvl {n}', { n: info.level })}
+            {!info.maxed && (
+              <Text style={{ color: c.muted }}>
+                {' '}
+                · {info.xpIntoLevel}/{info.xpForLevel}
+              </Text>
+            )}
+          </Text>
+        </Pressable>
+      </View>
     </Animated.View>
   );
 }
@@ -75,7 +96,8 @@ const makeStyles = themed((c) => ({
     borderBottomColor: c.border,
   },
   row: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, maxWidth: 640, width: '100%', alignSelf: 'center' },
-  streak: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  streak: { flexDirection: 'row', alignItems: 'center', gap: 3, minHeight: 32 },
+  levelPart: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 32 },
   days: { fontFamily: VIVID_HEAVY, fontSize: 16, fontVariant: ['lining-nums'] },
   track: { flex: 1, height: 6, borderRadius: 3, backgroundColor: c.surfaceAlt, overflow: 'hidden' },
   fill: { ...brandFillSmall(c), height: '100%', borderRadius: 3 },

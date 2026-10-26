@@ -3,9 +3,20 @@ import { Pressable, Text, View } from 'react-native';
 import { themed, useStyles } from '../theme';
 import { t } from '../i18n';
 
-/** Holding − or + keeps stepping: first after this long, then at this pace. */
-const HOLD_DELAY_MS = 400;
-const HOLD_EVERY_MS = 90;
+/**
+ * A tap is exactly one step, on release, so a touch that turns into a scroll
+ * changes nothing. Holding keeps stepping: first after HOLD_DELAY_MS, then
+ * calmly at HOLD_EVERY_MS, a little faster after HOLD_FAST_AFTER steps.
+ */
+const HOLD_DELAY_MS = 550;
+const HOLD_EVERY_MS = 250;
+const HOLD_FAST_MS = 120;
+const HOLD_FAST_AFTER = 8;
+
+/** The wait before the n-th repeat (0-based) while a button is held. */
+function holdPause(n: number): number {
+  return n < HOLD_FAST_AFTER ? HOLD_EVERY_MS : HOLD_FAST_MS;
+}
 
 /** − number + control. Holding a button keeps going. */
 export function Stepper({
@@ -37,12 +48,7 @@ export function Stepper({
   const latest = useRef({ value, onChange });
   latest.current = { value, onChange };
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  /** When the last touch let go: it already stepped on press-in, so the press right after mustn't step again. */
-  const released = useRef(0);
-  const stop = () => {
-    clearTimeout(timer.current);
-    released.current = Date.now();
-  };
+  const stop = () => clearTimeout(timer.current);
   useEffect(() => stop, []);
 
   function move(dir: 1 | -1): boolean {
@@ -53,24 +59,21 @@ export function Stepper({
     return true;
   }
 
-  function pressIn(dir: 1 | -1) {
-    if (!move(dir)) return;
+  // Held down: one step now, then repeats until the finger lifts or slides off.
+  function hold(dir: 1 | -1) {
+    let n = 0;
     const again = () => {
-      if (move(dir)) timer.current = setTimeout(again, HOLD_EVERY_MS);
+      if (move(dir)) timer.current = setTimeout(again, holdPause(n++));
     };
-    timer.current = setTimeout(again, HOLD_DELAY_MS);
-  }
-
-  // Screen readers press without a press-in.
-  function press(dir: 1 | -1) {
-    if (Date.now() - released.current > 250) move(dir);
+    again();
   }
 
   const button = (dir: 1 | -1, can: boolean) => (
     <Pressable
-      onPressIn={can ? () => pressIn(dir) : undefined}
+      onPress={can ? () => move(dir) : undefined}
+      onLongPress={can ? () => hold(dir) : undefined}
+      delayLongPress={HOLD_DELAY_MS}
       onPressOut={stop}
-      onPress={can ? () => press(dir) : undefined}
       style={[s.button, !can && s.off]}
       accessibilityRole="button"
       accessibilityLabel={dir < 0 ? t('Fewer') : t('More')}
