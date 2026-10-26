@@ -1,12 +1,18 @@
-import { useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
-import { bagCapacity, layoutBag, nextSlotLevel, STACK_SIZE, type BagItem, type BagStack } from '../bag';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Pressable, ScrollView, Text, View } from 'react-native';
+import { bagCapacity, freshStacks, layoutBag, newByItem, nextSlotLevel, STACK_SIZE, type BagItem, type BagStack } from '../bag';
 import type { GameState, Settings } from '../game';
 import { equippedLooks, newOfKind, nextTokenLevel, type OwnedLooks } from '../inventory';
-import { card, eyebrow, themed, useStyles, useTheme } from '../theme';
+import { card, eyebrow, nativeDriver, themeById, themed, useStyles, useTheme } from '../theme';
+import { useReduceMotion } from '../components/FireAura';
 import { adFreeActive, doubleXpActive, restOffer, TOKEN_INFO, tokenCounts } from '../tokens';
 import { XP_PER_TICKET } from '../wheel';
-import { CelebrationGrid, FlameGrid, ThemeGrid } from '../components/LooksPickers';
+import { CelebrationGrid, FlameGrid, ThemeGrid, UnlockSheet, type LookRef } from '../components/LooksPickers';
+import { achievementStatuses } from '../achievements';
+import { seasonStatus } from '../seasons';
+import { trophyStatuses } from '../trophies';
+import { unlockFor } from '../unlocks';
+import { spinsToPity } from '../wheel';
 import { Sheet } from '../components/Sheet';
 import { brandFillSmall, brandInk, brandTextShadow, CountBadge, Sticker, VIVID_HEAVY } from '../components/Vivid';
 import type { GlyphName } from '../glyphs';
@@ -86,6 +92,10 @@ export function InventoryScreen({
   const counts: Record<BagItem, number> = { ticket: tickets, ...tokenCounts(state) };
   const capacity = bagCapacity(level);
   const { slots, waiting } = layoutBag(counts, capacity);
+  // What came in since the bag was last opened, kept from the moment it opened
+  // (the app marks the bag as seen straight after). Those stacks wear "NEW" for a moment.
+  const [fresh, setFresh] = useState(() => newByItem(counts, settings.bagSeen));
+  const tags = freshStacks(slots, waiting, fresh);
   const nextSlots = nextSlotLevel(level);
   const offer = restOffer(state, today);
   const rows: (BagStack | undefined)[][] = [];
@@ -114,6 +124,18 @@ export function InventoryScreen({
   }
 
   const picked = open ? action(open) : undefined;
+
+  // A locked look that was tapped, and what it needs.
+  const [locked, setLocked] = useState<LookRef | null>(null);
+  const unlock = locked
+    ? unlockFor(locked.kind === 'theme' ? { kind: 'theme', reward: themeById(locked.id).reward ?? '' } : { kind: locked.kind, id: locked.id }, {
+        level,
+        achievements: achievementStatuses(state, today),
+        trophies: trophyStatuses(state, today),
+        season: seasonStatus(state, today),
+        spinsToPity: spinsToPity(state),
+      })
+    : undefined;
 
   const { celebration, flameStyle } = equippedLooks(settings, owned);
   const themeId = unlockedThemes.has(settings.theme) ? settings.theme : 'classic';
@@ -146,6 +168,7 @@ export function InventoryScreen({
           unlocked={unlockedThemes}
           onPick={(id) => onSettings({ theme: id })}
           fresh={{ ids: freshThemes, onSeen: (id) => onSeenLook(`theme:${id}`) }}
+          onLocked={(id) => setLocked({ kind: 'theme', id })}
         />
         <Text style={[s.section, s.lookHeading]}>Tick celebration</Text>
         <CelebrationGrid
@@ -153,6 +176,7 @@ export function InventoryScreen({
           equipped={celebration}
           onPick={(id) => onSettings({ celebration: id })}
           fresh={{ ids: freshCelebrations, onSeen: (id) => onSeenLook(`celebration:${id}`) }}
+          onLocked={(id) => setLocked({ kind: 'celebration', id })}
         />
         <Text style={[s.section, s.lookHeading]}>Streak flame</Text>
         <FlameGrid
@@ -161,12 +185,14 @@ export function InventoryScreen({
           fireTier={fireTier}
           onPick={(id) => onSettings({ flameStyle: id })}
           fresh={{ ids: freshFlames, onSeen: (id) => onSeenLook(`flame:${id}`) }}
+          onLocked={(id) => setLocked({ kind: 'flame', id })}
         />
         <Text style={s.muted}>Your fire grows with your streak. The style is yours to pick.</Text>
         <Pressable onPress={onOpenProfile} style={s.looksLink} accessibilityRole="button">
           <Text style={s.muted}>Frames and titles are on your profile.</Text>
           <Text style={s.linkText}>Open profile</Text>
         </Pressable>
+        <UnlockSheet look={locked} unlock={unlock} initials={state.profile.name.trim().slice(0, 2).toUpperCase() || '?'} fireTier={fireTier} onClose={() => setLocked(null)} />
       </ScrollView>
     );
   }
@@ -186,7 +212,7 @@ export function InventoryScreen({
           <View key={r} style={s.row}>
             {row.map((stack, j) =>
               stack ? (
-                <Slot key={j} stack={stack} onPress={() => setOpen(stack.item)} />
+                <Slot key={j} stack={stack} isNew={tags.slots.has(r * PER_ROW + j)} onFaded={() => setFresh({})} onPress={() => setOpen(stack.item)} />
               ) : (
                 <View key={j} style={[s.slot, s.slotEmpty]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" />
               ),
@@ -202,9 +228,16 @@ export function InventoryScreen({
           <Text style={s.muted}>Your bag is full, so these wait here. You can still use every one of them.</Text>
           <View style={s.trayRow}>
             {waiting.map((w) => (
-              <Pressable key={w.item} onPress={() => setOpen(w.item)} style={s.trayItem} accessibilityRole="button" accessibilityLabel={`${w.count} more ${ITEM_INFO[w.item].name}`}>
+              <Pressable
+                key={w.item}
+                onPress={() => setOpen(w.item)}
+                style={s.trayItem}
+                accessibilityRole="button"
+                accessibilityLabel={`${w.count} more ${ITEM_INFO[w.item].name}${tags.waiting.has(w.item) ? ', new' : ''}`}
+              >
                 <Sticker {...itemLook(w.item)} size={30} flat />
                 <Text style={s.trayCount}>×{w.count}</Text>
+                {tags.waiting.has(w.item) && <NewTag onFaded={() => setFresh({})} />}
               </Pressable>
             ))}
           </View>
@@ -242,12 +275,43 @@ export function InventoryScreen({
   );
 }
 
-function Slot({ stack, onPress }: { stack: BagStack; onPress: () => void }) {
+/** How long a "NEW" tag stays before it fades, and how long the fade takes. */
+const NEW_SHOWN_MS = 1500;
+const NEW_FADE_MS = 400;
+
+/**
+ * "NEW" above a bag item that came in since the bag was last opened. It fades
+ * away a moment after the bag opens; with less motion it stays until the bag is left.
+ */
+function NewTag({ onFaded }: { onFaded: () => void }) {
+  const s = useStyles(makeStyles);
+  const reduce = useReduceMotion();
+  const opacity = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (reduce) return;
+    const fade = Animated.sequence([Animated.delay(NEW_SHOWN_MS), Animated.timing(opacity, { toValue: 0, duration: NEW_FADE_MS, useNativeDriver: nativeDriver })]);
+    fade.start(({ finished }) => finished && onFaded());
+    return () => fade.stop();
+  }, [reduce]);
+  return (
+    <Animated.View style={[s.newTag, { opacity }]} pointerEvents="none">
+      <Text style={s.newTagText}>NEW</Text>
+    </Animated.View>
+  );
+}
+
+function Slot({ stack, isNew, onFaded, onPress }: { stack: BagStack; isNew: boolean; onFaded: () => void; onPress: () => void }) {
   const s = useStyles(makeStyles);
   const c = useTheme();
   const full = stack.count >= STACK_SIZE;
   return (
-    <Pressable onPress={onPress} style={[s.slot, full && { borderColor: brandLine(c) }]} accessibilityRole="button" accessibilityLabel={`${ITEM_INFO[stack.item].name}, ${stack.count}`}>
+    <Pressable
+      onPress={onPress}
+      style={[s.slot, full && { borderColor: brandLine(c) }]}
+      accessibilityRole="button"
+      accessibilityLabel={`${ITEM_INFO[stack.item].name}, ${stack.count}${isNew ? ', new' : ''}`}
+    >
+      {isNew && <NewTag onFaded={onFaded} />}
       <Sticker {...itemLook(stack.item)} size={28} flat />
       <Text style={s.slotName} numberOfLines={1} adjustsFontSizeToFit>
         {SHORT_NAME[stack.item]}
@@ -280,6 +344,8 @@ const makeStyles = themed((c) => ({
     textShadowRadius: 3,
   },
   tray: { ...card(c), padding: 14, gap: 8, marginTop: 6 },
+  newTag: { position: 'absolute', top: -7, alignSelf: 'center', ...brandFillSmall(c), borderRadius: 6, paddingHorizontal: 5, height: 14, justifyContent: 'center', zIndex: 2 },
+  newTagText: { color: brandInk(c), fontFamily: VIVID_HEAVY, fontSize: 9, letterSpacing: 0.6, lineHeight: 11 },
   trayRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   trayItem: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 999, borderWidth: 1, borderColor: c.border },
   trayCount: { color: c.text, fontFamily: VIVID_HEAVY, fontSize: 14, fontVariant: ['tabular-nums'] },

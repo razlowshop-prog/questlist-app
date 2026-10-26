@@ -7,6 +7,8 @@ import { THEMES, themeById, themed, useStyles, useTheme } from '../theme';
 import { brandGlow, brandLine, CELEBRATION_GLYPHS, CELEBRATION_LOOKS } from '../vivid';
 import { Fire } from './Fire';
 import { Avatar, ProfileFrame } from './ProfileFrame';
+import { Sheet } from './Sheet';
+import type { Unlock } from '../unlocks';
 import { brandFillSmall, brandInk, brandTextShadow, CountBadge, Sticker, VIVID_HEAVY } from './Vivid';
 
 // The pickers for every look: theme, profile frame, flame, title and tick
@@ -21,7 +23,20 @@ export interface Fresh {
 
 const isTrophyFrame = (id: string) => TROPHY_FRAMES.some((f) => f.id === id);
 
-export function ThemeGrid({ current, unlocked, onPick, fresh }: { current: string; unlocked: Set<string>; onPick: (id: string) => void; fresh?: Fresh }) {
+export function ThemeGrid({
+  current,
+  unlocked,
+  onPick,
+  fresh,
+  onLocked,
+}: {
+  current: string;
+  unlocked: Set<string>;
+  onPick: (id: string) => void;
+  fresh?: Fresh;
+  /** A locked theme was tapped: show what it needs. */
+  onLocked?: (id: string) => void;
+}) {
   const s = useStyles(makeStyles);
   return (
     <>
@@ -33,8 +48,9 @@ export function ThemeGrid({ current, unlocked, onPick, fresh }: { current: strin
               key={t.id}
               label={t.name}
               active={current === t.id}
-              lockedLabel={has ? undefined : t.id === 'fortune' ? 'Wheel' : 'Trophy'}
-              onPress={has ? () => onPick(t.id) : undefined}
+              lockedLabel={has ? undefined : t.id === 'fortune' ? 'Wheel' : 'Award'}
+              onPress={has ? () => onPick(t.id) : onLocked && (() => onLocked(t.id))}
+              locked={!has}
               isNew={has && fresh?.ids?.has(t.id)}
               onSeen={() => fresh?.onSeen?.(t.id)}
             >
@@ -43,7 +59,7 @@ export function ThemeGrid({ current, unlocked, onPick, fresh }: { current: strin
           );
         })}
       </View>
-      <Text style={s.note}>Themes are won with trophy tiers. Fortuna is only won on the lucky wheel.</Text>
+      <Text style={s.note}>Themes are won with awards. Fortuna is only won on the lucky wheel. Tap a locked one to see what it needs.</Text>
     </>
   );
 }
@@ -67,9 +83,13 @@ export function FrameGrid({
   eventFrame,
   initials,
   onPick,
+  fresh,
+  onLocked,
 }: {
   owned: string[];
   equipped?: string;
+  fresh?: Fresh;
+  onLocked?: (id: string) => void;
   /** Every frame to show: the level frames and the event frames. */
   frames: string[];
   /** This month's event frame, shown locked until it's won. */
@@ -91,7 +111,10 @@ export function FrameGrid({
             label={frameName(id)}
             active={equipped === id}
             lockedLabel={has ? undefined : id === eventFrame ? 'Event' : isTrophyFrame(id) ? 'Trophy' : `Lvl ${levelForLook('frame', id)}`}
-            onPress={has ? () => onPick(id) : undefined}
+            onPress={has ? () => onPick(id) : onLocked && (() => onLocked(id))}
+            locked={!has}
+            isNew={has && fresh?.ids?.has(id)}
+            onSeen={() => fresh?.onSeen?.(id)}
           >
             <ProfileFrame frame={id} size={34} locked={!has}>
               <Avatar initials={initials} size={30} />
@@ -115,12 +138,14 @@ export function FlameGrid({
   fireTier,
   onPick,
   fresh,
+  onLocked,
 }: {
   owned: string[];
   equipped?: FlameStyleId;
   fireTier: number;
   onPick: (id: FlameStyleId) => void;
   fresh?: Fresh;
+  onLocked?: (id: string) => void;
 }) {
   const s = useStyles(makeStyles);
   return (
@@ -133,7 +158,8 @@ export function FlameGrid({
             label={f.name}
             active={equipped === f.id}
             lockedLabel={has ? undefined : `Lvl ${levelForLook('flame', f.id)}`}
-            onPress={has ? () => onPick(f.id as FlameStyleId) : undefined}
+            onPress={has ? () => onPick(f.id as FlameStyleId) : onLocked && (() => onLocked(f.id))}
+            locked={!has}
             isNew={has && fresh?.ids?.has(f.id)}
             onSeen={() => fresh?.onSeen?.(f.id)}
           >
@@ -145,20 +171,32 @@ export function FlameGrid({
   );
 }
 
-export function TitleChoices({ owned, equipped, onPick }: { owned: string[]; equipped?: string; onPick: (title: string | undefined) => void }) {
+export function TitleChoices({ owned, equipped, onPick, fresh }: { owned: string[]; equipped?: string; onPick: (title: string | undefined) => void; fresh?: Fresh }) {
   const s = useStyles(makeStyles);
   if (!owned.length) return <Text style={s.muted}>Reach level 5 for your first title.</Text>;
   return (
     <View style={s.wrapRow}>
       <Choice label="None" active={!equipped} onPress={() => onPick(undefined)} />
       {owned.map((t) => (
-        <Choice key={t} label={t} active={equipped === t} onPress={() => onPick(t)} />
+        <Choice key={t} label={t} active={equipped === t} onPress={() => onPick(t)} isNew={fresh?.ids?.has(t)} onSeen={() => fresh?.onSeen?.(t)} />
       ))}
     </View>
   );
 }
 
-export function CelebrationGrid({ owned, equipped, onPick, fresh }: { owned: string[]; equipped?: CelebrationId; onPick: (id: CelebrationId) => void; fresh?: Fresh }) {
+export function CelebrationGrid({
+  owned,
+  equipped,
+  onPick,
+  fresh,
+  onLocked,
+}: {
+  owned: string[];
+  equipped?: CelebrationId;
+  onPick: (id: CelebrationId) => void;
+  fresh?: Fresh;
+  onLocked?: (id: string) => void;
+}) {
   const s = useStyles(makeStyles);
   return (
     <>
@@ -171,7 +209,8 @@ export function CelebrationGrid({ owned, equipped, onPick, fresh }: { owned: str
               label={cel.name}
               active={equipped === cel.id}
               lockedLabel={has ? undefined : `Lvl ${levelForLook('celebration', cel.id)}`}
-              onPress={has ? () => onPick(cel.id as CelebrationId) : undefined}
+              onPress={has ? () => onPick(cel.id as CelebrationId) : onLocked && (() => onLocked(cel.id))}
+              locked={!has}
               isNew={has && fresh?.ids?.has(cel.id)}
               onSeen={() => fresh?.onSeen?.(cel.id)}
             >
@@ -185,10 +224,81 @@ export function CelebrationGrid({ owned, equipped, onPick, fresh }: { owned: str
   );
 }
 
+export type LookRef = { kind: 'theme' | 'frame' | 'flame' | 'celebration'; id: string };
+
+export function lookName(look: LookRef): string {
+  switch (look.kind) {
+    case 'theme':
+      return `${themeById(look.id).name} theme`;
+    case 'frame':
+      return `${frameName(look.id)} frame`;
+    case 'flame':
+      return `${FLAME_STYLES.find((f) => f.id === look.id)?.name ?? 'Streak'} flame`;
+    case 'celebration':
+      return `${CELEBRATIONS.find((c) => c.id === look.id)?.name ?? 'Tick'} celebration`;
+  }
+}
+
+/** Opens on a locked look: a preview, what it takes to win it and how far along the player is. */
+export function UnlockSheet({
+  look,
+  unlock,
+  initials,
+  fireTier,
+  onClose,
+}: {
+  look: LookRef | null;
+  unlock?: Unlock;
+  initials: string;
+  fireTier: number;
+  onClose: () => void;
+}) {
+  const s = useStyles(makeStyles);
+  const progress = unlock?.progress;
+  const share = progress ? Math.max(0, Math.min(1, progress.value / progress.goal)) : 0;
+  return (
+    <Sheet visible={!!look} onClose={onClose} eyebrow="Locked" title={look ? lookName(look) : ''}>
+      {look && unlock && (
+        <View style={s.unlock}>
+          <View style={s.unlockPic}>
+            {look.kind === 'theme' ? (
+              <View style={{ transform: [{ scale: 1.6 }] }}>
+                <ThemeSwatch id={look.id} />
+              </View>
+            ) : look.kind === 'frame' ? (
+              <ProfileFrame frame={look.id} size={60}>
+                <Avatar initials={initials} size={56} />
+              </ProfileFrame>
+            ) : look.kind === 'flame' ? (
+              <Fire tier={Math.max(1, fireTier)} size={52} look={look.id as FlameStyleId} />
+            ) : (
+              <Sticker grad={CELEBRATION_LOOKS[look.id as CelebrationId]} glyph={CELEBRATION_GLYPHS[look.id as CelebrationId]} size={56} />
+            )}
+          </View>
+          <Text style={s.unlockLabel}>How to unlock</Text>
+          <Text style={s.unlockHow}>{unlock.how}</Text>
+          {progress && (
+            <View style={{ gap: 6 }} accessible accessibilityLabel={`${progress.value} of ${progress.goal} ${progress.unit}`}>
+              <View style={s.unlockTrack}>
+                <View style={[s.unlockFill, { width: `${share * 100}%` }]} />
+              </View>
+              <Text style={s.unlockCount}>
+                {progress.unit === 'level' ? `Level ${progress.value} of ${progress.goal}` : `${progress.value.toLocaleString()} / ${progress.goal.toLocaleString()} ${progress.unit}`}
+              </Text>
+            </View>
+          )}
+          {unlock.ready && <Text style={s.unlockReady}>{unlock.ready}</Text>}
+        </View>
+      )}
+    </Sheet>
+  );
+}
+
 function Tile({
   label,
   active,
   lockedLabel,
+  locked,
   onPress,
   isNew,
   onSeen,
@@ -196,6 +306,8 @@ function Tile({
 }: {
   label: string;
   active: boolean;
+  /** Not won yet: a tap shows what it needs instead of wearing it. */
+  locked?: boolean;
   /** Shown instead of the name while the look isn't won yet. */
   lockedLabel?: string;
   onPress?: () => void;
@@ -215,9 +327,9 @@ function Tile({
       onHoverIn={isNew ? onSeen : undefined}
       disabled={!onPress}
       style={[s.tile, active && s.tileActive]}
-      accessibilityRole="radio"
-      accessibilityState={{ checked: active, disabled: !onPress }}
-      accessibilityLabel={lockedLabel ? `${label}, unlocks at ${lockedLabel}` : `${label}${isNew ? ', new' : ''}`}
+      accessibilityRole={locked ? 'button' : 'radio'}
+      accessibilityState={locked ? { disabled: !onPress } : { checked: active, disabled: !onPress }}
+      accessibilityLabel={locked ? `${label}, locked. Show how to unlock it` : `${label}${isNew ? ', new' : ''}`}
     >
       {isNew && <CountBadge count={1} style={s.newBadge} />}
       <View style={[s.tilePic, lockedLabel ? { opacity: 0.45 } : null]}>{children}</View>
@@ -235,11 +347,22 @@ function Tile({
   );
 }
 
-function Choice({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+function Choice({ label, active, onPress, isNew, onSeen }: { label: string; active: boolean; onPress: () => void; isNew?: boolean; onSeen?: () => void }) {
   const s = useStyles(makeStyles);
   return (
-    <Pressable onPress={onPress} style={[s.choice, active && s.choiceActive]} accessibilityRole="radio" accessibilityState={{ checked: active }}>
+    <Pressable
+      onPress={() => {
+        if (isNew) onSeen?.();
+        onPress();
+      }}
+      onHoverIn={isNew ? onSeen : undefined}
+      style={[s.choice, active && s.choiceActive]}
+      accessibilityRole="radio"
+      accessibilityState={{ checked: active }}
+      accessibilityLabel={`${label}${isNew ? ', new' : ''}`}
+    >
       <Text style={[s.choiceText, active && s.choiceTextActive]}>{label}</Text>
+      {isNew && <CountBadge count={1} style={s.newBadge} />}
     </Pressable>
   );
 }
@@ -273,4 +396,12 @@ const makeStyles = themed((c) => ({
   lockRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   lockText: { color: c.faint, fontSize: 11, fontWeight: '600' },
   newBadge: { position: 'absolute', top: -6, right: -6, zIndex: 2 },
+  unlock: { gap: 10 },
+  unlockPic: { height: 96, alignItems: 'center', justifyContent: 'center' },
+  unlockLabel: { color: c.muted, fontSize: 11, fontWeight: '800', letterSpacing: 1.4, textTransform: 'uppercase' },
+  unlockHow: { color: c.text, fontSize: 15, lineHeight: 21 },
+  unlockTrack: { height: 8, borderRadius: 4, backgroundColor: c.surfaceAlt, overflow: 'hidden' },
+  unlockFill: { ...brandFillSmall(c), height: '100%', borderRadius: 4 },
+  unlockCount: { color: c.muted, fontSize: 13, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  unlockReady: { color: c.accent, fontSize: 14, fontWeight: '700', lineHeight: 19 },
 }));

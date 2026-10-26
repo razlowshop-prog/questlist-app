@@ -1,9 +1,9 @@
-import * as Haptics from 'expo-haptics';
 import { useEffect, type ComponentProps } from 'react';
-import { Modal, Platform, Pressable, Share, Text, View } from 'react-native';
+import { Modal, Pressable, Share, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import { APP_NAME } from '../brand';
+import { buzz } from '../haptics';
 import { PERFECT_DAY_XP } from '../moments';
 import { card, eyebrow, FONTS, themed, useStyles, useTheme } from '../theme';
 import { FLAMES, RARITY } from '../vivid';
@@ -23,7 +23,7 @@ export function MomentCelebration({ moment, onClose }: { moment: Moment; onClose
 
   useEffect(() => {
     pop.value = withSpring(1, { damping: 11, stiffness: 140 });
-    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    buzz('prize');
   }, []);
 
   const cardStyle = useAnimatedStyle(() => ({ opacity: Math.min(1, pop.value * 1.5), transform: [{ scale: 0.7 + 0.3 * pop.value }] }));
@@ -75,7 +75,7 @@ export function ComboPill({ count, play, style: place }: { count: number; play: 
     if (!play) return;
     t.value = 0;
     t.value = withSequence(withSpring(1, { damping: 9, stiffness: 220 }), withDelay(900, withTiming(0, { duration: 350, easing: Easing.in(Easing.quad) })));
-    if (Platform.OS !== 'web') Haptics.impactAsync(count >= 4 ? Haptics.ImpactFeedbackStyle.Heavy : Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    buzz(count >= 4 ? 'bigCombo' : 'combo');
   }, [play]);
   const style = useAnimatedStyle(() => ({ opacity: Math.min(1, t.value * 1.4), transform: [{ scale: 0.5 + 0.5 * t.value }, { translateY: 8 * (1 - t.value) }] }));
   if (!play) return null;

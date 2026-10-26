@@ -1,8 +1,8 @@
 import { loadAsync } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
-import { FerrisWheel, ListChecks, Menu, Trophy, type LucideIcon } from 'lucide-react-native';
+import { FerrisWheel, ListChecks, Menu, Plus, Trophy, type LucideIcon } from 'lucide-react-native';
 import type { GlyphName } from './src/glyphs';
-import { CountBadge, Glyph, VIVID_HEAVY } from './src/components/Vivid';
+import { brandFill, brandInk, CountBadge, Glyph, tapHaptic, VIVID_HEAVY } from './src/components/Vivid';
 import { BRAND, brandGlow, brandLine } from './src/vivid';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, BackHandler, Easing, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -84,14 +84,14 @@ import { FocusBar, FocusTimer } from './src/components/FocusTimer';
 import { focusBonus, pauseFocus, resumeFocus, startFocus } from './src/focus';
 import { CelebrationContext } from './src/components/TaskRow';
 import { emblemStatuses } from './src/emblems';
-import { equippedLooks, lookKeys, markLooksSeen, newLooks, ownedLooks } from './src/inventory';
+import { equippedLooks, isProfileLook, lookKeys, markLooksSeen, newLooks, ownedLooks, seedProfileLooks } from './src/inventory';
 import { bagChanged, bagSnapshot, newInBag, type BagItem } from './src/bag';
 import { claimSeason, seasonStatus } from './src/seasons';
 import { frameName } from './src/cosmetics';
 import { askReminderPermission, REMINDERS_SUPPORTED, syncReminders } from './src/reminders';
 import { reviewDue } from './src/review';
 import { askStoreReview } from './src/storeReview';
-import { buzz } from './src/haptics';
+import { buzz, setHapticsEnabled } from './src/haptics';
 import { recapToShow } from './src/recap';
 import { WeeklyRecap } from './src/components/WeeklyRecap';
 import { loadPhoto, loadState, savePhoto, saveState } from './src/storage';
@@ -150,6 +150,8 @@ function Succedo() {
   const [tab, setTab] = useState<Tab>('today');
   const [page, setPage] = useState<Page | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  /** The add-task sheet on Today. */
+  const [adding, setAdding] = useState(false);
   const [redoSetup, setRedoSetup] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const toastAnim = useRef(new Animated.Value(0)).current;
@@ -202,6 +204,7 @@ function Succedo() {
     syncReminders(state).catch((e) => console.warn('Reminders failed to update', e));
   }, [state.tasks, state.completions, loaded, today]);
 
+  setHapticsEnabled(state.settings.haptics);
   const xp = totalXp(state);
   const streakInfo = useMemo(() => streakStatus(state.completions, today, restDaysOf(state)), [state.completions, state.restDays, state.recovery, today]);
   const multiplier = useMemo(() => xpMultiplier(state, today), [state, today]);
@@ -210,7 +213,9 @@ function Succedo() {
   const challenges = useMemo(() => weeklyChallenges(state, today), [state, today]);
   const hour = new Date().getHours();
   const daily = useMemo(() => dailyChallenges(state, today, hour), [state, today, hour]);
-  const readyToClaim = [...challenges, ...daily].filter((c) => c.complete && !c.claimed).length;
+  const season = useMemo(() => seasonStatus(state, today), [state.completions, state.tasks, state.seasonClaims, today]);
+  // Challenges and a finished monthly event waiting to be claimed.
+  const readyToClaim = [...challenges, ...daily].filter((c) => c.complete && !c.claimed).length + (season.complete && !season.claimed ? 1 : 0);
   const achievements = useMemo(() => achievementStatuses(state, today), [state, today]);
   const trophies = useMemo(() => trophyStatuses(state, today), [state, today]);
   const tokens = tokenCounts(state);
@@ -233,7 +238,6 @@ function Succedo() {
   );
   const tickets = ticketStatus(state, xp);
   const looks = equippedLooks(state.settings, owned);
-  const season = useMemo(() => seasonStatus(state, today), [state.completions, state.tasks, state.seasonClaims, today]);
   const emblems = useMemo(() => emblemStatuses(state), [state.completions, state.tasks]);
   const recovery = loaded ? recoveryOffer(state, today) : undefined;
   // Badges show only what is new: items added since the bag was opened, looks won but not seen yet.
@@ -244,20 +248,22 @@ function Succedo() {
     [unlockedThemes, owned],
   );
   const freshLooks = useMemo(() => newLooks(allLookKeys, state.settings.seenLooks), [allLookKeys, state.settings.seenLooks]);
-  // Every won look is picked in the bag now (Customize your app), so all new ones show there.
-  const freshInBag = freshLooks.size;
+  // Frames and titles are worn on the Profile, every other look is picked in the bag (Customize your app).
+  const freshOnProfile = [...freshLooks].filter(isProfileLook).length;
+  const freshInBag = freshLooks.size - freshOnProfile;
   const seeLook = (key: string) => setState((s) => updateSettings(s, { seenLooks: markLooksSeen(s.settings.seenLooks, [key]) }));
   const bagKey = JSON.stringify(bagSnapshot(bagCounts));
   // Players from before the badges start with everything seen, so only what comes next is new.
   useEffect(() => {
-    if (!loaded || (state.settings.seenLooks && state.settings.bagSeen)) return;
+    if (!loaded || (state.settings.seenLooks && state.settings.bagSeen && state.settings.profileLooksSeeded)) return;
     setState((s) =>
       updateSettings(s, {
-        seenLooks: s.settings.seenLooks ?? allLookKeys,
+        seenLooks: s.settings.seenLooks ? (s.settings.profileLooksSeeded ? s.settings.seenLooks : seedProfileLooks(s.settings.seenLooks, allLookKeys)) : allLookKeys,
+        profileLooksSeeded: true,
         bagSeen: s.settings.bagSeen ?? bagSnapshot(bagCounts),
       }),
     );
-  }, [loaded, state.settings.seenLooks, state.settings.bagSeen]);
+  }, [loaded, state.settings.seenLooks, state.settings.bagSeen, state.settings.profileLooksSeeded]);
   // Looking in the bag clears its badge, and keeps it clear while items are used there.
   useEffect(() => {
     if (loaded && page === 'inventory' && bagChanged(bagCounts, state.settings.bagSeen)) {
@@ -300,6 +306,13 @@ function Succedo() {
   function openTab(next: Tab) {
     setPage(null);
     setTab(next);
+  }
+
+  /** The + in the middle of the tab bar: the add sheet opens over Today, so the new task shows up there. */
+  function openAdd() {
+    tapHaptic();
+    openTab('today');
+    setAdding(true);
   }
   const statusBar = c.dark ? 'light' : 'dark';
 
@@ -358,7 +371,7 @@ function Succedo() {
       setTimeout(
         () => {
           setCelebration({ level: after.level, rank: after.rank, newRank: after.rank !== before.rank, milestone });
-          buzz('levelUp', next.settings.haptics);
+          buzz('levelUp');
         },
         900,
       );
@@ -409,7 +422,7 @@ function Succedo() {
     }
     const gained = apply(next);
     if (wasDone) return { xp: 0 };
-    if (gained > 0) buzz('tick', state.settings.haptics);
+    if (gained > 0) buzz('tick');
     // Ticks within COMBO_MS of each other build a combo; it's only for show.
     const now = Date.now();
     combo.current = { count: now - combo.current.at <= COMBO_MS ? combo.current.count + 1 : 1, at: now };
@@ -447,7 +460,7 @@ function Succedo() {
     return {
       prize,
       finish: () => {
-        buzz('prize', state.settings.haptics);
+        buzz('prize');
         return apply(next);
       },
     };
@@ -457,7 +470,7 @@ function Succedo() {
     const { state: next, finished } = tickStep(state, task.id, step, today, Date.now());
     if (next === state) return { xp: 0, finished: false };
     const gained = apply(next);
-    if (gained > 0) buzz(finished ? 'tick' : 'step', state.settings.haptics);
+    if (gained > 0) buzz(finished ? 'tick' : 'step');
     const limited = finished ? next.completions[next.completions.length - 1].limited : undefined;
     return { xp: gained, finished, note: limited ? limitMessage(limited) : undefined };
   }
@@ -528,6 +541,7 @@ function Succedo() {
                   initials={initials}
                   bagCount={bagNew + freshInBag}
                   toClaim={awardsToClaim}
+                  newLooks={freshOnProfile}
                   onHome={() => openTab('today')}
                   onInventory={() => setPage('inventory')}
                   onProfile={() => setPage('profile')}
@@ -573,6 +587,7 @@ function Succedo() {
                   settings={state.settings}
                   owned={owned}
                   eventFrame={season.frame}
+                  season={season}
                   fireTier={streakInfo.tier}
                   photo={photo}
                   emblems={emblems}
@@ -580,6 +595,8 @@ function Succedo() {
                   achievements={achievements}
                   rewards={rewards}
                   toClaim={awardsToClaim}
+                  freshLooks={freshLooks}
+                  onSeenLook={seeLook}
                   week={week}
                   today={today}
                   onClaimAchievement={onClaimAchievement}
@@ -664,6 +681,9 @@ function Succedo() {
                   focusingId={focusTask?.id}
                   onFocus={onFocus}
                   combo={comboShown}
+                  adding={adding}
+                  onCloseAdd={() => setAdding(false)}
+                  onQuoteSide={(side) => setState((s) => updateSettings(s, { quoteSide: { side, day: today } }))}
                   focusBar={focusTask && state.focus && !focusOpen ? <FocusBar task={focusTask} session={state.focus} onOpen={() => setFocusOpen(true)} /> : undefined}
                 />
               )}
@@ -685,7 +705,7 @@ function Succedo() {
                   season={season}
                   onClaimSeason={() => {
                     setState(claimSeason(state, today));
-                    showToast(`${frameName(season.frame)} frame won`);
+                    showToast(`${frameName(season.frame)} frame won. Wear it from your Profile`);
                   }}
                 />
               )}
@@ -709,7 +729,18 @@ function Succedo() {
             </View>
 
             <View style={[styles.tabBar, { paddingBottom: 10 + insets.bottom }]} pointerEvents={spinBusy ? 'none' : 'auto'}>
-              {TABS.map((t) => (
+              {TABS.flatMap((t, i) => [
+                // Today · Challenges · Add Task · Spin · Menu
+                i === 2 && (
+                  <Pressable key="add" onPress={openAdd} style={styles.tab} accessibilityRole="button" accessibilityLabel="Add Task">
+                    <View style={styles.addButton}>
+                      <Plus size={24} color={brandInk(c)} strokeWidth={2.75} aria-hidden />
+                    </View>
+                    <Text style={[styles.tabLabel, styles.addLabel]} numberOfLines={1}>
+                      Add Task
+                    </Text>
+                  </Pressable>
+                ),
                 <Pressable
                   key={t.key}
                   onPress={() => openTab(t.key)}
@@ -730,8 +761,8 @@ function Succedo() {
                     {t.label}
                   </Text>
                   <CountBadge count={badges[t.key]} style={styles.dot} />
-                </Pressable>
-              ))}
+                </Pressable>,
+              ])}
             </View>
 
             <LibraryModal
@@ -847,6 +878,20 @@ const makeStyles = themed((c) => ({
   tabGlyph: { width: 28, height: 26, alignItems: 'center', justifyContent: 'center' },
   tabGlow: { filter: `drop-shadow(0px 0px 6px ${brandGlow(0.7)})` },
   dot: { position: 'absolute', top: -4, right: '18%' },
+  // Round and raised a little above the bar, like the old floating +.
+  addButton: {
+    ...brandFill(c),
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    marginTop: -18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: c.bg,
+    boxShadow: c.brand ? '0px 6px 16px rgba(232,198,108,0.3)' : '0px 6px 16px rgba(90,80,255,0.45)',
+  },
+  addLabel: { color: c.text },
   toast: {
     position: 'absolute',
     bottom: 96,

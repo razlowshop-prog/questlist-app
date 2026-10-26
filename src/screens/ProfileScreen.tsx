@@ -6,10 +6,12 @@ import type { AchievementStatus, Reward } from '../achievements';
 import { Achievements } from '../components/Achievements';
 import { MultiplierPill } from '../components/MultiplierPill';
 import { Fire } from '../components/Fire';
-import { FrameGrid, frameList, TitleChoices } from '../components/LooksPickers';
+import { FrameGrid, frameList, TitleChoices, UnlockSheet } from '../components/LooksPickers';
+import { unlockFor } from '../unlocks';
+import type { SeasonStatus } from '../seasons';
 import { Avatar, frameReach, ProfileFrame } from '../components/ProfileFrame';
 import { Sheet } from '../components/Sheet';
-import { equippedLooks, type OwnedLooks } from '../inventory';
+import { equippedLooks, newOfKind, type OwnedLooks } from '../inventory';
 import { pickPhoto } from '../photo';
 import { TrophyBadge, TrophyCabinet } from '../components/TrophyCabinet';
 import { type profileStats, type Settings, type xpMultiplier } from '../game';
@@ -28,6 +30,7 @@ export function ProfileScreen({
   settings,
   owned,
   eventFrame,
+  season,
   fireTier,
   photo,
   emblems,
@@ -35,6 +38,8 @@ export function ProfileScreen({
   achievements,
   rewards,
   toClaim,
+  freshLooks,
+  onSeenLook,
   week,
   today,
   onClaimAchievement,
@@ -50,6 +55,8 @@ export function ProfileScreen({
   owned: OwnedLooks;
   /** This month's event frame, shown locked in the picker until it's won. */
   eventFrame: string;
+  /** This month's event, for what its frame needs. */
+  season: SeasonStatus;
   /** Current streak fire tier, so flame previews match the player's own fire. */
   fireTier: number;
   /** The player's own picture, a data URI, if they set one. */
@@ -61,6 +68,9 @@ export function ProfileScreen({
   rewards: Reward[];
   /** Achievement tiers ready to claim, shown on the Awards switch. */
   toClaim: number;
+  /** Won looks not seen yet, as "kind:id" keys; frames and titles get a badge here. */
+  freshLooks: Set<string>;
+  onSeenLook: (key: string) => void;
   /** This week against last week, for Stats. */
   week: ReturnType<typeof activitySummary>;
   today: string;
@@ -76,6 +86,11 @@ export function ProfileScreen({
   const [sheet, setSheet] = useState<'look' | null>(null);
   const [photoError, setPhotoError] = useState<string>();
   const { title, frame } = equippedLooks(settings, owned);
+  const freshFrames = newOfKind(freshLooks, 'frame');
+  const freshTitles = newOfKind(freshLooks, 'title');
+  const freshHere = freshFrames.size + freshTitles.size;
+  /** A locked frame that was tapped. */
+  const [lockedFrame, setLockedFrame] = useState<string | null>(null);
   const earnedTrophies = trophies.filter((t) => t.earned).length;
   const showcase = showcaseTrophies(trophies, settings.showcase);
   const initials = name.trim().slice(0, 2).toUpperCase() || '?';
@@ -103,12 +118,13 @@ export function ProfileScreen({
           onPress={() => setSheet('look')}
           style={{ marginVertical: frameReach(frame, 92) }}
           accessibilityRole="button"
-          accessibilityLabel="Change your photo, colour, frame and title"
+          accessibilityLabel={`Change your photo, colour, frame and title${freshHere ? `, ${freshHere} new` : ''}`}
         >
           <ProfileFrame frame={frame} size={92}>
             <Avatar initials={initials} size={92} />
           </ProfileFrame>
           <Gear style={s.avatarGear} />
+          <CountBadge count={freshHere} style={s.avatarNew} />
         </Pressable>
         {editing ? (
           <TextInput
@@ -245,11 +261,17 @@ export function ProfileScreen({
           })}
         </View>
         <Text style={s.eyebrow}>Frame</Text>
-        <FrameGrid owned={owned.frames} equipped={frame} frames={frameList(owned.frames, eventFrame)} eventFrame={eventFrame} initials={initials} onPick={(id) => onSettings({ frame: id })} />
+        <FrameGrid owned={owned.frames} equipped={frame} frames={frameList(owned.frames, eventFrame)} eventFrame={eventFrame} initials={initials} onPick={(id) => onSettings({ frame: id })} fresh={{ ids: freshFrames, onSeen: (id) => onSeenLook(`frame:${id}`) }} onLocked={setLockedFrame} />
         <Text style={s.eyebrow}>Title</Text>
-        <TitleChoices owned={owned.titles} equipped={title} onPick={(t) => onSettings({ title: t })} />
+        <TitleChoices owned={owned.titles} equipped={title} onPick={(t) => onSettings({ title: t })} fresh={{ ids: freshTitles, onSeen: (t) => onSeenLook(`title:${t}`) }} />
       </Sheet>
-
+      <UnlockSheet
+        look={lockedFrame ? { kind: 'frame', id: lockedFrame } : null}
+        unlock={lockedFrame ? unlockFor({ kind: 'frame', id: lockedFrame }, { level: stats.level, achievements, trophies, season }) : undefined}
+        initials={initials}
+        fireTier={fireTier}
+        onClose={() => setLockedFrame(null)}
+      />
     </ScrollView>
   );
 }
@@ -377,6 +399,7 @@ const makeStyles = themed((c) => ({
   gear: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surface, borderWidth: 1, borderColor: c.border },
   gearSmall: { width: 20, height: 20, borderRadius: 10 },
   avatarGear: { position: 'absolute', right: -2, bottom: -2 },
+  avatarNew: { position: 'absolute', right: -2, top: -2 },
   eyebrow: { ...eyebrow(c, 11), color: c.muted, marginTop: 18, marginBottom: 8 },
   photoRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   photoButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
