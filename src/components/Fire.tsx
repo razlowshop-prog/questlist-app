@@ -7,6 +7,7 @@ import { nativeDriver, useTheme, type Palette } from '../theme';
 import { FLAMES, midColor, mixHex, STYLE_FLAMES, tierFlame, type Grad } from '../vivid';
 import { useReduceMotion } from './FireAura';
 import { useSvgId } from './Vivid';
+import { ART_FLAMES, FlameArt } from './FlameArt';
 
 /**
  * Text colour per streak tier: Spark (none yet), Flame, Blaze, Inferno, taken
@@ -34,10 +35,9 @@ export function flameGrad(tier: number, style: FlameStyleId): Grad | undefined {
 
 /**
  * The streak flame (rewards spec): a filled flame in a top-to-bottom gradient
- * with a white core, a soft glow and a gentle flicker. The fire tier picks
- * Ember, Blaze or Inferno; Toxic, Solar and Phantom bring their own colours;
- * Twin, Glow and Crackle add a second flame, a bigger glow or sparks.
- * No fire yet (tier 0) = a faint, unlit flame.
+ * with a white core, a soft glow and a gentle flicker, in the fire tier's
+ * colours (Ember, Blaze or Inferno). The won styles are drawn by FlameArt.
+ * No fire yet (tier 0) = a faint, unlit flame, whatever the style.
  */
 export function Fire({
   tier,
@@ -61,7 +61,7 @@ export function Fire({
   const lit = !!grad;
 
   useEffect(() => {
-    if (!lit || reduce || still || size < 16) return;
+    if (!lit || reduce || still || size < 16 || ART_FLAMES.includes(style)) return;
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(flicker, { toValue: 1, duration: 800, easing: Easing.inOut(Easing.sin), useNativeDriver: nativeDriver }),
@@ -70,7 +70,7 @@ export function Fire({
     );
     loop.start();
     return () => loop.stop();
-  }, [lit, reduce, still, size]);
+  }, [lit, reduce, still, size, style]);
 
   if (!grad) {
     return (
@@ -82,7 +82,10 @@ export function Fire({
     );
   }
 
-  const flame = <FlameShape grad={grad} size={size} glow={still ? 0 : style === 'glow' ? 0.75 : 0.45} />;
+  // The won styles have their own drawings (design "Flames"); tiny ones and still ones rest.
+  if (ART_FLAMES.includes(style)) return <FlameArt style={style} tier={tier} size={size} live={!still && !reduce && size >= 16} />;
+
+  const flame = <FlameShape grad={grad} size={size} glow={still ? 0 : 0.45} />;
   const flick = {
     transform: [
       { translateY: flicker.interpolate({ inputRange: [0, 1], outputRange: [0, -size * 0.05] }) },
@@ -92,35 +95,7 @@ export function Fire({
   };
   return (
     <View style={{ width: size, height: size }}>
-      {style === 'twin' && (
-        <View style={{ position: 'absolute', left: -size * 0.26, top: size * 0.24, opacity: 0.8 }}>
-          <FlameShape grad={grad} size={size * 0.72} glow={0.3} />
-        </View>
-      )}
       <Animated.View style={flick}>{flame}</Animated.View>
-      {style === 'sparks' &&
-        [
-          [0.86, 0.1],
-          [0.0, 0.28],
-          [0.94, 0.52],
-        ].map(([x, y], i) => {
-          const spark = Math.max(3, Math.round(size / 9));
-          return (
-            <View
-              key={i}
-              style={{
-                position: 'absolute',
-                left: x * size,
-                top: y * size,
-                width: spark,
-                height: spark,
-                backgroundColor: grad.c1,
-                ...(!still && { boxShadow: `0px 0px 6px ${grad.c2}` }),
-                transform: [{ rotate: '45deg' }],
-              }}
-            />
-          );
-        })}
     </View>
   );
 }

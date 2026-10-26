@@ -1,4 +1,4 @@
-import * as Haptics from 'expo-haptics';
+import { buzz } from '../haptics';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Animated, Easing, Platform, Pressable, Switch, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 import Reanimated, { useAnimatedStyle, useSharedValue, type SharedValue } from 'react-native-reanimated';
@@ -233,7 +233,7 @@ export function GradientText({
 
 /** A light tap on the phone. */
 export function tapHaptic() {
-  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  buzz('tap');
 }
 
 /**

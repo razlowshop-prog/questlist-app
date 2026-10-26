@@ -1,10 +1,13 @@
 import { useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp, Plus, Sparkles, X } from 'lucide-react-native';
-import Animated, { LinearTransition, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import Animated, { Easing, LinearTransition, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { ComboPill } from '../components/Moments';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Chip } from '../components/Chip';
+import { QuoteFlip } from '../components/QuoteFlip';
+import { ConfirmSheet } from '../components/Sheet';
+import { STICKY_HEIGHT, StickyStatus } from '../components/StickyStatus';
 import { brandFill, brandFillSmall, brandInk, brandTextShadow, EmptyState, GradientText, VIVID_HEAVY, VividButton } from '../components/Vivid';
 import { RARITY } from '../vivid';
 import { LibraryRow } from '../components/LibraryRow';
@@ -17,8 +20,10 @@ import {
   isDoneToday,
   MAX_STEP_LENGTH,
   MAX_STEPS,
+  totalXp,
   xpFor,
   type GameState,
+  type QuoteSide,
   type Repeat,
   type StreakStatus,
   type Task,
@@ -30,15 +35,8 @@ import { CATEGORIES, FEATURED, guessCategory, librarySteps, OTHER_CATEGORY, sear
 import { STEP_SHARE, suggestedSteps } from '../steps';
 import { estimateMinutes } from '../estimate';
 import { nonsenseReason } from '../sense';
-import { quoteOfTheDay } from '../quotes';
+import { quoteOfTheDay, quoteSideFor } from '../quotes';
 import { card, eyebrow, FONTS, themed, useStyles, useTheme, headingCase } from '../theme';
-
-function partOfDay(hour: number): string {
-  if (hour < 5) return 'evening';
-  if (hour < 12) return 'morning';
-  if (hour < 18) return 'afternoon';
-  return 'evening';
-}
 
 export function TodayScreen({
   state,
@@ -63,6 +61,9 @@ export function TodayScreen({
   combo,
   focusingId,
   onFocus,
+  adding,
+  onCloseAdd,
+  onQuoteSide,
 }: {
   state: GameState;
   tasks: Task[];
@@ -93,16 +94,31 @@ export function TodayScreen({
   onFocus: (task: Task) => void;
   /** The "×3 combo" pop-up; play changes each time it should show. */
   combo?: { count: number; play: number };
+  /** The add-task sheet is open (the + in the middle of the tab bar opens it). */
+  adding: boolean;
+  onCloseAdd: () => void;
+  /** The quote card at the top was flipped. */
+  onQuoteSide: (side: QuoteSide) => void;
 }) {
   const s = useStyles(makeStyles);
   const c = useTheme();
-  // The combo pill sits just under the XP bar and sticks to the top once the bar has scrolled away.
+  // Once the streak card has scrolled away, a slim streak + XP line pins to the top.
+  // The combo pill sits just under the XP bar and then just under that line.
   const scrollY = useSharedValue(0);
   const comboY = useSharedValue(0);
+  const stickyFrom = useSharedValue(Number.MAX_SAFE_INTEGER);
+  const pinned = useSharedValue(0);
+  const sticky = useSharedValue(0);
   const onScroll = useAnimatedScrollHandler((e) => {
     scrollY.value = e.contentOffset.y;
+    const now = e.contentOffset.y > stickyFrom.value ? 1 : 0;
+    if (now !== pinned.value) {
+      pinned.value = now;
+      sticky.value = withTiming(now, { duration: 180, easing: Easing.out(Easing.quad) });
+    }
   });
-  const comboStyle = useAnimatedStyle(() => ({ top: Math.max(6, comboY.value - scrollY.value) }));
+  const comboStyle = useAnimatedStyle(() => ({ top: Math.max(6 + STICKY_HEIGHT * sticky.value, comboY.value - scrollY.value) }));
+  const [removing, setRemoving] = useState<Task | null>(null);
   const [title, setTitle] = useState('');
   const [schedule, setSchedule] = useState<Schedule>(() => defaultSchedule(today));
   /** Chosen by the user; otherwise guessed from the title. */
@@ -110,8 +126,6 @@ export function TodayScreen({
   /** Steps the user edited; undefined = the suggested ones. */
   const [stepDraft, setStepDraft] = useState<string[] | undefined>();
   const [newStep, setNewStep] = useState('');
-  /** The add sheet: the task form and quick picks. */
-  const [adding, setAdding] = useState(false);
   const quote = quoteOfTheDay(today);
   const typed = title.trim();
   const suggestions = useMemo(
@@ -167,12 +181,12 @@ export function TodayScreen({
     const steps = stepDraft ?? (librarySteps(typed) || !suggested.length ? undefined : suggested);
     onAdd(typed, repeat, chosenMinutes, { ...plan, category: chosenCategory, ...(steps && { steps }) });
     reset();
-    setAdding(false);
+    onCloseAdd();
   }
 
   function closeSheet() {
     reset();
-    setAdding(false);
+    onCloseAdd();
   }
 
   // Today's tasks in one list, sorted by category in the library's order ("Other" last), so related tasks sit together.
@@ -216,7 +230,7 @@ export function TodayScreen({
           if (result.finished) leave(item.id);
           return result;
         }}
-        onDelete={() => onDelete(item)}
+        onDelete={() => setRemoving(item)}
         focusing={focusingId === item.id}
         onFocus={() => onFocus(item)}
       />
@@ -236,14 +250,20 @@ export function TodayScreen({
           keyboardShouldPersistTaps="handled"
           ListHeaderComponent={
             <>
-              <Text style={s.greeting}>
-                Good <Text style={s.greetingEm}>{partOfDay(new Date().getHours())}</Text>, {state.profile.name}.
-              </Text>
+              <QuoteFlip
+                quote={quote}
+                name={state.profile.name}
+                summary={tasks.length ? `${doneCount} of ${tasks.length} ${tasks.length === 1 ? 'task' : 'tasks'} done${streak.days > 0 ? ` · ${streak.days}-day streak` : ''}` : undefined}
+                side={quoteSideFor(state.settings.quoteSide, today)}
+                onSide={onQuoteSide}
+              />
               {xpProgress}
               {/* Where the combo pill pops up: the header starts below the list's top padding. */}
               <View onLayout={(e) => (comboY.value = HEADER_TOP + e.nativeEvent.layout.y)} />
 
-              <StreakCard streak={streak} week={weekDots(state, today)} multiplier={multiplier} onPress={onOpenStreak} />
+              <View onLayout={(e) => (stickyFrom.value = HEADER_TOP + e.nativeEvent.layout.y + e.nativeEvent.layout.height)}>
+                <StreakCard streak={streak} week={weekDots(state, today)} multiplier={multiplier} onPress={onOpenStreak} />
+              </View>
               {tokenStrip}
               {recap}
               {focusBar}
@@ -264,7 +284,7 @@ export function TodayScreen({
           }
           ListEmptyComponent={
             loaded ? (
-              <EmptyState glyph="Sparkle" mythic before="A " word="fresh" after=" start" body="No tasks for today. Tap + to add one or pick some from the library." />
+              <EmptyState glyph="Sparkle" mythic before="A " word="fresh" after=" start" body="No tasks for today. Tap Add Task below to add one or pick some from the library." />
             ) : undefined
           }
           ListFooterComponent={
@@ -284,11 +304,6 @@ export function TodayScreen({
                   {showDone && doneTasks.map((t, i) => <View key={t.id}>{row(t, i)}</View>)}
                 </View>
               )}
-              <View style={s.quote} accessibilityLabel={`Quote of the day: ${quote.text}, by ${quote.author}`}>
-                <Text style={s.quoteLabel}>Quote of the day</Text>
-                <Text style={s.quoteText}>“{quote.text}”</Text>
-                <Text style={s.quoteAuthor}>{quote.author}</Text>
-              </View>
               {upcoming.length > 0 && (
                 <View style={s.upcoming}>
                   <Text style={s.upcomingHeading}>Coming up</Text>
@@ -306,13 +321,21 @@ export function TodayScreen({
           }
           renderItem={({ item, index }) => row(item, index)}
         />
+        <StickyStatus totalXp={totalXp(state)} streak={streak} shown={sticky} onPress={onOpenStreak} />
         {combo && <ComboPill count={combo.count} play={combo.play} style={comboStyle} />}
       </View>
 
-      {/* Always in reach at the bottom right, however long the list gets. */}
-      <Pressable onPress={() => setAdding(true)} style={s.fab} accessibilityRole="button" accessibilityLabel="Add a task">
-        <Plus size={28} color={brandInk(c)} strokeWidth={2.75} aria-hidden />
-      </Pressable>
+      <ConfirmSheet
+        visible={!!removing}
+        title="Remove this task?"
+        body={removing ? `“${removing.title}” leaves your list. The XP you already earned with it stays.` : undefined}
+        confirmLabel="Remove"
+        onCancel={() => setRemoving(null)}
+        onConfirm={() => {
+          if (removing) onDelete(removing);
+          setRemoving(null);
+        }}
+      />
 
       <Modal visible={adding} transparent animationType="slide" onRequestClose={closeSheet}>
         <Pressable style={s.backdrop} onPress={closeSheet} accessibilityLabel="Close" />
@@ -484,16 +507,8 @@ export function TodayScreen({
 const HEADER_TOP = 12;
 
 const makeStyles = themed((c) => ({
-  // Room at the bottom so the + button never covers the last row.
   nonsense: { color: c.flame, fontSize: 13, fontWeight: '600', lineHeight: 18 },
-  content: { padding: 20, paddingTop: HEADER_TOP, paddingBottom: 104, maxWidth: 640, width: '100%', alignSelf: 'center' },
-  greeting: { fontFamily: FONTS.serif, color: c.text, fontSize: 26, lineHeight: 32, ...headingCase(c) },
-  greetingEm: c.italicAccent ? { fontFamily: FONTS.serifItalic, color: c.accent } : { fontFamily: FONTS.serif, color: c.text },
-  quote: { ...card(c), marginTop: 20, padding: 16, gap: 6 },
-  quoteLabel: { ...eyebrow(c, 11), color: c.muted },
-  quoteText: { fontFamily: FONTS.serif, fontStyle: 'italic', color: c.text, fontSize: 16, lineHeight: 23 },
-  quoteAuthor: { ...eyebrow(c, 11), color: c.label },
-  fab: { ...brandFill(c), position: 'absolute', right: 20, bottom: 20, width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', boxShadow: c.brand ? '0px 8px 24px rgba(232,198,108,0.3)' : '0px 8px 24px rgba(90,80,255,0.45)' },
+  content: { padding: 20, paddingTop: HEADER_TOP, paddingBottom: 32, maxWidth: 640, width: '100%', alignSelf: 'center' },
   backdrop: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.55)' },
   sheetWrap: { flex: 1, justifyContent: 'flex-end' },
   sheet: {

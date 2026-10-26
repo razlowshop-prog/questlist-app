@@ -1,9 +1,12 @@
-import * as Haptics from 'expo-haptics';
-import { useEffect, type ComponentProps } from 'react';
-import { Modal, Platform, Pressable, Share, Text, View } from 'react-native';
+import { useEffect, useState, type ComponentProps, type ReactNode } from 'react';
+import { Modal, Pressable, Share, Text, View, type TextStyle, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withSequence, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withSpring, withTiming } from 'react-native-reanimated';
+import Svg, { Circle, Path } from 'react-native-svg';
+import { DEFAULT_COMBO, entranceAt, type ComboIcon } from '../combo';
+import { useThemeFx } from './ThemeFx';
 import { APP_NAME } from '../brand';
+import { buzz } from '../haptics';
 import { PERFECT_DAY_XP } from '../moments';
 import { card, eyebrow, FONTS, themed, useStyles, useTheme } from '../theme';
 import { FLAMES, RARITY } from '../vivid';
@@ -23,7 +26,7 @@ export function MomentCelebration({ moment, onClose }: { moment: Moment; onClose
 
   useEffect(() => {
     pop.value = withSpring(1, { damping: 11, stiffness: 140 });
-    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    buzz('prize');
   }, []);
 
   const cardStyle = useAnimatedStyle(() => ({ opacity: Math.min(1, pop.value * 1.5), transform: [{ scale: 0.7 + 0.3 * pop.value }] }));
@@ -66,26 +69,180 @@ export function MomentCelebration({ moment, onClose }: { moment: Moment; onClose
 
 /**
  * "×3 combo": pops up for a moment when tasks are ticked in quick
- * succession. Just for fun; it gives no extra XP.
+ * succession, in the theme's own look (combo.ts). Just for fun; it gives no extra XP.
  */
 export function ComboPill({ count, play, style: place }: { count: number; play: number; style?: ComponentProps<typeof Animated.View>['style'] }) {
   const s = useStyles(makeStyles);
-  const t = useSharedValue(0);
+  const c = useTheme();
+  const look = useThemeFx().combo ?? DEFAULT_COMBO;
+  const reduce = useReducedMotion();
+  const [circle, setCircle] = useState({ w: 0, h: 0 });
+  // In over 0.45 s, hold, then fade; the sheen and Notepad's circle follow the landing.
+  const enter = useSharedValue(0);
+  const fade = useSharedValue(0);
+  const after = useSharedValue(0);
   useEffect(() => {
     if (!play) return;
-    t.value = 0;
-    t.value = withSequence(withSpring(1, { damping: 9, stiffness: 220 }), withDelay(900, withTiming(0, { duration: 350, easing: Easing.in(Easing.quad) })));
-    if (Platform.OS !== 'web') Haptics.impactAsync(count >= 4 ? Haptics.ImpactFeedbackStyle.Heavy : Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    enter.value = 0;
+    after.value = 0;
+    fade.value = 0;
+    enter.value = withTiming(1, { duration: reduce ? 200 : 450, easing: Easing.linear });
+    after.value = withDelay(350, withTiming(1, { duration: 650, easing: Easing.inOut(Easing.quad) }));
+    fade.value = withDelay(1350, withTiming(1, { duration: 350, easing: Easing.in(Easing.quad) }));
+    buzz(count >= 4 ? 'bigCombo' : 'combo');
   }, [play]);
-  const style = useAnimatedStyle(() => ({ opacity: Math.min(1, t.value * 1.4), transform: [{ scale: 0.5 + 0.5 * t.value }, { translateY: 8 * (1 - t.value) }] }));
+  const kind = look.entrance;
+  const style = useAnimatedStyle(() => {
+    const e = entranceAt(kind, enter.value);
+    if (reduce) return { opacity: Math.min(1, enter.value) * (1 - fade.value) };
+    return {
+      opacity: e.opacity * (1 - fade.value),
+      transform: [{ translateX: e.x }, { translateY: e.y }, { scale: e.scale }, ...(look.rotate ? [{ rotate: `${look.rotate}deg` }] : []), ...(look.skew ? [{ skewX: `${look.skew}deg` }] : [])],
+    };
+  });
+  const sheenStyle = useAnimatedStyle(() => ({ opacity: after.value > 0 && after.value < 1 ? 0.6 : 0, transform: [{ translateX: -40 + after.value * 200 }, { skewX: '-20deg' }] }));
+  const circleStyle = useAnimatedStyle(() => ({ width: `${(reduce ? 1 : after.value) * 100}%` }));
+  const emberStyle = useAnimatedStyle(() => ({ opacity: (1 - after.value) * (after.value > 0 ? 1 : 0), transform: [{ translateY: -14 * after.value }] }));
   if (!play) return null;
+
+  const fontFamily = look.font === 'heavy' ? VIVID_HEAVY : look.font === 'serif' ? c.fonts.serif : c.fonts.serifItalic;
+  const text: TextStyle = {
+    fontFamily,
+    fontSize: look.size,
+    color: look.color,
+    fontVariant: ['lining-nums'],
+    ...(look.upper && { textTransform: 'uppercase' }),
+    ...(look.letterSpacing && { letterSpacing: look.letterSpacing }),
+    ...(look.textGlow && { textShadowColor: look.textGlow, textShadowRadius: 8, textShadowOffset: { width: 0, height: 0 } }),
+    // Gym leans the badge; its letters stand up straight.
+    ...(look.skew && { transform: [{ skewX: `${-look.skew}deg` }] }),
+  };
+  // Many display fonts draw a tiny ×, so it always comes from the app's own face. It is
+  // its own piece rather than nested text: a gradient clipped to the letters skips nested text on the web.
+  const piece = (children: ReactNode, extra?: TextStyle) =>
+    look.gradient ? (
+      <GradientText style={[text, extra]} colors={{ c1: look.gradient[0], c2: look.gradient[1] }} glow={look.textGlow}>
+        {children}
+      </GradientText>
+    ) : (
+      <Text style={[text, extra]}>{children}</Text>
+    );
+  const label = (
+    <View style={s.comboWords}>
+      {piece('×', { fontFamily: VIVID_HEAVY })}
+      {piece(`${count}${look.suffix ?? ' combo'}`)}
+    </View>
+  );
+  const pill: ViewStyle = look.fill
+    ? {
+        borderRadius: look.radius,
+        backgroundColor: look.fill,
+        ...(look.fillImage && ({ backgroundImage: look.fillImage } as ViewStyle)),
+        ...(look.border && { borderWidth: look.border.width, borderColor: look.border.color }),
+        ...(look.shadow && !look.borderGradient && { boxShadow: look.shadow }),
+        paddingHorizontal: 14,
+        paddingVertical: 3,
+        overflow: 'hidden',
+      }
+    : { paddingHorizontal: 12, paddingVertical: 6 };
+  const body = (
+    <View style={[pill, s.comboRow]}>
+      {look.icon && <ComboIconArt icon={look.icon} color={look.iconColor ?? look.color} />}
+      {label}
+      {(look.icon === 'bubbles' || look.icon === 'moon') && <ComboIconArt icon={look.icon === 'moon' ? 'star' : 'bubbles'} color={look.iconColor ?? look.color} />}
+      {look.sheen && <Animated.View style={[s.sheen, sheenStyle]} pointerEvents="none" />}
+      {look.circle && (
+        // Drawn round the words from left to right, like a pen.
+        <View style={s.circleWrap} pointerEvents="none" onLayout={(e) => setCircle({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
+          <Animated.View style={[s.circleReveal, circleStyle]}>
+            {circle.w > 0 && (
+              <Svg width={circle.w} height={circle.h} viewBox="0 0 100 40" preserveAspectRatio="none">
+                <Path d="M8 22 C6 8 40 3 62 5 C86 7 97 14 94 24 C90 35 50 38 28 35 C12 33 4 27 12 15" fill="none" stroke={look.circle} strokeWidth={2.2} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+              </Svg>
+            )}
+          </Animated.View>
+        </View>
+      )}
+    </View>
+  );
   return (
     <Animated.View style={[s.combo, place, style]} pointerEvents="none" accessibilityLiveRegion="polite" accessibilityLabel={`${count} times combo`}>
-      <GradientText style={s.comboText} colors={FLAMES.ember} glow={FLAMES.ember.c2} glowRadius={10}>
-        ×{count} combo
-      </GradientText>
+      {look.borderGradient ? (
+        // A gradient border: the gradient behind, the fill on top, one pixel in.
+        <View style={{ borderRadius: look.radius, padding: 1, backgroundColor: look.borderGradient[1], backgroundImage: `linear-gradient(90deg, ${look.borderGradient[0]}, ${look.borderGradient[1]})`, ...(look.shadow && { boxShadow: look.shadow }) } as ViewStyle}>
+          {body}
+        </View>
+      ) : (
+        body
+      )}
+      {look.icon === 'embers' && !reduce && (
+        <>
+          <Animated.View style={[s.ember, { left: '30%', backgroundColor: look.iconColor }, emberStyle]} />
+          <Animated.View style={[s.ember, { left: '66%', backgroundColor: look.iconColor }, emberStyle]} />
+        </>
+      )}
     </Animated.View>
   );
+}
+
+/** The small picture before (and for some themes after) the combo text. */
+function ComboIconArt({ icon, color }: { icon: ComboIcon; color: string }) {
+  const size = 12;
+  switch (icon) {
+    case 'star':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M12 0l2.6 9.4L24 12l-9.4 2.6L12 24l-2.6-9.4L0 12l9.4-2.6z" fill={color} />
+        </Svg>
+      );
+    case 'leaf':
+      return (
+        <Svg width={size + 2} height={size + 2} viewBox="0 0 24 24">
+          <Path d="M5 19C5 10 11 5 20 4c0 9-5 15-14 15m0 0 7-7" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        </Svg>
+      );
+    case 'bubbles':
+      return (
+        <Svg width={8} height={size} viewBox="0 0 8 12">
+          <Circle cx={4} cy={8} r={2.4} fill="none" stroke={color} strokeWidth={1.2} />
+          <Circle cx={5.5} cy={2.5} r={1.4} fill="none" stroke={color} strokeWidth={1} />
+        </Svg>
+      );
+    case 'sun':
+      return (
+        <Svg width={size + 2} height={size - 2} viewBox="0 0 24 16">
+          <Path d="M3 15a9 9 0 0 1 18 0z" fill={color} />
+          <Path d="M12 1v3M3.5 5.5l2 2M20.5 5.5l-2 2" stroke={color} strokeWidth={2} strokeLinecap="round" />
+        </Svg>
+      );
+    case 'bolt':
+      return (
+        <Svg width={size - 2} height={size + 2} viewBox="0 0 12 18">
+          <Path d="M7 0 1 10h4l-1 8 7-11H7l1-7z" fill={color} />
+        </Svg>
+      );
+    case 'peak':
+      return (
+        <Svg width={size + 2} height={size - 2} viewBox="0 0 24 16">
+          <Path d="M1 15 9 4l4 5 3-3 7 9z" fill={color} />
+        </Svg>
+      );
+    case 'moon':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M20 15A9 9 0 1 1 9 4a7 7 0 0 0 11 11z" fill={color} />
+        </Svg>
+      );
+    case 'coin':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Circle cx={12} cy={12} r={10} fill={color} />
+          <Circle cx={12} cy={12} r={6.5} fill="none" stroke="#1f1530" strokeWidth={1.5} opacity={0.5} />
+        </Svg>
+      );
+    case 'embers':
+      return null;
+  }
 }
 
 const makeStyles = themed((c) => ({
@@ -98,6 +255,11 @@ const makeStyles = themed((c) => ({
   body: { color: c.muted, fontSize: 15, lineHeight: 21, textAlign: 'center' },
   buttons: { flexDirection: 'row', gap: 10, marginTop: 8 },
   small: { fontSize: 12, marginTop: 4 },
-  combo: { position: 'absolute', top: 6, alignSelf: 'center', paddingHorizontal: 14, paddingVertical: 3, borderRadius: 999, backgroundColor: 'rgba(20,14,30,0.85)', borderWidth: 1, borderColor: 'rgba(255,122,60,0.5)' },
-  comboText: { fontFamily: VIVID_HEAVY, fontSize: 15 },
+  combo: { position: 'absolute', top: 6, alignSelf: 'center' },
+  comboRow: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 26 },
+  comboWords: { flexDirection: 'row', alignItems: 'baseline' },
+  sheen: { position: 'absolute', top: -4, bottom: -4, left: 0, width: 14, backgroundColor: '#fff3c4' },
+  circleWrap: { position: 'absolute', left: -4, right: -4, top: -2, bottom: -2 },
+  circleReveal: { position: 'absolute', left: 0, top: 0, bottom: 0, overflow: 'hidden' },
+  ember: { position: 'absolute', top: -2, width: 3, height: 3, borderRadius: 2 },
 }));

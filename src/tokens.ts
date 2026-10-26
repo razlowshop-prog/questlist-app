@@ -28,6 +28,8 @@ export function tokenCounts(state: GameState): Record<TokenKind, number> {
   counts.double -= state.doubleDays?.length ?? 0;
   counts.reroll -= state.swaps?.length ?? 0;
   counts.adfree -= state.adFreeDays?.length ?? 0;
+  // Never below zero, even if a later ladder change turned a used token's level into a look.
+  for (const k of Object.keys(counts) as TokenKind[]) counts[k] = Math.max(0, counts[k]);
   return counts;
 }
 

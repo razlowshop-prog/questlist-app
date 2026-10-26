@@ -229,9 +229,15 @@ export interface Settings {
   bagSeen?: Partial<Record<string, number>>;
   /** Won looks the player has already seen, as "kind:id" keys (inventory.ts newLooks). */
   seenLooks?: string[];
+  /** Frames and titles owned before they had "new" badges were marked seen (inventory.ts seedProfileLooks). */
+  profileLooksSeeded?: boolean;
   /** Day the last backup file was saved (backup.ts). */
   lastBackup?: string;
+  /** Which side of the quote card on Today was left showing, and on which day (quotes.ts quoteSideFor). */
+  quoteSide?: { side: QuoteSide; day: string };
 }
+
+export type QuoteSide = 'quote' | 'greet';
 
 /** Evening time of the "your streak is about to end" notification. */
 export const STREAK_REMINDER_HOUR = 20;

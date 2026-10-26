@@ -1,21 +1,29 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View, type ViewStyle } from 'react-native';
-import Animated, { Easing, useAnimatedStyle } from 'react-native-reanimated';
-import Svg, { Circle, Path, Rect } from 'react-native-svg';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withSequence, withTiming, type SharedValue } from 'react-native-reanimated';
+import Svg, { Circle, Defs, Ellipse, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 import type { AmbientKind } from '../../themeFx';
 import { circuit, pointOn, PULSE_LOOP, PULSE_SHARE, PULSE_STAGGER, type Trace } from '../../circuit';
-import { keyframes, LEAF, seeded, stepframes, useLoop, useLoopsOn } from './hooks';
+import { keyframes, LEAF, seeded, useLoop, useLoopsOn } from './hooks';
 
 // The theme's background layer: a few slow particles behind everything,
 // never in the way of a tap. Off with reduced motion and in the background,
-// except Neon's circuit lines, which then stay drawn without their lights.
+// except Neon's circuit lines and Thunder's clouds, which then stay drawn
+// without their lights.
 
 export function Ambient({ kind }: { kind: AmbientKind }) {
   const on = useLoopsOn();
   const [size, setSize] = useState({ w: 0, h: 0 });
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none" onLayout={(e) => setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
-      {size.h > 0 && (on ? <Layer kind={kind} w={size.w} h={size.h} /> : kind === 'circuit' && <Circuit w={size.w} h={size.h} still />)}
+      {size.h > 0 &&
+        (on ? (
+          <Layer kind={kind} w={size.w} h={size.h} />
+        ) : kind === 'circuit' ? (
+          <Circuit w={size.w} h={size.h} still />
+        ) : (
+          kind === 'storm' && <Storm w={size.w} still />
+        ))}
     </View>
   );
 }
@@ -37,7 +45,7 @@ function Layer({ kind, w, h }: { kind: AmbientKind; w: number; h: number }) {
     case 'dusk':
       return <Dusk w={w} />;
     case 'storm':
-      return <Storm />;
+      return <Storm w={w} />;
     case 'peaks':
       return <Peaks w={w} h={h} />;
     case 'embers':
@@ -283,20 +291,88 @@ function Dusk({ w }: { w: number }) {
   );
 }
 
-/** Thunder: every few seconds the sky flickers and a bolt cracks in the corner. */
-function Storm() {
-  const t = useLoop(7000, true, { restart: true, easing: Easing.linear });
-  const flash = useAnimatedStyle(() => ({ opacity: keyframes(t.value, [0, 0.9, 0.91, 0.92, 0.93, 0.94, 1], [0, 0, 0.18, 0.04, 0.18, 0, 0]) }));
-  const bolt = useAnimatedStyle(() => ({ opacity: stepframes(t.value, [0, 0.91, 0.93], [0, 0.9, 0]) }));
+/** Thunder's clouds at the top (design "Wetterleuchten"), placed for a 390 px wide screen and stretched sideways to fit. */
+const STORM_CLOUDS = [
+  { left: -20, top: 6, width: 170, height: 71 },
+  { left: 200, top: -4, width: 210, height: 88 },
+  { left: 110, top: 40, width: 120, height: 50 },
+];
+/** One cloud lights up about every 40 seconds: somewhere between these. */
+const GLOW_GAP_MS = [30_000, 50_000];
+
+/**
+ * Thunder: three dark clouds sit at the top, and now and then one of them
+ * glows from inside with a short double flicker, like distant lightning.
+ * Nothing ever flashes over the content.
+ */
+function Storm({ w, still }: { w: number; still?: boolean }) {
+  const glows = [useSharedValue(0), useSharedValue(0), useSharedValue(0)];
+  useEffect(() => {
+    if (still) return;
+    let timer: ReturnType<typeof setTimeout>;
+    let last = -1;
+    const next = () => {
+      const [min, max] = GLOW_GAP_MS;
+      timer = setTimeout(() => {
+        // A different cloud from last time.
+        let i = Math.floor(Math.random() * glows.length);
+        if (i === last) i = (i + 1) % glows.length;
+        last = i;
+        glows[i].value = withSequence(
+          withTiming(0.7, { duration: 120 }),
+          withTiming(0.15, { duration: 120 }),
+          withTiming(0.55, { duration: 180 }),
+          withTiming(0, { duration: 300 }),
+        );
+        next();
+      }, min + Math.random() * (max - min));
+    };
+    next();
+    return () => clearTimeout(timer);
+  }, [still]);
+  const k = w / 390;
   return (
     <>
-      <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: '#cfd6ff' }, flash]} />
-      <Animated.View style={[{ position: 'absolute', right: 40, top: 30 }, bolt]}>
-        <Svg width={60} height={140} viewBox="0 0 60 140">
-          <Path d="M34 0 14 60h16L18 140 50 50H34L44 0z" fill="#fff6b0" />
+      {STORM_CLOUDS.map((c, i) => (
+        <StormCloud key={i} left={c.left * k} top={c.top} width={c.width * k} height={c.height} glow={glows[i]} />
+      ))}
+    </>
+  );
+}
+
+/** Where a CSS "radial-gradient(circle at x% y%, colour 0 r%)" puts its edge: r% of the way to the farthest corner. */
+function puff(w: number, h: number, x: number, y: number, r: number) {
+  const cx = w * x;
+  const cy = h * y;
+  const far = Math.max(Math.hypot(cx, cy), Math.hypot(w - cx, cy), Math.hypot(cx, h - cy), Math.hypot(w - cx, h - cy));
+  return { cx, cy, r: far * r };
+}
+
+function StormCloud({ left, top, width, height, glow }: { left: number; top: number; width: number; height: number; glow: SharedValue<number> }) {
+  const glowStyle = useAnimatedStyle(() => ({ opacity: glow.value }));
+  const fill = '#2d2f3c';
+  const id = `stormGlow${Math.round(left)}`;
+  return (
+    <View style={{ position: 'absolute', left, top, width, height }}>
+      {/* The glow reaches 30% past the cloud on every side. */}
+      <Animated.View style={[{ position: 'absolute', left: -0.3 * width, top: -0.3 * height, width: 1.6 * width, height: 1.6 * height }, glowStyle]}>
+        <Svg width={1.6 * width} height={1.6 * height}>
+          <Defs>
+            <RadialGradient id={id} cx="50%" cy="50%" rx="50%" ry="50%">
+              <Stop offset="0" stopColor="#cfd6ff" stopOpacity={0.55} />
+              <Stop offset="1" stopColor="#cfd6ff" stopOpacity={0} />
+            </RadialGradient>
+          </Defs>
+          <Ellipse cx={0.8 * width} cy={0.8 * height} rx={0.8 * width} ry={0.8 * height} fill={`url(#${id})`} />
         </Svg>
       </Animated.View>
-    </>
+      <Svg width={width} height={height}>
+        {[puff(width, height, 0.3, 0.65, 0.28), puff(width, height, 0.55, 0.45, 0.34), puff(width, height, 0.78, 0.66, 0.25)].map((c, i) => (
+          <Circle key={i} cx={c.cx} cy={c.cy} r={c.r} fill={fill} />
+        ))}
+        <Rect x={0.18 * width} y={0.6 * height} width={0.66 * width} height={0.4 * height} fill={fill} />
+      </Svg>
+    </View>
   );
 }
 

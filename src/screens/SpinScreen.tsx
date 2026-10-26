@@ -1,6 +1,6 @@
-import * as Haptics from 'expo-haptics';
+import { buzz } from '../haptics';
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Animated, Easing, Modal, PanResponder, Platform, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
+import { Animated, Easing, Modal, PanResponder, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Reanimated, { cancelAnimation, Easing as REasing, useAnimatedReaction, useAnimatedStyle, useSharedValue, withRepeat, withTiming, type SharedValue } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
@@ -127,9 +127,9 @@ export function SpinScreen({
 
   function tick() {
     const now = Date.now();
-    if (Platform.OS !== 'web' && now - lastTick.current >= TICK_MS) {
+    if (now - lastTick.current >= TICK_MS) {
       lastTick.current = now;
-      Haptics.selectionAsync().catch(() => {});
+      buzz('step');
     }
   }
 
@@ -150,8 +150,8 @@ export function SpinScreen({
     pending.current = null;
     setSpinning(false);
     setWon(prize);
+    // The prize buzz comes with the hand-out.
     finish();
-    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
   }
 
   /**
@@ -196,6 +196,10 @@ export function SpinScreen({
       PanResponder.create({
         // Not while it turns, so a drag that starts on the wheel still scrolls the page.
         onStartShouldSetPanResponder: () => !live.current.spinning,
+        // The page may still take the touch over: an up or down drag on the wheel
+        // scrolls, a sideways flick spins and a tap explains the slice.
+        onShouldBlockNativeResponder: () => false,
+        onPanResponderTerminationRequest: () => true,
         onPanResponderRelease: (e, g) => {
           const { spin, spinning, has, size, ownsTheme } = live.current;
           if (spinning) return;

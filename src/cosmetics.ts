@@ -6,7 +6,7 @@
 export type LevelFrameId = 'ring' | 'double' | 'dotted' | 'hex' | 'rays' | 'platinum' | 'laurel' | 'titanium' | 'stars' | 'diamond' | 'ember' | 'crown';
 export type TrophyFrameId = 'ironWill' | 'marathonMind' | 'crystalClear' | 'dawnBreaker' | 'dreamWalker' | 'pathfinder';
 export type FrameId = LevelFrameId | TrophyFrameId;
-export type FlameStyleId = 'classic' | 'outline' | 'solid' | 'kindling' | 'twin' | 'glow' | 'sparks';
+export type FlameStyleId = 'classic' | 'outline' | 'solid' | 'kindling' | 'twin' | 'glow' | 'sparks' | 'plasma' | 'ink' | 'lava';
 
 /** Frames won from levels, in level order. */
 export const FRAMES: { id: LevelFrameId; name: string }[] = [
@@ -45,8 +45,11 @@ export const FLAME_STYLES: { id: FlameStyleId; name: string }[] = [
   { id: 'solid', name: 'Solar' },
   { id: 'kindling', name: 'Phantom' },
   { id: 'twin', name: 'Twin' },
-  { id: 'glow', name: 'Glow' },
-  { id: 'sparks', name: 'Crackle' },
+  { id: 'glow', name: 'Prism' },
+  { id: 'sparks', name: 'Pixel' },
+  { id: 'plasma', name: 'Plasma' },
+  { id: 'ink', name: 'Ink' },
+  { id: 'lava', name: 'Lava' },
 ];
 
 /** Looks for the burst that plays when a task is ticked. classic is everyone's from the start. */

@@ -3,9 +3,9 @@ import { Pressable, Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { APP_NAME } from '../brand';
 import { FONTS, themed, useStyles, useTheme } from '../theme';
-import { BRAND, brandLine, KEYLINE } from '../vivid';
+import { BRAND, brandLine } from '../vivid';
 import { Avatar } from './ProfileFrame';
-import { brandFillSmall, CountBadge, fill, GradientText, VIVID_HEAVY } from './Vivid';
+import { CountBadge, fill, GradientText, VIVID_HEAVY } from './Vivid';
 
 /** Avatar size in the header and the ring around it. */
 const RING = 34;
@@ -24,6 +24,7 @@ export function TopBar({
   initials,
   bagCount,
   toClaim,
+  newLooks = 0,
   onHome,
   onInventory,
   onProfile,
@@ -36,6 +37,8 @@ export function TopBar({
   bagCount: number;
   /** Trophy tiers ready to claim on the profile. */
   toClaim: number;
+  /** Frames and titles won but not seen yet on the profile. */
+  newLooks?: number;
   /** The wordmark goes back to Today. */
   onHome: () => void;
   onInventory: () => void;
@@ -72,7 +75,7 @@ export function TopBar({
         onPress={onProfile}
         style={s.avatarHit}
         accessibilityRole="button"
-        accessibilityLabel={`Profile, level ${level}, ${Math.round(shown * 100)}% to the next level${toClaim ? `, ${toClaim} to claim` : ''}`}
+        accessibilityLabel={`Profile, level ${level}, ${Math.round(shown * 100)}% to the next level${toClaim ? `, ${toClaim} to claim` : ''}${newLooks ? `, ${newLooks} new ${newLooks === 1 ? 'look' : 'looks'}` : ''}`}
       >
         <View style={s.ring}>
           <Svg width={RING} height={RING} style={s.ringSvg}>
@@ -93,11 +96,15 @@ export function TopBar({
             )}
           </Svg>
           <Avatar initials={initials.slice(0, 1)} size={RING - 2 * STROKE - 2} />
-          <View style={[s.level, c.brand ? brandFillSmall(c) : fill(BRAND, 135)]}>
-            <Text style={s.levelText}>{level}</Text>
+          {/* An outlined "LV 8" pill under the avatar, so it doesn't read as a notification badge. */}
+          <View style={s.levelWrap} pointerEvents="none">
+            <View style={s.level}>
+              <Text style={s.levelLv}>LV</Text>
+              <Text style={s.levelText}>{level}</Text>
+            </View>
           </View>
         </View>
-        <CountBadge count={toClaim} style={s.claim} />
+        <CountBadge count={toClaim + newLooks} style={s.claim} />
       </Pressable>
     </View>
   );
@@ -133,20 +140,22 @@ const makeStyles = themed((c) => ({
   avatarHit: { marginLeft: 4, padding: 3, zIndex: 1 },
   ring: { width: RING, height: RING, alignItems: 'center', justifyContent: 'center' },
   ringSvg: { position: 'absolute', left: 0, top: 0 },
+  levelWrap: { position: 'absolute', left: -20, right: -20, bottom: -7, alignItems: 'center' },
   level: {
-    position: 'absolute',
-    right: -5,
-    bottom: -4,
-    minWidth: 17,
-    height: 17,
-    paddingHorizontal: 3,
-    borderRadius: 9,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: KEYLINE,
+    gap: 2,
+    height: 13,
+    paddingHorizontal: 4,
+    borderRadius: 7,
+    backgroundColor: c.surface,
+    borderWidth: 1,
+    borderColor: brandLine(c),
+    // A thin ring in the screen colour lifts it off the XP ring.
+    boxShadow: `0px 0px 0px 1.5px ${c.bg}`,
   },
-  levelText: { color: c.brand?.ink ?? '#FFFFFF', fontFamily: VIVID_HEAVY, fontSize: 10, lineHeight: 12 },
+  levelLv: { color: c.muted, fontSize: 7, fontWeight: '800', letterSpacing: 0.4, lineHeight: 9 },
+  levelText: { color: brandLine(c), fontFamily: VIVID_HEAVY, fontSize: 9, lineHeight: 10 },
   claim: { position: 'absolute', top: -4, right: -4 },
   back: { flexDirection: 'row', alignItems: 'center', gap: 2, minHeight: 40, paddingRight: 8, zIndex: 1 },
   backText: { color: brandLine(c), fontSize: 16, fontWeight: '700' },

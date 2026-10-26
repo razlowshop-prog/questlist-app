@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Plus } from 'lucide-react-native';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { addDays, SENSOR_CHALLENGES, weekStart, type ChallengeDef, type ChallengeStatus } from '../game';
 import { EventCard } from '../components/EventCard';
+import { ConfirmSheet } from '../components/Sheet';
 import type { DailyStatus } from '../daily';
 import type { SeasonStatus } from '../seasons';
 import { card, themed, useStyles, useTheme, FONTS, headingCase } from '../theme';
@@ -33,12 +35,25 @@ export function ChallengesScreen({
 }) {
   const s = useStyles(makeStyles);
   const c = useTheme();
+  /** The weekly challenge waiting for "Swap it?". */
+  const [swapping, setSwapping] = useState<ChallengeDef | null>(null);
   const end = addDays(weekStart(today), 6);
   const [y, m, d] = end.split('-').map(Number);
   const daysLeft = Math.round((new Date(y, m - 1, d).getTime() - new Date().setHours(0, 0, 0, 0)) / 86400000) + 1;
 
   return (
     <ScrollView contentContainerStyle={s.content}>
+      <ConfirmSheet
+        visible={!!swapping}
+        title="Swap this challenge?"
+        body={swapping ? `“${swapping.title}” is replaced by a new challenge. ${swapsLeft === 1 ? 'This uses your last swap.' : `This uses 1 of your ${swapsLeft} swaps.`}` : undefined}
+        confirmLabel="Swap"
+        onCancel={() => setSwapping(null)}
+        onConfirm={() => {
+          if (swapping) onSwap(swapping.id);
+          setSwapping(null);
+        }}
+      />
       <StickerHeading glyph="CalendarStar" grad={SEASON_PILL} style={{ marginBottom: 14 }}>
         <Text style={[s.heading, s.subHeading, { marginTop: 0 }]}>Monthly event</Text>
       </StickerHeading>
@@ -81,7 +96,7 @@ export function ChallengesScreen({
             <>
               <GradientText style={s.reward}>+{ch.def.rewardXp} XP</GradientText>
               {swapsLeft > 0 && (
-                <Pressable onPress={() => onSwap(ch.def.id)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Swap ${ch.def.title}`}>
+                <Pressable onPress={() => setSwapping(ch.def)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Swap ${ch.def.title}`}>
                   <Text style={s.swap}>Swap</Text>
                 </Pressable>
               )}

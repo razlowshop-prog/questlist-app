@@ -63,3 +63,38 @@ export function bagSnapshot(counts: Record<BagItem, number>): Record<BagItem, nu
 export function bagChanged(counts: Record<BagItem, number>, seen: Partial<Record<string, number>> | undefined): boolean {
   return BAG_ITEMS.some((item) => Math.max(0, Math.floor(counts[item] ?? 0)) !== (seen?.[item] ?? -1));
 }
+
+/** How many of each item came in since the player last looked in the bag. */
+export function newByItem(counts: Record<BagItem, number>, seen: Partial<Record<string, number>> | undefined): Partial<Record<BagItem, number>> {
+  if (!seen) return {};
+  const out: Partial<Record<BagItem, number>> = {};
+  for (const item of BAG_ITEMS) {
+    const fresh = Math.max(0, Math.floor(counts[item] ?? 0) - (seen[item] ?? 0));
+    if (fresh > 0) out[item] = fresh;
+  }
+  return out;
+}
+
+/**
+ * Which slots hold something new, for their "NEW" tag. New items are the last
+ * of their kind, so they sit in the last stacks of that kind; the tray's entry
+ * (`waiting`) is new when the newcomers didn't all fit in the slots.
+ */
+export function freshStacks(slots: BagStack[], waiting: BagStack[], fresh: Partial<Record<BagItem, number>>): { slots: Set<number>; waiting: Set<BagItem> } {
+  const out = { slots: new Set<number>(), waiting: new Set<BagItem>() };
+  for (const item of BAG_ITEMS) {
+    let left = fresh[item] ?? 0;
+    if (left <= 0) continue;
+    const queued = waiting.find((w) => w.item === item);
+    if (queued) {
+      out.waiting.add(item);
+      left -= queued.count;
+    }
+    for (let i = slots.length - 1; i >= 0 && left > 0; i--) {
+      if (slots[i].item !== item) continue;
+      out.slots.add(i);
+      left -= slots[i].count;
+    }
+  }
+  return out;
+}

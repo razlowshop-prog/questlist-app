@@ -59,21 +59,39 @@ export function nextTokenLevel(kind: TokenKind, level: number): number | undefin
   return LEVEL_LADDER.find((l) => l.level > level && l.reward.token === kind)?.level;
 }
 
-/** The won looks that get a "new" badge until the player has seen them. */
-export type LookKind = 'theme' | 'flame' | 'celebration';
+/** The won looks that get a "new" badge until the player has seen them. Frames and titles are worn on the Profile, the rest in the bag. */
+export type LookKind = 'theme' | 'flame' | 'celebration' | 'frame' | 'title';
+
+const PROFILE_KINDS: LookKind[] = ['frame', 'title'];
 
 export const lookKey = (kind: LookKind, id: string) => `${kind}:${id}`;
 
 /**
  * Keys of every won look: `themes` are the ids of themes won (not the free
- * ones). The classic flame and celebration everyone has don't count.
+ * ones). The classic flame and celebration everyone has don't count. Titles
+ * are keyed by their name.
  */
-export function lookKeys(themes: string[], owned: Pick<OwnedLooks, 'flames' | 'celebrations'>): string[] {
+export function lookKeys(themes: string[], owned: Pick<OwnedLooks, 'flames' | 'celebrations'> & Partial<Pick<OwnedLooks, 'frames' | 'titles'>>): string[] {
   return [
     ...themes.map((id) => lookKey('theme', id)),
     ...owned.flames.filter((id) => id !== 'classic').map((id) => lookKey('flame', id)),
     ...owned.celebrations.filter((id) => id !== 'classic').map((id) => lookKey('celebration', id)),
+    ...(owned.frames ?? []).map((id) => lookKey('frame', id)),
+    ...(owned.titles ?? []).map((t) => lookKey('title', t)),
   ];
+}
+
+/** Whether a look key is worn on the Profile (frames, titles) rather than picked in the bag. */
+export function isProfileLook(key: string): boolean {
+  return PROFILE_KINDS.some((kind) => key.startsWith(`${kind}:`));
+}
+
+/**
+ * For players from before frames and titles had "new" badges: the ones they
+ * already own count as seen, so only the next win lights up.
+ */
+export function seedProfileLooks(seen: string[] | undefined, keys: string[]): string[] {
+  return markLooksSeen(seen, keys.filter(isProfileLook));
 }
 
 /** Won looks not seen yet. Before anything was stored (`seen` undefined) nothing counts as new. */

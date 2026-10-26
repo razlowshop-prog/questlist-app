@@ -1,3 +1,4 @@
+import type { QuoteSide } from './game.ts';
 // Short, classic quotes for the daily motivation card (and later the opt-in email).
 export const QUOTES: [text: string, author: string][] = [
   ['The secret of getting ahead is getting started.', 'Mark Twain'],
@@ -73,4 +74,12 @@ export function quoteOfTheDay(day: string): { text: string; author: string } {
   const dayNumber = Math.round(Date.UTC(y, m - 1, d) / 86400000);
   const [text, author] = QUOTES[(dayNumber * 7) % QUOTES.length];
   return { text, author };
+}
+
+/**
+ * Which side the quote card on Today shows: every new day starts on the quote,
+ * and within a day it stays on the side the player left it on.
+ */
+export function quoteSideFor(saved: { side: QuoteSide; day: string } | undefined, today: string): QuoteSide {
+  return saved && saved.day === today ? saved.side : 'quote';
 }
