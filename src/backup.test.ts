@@ -51,7 +51,7 @@ test('other files are refused with a plain reason', () => {
   for (const text of ['', 'hello', '[]', 'null', '{"app":"Other","kind":"backup","version":1}', '{"app":"Succedo","kind":"backup","version":1,"state":{"tasks":"x"}}']) {
     const read = readBackup(text);
     assert.equal(read.ok, false, text);
-    assert.match(!read.ok ? read.error : '', /isn't a Succedo backup/);
+    assert.match(!read.ok ? read.error : '', /isn’t a Succedo backup/);
   }
   const newer = JSON.parse(makeBackup(state, undefined, AT, '2026-10-25'));
   newer.version = 99;

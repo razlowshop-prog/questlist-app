@@ -96,7 +96,7 @@ export function legalDocs(appName: string, op: Operator = OPERATOR): LegalDoc[] 
           heading: 'Points and rewards have no money value',
           paragraphs: [
             'XP, levels, wheel tickets, tokens, themes, frames, flames, titles and every other reward in the app are virtual. They cannot be bought, sold, traded, transferred or paid out, and they are not property.',
-            'Wheel tickets come only from XP earned by finishing tasks. They are never sold. The lucky wheel only gives in-app rewards, never money or real prizes, and its odds are shown in the app.',
+            'Wheel tickets come only from XP earned in the app, for example by finishing tasks or challenges. They are never sold. The lucky wheel only gives in-app rewards, never money or real prizes, and its odds are shown in the app.',
           ],
         },
         {

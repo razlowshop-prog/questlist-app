@@ -290,7 +290,7 @@ export function TodayScreen({
               {guide}
 
               <View style={s.sectionRow}>
-                <Text style={s.sectionTitle}>Today's tasks</Text>
+                <Text style={s.sectionTitle}>Today’s tasks</Text>
                 {tasks.length > 0 && (
                   <Text style={s.sectionCount}>
                     <GradientText style={s.sectionCountStrong}>{doneCount}</GradientText> / {tasks.length}
@@ -312,7 +312,7 @@ export function TodayScreen({
               {tonightTasks.length > 0 && (
                 <View style={s.tonight}>
                   <View style={s.sectionRow}>
-                    <Text style={s.sectionTitle}>Tonight's check</Text>
+                    <Text style={s.sectionTitle}>Tonight’s check</Text>
                   </View>
                   <Text style={s.tonightHint}>All-day goals. Tick them off once the day is done.</Text>
                   {tonightTasks.map((t, i) => (

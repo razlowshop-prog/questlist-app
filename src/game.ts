@@ -964,7 +964,7 @@ export function repeatLabel(task: Task): string {
     if (task.days.join() === '5,6') return 'Weekends';
     return task.days.map((d) => WEEKDAYS[d]).join(', ');
   }
-  return `${n}× a week`;
+  return n === 1 ? 'Once a week' : `${n}× a week`;
 }
 
 /** "Wed 23", in English like the rest of the app. */

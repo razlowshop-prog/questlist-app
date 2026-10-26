@@ -249,7 +249,7 @@ function Succedo() {
     [unlockedThemes, owned],
   );
   const freshLooks = useMemo(() => newLooks(allLookKeys, state.settings.seenLooks), [allLookKeys, state.settings.seenLooks]);
-  // Frames and titles are worn on the Profile, every other look is picked in the bag (Customize your app).
+  // Frames and titles are worn on the Profile, every other look is picked in the bag (Customise your app).
   const freshOnProfile = [...freshLooks].filter(isProfileLook).length;
   const freshInBag = freshLooks.size - freshOnProfile;
   const seeLook = (key: string) => setState((s) => updateSettings(s, { seenLooks: markLooksSeen(s.settings.seenLooks, [key]) }));
@@ -340,7 +340,7 @@ function Succedo() {
     setState(next);
     setRedoSetup(false);
     openTab('today');
-    if (picks.length) setTimeout(() => showToast(`${picks.length} ${picks.length === 1 ? 'task' : 'tasks'} added. Let's begin.`), 300);
+    if (picks.length) setTimeout(() => showToast(`${picks.length} ${picks.length === 1 ? 'task' : 'tasks'} added. Let’s begin.`), 300);
   }
 
   function showToast(message: string) {
@@ -728,7 +728,7 @@ function Succedo() {
                   season={season}
                   onClaimSeason={() => {
                     setState(claimSeason(state, today));
-                    showToast(`${frameName(season.frame)} frame won. Wear it from your Profile`);
+                    showToast(`${frameName(season.frame)} frame won. Wear it from your profile.`);
                   }}
                 />
               )}

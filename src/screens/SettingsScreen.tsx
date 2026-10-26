@@ -72,7 +72,7 @@ export function SettingsScreen({
         />
         <MenuRow
           label="Daily motivation by email"
-          sub="A short motivational quote every morning. Unsubscribe anytime."
+          sub="A short motivational quote every morning. Unsubscribe any time."
           right={<VividSwitch value={settings.quoteEmails} onValueChange={(v) => onSettings({ quoteEmails: v })} accessibilityLabel="Daily motivation by email" />}
         />
         {settings.quoteEmails && (
@@ -136,7 +136,7 @@ export function SettingsScreen({
           sub={`Everything is kept on this phone until accounts arrive. A backup file brings it back on a new phone or after a reset. ${settings.lastBackup ? `Last saved ${longDate(settings.lastBackup)}.` : 'No backup saved yet.'}`}
           onPress={saveBackup}
         />
-        <MenuRow label="Restore from a backup" sub="Pick a backup file. You see what's in it before anything changes." onPress={pickBackup} />
+        <MenuRow label="Restore from a backup" sub="Pick a backup file. You see what’s in it before anything changes." onPress={pickBackup} />
         {note && <Text style={[s.note, note.error && { color: c.flame }]}>{note.text}</Text>}
       </MenuGroup>
 
@@ -148,7 +148,7 @@ export function SettingsScreen({
 
       <Sheet visible={!!restore} onClose={() => setRestore(undefined)} closeLabel="Cancel" eyebrow="Backup" title="Restore this backup?">
         {restore && <RestoreSummary backup={restore} />}
-        <Text style={s.small}>Everything on this phone now is replaced by it. Save a backup first if you want to keep today's progress.</Text>
+        <Text style={s.small}>Everything on this phone now is replaced by it. Save a backup first if you want to keep today’s progress.</Text>
         <VividButton
           label="Replace my progress"
           onPress={() => {

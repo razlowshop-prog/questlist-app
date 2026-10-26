@@ -36,7 +36,7 @@ export function FriendsScreen({
           <Sticker grad={RARITY.rare} glyph="UsersThree" size={48} />
           <Text style={s.title}>Friends arrive with accounts</Text>
           <Text style={s.body}>
-            Soon you can find people, add friends and contacts, accept requests and see each other's level and streak. Everyone
+            Soon you can find people, add friends and contacts, accept requests and see each other’s level and streak. Everyone
             who chooses to share shows up in your activity feed.
           </Text>
           <View style={s.shareRow}>
@@ -49,7 +49,7 @@ export function FriendsScreen({
         </View>
       ) : (
         <>
-          <View style={s.me} accessible accessibilityLabel={`You, ${name}: level ${level}, ${streak} day streak, ${totalXp} XP`}>
+          <View style={s.me} accessible accessibilityLabel={`You, ${name}: level ${level}, ${streak}-day streak, ${totalXp} XP`}>
             <Text style={s.rank}>–</Text>
             <Avatar initials={initials} size={36} />
             <View style={{ flex: 1 }}>

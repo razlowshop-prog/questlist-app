@@ -102,7 +102,7 @@ export function LibraryModal({
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder={`Search ${LIBRARY.length} tasks, e.g. "laundry" or "run"`}
+            placeholder={`Search ${LIBRARY.length} tasks, e.g. “laundry” or “run”`}
             placeholderTextColor={C.muted}
             style={styles.search}
             autoCorrect={false}

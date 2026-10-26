@@ -27,7 +27,7 @@ export function ActivityScreen({ state, today }: { state: GameState; today: stri
 
   return (
     <ScrollView contentContainerStyle={s.content}>
-      <Text style={s.intro}>Your finished tasks, level ups and rewards. Friends' streaks and level ups join here once accounts arrive.</Text>
+      <Text style={s.intro}>Your finished tasks, level-ups and rewards. Friends’ streaks and level-ups will show here once accounts arrive.</Text>
       {days.length === 0 ? (
         <Text style={s.empty}>Nothing here yet. Finish your first task and it shows up here.</Text>
       ) : (

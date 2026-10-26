@@ -15,7 +15,7 @@ export function sizeLabel(task: LibraryTask, minutes = task.minutes, about = '')
 export function perWeekLabel(n: number): string {
   if (n === 0) return 'One-time';
   if (n >= 7) return 'Every day';
-  return `${n}× a week`;
+  return n === 1 ? 'Once a week' : `${n}× a week`;
 }
 
 /** A library task with a one-tap add button. `picked`: on the list to add, tap again to change it. */

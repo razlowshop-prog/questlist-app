@@ -51,14 +51,14 @@ export function mashedWord(word: string): boolean {
 export function nonsenseReason(title: string): string | undefined {
   const words = title.toLowerCase().match(/\p{L}+/gu) ?? [];
   const letters = words.join('');
-  if (letters.length < 2) return 'Give your task a name in words, e.g. "Clean the kitchen".';
+  if (letters.length < 2) return 'Give your task a name in words, e.g. “Clean the kitchen”.';
   // Another script (Cyrillic, Chinese …): nothing here can judge it.
   if (!words.every((w) => LATIN.test(w))) return undefined;
-  if (new Set(letters).size === 1) return 'That doesn’t look like a task yet. Try e.g. "Clean the kitchen".';
+  if (new Set(letters).size === 1) return 'That doesn’t look like a task yet. Try e.g. “Clean the kitchen”.';
   const long = words.filter((w) => w.length >= 4);
   const mashed = long.filter(mashedWord).length;
   // More than half of the real words: one odd word ("Herbstschmuck") among others is fine.
-  if (long.length > 0 && mashed * 2 > long.length) return 'That doesn’t look like a task yet. Try e.g. "Clean the kitchen".';
-  if (!words.some((w) => w.length >= 2 && VOWELS.test(w))) return 'That doesn’t look like a task yet. Try e.g. "Clean the kitchen".';
+  if (long.length > 0 && mashed * 2 > long.length) return 'That doesn’t look like a task yet. Try e.g. “Clean the kitchen”.';
+  if (!words.some((w) => w.length >= 2 && VOWELS.test(w))) return 'That doesn’t look like a task yet. Try e.g. “Clean the kitchen”.';
   return undefined;
 }

@@ -43,7 +43,7 @@ export function backupName(today: string): string {
   return `succedo-backup-${today}.json`;
 }
 
-const NOT_A_BACKUP = `This isn't a ${APP} backup file.`;
+const NOT_A_BACKUP = `This isn’t a ${APP} backup file.`;
 
 /** Reads a backup file's text, or says why it can't be used. */
 export function readBackup(text: string): BackupRead {

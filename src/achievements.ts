@@ -125,7 +125,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     id: 'tasks',
     icon: 'ListChecks',
     title: 'Task Master',
-    description: (g) => `Complete ${g} ${g === 1 ? 'task' : 'tasks'} in total`,
+    description: (g) => `Finish ${g} ${g === 1 ? 'task' : 'tasks'} in total`,
     unit: 'tasks',
     value: (s) => s.completions.length,
     tiers: [
@@ -142,7 +142,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     id: 'bestDay',
     icon: 'Zap',
     title: 'Power Day',
-    description: (g) => `Complete ${g} tasks in one day`,
+    description: (g) => `Finish ${g} tasks in one day`,
     unit: 'tasks in a day',
     value: bestDay,
     tiers: [
@@ -157,7 +157,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     id: 'bestWeek',
     icon: 'CalendarDays',
     title: 'Power Week',
-    description: (g) => `Complete ${g} tasks in one week`,
+    description: (g) => `Finish ${g} tasks in one week`,
     unit: 'tasks in a week',
     value: bestWeek,
     tiers: [
