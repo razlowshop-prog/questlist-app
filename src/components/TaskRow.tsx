@@ -45,6 +45,7 @@ export function TaskRow({
   onLeft,
   focusing,
   onFocus,
+  coveredBy,
 }: {
   /** Position in today's list, shown as 01, 02 … */
   index: number;
@@ -64,6 +65,8 @@ export function TaskRow({
   focusing?: boolean;
   /** Opens the focus timer for this task. */
   onFocus?: () => void;
+  /** A bigger task that already includes this one is done (covers.ts): greyed out, can't be ticked. */
+  coveredBy?: string;
 }) {
   const s = useStyles(makeStyles);
   const c = useTheme();
@@ -100,6 +103,11 @@ export function TaskRow({
   const weekly = perWeek > 0 && perWeek < 7 ? ` · ${doneThisWeek(state, task, today)}/${perWeek} this week` : '';
 
   function press() {
+    if (!done && coveredBy) {
+      setLabel({ text: `Already part of “${coveredBy}”`, warn: true });
+      animate(false);
+      return;
+    }
     if (!done && waitLeft > 0) {
       setLabel({ text: `New tasks can be ticked ${waitSeconds} s after adding`, warn: true });
       animate(false);
@@ -189,19 +197,30 @@ export function TaskRow({
     transform: [{ scale: ring.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] }) }, ...rotate],
   };
   const locked = waitLeft > 0 && !done;
+  const covered = !!coveredBy && !done;
 
   const row = (
-    <View style={[s.row, label && !c.holo && { zIndex: 2 }]}>
+    <View style={[s.row, label && !c.holo && { zIndex: 2 }, covered && s.covered]}>
       {fx.rowPulse && c.listStyle === 'cards' && <RowPulse colors={fx.rowPulse} radius={c.radius} />}
       {fx.rowSheen && c.listStyle === 'cards' && <RowSheen colors={fx.rowSheen} radius={c.radius} fillColor={c.surface} index={index} />}
       <Animated.View style={[s.flash, flashStyle]} pointerEvents="none" />
       <View style={[s.edge, fill(cat, 180)]} pointerEvents="none" />
       <View style={s.top}>
-      <Pressable onPress={press} style={s.main} accessibilityRole="checkbox" accessibilityState={{ checked: done }}>
+      <Pressable
+        onPress={press}
+        style={s.main}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: done, disabled: covered }}
+        accessibilityHint={covered ? `Already covered by ${coveredBy}` : undefined}
+      >
         <Sticker grad={cat} glyph={cat.glyph} size={26} flat />
         <View style={{ flex: 1 }}>
           <Text style={[s.title, done && s.titleDone]}>{task.title}</Text>
-          {locked ? (
+          {covered ? (
+            <Text style={s.meta} numberOfLines={2}>
+              Covered by “{coveredBy}”
+            </Text>
+          ) : locked ? (
             <Text style={[s.meta, s.wait]}>
               Wait {waitLeft} more {waitLeft === 1 ? 'second' : 'seconds'}
             </Text>
@@ -226,7 +245,7 @@ export function TaskRow({
               )}
             </View>
           )}
-          {hasSteps && !done && !locked && (
+          {hasSteps && !done && !locked && !covered && (
             <Pressable
               onPress={() => setStepsOpen((o) => !o)}
               hitSlop={6}
@@ -288,7 +307,7 @@ export function TaskRow({
             </Animated.View>
           ) : (
             <Animated.View
-              style={[s.checkbox, { borderColor: catLine }, done && { ...fill(cat), borderColor: 'transparent' }, locked && s.checkboxLocked, { transform: [{ scale: pop }, ...rotate] }]}
+              style={[s.checkbox, { borderColor: catLine }, done && { ...fill(cat), borderColor: 'transparent' }, (locked || covered) && s.checkboxLocked, { transform: [{ scale: pop }, ...rotate] }]}
             >
               {done && <Text style={[s.checkmark, { color: cat.ink }, c.check === 'diamond' && s.checkmarkDiamond]}>✓</Text>}
             </Animated.View>
@@ -480,6 +499,7 @@ const makeStyles = themed((c) => ({
     c.listStyle === 'cards'
       ? { ...card(c), paddingHorizontal: 14, marginBottom: c.holo ? 0 : 10, overflow: 'visible', ...(c.holo && { borderWidth: 0 }) }
       : { borderBottomWidth: 1, borderBottomColor: c.border, paddingLeft: 12 },
+  covered: { opacity: 0.5 },
   /** The 3 px category edge on the left. */
   edge:
     c.listStyle === 'cards'

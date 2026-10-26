@@ -1,5 +1,6 @@
 import type { GameState } from './game.ts';
 import { LIBRARY, searchLibrary } from './library.ts';
+import { measuredMinutes, parseMeasured, PACE } from './measure.ts';
 
 // Task time is estimated from the title, never picked by the player, so a
 // two-minute chore can't be entered as an eight-hour task for lots of XP.
@@ -27,6 +28,8 @@ interface Rule {
   perKm?: number;
   /** Minutes per page, for "read 30 pages". */
   perPage?: number;
+  /** Minutes per step, for "8,000 steps". */
+  perStep?: number;
 }
 
 // Checked in order, so specific activities come before general ones
@@ -54,9 +57,10 @@ const RULES: Rule[] = [
   { match: /\b(journal\w*|diary|gratitude)\b/, minutes: 10, max: 30 },
   { match: /\b(stretch\w*|mobility)\b/, minutes: 10, max: 30 },
   { match: /\b(yoga|pilates)\b/, minutes: 30, max: 90 },
+  { match: /\d\s*k?\s*steps\b/, minutes: 40, max: 200, perStep: 1 / PACE.stepsPerMinute },
   { match: /\b(hike|hiking)\b/, minutes: 120, max: 360, perKm: 15 },
-  { match: /\b(run|running|jog|jogging)\b/, minutes: 30, max: 150, perKm: 6 },
-  { match: /\b(walk|walking|stroll)\b/, minutes: 30, max: 150, perKm: 12 },
+  { match: /\b(run|running|jog|jogging)\b/, minutes: 30, max: 150, perKm: PACE.run },
+  { match: /\b(walk|walking|stroll)\b/, minutes: 30, max: 150, perKm: PACE.walk },
   { match: /\b(cycle|cycling|bike|biking|ride)\b/, minutes: 45, max: 240, perKm: 3 },
   { match: /\b(swim|swimming)\b/, minutes: 45, max: 90, perKm: 30 },
   { match: /\b(gym|workout|work out|lift\w*|weights|training|exercise)\b/, minutes: 60, max: 120 },
@@ -68,12 +72,20 @@ const RULES: Rule[] = [
   { match: /\b(draw\w*|paint\w*|sketch\w*|writ\w*)\b/, minutes: 30, max: 120 },
 ];
 
-/** "45 min", "1.5 h", "2 hours" in a title, as minutes. */
+/** "45 min", "1.5 h", "2 hours", "10-minute" in a title, as minutes. */
 function statedMinutes(title: string): number | undefined {
-  const m = title.match(/(\d+(?:[.,]\d+)?)\s*(h|hr|hrs|hours?|m|mins?|minutes?)\b/);
+  const m = title.match(/(\d+(?:[.,]\d+)?)[\s-]*(h|hr|hrs|hours?|m|mins?|minutes?)\b/);
   if (!m) return undefined;
   const n = parseFloat(m[1].replace(',', '.'));
   return m[2].startsWith('h') ? n * 60 : n;
+}
+
+/** "8,000 steps", "8000 steps", "10k steps". */
+function statedSteps(title: string): number | undefined {
+  const m = title.match(/(\d{1,3}(?:[,.' ]\d{3})+|\d+(?:[.,]\d+)?)\s*(k)?\s*steps\b/);
+  if (!m) return undefined;
+  if (m[2]) return parseFloat(m[1].replace(',', '.')) * 1000;
+  return Number(m[1].replace(/[,.' ]/g, ''));
 }
 
 function statedNumber(title: string, unit: RegExp): number | undefined {
@@ -93,13 +105,21 @@ export function estimateMinutes(title: string): Estimate {
   const t = title.trim().toLowerCase().replace(/\s+/g, ' ');
   const exact = LIBRARY.find((l) => l.title.toLowerCase() === t);
   if (exact) return { minutes: exact.minutes, source: 'library' };
+  // Walk, Run or Steps with the player's own amount: by pace, within the same caps.
+  const measured = parseMeasured(t);
+  if (measured) {
+    const max = RULES.find((r) => r.match.test(t))?.max ?? UNKNOWN_MAX_MINUTES;
+    return { minutes: tidy(measuredMinutes(measured.measure, measured.amount), max), source: 'library' };
+  }
 
   const rule = RULES.find((r) => r.match.test(t));
   const stated = statedMinutes(t);
   if (rule) {
     const km = rule.perKm ? statedNumber(t, /(km|kilometers?|kilometres?)\b/) : undefined;
     const pages = rule.perPage ? statedNumber(t, /pages?\b/) : undefined;
-    const raw = stated ?? (km !== undefined ? km * rule.perKm! : pages !== undefined ? pages * rule.perPage! : rule.minutes);
+    const steps = rule.perStep ? statedSteps(t) : undefined;
+    const raw =
+      stated ?? (km !== undefined ? km * rule.perKm! : pages !== undefined ? pages * rule.perPage! : steps !== undefined ? steps * rule.perStep! : rule.minutes);
     return { minutes: tidy(raw, rule.max), source: 'rule' };
   }
 

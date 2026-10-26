@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { clockLabel, focusBonus, focusElapsed, focusGoalMinutes, pauseFocus, resumeFocus, startFocus, FOCUS_BONUS_XP } from './focus.ts';
+import { clockLabel, focusBonus, focusBonusFor, focusElapsed, focusGoalMinutes, focusOffered, pauseFocus, resumeFocus, setFocusGoal, startFocus } from './focus.ts';
+
+const FOCUS_BONUS_XP = 10;
 import { emptyState, toggleTask, totalXp, type Task } from './game.ts';
 
 const MIN = 60_000;
@@ -10,6 +12,33 @@ test('the goal is the task time, 25 minutes without one, kept between 5 and 90',
   assert.equal(focusGoalMinutes({}), 25);
   assert.equal(focusGoalMinutes({ minutes: 2 }), 5);
   assert.equal(focusGoalMinutes({ minutes: 240 }), 90);
+});
+
+test('the timer can be set from 5 to 90 minutes, and the bonus grows with it', () => {
+  assert.equal(focusBonusFor(5), 2);
+  assert.equal(focusBonusFor(25), FOCUS_BONUS_XP);
+  assert.equal(focusBonusFor(90), 36);
+  const s = setFocusGoal(startFocus('t', 0), 40);
+  assert.equal(focusGoalMinutes({ minutes: 10 }, s), 40);
+  assert.equal(focusGoalMinutes({ minutes: 10 }, setFocusGoal(s, 2)), 5);
+  assert.equal(focusGoalMinutes({ minutes: 10 }, setFocusGoal(s, 200)), 90);
+  const task = { id: 't', minutes: 10 };
+  assert.equal(focusBonus(s, task, 39 * MIN), 0, 'the set length counts, not the task time');
+  assert.equal(focusBonus(s, task, 40 * MIN), 16);
+  // Turned down below what is already focused: the time is up, with the bonus for the shorter length.
+  assert.equal(focusBonus(setFocusGoal(s, 15), task, 20 * MIN), 6);
+});
+
+test('the focus timer is only offered where sitting down with a timer fits', () => {
+  assert.equal(focusOffered({ title: 'Deep work block (90 min)' }), true);
+  assert.equal(focusOffered({ title: 'Meditate for 10 minutes' }), true);
+  assert.equal(focusOffered({ title: 'Review your budget' }), true, 'marked for focus outside the focus areas');
+  assert.equal(focusOffered({ title: 'Do the dishes' }), false);
+  assert.equal(focusOffered({ title: 'Walk 3 km' }), false);
+  assert.equal(focusOffered({ title: 'Network with someone new' }), false, 'marked off inside a focus area');
+  // Own tasks go by their category and time.
+  assert.equal(focusOffered({ title: 'Write the quarterly report', minutes: 60, category: 'work' }), true);
+  assert.equal(focusOffered({ title: 'Wash the dog', minutes: 30, category: 'pets' }), false);
 });
 
 test('pauses do not count as focused time', () => {
@@ -27,7 +56,7 @@ test('the bonus comes only once the goal time is focused, and only for that task
   const task = { id: 't', minutes: 20 };
   const s = startFocus('t', 0);
   assert.equal(focusBonus(s, task, 19 * MIN), 0);
-  assert.equal(focusBonus(s, task, 20 * MIN), FOCUS_BONUS_XP);
+  assert.equal(focusBonus(s, task, 20 * MIN), focusBonusFor(20));
   assert.equal(focusBonus(s, { id: 'other', minutes: 20 }, 60 * MIN), 0);
   assert.equal(focusBonus(undefined, task, 60 * MIN), 0);
   assert.equal(focusBonus(pauseFocus(s, 5 * MIN), task, 60 * MIN), 0);

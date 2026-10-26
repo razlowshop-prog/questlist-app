@@ -2,34 +2,41 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LogoMark } from '../components/LogoMark';
-import { Stepper } from '../components/Stepper';
-import { durationLabel, maxPerWeek, xpFor } from '../game';
+import { newPick, pickMinutes, PickSheet, pickTitle, pickToTask, type LibraryPick } from '../components/PickSheet';
+import { scheduleProblem, scheduleSummary } from '../components/SchedulePicker';
+import { durationLabel, xpFor } from '../game';
 import { CATEGORIES, categoryOf, suggestionsFor, type LibraryTask } from '../library';
 import { eyebrow, themed, useStyles, useTheme, FONTS, headingCase } from '../theme';
 import { BRAND_FILL_SMALL, brandFill, brandFillSmall, brandInk, brandTextShadow, VIVID_HEAVY } from '../components/Vivid';
 import { Sticker } from '../components/Vivid';
 import { brandGlow, brandLine, categoryLook } from '../vivid';
 
-export interface SetupPick {
-  task: LibraryTask;
-  perWeek: number;
+/** How often a pick happens in a week, for the XP estimate: once for a one-off. */
+function weeklyTimes(pick: LibraryPick, today: string): number {
+  const { repeat, plan } = pickToTask(pick, today);
+  if (repeat === false) return 1;
+  return plan.days?.length || (repeat === true ? 7 : repeat);
 }
-
 
 /**
  * First-launch questions: name, which areas of life to improve, then
- * suggested tasks with how often per week. Everything picked is added
- * automatically when finished.
+ * suggested tasks. Tapping one sets how often, on which days, a reminder and,
+ * for Walk, Run and Steps, how much. Everything picked is added when finished.
  */
 export function SetupScreen({
   initialName,
   initialGoals,
+  owned,
+  today,
   onFinish,
   onSkip,
 }: {
   initialName: string;
   initialGoals: string[];
-  onFinish: (name: string, goals: string[], picks: SetupPick[]) => void;
+  /** Library tasks already on the list (when setup is run again), left out of the suggestions. */
+  owned: Set<string>;
+  today: string;
+  onFinish: (name: string, goals: string[], picks: LibraryPick[]) => void;
   onSkip: () => void;
 }) {
   const styles = useStyles(makeStyles);
@@ -37,46 +44,62 @@ export function SetupScreen({
   const [step, setStep] = useState(0);
   const [name, setName] = useState(initialName === 'Player' ? '' : initialName);
   const [goals, setGoals] = useState<string[]>(initialGoals);
-  // title -> times per week; only picked tasks are in here
-  const [picks, setPicks] = useState<Record<string, number>>({});
+  // library id -> pick; only picked tasks are in here
+  const [picks, setPicks] = useState<Record<string, LibraryPick>>({});
+  /** The task whose days are being set, and its pick so far. */
+  const [editing, setEditing] = useState<LibraryPick | null>(null);
 
-  const suggestions = useMemo(() => suggestionsFor(goals), [goals]);
+  const suggestions = useMemo(() => suggestionsFor(goals, 6, owned), [goals, owned]);
 
   function toggleGoal(id: string) {
     setGoals((g) => (g.includes(id) ? g.filter((x) => x !== id) : [...g, id]));
   }
 
+  /** The check box: picks with the usual days straight away, or takes it off. */
   function togglePick(task: LibraryTask) {
     setPicks((p) => {
       const next = { ...p };
-      if (task.title in next) delete next[task.title];
-      else next[task.title] = task.perWeek;
+      if (task.id in next) delete next[task.id];
+      else next[task.id] = newPick(task, today);
       return next;
     });
   }
 
+  function keep() {
+    if (!editing || scheduleProblem(editing.schedule, pickTitle(editing))) return;
+    setPicks((p) => ({ ...p, [editing.task.id]: editing }));
+    setEditing(null);
+  }
+
+  function remove() {
+    if (!editing) return;
+    setPicks((p) => {
+      const next = { ...p };
+      delete next[editing.task.id];
+      return next;
+    });
+    setEditing(null);
+  }
+
   function goToTasks() {
     // Preselect the team's recommended task in each chosen area.
-    const preselected: Record<string, number> = {};
+    const preselected: Record<string, LibraryPick> = {};
     for (const g of goals) {
-      const first = suggestionsFor([g]).find((t) => t.featured);
-      if (first) preselected[first.title] = first.perWeek;
+      const first = suggestionsFor([g], 6, owned).find((t) => t.featured);
+      if (first) preselected[first.id] = newPick(first, today);
     }
     setPicks(preselected);
     setStep(2);
   }
 
+  const chosen = suggestions.filter((t) => t.id in picks).map((t) => picks[t.id]);
+
   function finish() {
-    const chosen = suggestions
-      .filter((t) => t.title in picks)
-      .map((task) => ({ task, perWeek: picks[task.title] }));
     onFinish(name, goals, chosen);
   }
 
-  const pickedCount = Object.keys(picks).length;
-  const weeklyXp = suggestions
-    .filter((t) => t.title in picks)
-    .reduce((sum, t) => sum + xpFor(t.minutes) * picks[t.title], 0);
+  const pickedCount = chosen.length;
+  const weeklyXp = chosen.reduce((sum, p) => sum + xpFor(pickMinutes(p)) * weeklyTimes(p, today), 0);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -144,7 +167,7 @@ export function SetupScreen({
           <>
             <Text style={styles.heading}>Pick your tasks</Text>
             <Text style={styles.sub}>
-              Tap to choose, then set how often per week. XP is based on how long each task takes.
+              Tap a task to choose its days and a reminder. XP is based on how long each task takes.
             </Text>
             {goals.map((g) => {
               const cat = categoryOf(g);
@@ -156,39 +179,35 @@ export function SetupScreen({
                     {cat.label}
                   </Text>
                   {tasks.map((t) => {
-                    const on = t.title in picks;
+                    const pick = picks[t.id];
+                    const shown = pick ?? newPick(t, today);
+                    const minutes = pickMinutes(shown);
                     return (
-                      <View key={t.title} style={[styles.taskCard, on && styles.taskCardOn]}>
-                        <Pressable
-                          onPress={() => togglePick(t)}
-                          style={styles.taskMain}
-                          accessibilityRole="checkbox"
-                          accessibilityState={{ checked: on }}
-                        >
-                          <View style={[styles.check, on && styles.checkOn]}>
-                            {on && <Text style={styles.checkMark}>✓</Text>}
-                          </View>
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.taskTitle}>{t.title}</Text>
+                      <View key={t.id} style={[styles.taskCard, pick && styles.taskCardOn]}>
+                        <View style={styles.taskMain}>
+                          <Pressable
+                            onPress={() => togglePick(t)}
+                            hitSlop={8}
+                            style={[styles.check, pick && styles.checkOn]}
+                            accessibilityRole="checkbox"
+                            accessibilityState={{ checked: !!pick }}
+                            accessibilityLabel={pickTitle(shown)}
+                          >
+                            {pick && <Text style={styles.checkMark}>✓</Text>}
+                          </Pressable>
+                          <Pressable
+                            onPress={() => setEditing(shown)}
+                            style={{ flex: 1 }}
+                            accessibilityRole="button"
+                            accessibilityLabel={`${pickTitle(shown)}. ${pick ? 'Change days and reminder' : 'Choose days and a reminder'}`}
+                          >
+                            <Text style={styles.taskTitle}>{pickTitle(shown)}</Text>
                             <Text style={styles.taskMeta}>
-                              {durationLabel(t.minutes)} · +{xpFor(t.minutes)} XP each time
+                              {durationLabel(minutes)} · +{xpFor(minutes)} XP each time
                             </Text>
-                          </View>
-                        </Pressable>
-                        {on && (
-                          <View style={styles.freq}>
-                            <Stepper
-                              value={Math.min(picks[t.title], maxPerWeek(t.title))}
-                              min={1}
-                              max={maxPerWeek(t.title)}
-                              onChange={(n) => setPicks((p) => ({ ...p, [t.title]: n }))}
-                              label="days a week"
-                            />
-                            <Text style={styles.freqLabel}>
-                              {maxPerWeek(t.title) === 1 ? 'once a week' : picks[t.title] >= 7 ? 'every day' : 'days a week'}
-                            </Text>
-                          </View>
-                        )}
+                            {pick && <Text style={styles.taskWhen}>{scheduleSummary(pick.schedule, pickTitle(pick), today)} · Change</Text>}
+                          </Pressable>
+                        </View>
                       </View>
                     );
                   })}
@@ -199,6 +218,16 @@ export function SetupScreen({
           </>
         )}
       </ScrollView>
+
+      <PickSheet
+        pick={editing}
+        picked={!!editing && editing.task.id in picks}
+        today={today}
+        onChange={setEditing}
+        onKeep={keep}
+        onRemove={remove}
+        onClose={() => setEditing(null)}
+      />
 
       <View style={styles.footer}>
         {step > 0 && (
@@ -276,8 +305,7 @@ const makeStyles = themed((c) => ({
   checkMark: { color: brandInk(c), fontWeight: '700', fontSize: 14, ...brandTextShadow(c) },
   taskTitle: { color: c.text, fontSize: 15, fontWeight: '600' },
   taskMeta: { color: c.muted, fontSize: 12, marginTop: 1 },
-  freq: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12, paddingBottom: 12 },
-  freqLabel: { color: c.muted, fontSize: 14 },
+  taskWhen: { color: brandLine(c), fontSize: 12, fontWeight: '700', marginTop: 3 },
   hint: { color: c.muted, fontSize: 13, textAlign: 'center', marginTop: 4 },
   footer: { flexDirection: 'row', gap: 10, padding: 16, borderTopWidth: 1, borderTopColor: c.border },
   back: { paddingHorizontal: 20, minHeight: 48, justifyContent: 'center', borderRadius: c.radius, borderWidth: 1, borderColor: c.outline },
