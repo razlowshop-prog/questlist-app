@@ -86,3 +86,10 @@ export function clockLabel(ms: number): string {
   const sec = String(total % 60).padStart(2, '0');
   return h ? `${h}:${String(m).padStart(2, '0')}:${sec}` : `${m}:${sec}`;
 }
+
+/** Milliseconds until a running timer reaches its full time; undefined when it's paused or already there. */
+export function msUntilFocusDone(task: Pick<Task, 'minutes'>, session: FocusSession, now: number): number | undefined {
+  if (session.pausedAt) return undefined;
+  const left = focusGoalMinutes(task, session) * 60_000 - focusElapsed(session, now);
+  return left > 0 ? left : undefined;
+}

@@ -20,6 +20,7 @@ import { taskEffort, tonightHour, tooEarlyToTick } from '../estimate';
 import { stepStatus } from '../steps';
 import { shownTitle, taskCategory } from '../library';
 import { quoted, t, tn } from '../i18n';
+import { buzz } from '../haptics';
 import { brandLine, categoryLook, midColor, MYTHIC } from '../vivid';
 import { FinishFx, RowPulse, RowSheen, useThemeFx } from './ThemeFx';
 import { fill, GradientText, Sticker } from './Vivid';
@@ -108,18 +109,15 @@ export function TaskRow({
 
   function press() {
     if (!done && coveredBy) {
-      setLabel({ text: t('Already part of {task}', { task: quoted(coverName!) }), warn: true });
-      animate(false);
+      refuse(t('Already part of {task}', { task: quoted(coverName!) }));
       return;
     }
     if (!done && tooEarlyToTick(task, Date.now())) {
-      setLabel({ text: t('Tick it off from {h}:00', { h: tonightHour(task)! }), warn: true });
-      animate(false);
+      refuse(t('Tick it off from {h}:00', { h: tonightHour(task)! }));
       return;
     }
     if (!done && waitLeft > 0) {
-      setLabel({ text: t('New tasks can be ticked {n} s after adding', { n: waitSeconds }), warn: true });
-      animate(false);
+      refuse(t('New tasks can be ticked {n} s after adding', { n: waitSeconds }));
       return;
     }
     const wasDone = done;
@@ -136,8 +134,7 @@ export function TaskRow({
 
   function pressStep(i: number) {
     if (waitLeft > 0) {
-      setLabel({ text: t('New tasks can be ticked {n} s after adding', { n: waitSeconds }), warn: true });
-      animate(false);
+      refuse(t('New tasks can be ticked {n} s after adding', { n: waitSeconds }));
       return;
     }
     const wasDone = steps.done[i];
@@ -171,6 +168,13 @@ export function TaskRow({
         Animated.timing(flash, { toValue: 0, duration: 900, easing: Easing.out(Easing.quad), useNativeDriver: nativeDriver }),
       ]),
     ]).start();
+  }
+
+  /** A tick that can't happen yet: the reason under the row, a shake and an error buzz. */
+  function refuse(text: string) {
+    setLabel({ text, warn: true });
+    animate(false);
+    buzz('blocked');
   }
 
   function animate(success: boolean) {

@@ -84,7 +84,7 @@ import { RecoveryModal } from './src/components/RecoveryModal';
 import { FlameStyleContext } from './src/components/Fire';
 import { AvatarDiscContext, AvatarPhotoContext } from './src/components/ProfileFrame';
 import { FocusBar, FocusTimer } from './src/components/FocusTimer';
-import { focusBonus, pauseFocus, resumeFocus, setFocusGoal, startFocus } from './src/focus';
+import { focusBonus, msUntilFocusDone, pauseFocus, resumeFocus, setFocusGoal, startFocus } from './src/focus';
 import { CelebrationContext } from './src/components/TaskRow';
 import { emblemStatuses } from './src/emblems';
 import { equippedLooks, isProfileLook, lookKeys, markLooksSeen, newLooks, ownedLooks, seedProfileLooks } from './src/inventory';
@@ -95,6 +95,8 @@ import { askReminderPermission, REMINDERS_SUPPORTED, syncReminders } from './src
 import { reviewDue } from './src/review';
 import { askStoreReview } from './src/storeReview';
 import { buzz, setHapticsEnabled } from './src/haptics';
+import { comboCue, DEFAULT_SOUND_STYLE, filesFor, setSounds, sound } from './src/sounds';
+import { startSounds } from './src/soundPlayer';
 import { recapToShow } from './src/recap';
 import { WeeklyRecap } from './src/components/WeeklyRecap';
 import { loadPhoto, loadState, savePhoto, saveState } from './src/storage';
@@ -195,8 +197,10 @@ function Succedo() {
 
   useEffect(() => {
     loadState().then((s) => {
-      setState(prepared(s));
+      const ready = prepared(s);
+      setState(ready);
       setLoaded(true);
+      startSounds(filesFor(ready.settings.soundStyle ?? DEFAULT_SOUND_STYLE));
     });
     loadPhoto().then(setPhoto);
   }, []);
@@ -212,6 +216,7 @@ function Succedo() {
   }, [state.tasks, state.completions, state.settings.lang, loaded, today]);
 
   setHapticsEnabled(state.settings.haptics);
+  setSounds(state.settings.sounds, state.settings.soundStyle);
   const xp = totalXp(state);
   const streakInfo = useMemo(() => streakStatus(state.completions, today, restDaysOf(state)), [state.completions, state.restDays, state.recovery, today]);
   const multiplier = useMemo(() => xpMultiplier(state, today), [state, today]);
@@ -284,6 +289,13 @@ function Succedo() {
   const recap = loaded ? recapToShow(state, today, new Date().getHours()) : undefined;
   // A timer for a task that is gone or already done today no longer shows.
   const focusTask = state.focus ? state.tasks.find((t) => t.id === state.focus!.taskId && !isDoneToday(state, t, today)) : undefined;
+  // A soft chord when the focus timer reaches the full time, open or hidden, while the app is open.
+  const focusLeft = focusTask && state.focus ? msUntilFocusDone(focusTask, state.focus, Date.now()) : undefined;
+  useEffect(() => {
+    if (focusLeft === undefined) return;
+    const timer = setTimeout(() => sound('focus'), focusLeft);
+    return () => clearTimeout(timer);
+  }, [focusTask?.id, state.focus?.startedAt, state.focus?.pausedAt, state.focus?.pausedMs, state.focus?.goalMinutes]);
   const wantedTheme = themeById(unlockedThemes.has(state.settings.theme) ? state.settings.theme : 'classic');
   const theme = themeById(shownThemeId ?? wantedTheme.id);
   const c = theme.palette;
@@ -392,6 +404,7 @@ function Succedo() {
         () => {
           setCelebration({ level: after.level, rank: after.rank, newRank: after.rank !== before.rank, milestone });
           buzz('levelUp');
+          sound('levelUp');
         },
         900,
       );
@@ -423,11 +436,17 @@ function Succedo() {
       if (!result.tier) break;
       next = result.state;
     }
-    if (next !== state) apply(next);
+    if (next === state) return;
+    apply(next);
+    buzz('claim');
+    sound('coin');
   }
 
   function takeRestDay(day: string) {
-    setState(spendRestDay(state, day, today));
+    const next = spendRestDay(state, day, today);
+    if (next === state) return;
+    setState(next);
+    buzz('token');
     showToast(day === today ? t('Rest day: your streak is safe today') : t('Streak saved with a rest day'));
   }
 
@@ -449,6 +468,8 @@ function Succedo() {
     const now = Date.now();
     combo.current = { count: now - combo.current.at <= COMBO_MS ? combo.current.count + 1 : 1, at: now };
     if (combo.current.count >= 2) setComboShown({ count: combo.current.count, play: now });
+    // A combo's own sound takes the tick's place, climbing with ×2, ×3, ×4.
+    if (gained > 0) sound(combo.current.count >= 2 ? comboCue(combo.current.count) : 'tick');
     const limited = next.completions[next.completions.length - 1].limited;
     return { xp: gained, note: limited ? limitMessage(limited) : undefined };
   }
@@ -461,12 +482,14 @@ function Succedo() {
   function finishFocus(task: Task) {
     const bonus = focusBonus(state.focus, task, Date.now());
     if (secondsUntilTickable(task, Date.now()) > 0) {
+      buzz('blocked');
       showToast(t('New tasks can be ticked a few seconds after adding'));
       setFocusOpen(false);
       return;
     }
     const cover = coveredBy(state, task, today);
     if (cover) {
+      buzz('blocked');
       showToast(t('Already part of {task}', { task: quoted(shownTitle(cover.title)) }));
       setFocusOpen(false);
       return;
@@ -496,6 +519,7 @@ function Succedo() {
       prize,
       finish: () => {
         buzz('prize');
+        sound(prize.rarity === 'legendary' ? 'jackpot' : 'win');
         return apply(next);
       },
     };
@@ -506,19 +530,32 @@ function Succedo() {
     const { state: next, finished } = tickStep(state, task.id, step, today, Date.now());
     if (next === state) return { xp: 0, finished: false };
     const gained = apply(next);
-    if (gained > 0) buzz(finished ? 'tick' : 'step');
+    if (gained > 0) {
+      buzz(finished ? 'tick' : 'step');
+      sound(finished ? 'tick' : 'step');
+    }
     const limited = finished ? next.completions[next.completions.length - 1].limited : undefined;
     return { xp: gained, finished, note: limited ? limitMessage(limited) : undefined };
   }
 
+  /** Collecting something: a success buzz and the reward sound, or the new-look sound when a look comes with it. */
+  function claimed(cue: 'coin' | 'unlock' = 'coin') {
+    buzz('claim');
+    sound(cue);
+  }
+
   function onClaim(id: string) {
     const gained = apply(claimChallenge(state, id, today));
-    if (gained > 0) showToast(t('Challenge complete · +{xp} XP', { xp: gained }));
+    if (gained <= 0) return;
+    claimed();
+    showToast(t('Challenge complete · +{xp} XP', { xp: gained }));
   }
 
   function onClaimDaily(id: string) {
     const gained = apply(claimDaily(state, id, today, new Date().getHours()));
-    if (gained > 0) showToast(t('Daily challenge complete · +{xp} XP', { xp: gained }));
+    if (gained <= 0) return;
+    claimed();
+    showToast(t('Daily challenge complete · +{xp} XP', { xp: gained }));
   }
 
   function onClaimAchievement(id: string) {
@@ -526,6 +563,7 @@ function Succedo() {
     if (!tier) return;
     const tierName = t(TIER_NAMES[next.achievementClaims[next.achievementClaims.length - 1].tier]);
     apply(next);
+    claimed(tier.reward ? 'unlock' : 'coin');
     showToast(
       tier.reward
         ? t('{tier} award · +{xp} XP · {reward} unlocked', { tier: tierName, xp: tier.xp, reward: rewardLabel(tier.reward) })
@@ -605,10 +643,12 @@ function Succedo() {
                   onRest={takeRestDay}
                   onDouble={() => {
                     setState(spendDoubleXp(state, today));
+                    buzz('token');
                     showToast(t('Double XP is on for the rest of today'));
                   }}
                   onAdFree={() => {
                     setState(spendAdFree(state, today));
+                    buzz('token');
                     showToast(t('No ads for the rest of today'));
                   }}
                   onOpenChallenges={() => openTab('challenges')}
@@ -743,12 +783,14 @@ function Succedo() {
                     const next = swapChallenge(state, id, today);
                     if (next !== state) {
                       setState(next);
+                      buzz('token');
                       showToast(t('Challenge swapped'));
                     }
                   }}
                   season={season}
                   onClaimSeason={() => {
                     setState(claimSeason(state, today));
+                    claimed('unlock');
                     showToast(t('{frame} frame won. Wear it from your profile.', { frame: frameName(season.frame) }));
                   }}
                 />

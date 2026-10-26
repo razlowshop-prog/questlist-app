@@ -22,7 +22,7 @@ const GROUPS: { label: string; rows: Row[] }[] = [
   {
     label: N('App'),
     rows: [
-      { page: 'settings', label: N('Settings'), sub: N('Reminders, vibration, backup, privacy'), Icon: Settings, grad: ['#9AA3BD', '#59607a'] },
+      { page: 'settings', label: N('Settings'), sub: N('Reminders, sounds, vibration, backup'), Icon: Settings, grad: ['#9AA3BD', '#59607a'] },
       { page: 'apps', label: N('Connected apps'), sub: N('Yazio, adidas Running, Health'), Icon: Link, grad: ['#7CFFC0', '#12B886'] },
     ],
   },

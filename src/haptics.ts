@@ -17,7 +17,13 @@ export type Buzz =
   | 'tap'
   /** A combo of quick ticks; ×4 and up hits harder. */
   | 'combo'
-  | 'bigCombo';
+  | 'bigCombo'
+  /** A reward, award or challenge collected. */
+  | 'claim'
+  /** Something that can't be done yet, like ticking a task in its first 20 seconds. */
+  | 'blocked'
+  /** A token used: a rest day, double XP, a challenge swap… */
+  | 'token';
 
 let enabled = true;
 
@@ -32,6 +38,7 @@ export function buzz(kind: Buzz): void {
   switch (kind) {
     case 'tick':
     case 'combo':
+    case 'token':
       return done(Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium));
     case 'bigCombo':
       return done(Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy));
@@ -41,6 +48,9 @@ export function buzz(kind: Buzz): void {
       return done(Haptics.selectionAsync());
     case 'levelUp':
     case 'prize':
+    case 'claim':
       return done(Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success));
+    case 'blocked':
+      return done(Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error));
   }
 }

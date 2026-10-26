@@ -40,6 +40,7 @@ import { AmountPicker } from '../components/AmountPicker';
 import { STEP_SHARE, suggestedSteps } from '../steps';
 import { estimateMinutes, tonightHour } from '../estimate';
 import { nonsenseReason } from '../sense';
+import { buzz } from '../haptics';
 import { quoteOfTheDay, quoteSideFor } from '../quotes';
 import { card, eyebrow, FONTS, themed, useStyles, useTheme, headingCase } from '../theme';
 import { N, quoted, t, tn } from '../i18n';
@@ -188,7 +189,11 @@ export function TodayScreen({
   }
 
   function add() {
-    if (!canAdd) return;
+    if (!canAdd) {
+      // A title made of keyboard mash, or days still to pick: a little error buzz instead of nothing.
+      if (nonsense || problem) buzz('blocked');
+      return;
+    }
     const { repeat, plan } = scheduleToTask(shownSchedule, finalTitle, today);
     // Library steps follow the library; anything else is saved with the task.
     const steps = stepDraft ?? (librarySteps(finalTitle) || !suggested.length ? undefined : suggested);
@@ -393,7 +398,8 @@ export function TodayScreen({
               />
               <Pressable
                 onPress={add}
-                disabled={!canAdd}
+                disabled={!canAdd && !nonsense && !problem}
+                accessibilityState={{ disabled: !canAdd }}
                 style={[s.plus, !canAdd && { opacity: 0.35 }]}
                 accessibilityRole="button"
                 accessibilityLabel={t('Add task')}
@@ -511,7 +517,8 @@ export function TodayScreen({
                 </ScrollView>
                 <Pressable
                   onPress={add}
-                  disabled={!canAdd}
+                  disabled={!canAdd && !nonsense && !problem}
+                  accessibilityState={{ disabled: !canAdd }}
                   style={[s.addButton, !canAdd && { opacity: 0.4 }]}
                   accessibilityRole="button"
                 >

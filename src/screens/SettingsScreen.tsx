@@ -8,9 +8,12 @@ import { Sheet } from '../components/Sheet';
 import { brandFillSmall, brandInk, brandTextShadow, VIVID_HEAVY, VividButton, VividSwitch } from '../components/Vivid';
 import { themed, useStyles, useTheme } from '../theme';
 import { MenuGroup, MenuRow } from './MenuScreen';
-import { LANGS, locale, systemLang, t, tn } from '../i18n';
+import { LANGS, locale, N, systemLang, t, tn } from '../i18n';
+import { DEFAULT_SOUND_STYLE, sound, SOUND_STYLES, type SoundStyle } from '../sounds';
 
-/** Settings, opened from the Menu: reminders, the daily quote email, vibration, privacy, backup and the setup questions. */
+const STYLE_LABEL: Record<SoundStyle, string> = { marimba: N('Marimba'), air: N('Air') };
+
+/** Settings, opened from the Menu: reminders, the daily quote email, sounds and vibration, privacy, backup and the setup questions. */
 export function SettingsScreen({
   settings,
   today,
@@ -62,6 +65,8 @@ export function SettingsScreen({
   const emailValid = /^\S+@\S+\.\S+$/.test(settings.email);
   const visibility = settings.profileVisibility ?? 'friends';
   const language = settings.lang ?? systemLang();
+  const soundsOn = settings.sounds !== false;
+  const soundStyle = settings.soundStyle ?? DEFAULT_SOUND_STYLE;
 
   return (
     <ScrollView contentContainerStyle={s.content}>
@@ -122,6 +127,34 @@ export function SettingsScreen({
           sub={t('A small buzz when you tick off a task, level up or win on the wheel.')}
           right={<VividSwitch value={settings.haptics !== false} onValueChange={(v) => onSettings({ haptics: v })} accessibilityLabel={t('Vibration')} />}
         />
+        <MenuRow
+          label={t('Sounds')}
+          sub={t('Soft sounds when you tick off a task, level up, collect a reward or spin the wheel. Quiet while your phone is on silent.')}
+          right={<VividSwitch value={soundsOn} onValueChange={(v) => onSettings({ sounds: v })} accessibilityLabel={t('Sounds')} />}
+        />
+        {soundsOn && (
+          <View style={s.visibility}>
+            <Text style={s.label}>{t('Sound style')}</Text>
+            <View style={s.choices} accessibilityRole="radiogroup" accessibilityLabel={t('Sound style')}>
+              {SOUND_STYLES.map((v) => (
+                <Pressable
+                  key={v}
+                  onPress={() => {
+                    onSettings({ soundStyle: v });
+                    // A taste of the style: the tick, the sound heard most.
+                    sound('tick', { style: v, force: true });
+                  }}
+                  style={[s.choice, soundStyle === v && s.choiceActive]}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: soundStyle === v }}
+                >
+                  <Text style={[s.choiceText, soundStyle === v && s.choiceTextActive]}>{t(STYLE_LABEL[v])}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <Text style={s.small}>{t('Changes the sounds you hear most: ticks, combos, level-ups, perfect days and streaks. Tap one to hear it.')}</Text>
+          </View>
+        )}
       </MenuGroup>
 
       <MenuGroup label={t('Privacy')}>
