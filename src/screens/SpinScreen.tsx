@@ -16,7 +16,8 @@ import {
   JACKPOT,
   PITY_SPINS,
   prizeById,
-  RARITY_NAMES,
+  prizeLabel,
+  rarityName,
   segmentFor,
   WHEEL_PRIZES,
   WHEEL_SEGMENTS,
@@ -25,6 +26,7 @@ import {
   type WheelPrize,
 } from '../wheel';
 import type { WheelSpin } from '../game';
+import { N, t, tn } from '../i18n';
 
 const TURNS = 6;
 /** A swipe spins between these many turns, more for a faster flick. */
@@ -42,11 +44,11 @@ const LABELS: Record<string, string> = {
   xp50: '50 XP',
   xp100: '100 XP',
   double: '2× XP',
-  rest: 'Rest day',
-  reroll: 'Swap',
-  adfree: 'Ad-free',
+  rest: N('Rest day'),
+  reroll: N('Swap'),
+  adfree: N('Ad-free'),
   theme: 'Fortuna',
-  jackpot: 'Jackpot',
+  jackpot: N('Jackpot'),
 };
 /** The two slice colours, alternating round the wheel. */
 const SLICE_FILLS = ['#1d2335', '#252c42'];
@@ -55,9 +57,9 @@ const FORTUNA_INK = '#f2c55c';
 
 /** What a slice gives, for the note under the wheel when it is tapped. */
 function prizeAbout(prize: WheelPrize, ownsTheme: boolean): string {
-  if (prize.theme) return ownsTheme ? 'You own Fortuna, so this slice now pays a big XP jackpot.' : 'The Fortuna theme: a gold and violet look for the whole app. The rarest slice.';
-  if (prize.token) return `${TOKEN_INFO[prize.token].description} It goes into your bag until you use it.`;
-  return `${prize.xp} XP straight onto your level bar. Wheel XP doesn’t earn new tickets.`;
+  if (prize.theme) return ownsTheme ? t('You own Fortuna, so this slice now pays a big XP jackpot.') : t('The Fortuna theme: a gold and violet look for the whole app. The rarest slice.');
+  if (prize.token) return `${t(TOKEN_INFO[prize.token].description)} ${t('It goes into your bag until you use it.')}`;
+  return t('{n} XP straight onto your level bar. Wheel XP doesn’t earn new tickets.', { n: prize.xp! });
 }
 
 /** A prize's colour, for dots and rays: its rarity's colour; the theme (and its jackpot) is rainbow. */
@@ -241,11 +243,11 @@ export function SpinScreen({
       <ScrollView contentContainerStyle={s.content}>
         <View style={s.eyebrowRow}>
           <StarRule end="left" style={{ width: 54 }} />
-          <Text style={s.eyebrow}>Fortuna</Text>
+          <Text style={s.eyebrow}>{t('Fortuna')}</Text>
           <StarRule end="right" style={{ width: 54 }} />
         </View>
-        <GoldText style={s.heading}>Spin the wheel</GoldText>
-        <Pressable onPress={() => setOddsOpen(true)} hitSlop={10} style={s.oddsButton} accessibilityRole="button" accessibilityLabel="Show the odds">
+        <GoldText style={s.heading}>{t('Spin the wheel')}</GoldText>
+        <Pressable onPress={() => setOddsOpen(true)} hitSlop={10} style={s.oddsButton} accessibilityRole="button" accessibilityLabel={t('Show the odds')}>
           <Text style={s.oddsButtonText}>?</Text>
         </Pressable>
 
@@ -255,17 +257,17 @@ export function SpinScreen({
               <TicketStub dim={!has} />
               <View style={{ flex: 1 }}>
                 <GoldText style={s.ticketCount}>× {tickets.tickets}</GoldText>
-                <Text style={s.ticketLabel}>{tickets.tickets === 1 ? 'ticket' : 'tickets'} ready to spin</Text>
+                <Text style={s.ticketLabel}>{tickets.tickets === 1 ? t('ticket ready to spin') : t('tickets ready to spin')}</Text>
               </View>
             </View>
             <View style={{ gap: 2 }}>
               <Text style={s.nextLabel}>
-                Next ticket · {toGo} XP to go
+                {t('Next ticket · {n} XP to go', { n: toGo })}
               </Text>
               <ShimmerBar progress={tickets.progress / XP_PER_TICKET} ghost={tickets.progress / XP_PER_TICKET} />
             </View>
             <Text style={s.copy}>
-              You earn 1 ticket for every {XP_PER_TICKET} XP from tasks, challenges and achievements. Tickets are free and can never be bought.
+              {t('You earn 1 ticket for every {n} XP from tasks, challenges and achievements. Tickets are free and can never be bought.', { n: XP_PER_TICKET })}
             </Text>
           </View>
         </HoloBorder>
@@ -280,14 +282,14 @@ export function SpinScreen({
           <View
             {...touch.panHandlers}
             style={{ position: 'absolute', width: size, height: size, borderRadius: size / 2 }}
-            accessibilityHint="Swipe around the wheel to spin it, or tap a slice to see what it gives"
+            accessibilityHint={t('Swipe around the wheel to spin it, or tap a slice to see what it gives')}
           />
           <Pressable
             onPress={() => spin()}
             disabled={spinning || !has}
             style={{ width: 64 * k, height: 64 * k, borderRadius: 32 * k, boxShadow: '0px 4px 14px rgba(0,0,0,0.5)' }}
             accessibilityRole="button"
-            accessibilityLabel={has ? `Spin the wheel, ${tickets.tickets} ${tickets.tickets === 1 ? 'ticket' : 'tickets'}` : 'No tickets yet'}
+            accessibilityLabel={has ? tn(tickets.tickets, 'Spin the wheel, {n} ticket', 'Spin the wheel, {n} tickets') : t('No tickets yet')}
           >
             <Hub size={64 * k} />
           </Pressable>
@@ -305,33 +307,33 @@ export function SpinScreen({
             {about.theme && !ownsTheme && <ThemePreview />}
           </>
         ) : (
-          <Text style={s.hint}>{has ? 'Swipe the wheel or tap Spin · tap a slice to see what it gives' : 'Tap a slice to see what it gives'}</Text>
+          <Text style={s.hint}>{has ? t('Swipe the wheel or tap Spin · tap a slice to see what it gives') : t('Tap a slice to see what it gives')}</Text>
         )}
-        <SpinButton label={spinning ? 'Good luck…' : has ? 'Spin · 1 ticket' : 'No tickets yet'} disabled={!has || spinning} off={!has && !spinning} onPress={() => spin()} />
+        <SpinButton label={spinning ? t('Good luck…') : has ? t('Spin · 1 ticket') : t('No tickets yet')} disabled={!has || spinning} off={!has && !spinning} onPress={() => spin()} />
         {pity !== undefined && (
           <Text style={s.small}>
-            {pity <= 1 ? 'Lucky meter: your next spin wins Fortuna for sure.' : `Lucky meter: ${pity} spins left until Fortuna is guaranteed.`}
+            {pity <= 1 ? t('Lucky meter: your next spin wins Fortuna for sure.') : t('Lucky meter: {n} spins left until Fortuna is guaranteed.', { n: pity })}
           </Text>
         )}
 
-        <Text style={s.section}>How tickets work</Text>
+        <Text style={s.section}>{t('How tickets work')}</Text>
         <View style={s.panel}>
-          <Info text={`Every ${XP_PER_TICKET} XP from tasks, weekly challenges and achievements gives one ticket.`} />
-          <Info text="XP won on the wheel counts for your level, but doesn’t earn new tickets." />
-          <Info text="Tickets are never sold and never come from ads. They only come from what you get done." />
+          <Info text={t('Every {n} XP from tasks, weekly challenges and achievements gives one ticket.', { n: XP_PER_TICKET })} />
+          <Info text={t('XP won on the wheel counts for your level, but doesn’t earn new tickets.')} />
+          <Info text={t('Tickets are never sold and never come from ads. They only come from what you get done.')} />
         </View>
 
         {recent.length > 0 && (
           <>
-            <Text style={s.section}>Your latest wins</Text>
+            <Text style={s.section}>{t('Your latest wins')}</Text>
             <View style={s.panel}>
               {recent.map((sp, i) => {
                 const p = prizeById(sp.prize);
                 return (
                   <View key={i} style={s.oddsRow}>
                     <PrizeSticker prize={p} size={26} />
-                    <Text style={s.oddsLabel}>{p.label}</Text>
-                    <Text style={[s.rarity, { color: RARITY_COLORS[p.rarity].label }]}>{RARITY_NAMES[p.rarity]}</Text>
+                    <Text style={s.oddsLabel}>{prizeLabel(p)}</Text>
+                    <Text style={[s.rarity, { color: RARITY_COLORS[p.rarity].label }]}>{rarityName(p.rarity)}</Text>
                   </View>
                 );
               })}
@@ -365,11 +367,11 @@ export function SpinScreen({
 function SliceNote({ prize, ownsTheme, onClose }: { prize: WheelPrize; ownsTheme: boolean; onClose: () => void }) {
   const s = useStyles(makeStyles);
   return (
-    <Pressable onPress={onClose} style={s.note} accessibilityRole="button" accessibilityLabel={`${prize.label}, ${RARITY_NAMES[prize.rarity]}. ${prizeAbout(prize, ownsTheme)} Tap to close`}>
+    <Pressable onPress={onClose} style={s.note} accessibilityRole="button" accessibilityLabel={`${prizeLabel(prize)}, ${rarityName(prize.rarity)}. ${prizeAbout(prize, ownsTheme)} ${t('Tap to close')}`}>
       <PrizeSticker prize={prize} size={40} />
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={s.noteTitle}>
-          {prize.label} <Text style={[s.noteRarity, { color: RARITY_COLORS[prize.rarity].c1 }]}>· {RARITY_NAMES[prize.rarity]}</Text>
+          {prizeLabel(prize)} <Text style={[s.noteRarity, { color: RARITY_COLORS[prize.rarity].c1 }]}>· {rarityName(prize.rarity)}</Text>
         </Text>
         <Text style={s.noteBody}>{prizeAbout(prize, ownsTheme)}</Text>
       </View>
@@ -381,29 +383,29 @@ function OddsSheet({ ownsTheme, onClose }: { ownsTheme: boolean; onClose: () => 
   const s = useStyles(makeStyles);
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={s.revealBackdrop} onPress={onClose} accessibilityLabel="Close" />
+      <Pressable style={s.revealBackdrop} onPress={onClose} accessibilityLabel={t('Close')} />
       <SafeAreaView style={s.revealWrap} pointerEvents="box-none">
         <HoloBorder radius={18} style={{ width: '100%', maxWidth: 380 }}>
           <View style={s.oddsSheet}>
-            <Text style={s.oddsTitle}>Odds</Text>
+            <Text style={s.oddsTitle}>{t('Odds')}</Text>
             {WHEEL_PRIZES.map((p) => {
               const shown = p.theme && ownsTheme ? JACKPOT : p;
               return (
                 <View key={p.id} style={s.oddsRow}>
                   {isMythic(shown) ? <RainbowDot /> : <View style={[s.dot, { backgroundColor: prizeColor(shown) }]} />}
-                  <Text style={s.oddsLabel}>{shown.label}</Text>
-                  <Text style={[s.rarity, { color: RARITY_COLORS[shown.rarity].label }]}>{RARITY_NAMES[shown.rarity]}</Text>
+                  <Text style={s.oddsLabel}>{prizeLabel(shown)}</Text>
+                  <Text style={[s.rarity, { color: RARITY_COLORS[shown.rarity].label }]}>{rarityName(shown.rarity)}</Text>
                   <Text style={s.oddsValue}>{p.odds}%</Text>
                 </View>
               );
             })}
             <Text style={s.footnote}>
-              All slices look the same, but the chances differ as listed.{' '}
+              {t('All slices look the same, but the chances differ as listed.')}{' '}
               {ownsTheme
-                ? `You own Fortuna, so its slice now pays a ${JACKPOT.xp} XP jackpot.`
-                : `If you haven’t won the Fortuna theme after ${PITY_SPINS} spins, spin ${PITY_SPINS} gives it to you.`}
+                ? t('You own Fortuna, so its slice now pays a {n} XP jackpot.', { n: JACKPOT.xp! })
+                : t('If you haven’t won the Fortuna theme after {n} spins, spin {n} gives it to you.', { n: PITY_SPINS })}
             </Text>
-            <GoldAction label="Got it" onPress={onClose} />
+            <GoldAction label={t('Got it')} onPress={onClose} />
           </View>
         </HoloBorder>
       </SafeAreaView>
@@ -575,7 +577,7 @@ const SliceLabels = memo(function SliceLabels({ size, ownsTheme, rotation, still
         const prize = sl.prize.theme && ownsTheme ? JACKPOT : sl.prize;
         const [ix, iy] = point(sl.mid, FACE - 32);
         const [lx, ly] = point(sl.mid, FACE - 66);
-        const label = LABELS[prize.id];
+        const label = t(LABELS[prize.id]);
         const Icon = prizeIcon(prize);
         const fortuna = !!sl.prize.theme && !ownsTheme;
         return (
@@ -638,7 +640,7 @@ function Rim({ size }: { size: number }) {
 function Hub({ size }: { size: number }) {
   return (
     <View style={[{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center' }, fill(BRAND, 135)]}>
-      <Text style={{ color: '#FFFFFF', fontFamily: VIVID_HEAVY, fontSize: 14 * (size / 64), letterSpacing: 0.8 }}>SPIN</Text>
+      <Text style={{ color: '#FFFFFF', fontFamily: VIVID_HEAVY, fontSize: 14 * (size / 64), letterSpacing: 0.8 }}>{t('SPIN')}</Text>
     </View>
   );
 }
@@ -687,16 +689,16 @@ function PrizeReveal({
     return () => loop.stop();
   }, []);
 
-  const title = prize.theme ? 'Fortuna is yours!' : prize.id === JACKPOT.id ? 'Jackpot!' : big ? 'Lucky!' : 'You won';
+  const title = prize.theme ? t('Fortuna is yours!') : prize.id === JACKPOT.id ? t('Jackpot!') : big ? t('Lucky!') : t('You won');
   const desc = prize.theme
-    ? 'A theme you can only win on this wheel. Gold coins, holo cards and stardust.'
+    ? t('A theme you can only win on this wheel. Gold coins, holo cards and stardust.')
     : prize.token
-      ? 'Added to your bag. Use it whenever you like.'
-      : 'Added to your XP.';
+      ? t('Added to your bag. Use it whenever you like.')
+      : t('Added to your XP.');
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={s.revealBackdrop} onPress={onClose} accessibilityLabel="Close" />
+      <Pressable style={s.revealBackdrop} onPress={onClose} accessibilityLabel={t('Close')} />
       {mythic && <CoinShower count={30} />}
       <SafeAreaView style={s.revealWrap} pointerEvents="box-none">
         <Animated.View
@@ -768,7 +770,7 @@ function PrizeReveal({
         >
           <HoloBorder radius={20} colors={mythic ? [...MYTHIC, MYTHIC[0]] : HOLO}>
             <View style={s.revealCard}>
-              <Text style={[s.revealRarity, { color: RARITY_COLORS[prize.rarity].label }]}>{RARITY_NAMES[prize.rarity]}</Text>
+              <Text style={[s.revealRarity, { color: RARITY_COLORS[prize.rarity].label }]}>{rarityName(prize.rarity)}</Text>
               <Text style={s.revealTitle}>{title}</Text>
               <Animated.View
                 style={{
@@ -778,18 +780,18 @@ function PrizeReveal({
               >
                 <PrizeSticker prize={prize} size={big ? 108 : 90} />
               </Animated.View>
-              <Text style={s.revealPrize}>{prize.label}</Text>
+              <Text style={s.revealPrize}>{prizeLabel(prize)}</Text>
               <Text style={s.revealDesc}>{desc}</Text>
               {prize.theme && <ThemePreview />}
-              <GoldAction label={prize.theme ? 'Wear it now' : 'Collect'} onPress={prize.theme ? onWearTheme : onClose} />
+              <GoldAction label={prize.theme ? t('Wear it now') : t('Collect')} onPress={prize.theme ? onWearTheme : onClose} />
               {prize.theme ? (
                 <Pressable onPress={onClose} style={s.revealSecondary} accessibilityRole="button">
-                  <Text style={s.revealSecondaryText}>Later</Text>
+                  <Text style={s.revealSecondaryText}>{t('Later')}</Text>
                 </Pressable>
               ) : ticketsLeft > 0 ? (
                 <Pressable onPress={onAgain} style={s.revealSecondary} accessibilityRole="button">
                   <Text style={s.revealSecondaryText}>
-                    Spin again · {ticketsLeft} {ticketsLeft === 1 ? 'ticket' : 'tickets'} left
+                    {tn(ticketsLeft, 'Spin again · {n} ticket left', 'Spin again · {n} tickets left')}
                   </Text>
                 </Pressable>
               ) : null}
@@ -815,16 +817,16 @@ function GoldAction({ label, onPress }: { label: string; onPress: () => void }) 
 function ThemePreview() {
   const s = useStyles(makeStyles);
   return (
-    <View style={s.preview} accessible accessibilityLabel="Preview of the Fortuna theme">
+    <View style={s.preview} accessible accessibilityLabel={t('Preview of the Fortuna theme')}>
       <View style={s.previewTop}>
         <StarRule end="left" style={{ width: 28 }} />
-        <Text style={s.previewWord}>SUCCEDO</Text>
+        <Text style={s.previewWord}>{t('SUCCEDO')}</Text>
         <StarRule end="right" style={{ width: 28 }} />
       </View>
       <ShimmerBar progress={0.62} ghost={0.62} />
       <HoloBorder radius={10}>
         <View style={s.previewTask}>
-          <Text style={s.previewTaskText}>Morning run</Text>
+          <Text style={s.previewTaskText}>{t('Morning run')}</Text>
           <CoinCheck done size={22} />
         </View>
       </HoloBorder>

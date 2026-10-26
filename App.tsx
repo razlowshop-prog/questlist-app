@@ -28,6 +28,7 @@ import {
   profileStats,
   secondsUntilTickable,
   setName,
+  shownName,
   toggleTask,
   totalXp,
   updateSettings,
@@ -45,10 +46,12 @@ import {
   claimAchievement,
   grantLevelRewards,
   LEVEL_MILESTONES,
+  rewardLabel,
   TIER_NAMES,
   unlockedRewards,
   type LevelMilestone,
 } from './src/achievements';
+import { shownTitle } from './src/library';
 import { Celebration, type CelebrationEvent } from './src/components/Celebration';
 import { LevelDetails } from './src/components/LevelDetails';
 import { ActivityScreen } from './src/screens/ActivityScreen';
@@ -96,6 +99,7 @@ import { recapToShow } from './src/recap';
 import { WeeklyRecap } from './src/components/WeeklyRecap';
 import { loadPhoto, loadState, savePhoto, saveState } from './src/storage';
 import { nativeDriver, themeById, themed, ThemeProvider, THEMES, withFonts } from './src/theme';
+import { N, quoted, setLang, systemLang, t, tn } from './src/i18n';
 
 /** The Spin tab always wears the Fortuna look. */
 const FORTUNA = themeById('fortune').palette;
@@ -115,22 +119,22 @@ type Page = 'inventory' | 'profile' | MenuPage;
  * they are drawn bolder in the brand colour instead.
  */
 const TABS: { key: Tab; label: string; Icon: LucideIcon; glyph?: GlyphName }[] = [
-  { key: 'today', label: 'Today', Icon: ListChecks, glyph: 'ListChecks' },
-  { key: 'challenges', label: 'Challenges', Icon: Trophy, glyph: 'Trophy' },
-  { key: 'spin', label: 'Spin', Icon: FerrisWheel, glyph: 'Pinwheel' },
-  { key: 'menu', label: 'Menu', Icon: Menu },
+  { key: 'today', label: N('Today'), Icon: ListChecks, glyph: 'ListChecks' },
+  { key: 'challenges', label: N('Challenges'), Icon: Trophy, glyph: 'Trophy' },
+  { key: 'spin', label: N('Spin'), Icon: FerrisWheel, glyph: 'Pinwheel' },
+  { key: 'menu', label: N('Menu'), Icon: Menu },
 ];
 
 const PAGE_TITLES: Record<Page, string> = {
-  inventory: 'Inventory',
-  profile: 'Profile',
-  activity: 'Activity',
-  friends: 'Friends',
-  leaderboard: 'Leaderboard',
-  settings: 'Settings',
-  apps: 'Connected apps',
-  help: 'Contact & help',
-  legal: 'Legal',
+  inventory: N('Inventory'),
+  profile: N('Profile'),
+  activity: N('Activity'),
+  friends: N('Friends'),
+  leaderboard: N('Leaderboard'),
+  settings: N('Settings'),
+  apps: N('Connected apps'),
+  help: N('Contact & help'),
+  legal: N('Legal'),
 };
 
 export default function App() {
@@ -146,6 +150,9 @@ function Succedo() {
   // camera, the tab bar and toast clear of the system navigation bar.
   const insets = useSafeAreaInsets();
   const [state, setState] = useState<GameState>(emptyState);
+  // The language for everything drawn below; switching it redraws the whole app (the key on ThemeProvider).
+  const language = state.settings.lang ?? systemLang();
+  setLang(language);
   const [loaded, setLoaded] = useState(false);
   const [tab, setTab] = useState<Tab>('today');
   const [page, setPage] = useState<Page | null>(null);
@@ -202,7 +209,7 @@ function Succedo() {
   useEffect(() => {
     if (!loaded || !REMINDERS_SUPPORTED) return;
     syncReminders(state).catch((e) => console.warn('Reminders failed to update', e));
-  }, [state.tasks, state.completions, loaded, today]);
+  }, [state.tasks, state.completions, state.settings.lang, loaded, today]);
 
   setHapticsEnabled(state.settings.haptics);
   const xp = totalXp(state);
@@ -272,7 +279,8 @@ function Succedo() {
     }
   }, [loaded, page, bagKey, state.settings.bagSeen]);
   const level = levelInfo(xp);
-  const initials = state.profile.name.trim().slice(0, 2).toUpperCase() || '?';
+  const playerName = shownName(state.profile.name);
+  const initials = playerName.trim().slice(0, 2).toUpperCase() || '?';
   const recap = loaded ? recapToShow(state, today, new Date().getHours()) : undefined;
   // A timer for a task that is gone or already done today no longer shows.
   const focusTask = state.focus ? state.tasks.find((t) => t.id === state.focus!.taskId && !isDoneToday(state, t, today)) : undefined;
@@ -330,7 +338,7 @@ function Succedo() {
   function askForReminders(picks: LibraryPick[]) {
     if (!REMINDERS_SUPPORTED || !picks.some((p) => p.schedule.remind)) return;
     askReminderPermission().then((ok) => {
-      if (!ok) showToast('Notifications are off. Allow them in your phone settings to get reminders.');
+      if (!ok) showToast(t('Notifications are off. Allow them in your phone settings to get reminders.'));
     });
   }
 
@@ -340,7 +348,7 @@ function Succedo() {
     setState(next);
     setRedoSetup(false);
     openTab('today');
-    if (picks.length) setTimeout(() => showToast(`${picks.length} ${picks.length === 1 ? 'task' : 'tasks'} added. Let’s begin.`), 300);
+    if (picks.length) setTimeout(() => showToast(tn(picks.length, '{n} task added. Let’s begin.', '{n} tasks added. Let’s begin.')), 300);
   }
 
   function showToast(message: string) {
@@ -420,7 +428,7 @@ function Succedo() {
 
   function takeRestDay(day: string) {
     setState(spendRestDay(state, day, today));
-    showToast(day === today ? 'Rest day: your streak is safe today' : 'Streak saved with a rest day');
+    showToast(day === today ? t('Rest day: your streak is safe today') : t('Streak saved with a rest day'));
   }
 
   function onToggle(task: Task, focusXp = 0): { xp: number; note?: string } {
@@ -453,19 +461,26 @@ function Succedo() {
   function finishFocus(task: Task) {
     const bonus = focusBonus(state.focus, task, Date.now());
     if (secondsUntilTickable(task, Date.now()) > 0) {
-      showToast('New tasks can be ticked a few seconds after adding');
+      showToast(t('New tasks can be ticked a few seconds after adding'));
       setFocusOpen(false);
       return;
     }
     const cover = coveredBy(state, task, today);
     if (cover) {
-      showToast(`Already part of “${cover.title}”`);
+      showToast(t('Already part of {task}', { task: quoted(shownTitle(cover.title)) }));
       setFocusOpen(false);
       return;
     }
     const { xp: gained, note } = onToggle(task, bonus);
     setFocusOpen(false);
-    showToast(gained > 0 ? `${task.title} done · +${gained} XP${bonus ? `, with a +${bonus} focus bonus` : ''}` : note ?? `${task.title} done`);
+    const name = shownTitle(task.title);
+    showToast(
+      gained > 0
+        ? bonus
+          ? t('{task} done · +{xp} XP, with a +{bonus} focus bonus', { task: name, xp: gained, bonus })
+          : t('{task} done · +{xp} XP', { task: name, xp: gained })
+        : (note ?? t('{task} done', { task: name })),
+    );
   }
 
   /**
@@ -498,20 +513,24 @@ function Succedo() {
 
   function onClaim(id: string) {
     const gained = apply(claimChallenge(state, id, today));
-    if (gained > 0) showToast(`Challenge complete · +${gained} XP`);
+    if (gained > 0) showToast(t('Challenge complete · +{xp} XP', { xp: gained }));
   }
 
   function onClaimDaily(id: string) {
     const gained = apply(claimDaily(state, id, today, new Date().getHours()));
-    if (gained > 0) showToast(`Daily challenge complete · +${gained} XP`);
+    if (gained > 0) showToast(t('Daily challenge complete · +{xp} XP', { xp: gained }));
   }
 
   function onClaimAchievement(id: string) {
     const { state: next, tier } = claimAchievement(state, id, today);
     if (!tier) return;
-    const tierName = TIER_NAMES[next.achievementClaims[next.achievementClaims.length - 1].tier];
+    const tierName = t(TIER_NAMES[next.achievementClaims[next.achievementClaims.length - 1].tier]);
     apply(next);
-    showToast(`${tierName} trophy · +${tier.xp} XP${tier.reward ? ` · ${tier.reward.label} unlocked` : ''}`);
+    showToast(
+      tier.reward
+        ? t('{tier} award · +{xp} XP · {reward} unlocked', { tier: tierName, xp: tier.xp, reward: rewardLabel(tier.reward) })
+        : t('{tier} award · +{xp} XP', { tier: tierName, xp: tier.xp }),
+    );
   }
 
   const badges: Record<Tab, number> = { today: 0, challenges: readyToClaim, spin: tickets.tickets, menu: 0 };
@@ -533,6 +552,8 @@ function Succedo() {
           initialGoals={state.goals}
           owned={ownedTasks}
           today={today}
+          language={language}
+          onLanguage={(l) => setState((s) => updateSettings(s, { lang: l }))}
           onFinish={onSetupDone}
           onSkip={() => {
             setState({ ...state, onboarded: true });
@@ -544,7 +565,7 @@ function Succedo() {
   }
 
   return (
-    <ThemeProvider palette={c}>
+    <ThemeProvider key={language} palette={c}>
       <ThemeFxContext.Provider value={fx}>
       <FlameStyleContext.Provider value={looks.flameStyle}>
         <CelebrationContext.Provider value={looks.celebration}>
@@ -555,7 +576,7 @@ function Succedo() {
             {c.backdrop === 'dust' && (tab !== 'spin' || page) && <GoldDust />}
             {fx.ambient && (tab !== 'spin' || page) && <Ambient kind={fx.ambient} />}
             {page ? (
-              <BackBar backTo={TABS.find((t) => t.key === tab)!.label} title={PAGE_TITLES[page]} onBack={() => setPage(null)} />
+              <BackBar backTo={t(TABS.find((x) => x.key === tab)!.label)} title={t(PAGE_TITLES[page])} onBack={() => setPage(null)} />
             ) : (
               <View pointerEvents={spinBusy ? 'none' : 'auto'}>
                 <TopBar
@@ -584,11 +605,11 @@ function Succedo() {
                   onRest={takeRestDay}
                   onDouble={() => {
                     setState(spendDoubleXp(state, today));
-                    showToast('Double XP is on for the rest of today');
+                    showToast(t('Double XP is on for the rest of today'));
                   }}
                   onAdFree={() => {
                     setState(spendAdFree(state, today));
-                    showToast('No ads for the rest of today');
+                    showToast(t('No ads for the rest of today'));
                   }}
                   onOpenChallenges={() => openTab('challenges')}
                   onOpenProfile={() => setPage('profile')}
@@ -603,7 +624,7 @@ function Succedo() {
               )}
               {page === 'profile' && (
                 <ProfileScreen
-                  name={state.profile.name}
+                  name={playerName}
                   stats={profileStats(state, today)}
                   trophies={trophies}
                   joinedAt={state.joinedAt}
@@ -634,7 +655,7 @@ function Succedo() {
               {(page === 'friends' || page === 'leaderboard') && (
                 <FriendsScreen
                   view={page}
-                  name={state.profile.name}
+                  name={playerName}
                   level={level.level}
                   streak={streakInfo.days}
                   totalXp={xp}
@@ -653,7 +674,7 @@ function Succedo() {
                     setState(prepared(backup.state));
                     setPhoto(backup.photo);
                     savePhoto(backup.photo);
-                    showToast('Backup restored');
+                    showToast(t('Backup restored'));
                   }}
                 />
               )}
@@ -692,7 +713,7 @@ function Succedo() {
                     setState(addTask(state, title, repeat, undefined, minutes, plan));
                     if (plan.reminder && REMINDERS_SUPPORTED) {
                       askReminderPermission().then((ok) => {
-                        if (!ok) showToast('Notifications are off. Allow them in your phone settings to get reminders.');
+                        if (!ok) showToast(t('Notifications are off. Allow them in your phone settings to get reminders.'));
                       });
                     }
                   }}
@@ -722,13 +743,13 @@ function Succedo() {
                     const next = swapChallenge(state, id, today);
                     if (next !== state) {
                       setState(next);
-                      showToast('Challenge swapped');
+                      showToast(t('Challenge swapped'));
                     }
                   }}
                   season={season}
                   onClaimSeason={() => {
                     setState(claimSeason(state, today));
-                    showToast(`${frameName(season.frame)} frame won. Wear it from your profile.`);
+                    showToast(t('{frame} frame won. Wear it from your profile.', { frame: frameName(season.frame) }));
                   }}
                 />
               )}
@@ -743,7 +764,7 @@ function Succedo() {
                     onBusy={setSpinBusy}
                     onWearTheme={() => {
                       setState(updateSettings(state, { theme: 'fortune' }));
-                      showToast('Fortuna is on. Good luck!');
+                      showToast(t('Fortuna is on. Good luck!'));
                     }}
                   />
                 </ThemeProvider>
@@ -752,38 +773,38 @@ function Succedo() {
             </View>
 
             <View style={[styles.tabBar, { paddingBottom: 10 + insets.bottom }]} pointerEvents={spinBusy ? 'none' : 'auto'}>
-              {TABS.flatMap((t, i) => [
+              {TABS.flatMap((tb, i) => [
                 // Today · Challenges · Add Task · Spin · Menu
                 i === 2 && (
-                  <Pressable key="add" onPress={openAdd} style={styles.tab} accessibilityRole="button" accessibilityLabel="Add Task">
+                  <Pressable key="add" onPress={openAdd} style={styles.tab} accessibilityRole="button" accessibilityLabel={t('Add Task')}>
                     <View style={styles.addButton}>
                       <Plus size={24} color={brandInk(c)} strokeWidth={2.75} aria-hidden />
                     </View>
                     <Text style={[styles.tabLabel, styles.addLabel]} numberOfLines={1}>
-                      Add Task
+                      {t('Add Task')}
                     </Text>
                   </Pressable>
                 ),
                 <Pressable
-                  key={t.key}
-                  onPress={() => openTab(t.key)}
+                  key={tb.key}
+                  onPress={() => openTab(tb.key)}
                   style={styles.tab}
                   accessibilityRole="tab"
-                  accessibilityState={{ selected: tab === t.key }}
+                  accessibilityState={{ selected: tab === tb.key }}
                 >
-                  {tab === t.key ? (
+                  {tab === tb.key ? (
                     <View style={[styles.tabGlyph, styles.tabGlow]}>
-                      {t.glyph ? <Glyph name={t.glyph} size={24} grad={c.brand?.text ?? BRAND} /> : <t.Icon size={24} color={brandLine(c)} strokeWidth={2.5} aria-hidden />}
+                      {tb.glyph ? <Glyph name={tb.glyph} size={24} grad={c.brand?.text ?? BRAND} /> : <tb.Icon size={24} color={brandLine(c)} strokeWidth={2.5} aria-hidden />}
                     </View>
                   ) : (
                     <View style={styles.tabGlyph}>
-                      <t.Icon size={22} color={c.muted} strokeWidth={1.5} aria-hidden />
+                      <tb.Icon size={22} color={c.muted} strokeWidth={1.5} aria-hidden />
                     </View>
                   )}
-                  <Text style={[styles.tabLabel, tab === t.key && styles.tabLabelActive]} numberOfLines={1}>
-                    {t.label}
+                  <Text style={[styles.tabLabel, tab === tb.key && styles.tabLabelActive]} numberOfLines={1}>
+                    {t(tb.label)}
                   </Text>
-                  <CountBadge count={badges[t.key]} style={styles.dot} />
+                  <CountBadge count={badges[tb.key]} style={styles.dot} />
                 </Pressable>,
               ])}
             </View>
@@ -797,7 +818,7 @@ function Succedo() {
                 setLibraryOpen(false);
                 openTab('today');
                 askForReminders(picks);
-                setTimeout(() => showToast(`${picks.length} ${picks.length === 1 ? 'task' : 'tasks'} added`), 300);
+                setTimeout(() => showToast(tn(picks.length, '{n} task added', '{n} tasks added')), 300);
               }}
               onClose={() => setLibraryOpen(false)}
             />
@@ -833,7 +854,7 @@ function Succedo() {
                 offer={recovery}
                 onAnswer={(take) => {
                   setState(answerRecovery(state, today, take));
-                  if (take) showToast(recovery.streakLost ? `Your ${recovery.keeps}-day streak is safe. Welcome back!` : 'Your fire is safe. Welcome back!');
+                  if (take) showToast(recovery.streakLost ? t('Your {days}-day streak is safe. Welcome back!', { days: recovery.keeps }) : t('Your fire is safe. Welcome back!'));
                 }}
               />
             )}

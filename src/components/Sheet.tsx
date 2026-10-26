@@ -3,6 +3,7 @@ import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { card, eyebrow, FONTS, headingCase, themed, useStyles } from '../theme';
 import { VividButton } from './Vivid';
+import { t } from '../i18n';
 
 /** A centred sheet over a dim backdrop, closed by tapping outside or Done. */
 export function Sheet({
@@ -10,7 +11,7 @@ export function Sheet({
   eyebrow: kicker,
   visible,
   onClose,
-  closeLabel = 'Done',
+  closeLabel,
   children,
 }: {
   title: string;
@@ -24,7 +25,7 @@ export function Sheet({
   const s = useStyles(makeStyles);
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={s.backdrop} onPress={onClose} accessibilityLabel="Close" />
+      <Pressable style={s.backdrop} onPress={onClose} accessibilityLabel={t('Close')} />
       <SafeAreaView style={s.wrap} pointerEvents="box-none">
         <View style={s.sheet}>
           <View style={s.head}>
@@ -33,7 +34,7 @@ export function Sheet({
               <Text style={s.title}>{title}</Text>
             </View>
             <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button">
-              <Text style={s.done}>{closeLabel}</Text>
+              <Text style={s.done}>{closeLabel ?? t('Done')}</Text>
             </Pressable>
           </View>
           <ScrollView contentContainerStyle={{ gap: 10, paddingBottom: 4 }}>{children}</ScrollView>
@@ -65,7 +66,7 @@ export function ConfirmSheet({
   const s = useStyles(makeStyles);
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
-      <Pressable style={s.backdrop} onPress={onCancel} accessibilityLabel="Cancel" />
+      <Pressable style={s.backdrop} onPress={onCancel} accessibilityLabel={t('Cancel')} />
       <SafeAreaView style={s.wrap} pointerEvents="box-none">
         <View style={[s.sheet, s.confirm]} accessibilityViewIsModal>
           <Text style={s.title} accessibilityRole="header">
@@ -73,7 +74,7 @@ export function ConfirmSheet({
           </Text>
           {body ? <Text style={s.body}>{body}</Text> : null}
           <View style={s.buttons}>
-            <VividButton label="Cancel" kind="secondary" compact onPress={onCancel} style={{ flex: 1 }} />
+            <VividButton label={t('Cancel')} kind="secondary" compact onPress={onCancel} style={{ flex: 1 }} />
             <VividButton label={confirmLabel} compact onPress={onConfirm} style={{ flex: 1 }} />
           </View>
         </View>

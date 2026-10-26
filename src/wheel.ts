@@ -1,5 +1,6 @@
 import { wheelXp, type GameState, type WheelSpin } from './game.ts';
 import type { TokenKind } from './achievements.ts';
+import { N, t } from './i18n.ts';
 
 // The lucky wheel: every 100 XP earned from tasks, challenges and
 // achievements gives a ticket, and a ticket spins the wheel once. Prizes are
@@ -33,22 +34,32 @@ export const WHEEL_PRIZES: WheelPrize[] = [
   { id: 'xp20', label: '20 XP', short: '20', odds: 40, rarity: 'common', xp: 20 },
   { id: 'xp50', label: '50 XP', short: '50', odds: 20, rarity: 'common', xp: 50 },
   { id: 'xp100', label: '100 XP', short: '100', odds: 8, rarity: 'common', xp: 100 },
-  { id: 'double', label: 'Double XP token', short: '2X', odds: 9, rarity: 'uncommon', token: 'double' },
-  { id: 'rest', label: 'Rest day token', short: 'REST', odds: 9, rarity: 'uncommon', token: 'rest' },
-  { id: 'reroll', label: 'Challenge swap', short: 'SWAP', odds: 8, rarity: 'uncommon', token: 'reroll' },
-  { id: 'adfree', label: 'Ad-free day', short: 'AD-FREE', odds: 5, rarity: 'rare', token: 'adfree' },
-  { id: 'theme', label: 'Fortuna theme', short: '★', odds: 1, rarity: 'legendary', theme: true },
+  { id: 'double', label: N('Double XP token'), short: '2X', odds: 9, rarity: 'uncommon', token: 'double' },
+  { id: 'rest', label: N('Rest day token'), short: 'REST', odds: 9, rarity: 'uncommon', token: 'rest' },
+  { id: 'reroll', label: N('Challenge swap'), short: 'SWAP', odds: 8, rarity: 'uncommon', token: 'reroll' },
+  { id: 'adfree', label: N('Ad-free day'), short: 'AD-FREE', odds: 5, rarity: 'rare', token: 'adfree' },
+  { id: 'theme', label: N('Fortuna theme'), short: '★', odds: 1, rarity: 'legendary', theme: true },
 ];
 
 /** What the theme segment pays once the theme is owned. */
 export const JACKPOT: WheelPrize = { id: 'jackpot', label: `${JACKPOT_XP} XP jackpot`, short: '★', odds: 1, rarity: 'legendary', xp: JACKPOT_XP };
 
 export const RARITY_NAMES: Record<Rarity, string> = {
-  common: 'Common',
-  uncommon: 'Rare',
-  rare: 'Epic',
-  legendary: 'Legendary',
+  common: N('Common'),
+  uncommon: N('Rare'),
+  rare: N('Epic'),
+  legendary: N('Legendary'),
 };
+
+/** A prize's name in the current language. */
+export function prizeLabel(prize: WheelPrize): string {
+  return prize.xp ? t(prize.id === JACKPOT.id ? '{n} XP jackpot' : '{n} XP', { n: prize.xp }) : t(prize.label);
+}
+
+/** A rarity's name in the current language. */
+export function rarityName(rarity: Rarity): string {
+  return t(RARITY_NAMES[rarity]);
+}
 
 /**
  * The wheel's slices in order, clockwise from the top. All slices are the

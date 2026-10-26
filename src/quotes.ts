@@ -1,4 +1,5 @@
 import type { QuoteSide } from './game.ts';
+import { lang } from './i18n.ts';
 // Short, classic quotes for the daily motivation card (and later the opt-in email).
 export const QUOTES: [text: string, author: string][] = [
   ['The secret of getting ahead is getting started.', 'Mark Twain'],
@@ -64,15 +65,82 @@ export const QUOTES: [text: string, author: string][] = [
   ['Every day is a new beginning.', 'Proverb'],
 ];
 
+// The German list: German originals where there are any, sayings, and quotes
+// in their usual German wording.
+export const QUOTES_DE: [text: string, author: string][] = [
+  ['Es gibt nichts Gutes, außer: Man tut es.', 'Erich Kästner'],
+  ['Es ist nicht genug zu wissen, man muss auch anwenden; es ist nicht genug zu wollen, man muss auch tun.', 'Johann Wolfgang von Goethe'],
+  ['Der Worte sind genug gewechselt, lasst mich auch endlich Taten sehn!', 'Johann Wolfgang von Goethe'],
+  ['Auch aus Steinen, die einem in den Weg gelegt werden, kann man Schönes bauen.', 'Johann Wolfgang von Goethe (zugeschrieben)'],
+  ['Wer will, findet Wege. Wer nicht will, findet Gründe.', 'Sprichwort'],
+  ['Aller Anfang ist schwer.', 'Sprichwort'],
+  ['Übung macht den Meister.', 'Sprichwort'],
+  ['Steter Tropfen höhlt den Stein.', 'Sprichwort'],
+  ['Was du heute kannst besorgen, das verschiebe nicht auf morgen.', 'Sprichwort'],
+  ['Auch der längste Weg beginnt mit dem ersten Schritt.', 'Laotse'],
+  ['Wer kämpft, kann verlieren. Wer nicht kämpft, hat schon verloren.', 'Bertolt Brecht (zugeschrieben)'],
+  ['Wer ein Warum zum Leben hat, erträgt fast jedes Wie.', 'Friedrich Nietzsche'],
+  ['Und jedem Anfang wohnt ein Zauber inne.', 'Hermann Hesse'],
+  ['Damit das Mögliche entsteht, muss immer wieder das Unmögliche versucht werden.', 'Hermann Hesse'],
+  ['Glück ist, wenn Vorbereitung auf Gelegenheit trifft.', 'Seneca'],
+  ['Nicht weil es schwer ist, wagen wir es nicht, sondern weil wir es nicht wagen, ist es schwer.', 'Seneca'],
+  ['Es ist nicht wenig Zeit, die wir haben, sondern es ist viel Zeit, die wir nicht nutzen.', 'Seneca'],
+  ['Gut begonnen ist halb gewonnen.', 'Sprichwort'],
+  ['Wer rastet, der rostet.', 'Sprichwort'],
+  ['Morgenstund hat Gold im Mund.', 'Sprichwort'],
+  ['Ohne Fleiß kein Preis.', 'Sprichwort'],
+  ['Kleinvieh macht auch Mist.', 'Sprichwort'],
+  ['Rom wurde nicht an einem Tag erbaut.', 'Sprichwort'],
+  ['In der Ruhe liegt die Kraft.', 'Sprichwort'],
+  ['Wo ein Wille ist, ist auch ein Weg.', 'Sprichwort'],
+  ['Fantasie ist wichtiger als Wissen, denn Wissen ist begrenzt.', 'Albert Einstein'],
+  ['Das Leben ist wie Fahrradfahren. Um die Balance zu halten, musst du in Bewegung bleiben.', 'Albert Einstein'],
+  ['Ich habe keine besondere Begabung, sondern bin nur leidenschaftlich neugierig.', 'Albert Einstein'],
+  ['Es ist egal, wie langsam du gehst, solange du nicht stehen bleibst.', 'Konfuzius'],
+  ['Wer einen Berg versetzen will, beginnt damit, kleine Steine wegzutragen.', 'Konfuzius'],
+  ['Wir sind, was wir wiederholt tun. Vortrefflichkeit ist daher keine Handlung, sondern eine Gewohnheit.', 'Will Durant'],
+  ['Erst formen wir unsere Gewohnheiten, dann formen sie uns.', 'Sprichwort'],
+  ['Der beste Zeitpunkt, einen Baum zu pflanzen, war vor zwanzig Jahren. Der nächstbeste ist jetzt.', 'Sprichwort'],
+  ['Tu, was du kannst, mit dem, was du hast, wo du bist.', 'Theodore Roosevelt'],
+  ['Gut gemacht ist besser als gut gesagt.', 'Benjamin Franklin'],
+  ['Verschwende keine Zeit mehr damit, darüber zu reden, was ein guter Mensch ist. Sei einer.', 'Mark Aurel'],
+  ['Das Glück deines Lebens hängt von der Beschaffenheit deiner Gedanken ab.', 'Mark Aurel'],
+  ['Schwierigkeiten stärken den Geist wie die Arbeit den Körper.', 'Seneca'],
+  ['Große Dinge entstehen aus einer Reihe kleiner Dinge, die zusammenkommen.', 'Vincent van Gogh'],
+  ['Motivation bringt dich in Gang. Gewohnheit bringt dich ans Ziel.', 'Zig Ziglar'],
+  ['Schau nicht auf die Uhr. Tu, was sie tut: Mach weiter.', 'Sam Levenson'],
+  ['Mut steht am Anfang des Handelns, Glück am Ende.', 'Demokrit'],
+  ['Wer aufhört, besser zu werden, hat aufgehört, gut zu sein.', 'Philip Rosenthal'],
+  ['Man reist nicht, um anzukommen, sondern um zu reisen.', 'Johann Wolfgang von Goethe'],
+  ['Ein Ziel ohne Plan ist nur ein Wunsch.', 'Antoine de Saint-Exupéry (zugeschrieben)'],
+  ['Wer nichts verändern will, wird auch das verlieren, was er bewahren möchte.', 'Gustav Heinemann'],
+  ['Fange nie an aufzuhören, höre nie auf anzufangen.', 'Cicero (zugeschrieben)'],
+  ['Disziplin ist die Brücke zwischen Zielen und Erfolg.', 'Jim Rohn'],
+  ['Erfolg ist die Summe kleiner Anstrengungen, die man Tag für Tag wiederholt.', 'Robert Collier'],
+  ['Handle so, als wäre es unmöglich zu scheitern.', 'Dorothea Brande'],
+  ['Wer immer strebend sich bemüht, den können wir erlösen.', 'Johann Wolfgang von Goethe'],
+  ['Hoffnung ist nicht die Überzeugung, dass etwas gut ausgeht, sondern die Gewissheit, dass etwas Sinn hat, egal wie es ausgeht.', 'Václav Havel'],
+  ['Tu erst das Notwendige, dann das Mögliche, und plötzlich schaffst du das Unmögliche.', 'Franz von Assisi (zugeschrieben)'],
+  ['Am Ende wird alles gut. Wenn es nicht gut ist, ist es noch nicht das Ende.', 'Oscar Wilde (zugeschrieben)'],
+  ['Wer nicht wagt, der nicht gewinnt.', 'Sprichwort'],
+  ['Viele kleine Leute an vielen kleinen Orten, die viele kleine Schritte tun, können das Gesicht der Welt verändern.', 'Afrikanisches Sprichwort'],
+  ['Das Geheimnis des Vorwärtskommens besteht darin, den ersten Schritt zu tun.', 'Mark Twain'],
+  ['Habe Mut, dich deines eigenen Verstandes zu bedienen!', 'Immanuel Kant'],
+  ['Wir können den Wind nicht ändern, aber wir können die Segel anders setzen.', 'Aristoteles (zugeschrieben)'],
+  ['Geduld ist bitter, aber ihre Frucht ist süß.', 'Jean-Jacques Rousseau'],
+  ['Was mich nicht umbringt, macht mich stärker.', 'Friedrich Nietzsche'],
+];
+
 /**
- * Same quote all day, a new one every day. Steps through the list 7 at a
+ * Same quote all day, a new one every day, from the list in the app's language. Steps through the list 7 at a
  * time (7 shares no factor with the list length), so every quote comes up
  * once before any repeats and neighbours in the list aren't shown back to back.
  */
 export function quoteOfTheDay(day: string): { text: string; author: string } {
   const [y, m, d] = day.split('-').map(Number);
   const dayNumber = Math.round(Date.UTC(y, m - 1, d) / 86400000);
-  const [text, author] = QUOTES[(dayNumber * 7) % QUOTES.length];
+  const quotes = lang() === 'de' ? QUOTES_DE : QUOTES;
+  const [text, author] = quotes[(dayNumber * 7) % quotes.length];
   return { text, author };
 }
 

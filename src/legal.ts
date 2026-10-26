@@ -3,7 +3,10 @@
 // on the phone, there are no accounts, ads or analytics yet. Before accounts,
 // cloud sync, ads, Premium or the photo check go live, these texts must be
 // updated first. DRAFT: to be checked (e.g. WKO templates or a lawyer) before
-// launch.
+// launch. The German texts below say the same as the English ones; keep
+// both in step.
+
+import { lang } from './i18n.ts';
 
 export interface Operator {
   /** Full name of the person running the app (or the company name). */
@@ -43,6 +46,12 @@ export const OPERATOR: Operator = {
 
 /** Shown at the top of each text until it has been checked. */
 export const LEGAL_DRAFT_DATE = '25 October 2026';
+const LEGAL_DRAFT_DATE_DE = '25. Oktober 2026';
+
+/** The draft date in the current language. */
+export function legalDraftDate(): string {
+  return lang() === 'de' ? LEGAL_DRAFT_DATE_DE : LEGAL_DRAFT_DATE;
+}
 
 export type LegalId = 'terms' | 'privacy' | 'imprint';
 
@@ -53,10 +62,11 @@ export interface LegalDoc {
 }
 
 const MISSING = '[to be added]';
+const MISSING_DE = '[wird ergänzt]';
 
 /** The operator's details with every empty field marked. */
-export function filled(op: Operator): Required<Operator> {
-  const f = (v: string | undefined) => (v && v.trim() ? v.trim() : MISSING);
+export function filled(op: Operator, missing = MISSING): Required<Operator> {
+  const f = (v: string | undefined) => (v && v.trim() ? v.trim() : missing);
   return {
     name: f(op.name),
     street: f(op.street),
@@ -78,6 +88,7 @@ export function missingDetails(op: Operator): (keyof Operator)[] {
 }
 
 export function legalDocs(appName: string, op: Operator = OPERATOR): LegalDoc[] {
+  if (lang() === 'de') return legalDocsDe(appName, op);
   const o = filled(op);
   const who = `${o.name}, ${o.street}, ${o.city}, ${o.country}`;
   return [
@@ -196,6 +207,134 @@ export function legalDocs(appName: string, op: Operator = OPERATOR): LegalDoc[] 
           ],
         },
         { heading: 'Purpose', paragraphs: [`Information about and provision of the ${appName} app.`] },
+      ],
+    },
+  ];
+}
+
+/** The same texts in German, speaking to the player as "du". */
+function legalDocsDe(appName: string, op: Operator): LegalDoc[] {
+  const o = filled(
+    { ...op, name: op.name.replace('(sole proprietorship)', '(Einzelunternehmen)'), country: op.country === 'Austria' ? 'Österreich' : op.country },
+    MISSING_DE,
+  );
+  const who = `${o.name}, ${o.street}, ${o.city}, ${o.country}`;
+  return [
+    {
+      id: 'terms',
+      title: 'Nutzungsbedingungen (AGB)',
+      sections: [
+        { heading: 'Wer wir sind', paragraphs: [`${appName} wird angeboten von ${who} („wir“). Diese Bedingungen gelten für die Nutzung der App ${appName}.`] },
+        {
+          heading: 'Die App',
+          paragraphs: [
+            `${appName} hilft dir, Aufgaben zu planen, und belohnt dich dafür mit Punkten (XP), Levels, Serien und Looks. Die App ist kostenlos. Kommt später ein kostenpflichtiges Premium-Abo dazu, wird es über den App Store oder Google Play zu deren Bedingungen gekauft, und wir nennen dir Preis und Inhalt vor dem Kauf.`,
+          ],
+        },
+        {
+          heading: 'Punkte und Belohnungen haben keinen Geldwert',
+          paragraphs: [
+            'XP, Levels, Glücksrad-Tickets, Tokens, Themes, Rahmen, Flammen, Titel und alle anderen Belohnungen in der App sind virtuell. Sie können nicht gekauft, verkauft, getauscht, übertragen oder ausgezahlt werden und sind kein Eigentum.',
+            'Glücksrad-Tickets gibt es nur für XP, die du in der App verdienst, zum Beispiel durch erledigte Aufgaben oder Challenges. Sie werden nie verkauft. Das Glücksrad gibt nur Belohnungen in der App, nie Geld oder echte Preise, und seine Gewinnchancen stehen in der App.',
+          ],
+        },
+        {
+          heading: 'Fair Play',
+          paragraphs: [
+            'Bitte hake nur Aufgaben ab, die du wirklich erledigt hast. Sobald es Konten und gemeinsame Funktionen wie Bestenlisten gibt, können wir Belohnungen korrigieren oder entfernen, die durch Schummeln oder Manipulation der App oder ihrer Dateien entstanden sind.',
+          ],
+        },
+        {
+          heading: 'Deine Daten und Backups',
+          paragraphs: [
+            `Derzeit speichert ${appName} alles nur auf deinem Handy. Löschst du die App oder setzt dein Handy zurück, ist dein Fortschritt weg, außer du hast eine Backup-Datei gespeichert (Einstellungen → Backup). Bewahre deine Backups sicher auf.`,
+          ],
+        },
+        {
+          heading: 'Gesundheit',
+          paragraphs: ['Aufgaben und Challenges wie Schlaf- oder Geh-Ziele sind Motivation, keine medizinische Beratung. Hör auf deinen Körper und frag im Zweifel eine Ärztin oder einen Arzt.'],
+        },
+        {
+          heading: 'Verfügbarkeit und Änderungen',
+          paragraphs: [
+            'Wir arbeiten daran, dass die App gut läuft, können aber nicht versprechen, dass sie immer verfügbar oder fehlerfrei ist. Wir können Funktionen ändern, ergänzen oder entfernen. Ändern wir diese Bedingungen in einer Weise, die für dich wichtig ist, sagen wir es dir vorher in der App.',
+          ],
+        },
+        {
+          heading: 'Haftung',
+          paragraphs: [
+            'Für Schäden, die wir vorsätzlich oder grob fahrlässig verursachen, und für Personenschäden haften wir voll. Im Übrigen ist unsere Haftung für leichte Fahrlässigkeit ausgeschlossen, soweit das Gesetz es erlaubt. Deine Rechte als Verbraucherin oder Verbraucher nach österreichischem Recht (etwa dem Konsumentenschutzgesetz) und dem Recht deines Landes bleiben unberührt.',
+          ],
+        },
+        {
+          heading: 'Recht',
+          paragraphs: ['Es gilt österreichisches Recht ohne seine Verweisungsnormen. Bist du Verbraucherin oder Verbraucher in der EU, gelten für dich weiterhin die Schutzvorschriften des Landes, in dem du lebst.'],
+        },
+      ],
+    },
+    {
+      id: 'privacy',
+      title: 'Datenschutzerklärung',
+      sections: [
+        { heading: 'Kurz gesagt', paragraphs: [`${appName} speichert derzeit alles nur auf deinem Handy. Es gibt noch keine Konten, keine Server von uns, keine Werbung und keine Analyse-Tools. Wir sehen weder deine Aufgaben noch deinen Fortschritt oder dein Foto.`] },
+        { heading: 'Wer verantwortlich ist', paragraphs: [`Verantwortlicher im Sinne der DSGVO ist ${who}. E-Mail: ${o.email}.`] },
+        {
+          heading: 'Was die App auf deinem Handy speichert',
+          paragraphs: [
+            'Den Namen, den du eingibst, deine Aufgaben und wann du sie erledigt hast, deine XP, Serie, Belohnungen und Einstellungen. Auf Wunsch ein Profilbild, das zugeschnitten und nur auf deinem Handy gespeichert wird.',
+            'Schaltest du die tägliche Motivations-E-Mail ein, wird die eingegebene Adresse nur auf deinem Handy gespeichert. Es wird noch nichts verschickt; vor der ersten E-Mail bitten wir dich, deine Adresse zu bestätigen.',
+            'Du kannst all das jederzeit löschen, indem du die App löschst.',
+          ],
+        },
+        {
+          heading: 'Berechtigungen',
+          paragraphs: [
+            'Benachrichtigungen: Erinnerungen werden auf deinem Handy geplant, nur wenn du sie erlaubst.',
+            'Fotos und Kamera: nur wenn du ein Profilbild auswählst.',
+            'Dateien: nur wenn du ein Backup speicherst oder wiederherstellst. Die Backup-Datei enthält alle oben genannten Daten samt deinem Foto und landet dort, wo du sie ablegst. Halte sie privat.',
+          ],
+        },
+        {
+          heading: 'App Stores',
+          paragraphs: [
+            'Apple (App Store) und Google (Google Play) wickeln den Download und später etwaige Käufe nach ihren eigenen Datenschutzerklärungen ab. Sie können uns anonyme Zahlen wie Installationen oder Absturzberichte geben. Bittet die App um eine Bewertung, wird das Fenster des Stores verwendet; Bewertungen belohnen wir nie.',
+          ],
+        },
+        { heading: 'Alter', paragraphs: [`${appName} ist für Personen ab 14 Jahren gedacht.`] },
+        {
+          heading: 'Deine Rechte',
+          paragraphs: [
+            'Du hast das Recht auf Auskunft, Berichtigung und Löschung deiner Daten, auf Einschränkung der Verarbeitung, auf Widerspruch und auf Datenübertragbarkeit. Da deine Daten auf deinem Handy liegen, kannst du sie in der App selbst ansehen, ändern und löschen; für alles andere schreib uns.',
+            'Du kannst dich bei der österreichischen Datenschutzbehörde (Barichgasse 40–42, 1030 Wien, dsb.gv.at) oder der Behörde deines Wohnorts beschweren.',
+          ],
+        },
+        {
+          heading: 'Änderungen',
+          paragraphs: ['Bevor Konten, Cloud-Sync, Freunde, Werbung, Premium oder die Foto-Prüfung dazukommen, aktualisieren wir diese Erklärung und holen deine Einwilligung in der App ein, wo sie nötig ist.'],
+        },
+      ],
+    },
+    {
+      id: 'imprint',
+      title: 'Impressum',
+      sections: [
+        {
+          heading: 'Informationen nach § 5 ECG und § 25 MedienG',
+          paragraphs: [
+            `Betreiber und Medieninhaber: ${o.name}`,
+            `Adresse: ${o.street}, ${o.city}, ${o.country}`,
+            `E-Mail: ${o.email}`,
+            ...(op.phone?.trim() ? [`Telefon: ${o.phone}`] : []),
+            `Unternehmensgegenstand: Entwicklung und Vertrieb mobiler Apps (${appName})`,
+            `Gewerbe: ${o.trade}`,
+            ...(op.gisa?.trim() ? [`GISA-Zahl: ${o.gisa}`] : []),
+            `Gewerbebehörde: ${o.authority}`,
+            `Mitglied der ${op.chamber?.trim() ? o.chamber : 'Wirtschaftskammer Österreich (WKO)'}`,
+            'Rechtsvorschriften: Gewerbeordnung (GewO), www.ris.bka.gv.at',
+            op.vatId?.trim() ? `UID-Nummer: ${o.vatId}` : 'Keine UID-Nummer (Kleinunternehmer, § 6 Abs. 1 Z 27 UStG)',
+          ],
+        },
+        { heading: 'Zweck', paragraphs: [`Information über die App ${appName} und deren Bereitstellung.`] },
       ],
     },
   ];

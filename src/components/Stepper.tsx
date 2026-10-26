@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { themed, useStyles } from '../theme';
+import { t } from '../i18n';
 
 /** Holding − or + keeps stepping: first after this long, then at this pace. */
 const HOLD_DELAY_MS = 400;
@@ -72,7 +73,7 @@ export function Stepper({
       onPress={can ? () => press(dir) : undefined}
       style={[s.button, !can && s.off]}
       accessibilityRole="button"
-      accessibilityLabel={dir < 0 ? 'Fewer' : 'More'}
+      accessibilityLabel={dir < 0 ? t('Fewer') : t('More')}
       accessibilityState={{ disabled: !can }}
     >
       <Text style={s.sign}>{dir < 0 ? '−' : '+'}</Text>

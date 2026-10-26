@@ -7,6 +7,7 @@ import { card, eyebrow, FONTS, nativeDriver, themed, useStyles, useTheme } from 
 import { ICON_GLYPHS, RARITY, rarityLabel, type Rarity as VividRarity } from '../vivid';
 import { useReduceMotion } from './FireAura';
 import { fill, Glyph, HexSticker, VividButton } from './Vivid';
+import { num, t } from '../i18n';
 
 /** Trophy rarities in the vivid rarity colours. */
 const RARITY_OF: Record<Rarity, VividRarity> = { rare: 'rare', epic: 'epic', legendary: 'legendary' };
@@ -77,28 +78,28 @@ export function TrophyCabinet({ trophies, pinned = [], onPin }: { trophies: Trop
   return (
     <>
       <View style={s.grid}>
-        {sorted.map((t) => (
+        {sorted.map((tr) => (
           <Pressable
-            key={t.def.id}
-            onPress={() => setOpen(t)}
+            key={tr.def.id}
+            onPress={() => setOpen(tr)}
             style={s.cell}
             accessibilityRole="button"
-            accessibilityLabel={`${t.def.name}, ${t.earned ? 'earned' : 'locked'}${pinned.includes(t.def.id) && t.earned ? ', pinned to your profile' : ''}. ${t.def.description}`}
+            accessibilityLabel={`${t(tr.def.name)}, ${tr.earned ? t('earned') : t('locked')}${pinned.includes(tr.def.id) && tr.earned ? `, ${t('pinned to your profile')}` : ''}. ${t(tr.def.description)}`}
           >
-            <TrophyBadge trophy={t} size={64} />
-            {pinned.includes(t.def.id) && t.earned && (
+            <TrophyBadge trophy={tr} size={64} />
+            {pinned.includes(tr.def.id) && tr.earned && (
               <View style={s.pin}>
                 <Pin size={11} color={c.text} strokeWidth={2.4} aria-hidden />
               </View>
             )}
-            <Text style={[s.name, !t.earned && s.nameLocked]} numberOfLines={1}>
-              {t.def.name}
+            <Text style={[s.name, !tr.earned && s.nameLocked]} numberOfLines={1}>
+              {t(tr.def.name)}
             </Text>
-            {t.earned ? (
-              <Text style={[s.rarity, { color: rarityLabel(RARITY_OF[t.def.rarity], c.dark) }]}>{RARITY[RARITY_OF[t.def.rarity]].name}</Text>
+            {tr.earned ? (
+              <Text style={[s.rarity, { color: rarityLabel(RARITY_OF[tr.def.rarity], c.dark) }]}>{t(RARITY[RARITY_OF[tr.def.rarity]].name)}</Text>
             ) : (
               <View style={s.miniTrack}>
-                <View style={[s.miniFill, fill(RARITY[RARITY_OF[t.def.rarity]], 90), { width: `${(t.value / t.def.target) * 100}%` }]} />
+                <View style={[s.miniFill, fill(RARITY[RARITY_OF[tr.def.rarity]], 90), { width: `${(tr.value / tr.def.target) * 100}%` }]} />
               </View>
             )}
           </Pressable>
@@ -106,24 +107,24 @@ export function TrophyCabinet({ trophies, pinned = [], onPin }: { trophies: Trop
       </View>
 
       <Modal visible={!!open} transparent animationType="fade" onRequestClose={() => setOpen(null)}>
-        <Pressable style={s.backdrop} onPress={() => setOpen(null)} accessibilityLabel="Close" />
+        <Pressable style={s.backdrop} onPress={() => setOpen(null)} accessibilityLabel={t('Close')} />
         {open && (
           <SafeAreaView style={s.sheetWrap} pointerEvents="box-none">
             <View style={s.sheet}>
               <TrophyBadge trophy={open} size={120} />
-              <Text style={[s.rarity, { color: rarityLabel(RARITY_OF[open.def.rarity], c.dark) }]}>{RARITY[RARITY_OF[open.def.rarity]].name} trophy</Text>
-              <Text style={s.title}>{open.def.name}</Text>
-              <Text style={s.desc}>{open.def.description}</Text>
+              <Text style={[s.rarity, { color: rarityLabel(RARITY_OF[open.def.rarity], c.dark) }]}>{t('{rarity} trophy', { rarity: t(RARITY[RARITY_OF[open.def.rarity]].name) })}</Text>
+              <Text style={s.title}>{t(open.def.name)}</Text>
+              <Text style={s.desc}>{t(open.def.description)}</Text>
               <View style={s.track}>
                 <View style={[s.fill, fill(RARITY[RARITY_OF[open.def.rarity]], 90), { width: `${(open.value / open.def.target) * 100}%` }]} />
               </View>
               <Text style={s.progress}>
                 {open.earned
-                  ? 'Earned'
-                  : `${open.value.toLocaleString()} / ${open.def.target.toLocaleString()} ${open.def.unit}`}
+                  ? t('Earned')
+                  : `${num(open.value)} / ${num(open.def.target)} ${t(open.def.unit)}`}
               </Text>
               {open.earned && onPin && <PinButton id={open.def.id} pinned={pinned} onPin={onPin} />}
-              <VividButton label="Close" kind="secondary" onPress={() => setOpen(null)} style={{ alignSelf: 'stretch', marginTop: open.earned && onPin ? 0 : 8 }} />
+              <VividButton label={t('Close')} kind="secondary" onPress={() => setOpen(null)} style={{ alignSelf: 'stretch', marginTop: open.earned && onPin ? 0 : 8 }} />
             </View>
           </SafeAreaView>
         )}
@@ -136,14 +137,14 @@ export function TrophyCabinet({ trophies, pinned = [], onPin }: { trophies: Trop
 function PinButton({ id, pinned, onPin }: { id: string; pinned: string[]; onPin: (id: string) => void }) {
   const s = useStyles(makeStyles);
   const on = pinned.includes(id);
-  if (!on && pinned.length >= SHOWCASE_SIZE) return <Text style={s.progress}>Your showcase is full: unpin one of your {SHOWCASE_SIZE} first.</Text>;
+  if (!on && pinned.length >= SHOWCASE_SIZE) return <Text style={s.progress}>{t('Your showcase is full: unpin one of your {n} first.', { n: SHOWCASE_SIZE })}</Text>;
   return (
     <VividButton
-      label={on ? 'Unpin from profile' : 'Pin to profile'}
+      label={on ? t('Unpin from profile') : t('Pin to profile')}
       kind={on ? 'secondary' : 'primary'}
       onPress={() => onPin(id)}
       style={{ alignSelf: 'stretch', marginTop: 8 }}
-      accessibilityLabel={on ? 'Unpin this trophy from your profile' : `Pin this trophy to your profile, ${SHOWCASE_SIZE - pinned.length} of ${SHOWCASE_SIZE} spots free`}
+      accessibilityLabel={on ? t('Unpin this trophy from your profile') : t('Pin this trophy to your profile, {n} of {total} spots free', { n: SHOWCASE_SIZE - pinned.length, total: SHOWCASE_SIZE })}
     />
   );
 }

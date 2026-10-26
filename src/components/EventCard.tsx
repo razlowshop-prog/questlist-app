@@ -3,7 +3,8 @@ import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native'
 import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming, type SharedValue } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Ellipse, LinearGradient, Path, RadialGradient, Stop } from 'react-native-svg';
 import { frameName } from '../cosmetics';
-import { CATEGORIES } from '../library';
+import { locale, t, tn } from '../i18n';
+import { areaList } from '../library';
 import { SEASON_XP, type SeasonStatus } from '../seasons';
 import { SEASON_PILL } from '../vivid';
 import { useReduceMotion } from './FireAura';
@@ -33,17 +34,11 @@ function useWave(ms: number, on: boolean, restart = false): SharedValue<number> 
   return v;
 }
 
-/** "home, money or food" */
-function orList(items: string[]): string {
-  return items.length < 2 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} or ${items[items.length - 1]}`;
-}
-
 export function EventCard({ season, onClaim }: { season: SeasonStatus; onClaim: () => void }) {
   const reduce = useReduceMotion();
-  const month = new Date(`${season.month}-15T12:00:00`).toLocaleDateString('en', { month: 'long' });
-  // Short names ("home" for "Home & chores"), so the goal fits on the picture.
-  const kinds = season.season.categories.map((id) => (CATEGORIES.find((c) => c.id === id)?.label ?? id).split(' & ')[0].toLowerCase());
-  const left = season.daysLeft === 0 ? 'last day' : `${season.daysLeft} ${season.daysLeft === 1 ? 'day' : 'days'} left`;
+  const month = new Date(`${season.month}-15T12:00:00`).toLocaleDateString(locale(), { month: 'long' });
+  const left = season.daysLeft === 0 ? t('last day') : tn(season.daysLeft, '{n} day left', '{n} days left');
+  const name = t(season.season.name);
   const pct = Math.min(100, Math.round((season.progress / season.season.target) * 100));
   const frame = frameName(season.frame);
   const harvest = season.season.month === 10;
@@ -52,10 +47,11 @@ export function EventCard({ season, onClaim }: { season: SeasonStatus; onClaim: 
       <View style={[s.scene, harvest ? s.harvestSky : fill(SEASON_PILL, 160)]}>
         {harvest && <HarvestScene live={!reduce} />}
         <View style={s.text}>
-          <Text style={[s.eyebrow, !harvest && s.eyebrowPlain]}>{month} event</Text>
-          <Text style={s.title}>{season.season.name}</Text>
+          <Text style={[s.eyebrow, !harvest && s.eyebrowPlain]}>{t('{month} event', { month })}</Text>
+          <Text style={s.title}>{name}</Text>
+          {/* Short area names ("home" for "Home & chores"), so the goal fits on the picture. */}
           <Text style={[s.goal, !harvest && s.goalPlain]}>
-            Finish {season.season.target} {orList(kinds)} tasks · {left}
+            {t('Finish {n} {areas} tasks', { n: season.season.target, areas: areaList(season.season.categories) })} · {left}
           </Text>
         </View>
       </View>
@@ -67,19 +63,19 @@ export function EventCard({ season, onClaim }: { season: SeasonStatus; onClaim: 
         </View>
         <View style={s.row}>
           <Text style={s.count}>
-            {season.progress} / {season.season.target} tasks
+            {t('{n} / {total} tasks', { n: season.progress, total: season.season.target })}
           </Text>
           {season.claimed ? (
-            <Text style={s.won}>✓ {frame} frame won · +{SEASON_XP} XP</Text>
+            <Text style={s.won}>✓ {t('{frame} frame won · +{xp} XP', { frame, xp: SEASON_XP })}</Text>
           ) : season.complete ? (
-            <Pressable style={s.claim} onPress={onClaim} accessibilityRole="button" accessibilityLabel={`Claim the ${frame} frame and ${SEASON_XP} XP`}>
-              <Text style={s.claimText}>Claim frame + {SEASON_XP} XP</Text>
+            <Pressable style={s.claim} onPress={onClaim} accessibilityRole="button" accessibilityLabel={t('Claim the {frame} frame and {xp} XP', { frame, xp: SEASON_XP })}>
+              <Text style={s.claimText}>{t('Claim frame + {xp} XP', { xp: SEASON_XP })}</Text>
             </Pressable>
           ) : (
-            <View style={s.chip} accessibilityLabel={`Wins the ${frame} frame and ${SEASON_XP} XP, only this month`}>
+            <View style={s.chip} accessibilityLabel={t('Wins the {frame} frame and {xp} XP, only this month', { frame, xp: SEASON_XP })}>
               <View style={s.chipDisc} />
               <Text style={s.chipText}>
-                {season.season.name} frame + {SEASON_XP} XP
+                {t('{frame} frame + {xp} XP', { frame: name, xp: SEASON_XP })}
               </Text>
             </View>
           )}

@@ -1,6 +1,8 @@
 import { libraryEffort } from './effort.ts';
+import { lang, N, t } from './i18n.ts';
 import type { IconName } from './icons.ts';
-import { DEFAULT_AMOUNTS, measuredMinutes, measuredSteps, parseMeasured, type Measure } from './measure.ts';
+import { LIBRARY_DE } from './library.de.ts';
+import { DEFAULT_AMOUNTS, measuredMinutes, measuredSteps, parseMeasured, shownMeasuredTitle, type Measure } from './measure.ts';
 
 // The built-in task library: ready-made tasks people can add with one tap,
 // search, or get suggested during setup. Each has a typical duration, so XP
@@ -33,23 +35,23 @@ export interface LibraryTask {
 }
 
 export const CATEGORIES: Category[] = [
-  { id: 'home', label: 'Home & chores', icon: 'House' },
-  { id: 'fitness', label: 'Fitness', icon: 'Dumbbell' },
-  { id: 'health', label: 'Health', icon: 'HeartPulse' },
-  { id: 'food', label: 'Food & nutrition', icon: 'Salad' },
-  { id: 'mind', label: 'Mind & wellbeing', icon: 'Brain' },
-  { id: 'sleep', label: 'Sleep & routine', icon: 'Moon' },
-  { id: 'work', label: 'Work & focus', icon: 'Briefcase' },
-  { id: 'learning', label: 'Learning', icon: 'BookOpen' },
-  { id: 'money', label: 'Money', icon: 'Wallet' },
-  { id: 'social', label: 'Family & friends', icon: 'Users' },
-  { id: 'selfcare', label: 'Self-care', icon: 'Bath' },
-  { id: 'digital', label: 'Digital detox', icon: 'Smartphone' },
-  { id: 'creative', label: 'Creativity', icon: 'Palette' },
-  { id: 'outdoors', label: 'Outdoors & nature', icon: 'TreePine' },
-  { id: 'pets', label: 'Pets & plants', icon: 'PawPrint' },
-  { id: 'errands', label: 'Errands & admin', icon: 'ClipboardList' },
-  { id: 'kindness', label: 'Kindness & community', icon: 'HandHeart' },
+  { id: 'home', label: N('Home & chores'), icon: 'House' },
+  { id: 'fitness', label: N('Fitness'), icon: 'Dumbbell' },
+  { id: 'health', label: N('Health'), icon: 'HeartPulse' },
+  { id: 'food', label: N('Food & nutrition'), icon: 'Salad' },
+  { id: 'mind', label: N('Mind & wellbeing'), icon: 'Brain' },
+  { id: 'sleep', label: N('Sleep & routine'), icon: 'Moon' },
+  { id: 'work', label: N('Work & focus'), icon: 'Briefcase' },
+  { id: 'learning', label: N('Learning'), icon: 'BookOpen' },
+  { id: 'money', label: N('Money'), icon: 'Wallet' },
+  { id: 'social', label: N('Family & friends'), icon: 'Users' },
+  { id: 'selfcare', label: N('Self-care'), icon: 'Bath' },
+  { id: 'digital', label: N('Digital detox'), icon: 'Smartphone' },
+  { id: 'creative', label: N('Creativity'), icon: 'Palette' },
+  { id: 'outdoors', label: N('Outdoors & nature'), icon: 'TreePine' },
+  { id: 'pets', label: N('Pets & plants'), icon: 'PawPrint' },
+  { id: 'errands', label: N('Errands & admin'), icon: 'ClipboardList' },
+  { id: 'kindness', label: N('Kindness & community'), icon: 'HandHeart' },
 ];
 
 /** [title, minutes, perWeek, search words, flags]: `*` recommended, `F` focus timer on, `x` focus timer off (see `focusFits`). */
@@ -493,20 +495,45 @@ export function libraryTask(id: string): LibraryTask | undefined {
   return BY_ID.get(id);
 }
 
+/** Library tasks by English and German title, lower case: a title typed in either language finds its task. */
+const BY_TITLE = new Map(LIBRARY.flatMap((l) => [[l.title.toLowerCase(), l], [(LIBRARY_DE[l.id]?.[0] ?? l.title).toLowerCase(), l]]));
+
+/** The library task with exactly this title, in English or German. */
+export function libraryExact(title: string): LibraryTask | undefined {
+  return BY_TITLE.get(title.trim().toLowerCase());
+}
+
 /** The library task with exactly this title, or the Walk, Run or Steps a title like "Walk 3 km" was made from. */
 export function libraryMatch(title: string): LibraryTask | undefined {
   const t = title.trim().toLowerCase();
-  const exact = LIBRARY.find((l) => l.title.toLowerCase() === t);
+  const exact = BY_TITLE.get(t);
   if (exact) return exact;
   const measured = parseMeasured(t);
   return measured && LIBRARY.find((l) => l.measure === measured.measure);
 }
 
+/** A library task's title in the current language. */
+export function libraryTitle(task: LibraryTask): string {
+  return (lang() === 'de' && LIBRARY_DE[task.id]?.[0]) || task.title;
+}
+
+/**
+ * A task's title as shown: library tasks and "Walk 3 km" in the current
+ * language, anything typed as it was typed. Titles are saved in English.
+ */
+export function shownTitle(title: string): string {
+  if (lang() === 'en') return title;
+  const exact = BY_TITLE.get(title.trim().toLowerCase());
+  if (exact) return libraryTitle(exact);
+  const measured = parseMeasured(title);
+  return measured ? shownMeasuredTitle(measured.measure, measured.amount) : title;
+}
+
 /** Steps of the library task with exactly this title; for "Walk 3 km" and the like, steps along the way. */
 export function librarySteps(title: string): string[] | undefined {
   const t = title.trim().toLowerCase();
-  const exact = LIBRARY.find((l) => l.title.toLowerCase() === t);
-  if (exact) return exact.steps;
+  const exact = BY_TITLE.get(t);
+  if (exact) return (lang() === 'de' && LIBRARY_DE[exact.id]?.[2]) || exact.steps;
   const measured = parseMeasured(t);
   if (!measured) return undefined;
   const steps = measuredSteps(measured.amount, measuredMinutes(measured.measure, measured.amount));
@@ -515,6 +542,29 @@ export function librarySteps(title: string): string[] | undefined {
 
 export function categoryOf(id: string): Category | undefined {
   return CATEGORIES.find((c) => c.id === id);
+}
+
+/**
+ * Areas for the middle of a sentence: "fitness or health" in English,
+ * "Fitness oder Gesundheit" in German (nouns keep their capitals).
+ */
+export function areaList(ids: string[]): string {
+  const words = ids.map((id) => {
+    const label = categoryOf(id)?.label;
+    if (!label) return id;
+    const first = t(label).split(' & ')[0];
+    return lang() === 'de' ? first : first.toLowerCase();
+  });
+  return words.length < 2 ? words.join('') : t('{list} or {last}', { list: words.slice(0, -1).join(', '), last: words[words.length - 1] });
+}
+
+/** Words searched for a task: its title, tags and area, and "willpower"; in German the German ones too. */
+function haystack(task: LibraryTask): string {
+  const label = categoryOf(task.category)?.label ?? '';
+  const willpower = libraryEffort(task.id) === 'willpower' ? ' willpower' : '';
+  const en = `${task.title} ${task.tags.join(' ')} ${label}${willpower}`;
+  const de = LIBRARY_DE[task.id];
+  return (lang() === 'de' && de ? `${en} ${de[0]} ${de[1]} ${t(label)}${willpower && ` ${t('willpower')}`}` : en).toLowerCase();
 }
 
 /**
@@ -536,10 +586,9 @@ export function searchLibrary(query: string, limit = 50, category?: string): Lib
   const words = q.split(/\s+/);
   const scored: { task: LibraryTask; score: number }[] = [];
   for (const task of pool) {
-    const title = task.title.toLowerCase();
-    const willpower = libraryEffort(task.id) === 'willpower' ? ' willpower' : '';
-    const haystack = `${title} ${task.tags.join(' ')} ${categoryOf(task.category)?.label.toLowerCase() ?? ''}${willpower}`;
-    if (!words.every((w) => haystack.includes(w))) continue;
+    const title = libraryTitle(task).toLowerCase();
+    const hay = haystack(task);
+    if (!words.every((w) => hay.includes(w))) continue;
     let score = 0;
     if (title.startsWith(q)) score += 100;
     else if (title.split(/\s+/).some((w) => w.startsWith(words[0]))) score += 50;
@@ -553,7 +602,7 @@ export function searchLibrary(query: string, limit = 50, category?: string): Lib
 /** Most XP first (`xpOf` gives each task's XP), or quickest first. */
 export function sortTasks(tasks: LibraryTask[], sort: 'xp' | 'quick', xpOf: (t: LibraryTask) => number = (t) => t.minutes): LibraryTask[] {
   const key = sort === 'xp' ? (t: LibraryTask) => -xpOf(t) : (t: LibraryTask) => t.minutes;
-  return [...tasks].sort((a, b) => key(a) - key(b) || a.title.localeCompare(b.title));
+  return [...tasks].sort((a, b) => key(a) - key(b) || libraryTitle(a).localeCompare(libraryTitle(b)));
 }
 
 /** Suggestions for the setup screen: featured first, from the chosen areas, without the ones already on the list. */
@@ -575,7 +624,10 @@ export function categoryForTitle(title: string): string | undefined {
 }
 
 /** Small words that say nothing about the kind of task. */
-const FILLER_WORDS = new Set(['the', 'for', 'and', 'with', 'your', 'you', 'get', 'have', 'some', 'all', 'from', 'into', 'out', 'off']);
+const FILLER_WORDS = new Set([
+  ...['the', 'for', 'and', 'with', 'your', 'you', 'get', 'have', 'some', 'all', 'from', 'into', 'out', 'off'],
+  ...['der', 'die', 'das', 'den', 'dem', 'des', 'und', 'mit', 'für', 'ein', 'eine', 'einen', 'einem', 'von', 'zum', 'zur', 'auf', 'aus', 'nach', 'mal', 'noch'],
+]);
 
 /** A first guess for a new task's category from the closest library task (the user can change it). */
 export function guessCategory(title: string): string | undefined {
@@ -585,7 +637,7 @@ export function guessCategory(title: string): string | undefined {
   // Otherwise the longest word that matches something ("Gym session" -> gym).
   const words = title
     .toLowerCase()
-    .split(/\W+/)
+    .split(/[^\p{L}\p{N}]+/u)
     .filter((w) => w.length >= 3 && !FILLER_WORDS.has(w))
     .sort((a, b) => b.length - a.length);
   for (const w of words) {

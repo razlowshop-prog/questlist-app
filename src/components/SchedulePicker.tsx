@@ -1,10 +1,11 @@
 import {  Text, TextInput, View } from 'react-native';
-import { addDays, dayLabel, maxPerWeek, WEEKDAYS, type Repeat, type TaskPlan } from '../game';
+import { addDays, dayLabel, maxPerWeek, perWeekLabel, weekdays, type Repeat, type TaskPlan } from '../game';
 import { REMINDERS_SUPPORTED } from '../reminders';
 import { eyebrow, themed, useStyles } from '../theme';
 import { Chip } from './Chip';
 import { Stepper } from './Stepper';
 import { VividSwitch } from './Vivid';
+import { t, tn } from '../i18n';
 
 export interface Schedule {
   repeat: boolean;
@@ -40,7 +41,7 @@ export function scheduleProblem(s: Schedule, title: string): string | undefined 
   const days = daysOf(s, title);
   const missing = n - days.length;
   if (n < 7 && days.length > 0 && missing > 0) {
-    return `Pick ${missing} more ${missing === 1 ? 'day' : 'days'}, or none for any ${n} days a week.`;
+    return tn(missing, 'Pick {n} more day, or none for any {total} days a week.', 'Pick {n} more days, or none for any {total} days a week.', { total: n });
   }
   return undefined;
 }
@@ -68,11 +69,11 @@ function reminderTime(s: Schedule): string {
 /** Short summary for the collapsed add form, e.g. "Mon, Thu · 18:00". */
 export function scheduleSummary(s: Schedule, title: string, today: string): string {
   let when: string;
-  if (!s.repeat) when = s.date === today ? 'Once, today' : s.date === addDays(today, 1) ? 'Once, tomorrow' : `Once, ${dayLabel(s.date)}`;
+  if (!s.repeat) when = s.date === today ? t('Once, today') : s.date === addDays(today, 1) ? t('Once, tomorrow') : t('Once, {day}', { day: dayLabel(s.date) });
   else {
     const n = timesOf(s, title);
     const days = daysOf(s, title);
-    when = n >= 7 ? 'Every day' : days.length === n ? days.map((d) => WEEKDAYS[d]).join(', ') : n === 1 ? 'Once a week' : `${n}× a week`;
+    when = n < 7 && days.length === n ? days.map((d) => weekdays()[d]).join(', ') : perWeekLabel(n);
   }
   return s.remind ? `${when} · ${reminderTime(s)}` : when;
 }
@@ -112,20 +113,20 @@ export function SchedulePicker({
 
   return (
     <>
-      <Text style={s.small}>How often?</Text>
+      <Text style={s.small}>{t('How often?')}</Text>
       <View style={s.row}>
-        <Chip label="Once" active={!value.repeat} onPress={() => set({ repeat: false })} />
-        <Chip label="Repeat" active={value.repeat} onPress={() => set({ repeat: true })} />
+        <Chip label={t('Once')} active={!value.repeat} onPress={() => set({ repeat: false })} />
+        <Chip label={t('Repeat')} active={value.repeat} onPress={() => set({ repeat: true })} />
       </View>
 
       {!value.repeat && (
         <>
-          <Text style={s.small}>Which day?</Text>
+          <Text style={s.small}>{t('Which day?')}</Text>
           <View style={s.row}>
             {Array.from({ length: 7 }, (_, i) => addDays(today, i)).map((d, i) => (
               <Chip
                 key={d}
-                label={i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : dayLabel(d)}
+                label={i === 0 ? t('Today') : i === 1 ? t('Tomorrow') : dayLabel(d)}
                 active={value.date === d}
                 onPress={() => set({ date: d })}
               />
@@ -137,22 +138,22 @@ export function SchedulePicker({
       {value.repeat && (
         <>
           <View style={s.stepRow}>
-            <Stepper value={n} min={1} max={max} onChange={setTimes} label="times a week" />
-            <Text style={s.stepLabel}>{n >= 7 ? 'every day' : n === 1 ? 'time a week' : 'times a week'}</Text>
+            <Stepper value={n} min={1} max={max} onChange={setTimes} label={t('times a week')} />
+            <Text style={s.stepLabel}>{n >= 7 ? t('every day') : n === 1 ? t('time a week') : t('times a week')}</Text>
             {max >= 7 && n < 7 && (
-              <Chip label="Every day" active={false} onPress={() => setTimes(7)} />
+              <Chip label={t('Every day')} active={false} onPress={() => setTimes(7)} />
             )}
           </View>
-          {max === 1 && <Text style={s.hint}>A task for the whole week counts once a week.</Text>}
+          {max === 1 && <Text style={s.hint}>{t('A task for the whole week counts once a week.')}</Text>}
           {n < 7 && (
             <>
-              <Text style={s.small}>{n === 1 ? 'Which day? (optional)' : `Which ${n} days? (optional)`}</Text>
+              <Text style={s.small}>{n === 1 ? t('Which day? (optional)') : t('Which {n} days? (optional)', { n })}</Text>
               <View style={s.row}>
-                {WEEKDAYS.map((label, d) => (
+                {weekdays().map((label, d) => (
                   <Chip key={label} label={label} active={days.includes(d)} onPress={() => toggleDay(d)} />
                 ))}
               </View>
-              <Text style={problem ? s.problem : s.hint}>{problem ?? (days.length ? 'Shows on these days only.' : `Shows every day until done ${n}× this week.`)}</Text>
+              <Text style={problem ? s.problem : s.hint}>{problem ?? (days.length ? t('Shows on these days only.') : t('Shows every day until done {n}× this week.', { n }))}</Text>
             </>
           )}
         </>
@@ -160,29 +161,29 @@ export function SchedulePicker({
 
       <View style={s.remindRow}>
         <View style={{ flex: 1 }}>
-          <Text style={s.remindTitle}>Remind me</Text>
+          <Text style={s.remindTitle}>{t('Remind me')}</Text>
           <Text style={s.hint}>
             {REMINDERS_SUPPORTED
-              ? 'A notification on the days this task is due, until it is done.'
-              : 'Reminders arrive as notifications in the phone app.'}
+              ? t('A notification on the days this task is due, until it is done.')
+              : t('Reminders arrive as notifications in the phone app.')}
           </Text>
         </View>
         <VividSwitch
           value={value.remind}
           onValueChange={(v) => set({ remind: v })}
-          accessibilityLabel="Remind me"
+          accessibilityLabel={t('Remind me')}
         />
       </View>
       {value.remind && (
         <View style={s.timeRow}>
-          <Text style={s.stepLabel}>at</Text>
+          <Text style={s.stepLabel}>{t('at')}</Text>
           <TextInput
             value={value.hour}
             onChangeText={(v) => set({ hour: digits(v) })}
             onBlur={() => set({ hour: reminderTime(value).slice(0, 2) })}
             keyboardType="number-pad"
             style={s.timeInput}
-            accessibilityLabel="Hour"
+            accessibilityLabel={t('Hour')}
           />
           <Text style={s.colon}>:</Text>
           <TextInput
@@ -191,7 +192,7 @@ export function SchedulePicker({
             onBlur={() => set({ minute: reminderTime(value).slice(3) })}
             keyboardType="number-pad"
             style={s.timeInput}
-            accessibilityLabel="Minute"
+            accessibilityLabel={t('Minute')}
           />
         </View>
       )}

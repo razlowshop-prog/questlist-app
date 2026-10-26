@@ -1,21 +1,17 @@
 import { Pressable, Text, View } from 'react-native';
 import { libraryEffort } from '../effort';
-import { durationLabel, xpFor } from '../game';
-import { categoryOf, type LibraryTask } from '../library';
+import { durationLabel, perWeekLabel, xpFor } from '../game';
+import { t } from '../i18n';
+import { categoryOf, libraryTitle, type LibraryTask } from '../library';
 import { card, useStyles, type Palette } from '../theme';
 import { brandFillSmall, brandInk, brandTextShadow } from './Vivid';
 import { Sticker } from './Vivid';
 import { categoryLook } from '../vivid';
 
 /** How big a library task is: its usual time, or "Willpower" for all-day tasks, whose time says nothing. */
-export function sizeLabel(task: LibraryTask, minutes = task.minutes, about = ''): string {
-  return libraryEffort(task.id) === 'willpower' ? 'Willpower' : `${about}${durationLabel(minutes)}`;
-}
-
-export function perWeekLabel(n: number): string {
-  if (n === 0) return 'One-time';
-  if (n >= 7) return 'Every day';
-  return n === 1 ? 'Once a week' : `${n}× a week`;
+export function sizeLabel(task: LibraryTask, minutes = task.minutes, about = false): string {
+  if (libraryEffort(task.id) === 'willpower') return t('Willpower');
+  return about ? t('About {time}', { time: durationLabel(minutes) }) : durationLabel(minutes);
 }
 
 /** A library task with a one-tap add button. `picked`: on the list to add, tap again to change it. */
@@ -28,15 +24,15 @@ export function LibraryRow({ task, picked, onAdd }: { task: LibraryTask; picked?
       style={[s.row, picked && s.picked]}
       accessibilityRole="button"
       accessibilityState={{ selected: !!picked }}
-      accessibilityLabel={`${task.title}, +${xpFor(task.minutes, libraryEffort(task.id))} XP${picked ? ', on your list, change' : ''}`}
+      accessibilityLabel={`${libraryTitle(task)}, +${xpFor(task.minutes, libraryEffort(task.id))} XP${picked ? `, ${t('on your list, change')}` : ''}`}
     >
       <View style={s.iconWrap}>
         {cat && <Sticker grad={categoryLook(cat.id)} glyph={categoryLook(cat.id).glyph} size={32} />}
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={s.title}>{task.title}</Text>
+        <Text style={s.title}>{libraryTitle(task)}</Text>
         <Text style={s.meta}>
-          {task.measure ? (task.measure === 'steps' ? 'Your own step count' : 'Your own time or distance') : sizeLabel(task)} · {perWeekLabel(task.perWeek)}
+          {task.measure ? (task.measure === 'steps' ? t('Your own step count') : t('Your own time or distance')) : sizeLabel(task)} · {perWeekLabel(task.perWeek)}
         </Text>
       </View>
       <Text style={s.xp}>+{xpFor(task.minutes, libraryEffort(task.id))} XP</Text>

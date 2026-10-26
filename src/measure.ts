@@ -1,7 +1,10 @@
+import { lang, num, t } from './i18n.ts';
+
 // Walk, Run and Steps: library tasks the player sizes themselves, by time or
 // distance (steps by count). The amount lives in the title ("Walk 3 km",
 // "Run 30 min", "Walk 4,000 steps"), so the time estimate (estimate.ts)
 // turns it into minutes and XP like any other title, with the same caps.
+// Titles are saved in English and shown in German as "3 km gehen".
 
 export type Measure = 'walk' | 'run' | 'steps';
 export type MeasureUnit = 'min' | 'km' | 'steps';
@@ -38,7 +41,7 @@ export const DEFAULT_AMOUNTS: Record<Measure, Amount> = {
   steps: { unit: 'steps', value: 4000 },
 };
 
-/** "4,000", whatever the phone's language. */
+/** "4,000", as saved in titles, whatever the language. */
 export function thousands(n: number): string {
   return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
@@ -48,14 +51,29 @@ function kmLabel(km: number): string {
   return String(Math.round(km * 10) / 10);
 }
 
-export function amountLabel(amount: Amount): string {
+/** "3 km", "30 min", "4,000 steps" as saved in titles. */
+function savedAmount(amount: Amount): string {
   if (amount.unit === 'km') return `${kmLabel(amount.value)} km`;
   if (amount.unit === 'steps') return `${thousands(amount.value)} steps`;
   return `${amount.value} min`;
 }
 
+/** The amount as shown: "2.5 km" or "2,5 km", "4,000 steps" or "4.000 Schritte". */
+export function amountLabel(amount: Amount): string {
+  if (amount.unit === 'km') return `${num(Math.round(amount.value * 10) / 10)} km`;
+  if (amount.unit === 'steps') return t('{n} steps', { n: num(Math.round(amount.value)) });
+  return t('{n} min', { n: amount.value });
+}
+
+/** The saved title: "Walk 3 km", "Run 30 min", "Walk 4,000 steps". */
 export function measuredTitle(measure: Measure, amount: Amount): string {
-  return `${measure === 'run' ? 'Run' : 'Walk'} ${amountLabel(amount)}`;
+  return `${measure === 'run' ? 'Run' : 'Walk'} ${savedAmount(amount)}`;
+}
+
+/** The title as shown: "Walk 3 km" in English, "3 km gehen" in German. */
+export function shownMeasuredTitle(measure: Measure, amount: Amount): string {
+  if (lang() === 'en') return measuredTitle(measure, amount);
+  return measure === 'run' ? t('Run {amount}', { amount: amountLabel(amount) }) : t('Walk {amount}', { amount: amountLabel(amount) });
 }
 
 /** Minutes per km walking and running, and steps per minute. */
@@ -76,14 +94,19 @@ export function clampAmount(measure: Measure, amount: Amount): Amount {
   return { unit: amount.unit, value: Math.min(range.max, Math.max(range.min, Math.round(stepped * 10) / 10)) };
 }
 
-/** The measure and amount in a title like "Walk 3 km", if it is one. */
+/** The measure and amount in a title like "Walk 3 km" (or the German "3 km gehen"), if it is one. */
 export function parseMeasured(title: string): { measure: Measure; amount: Amount } | undefined {
-  const t = title.trim().toLowerCase().replace(/\s+/g, ' ');
-  const steps = t.match(/^walk (\d{1,3}(?:,\d{3})+|\d+) steps$/);
+  const s = title.trim().toLowerCase().replace(/\s+/g, ' ');
+  const steps = s.match(/^walk (\d{1,3}(?:,\d{3})+|\d+) steps$/);
   if (steps) return { measure: 'steps', amount: { unit: 'steps', value: Number(steps[1].replace(/,/g, '')) } };
-  const m = t.match(/^(walk|run) (\d+(?:\.\d+)?) (min|km)$/);
-  if (!m) return undefined;
-  return { measure: m[1] as Measure, amount: { unit: m[3] as MeasureUnit, value: Number(m[2]) } };
+  const m = s.match(/^(walk|run) (\d+(?:\.\d+)?) (min|km)$/);
+  if (m) return { measure: m[1] as Measure, amount: { unit: m[3] as MeasureUnit, value: Number(m[2]) } };
+  const deSteps = s.match(/^(\d{1,3}(?:\.\d{3})+|\d+) schritte(?: gehen)?$/);
+  if (deSteps) return { measure: 'steps', amount: { unit: 'steps', value: Number(deSteps[1].replace(/\./g, '')) } };
+  const de = s.match(/^(\d+(?:,\d+)?) (min\.?|km) (gehen|laufen)$/);
+  if (!de) return undefined;
+  const unit: MeasureUnit = de[2] === 'km' ? 'km' : 'min';
+  return { measure: de[3] === 'laufen' ? 'run' : 'walk', amount: { unit, value: Number(de[1].replace(',', '.')) } };
 }
 
 /**

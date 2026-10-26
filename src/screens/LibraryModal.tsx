@@ -11,6 +11,7 @@ import { scheduleProblem } from '../components/SchedulePicker';
 import { VividButton } from '../components/Vivid';
 import { CATEGORIES, FEATURED, LIBRARY, searchLibrary, sortTasks, WILLPOWER_FILTER, type LibraryTask } from '../library';
 import { themed, useStyles, useTheme, FONTS, headingCase } from '../theme';
+import { N, t, tn } from '../i18n';
 
 /** "3 tasks · +55 XP": what the picks are worth when each is done once. */
 export function picksSummary(picks: LibraryPick[]): { count: number; xp: number } {
@@ -20,9 +21,9 @@ export function picksSummary(picks: LibraryPick[]): { count: number; xp: number 
 type Sort = 'best' | 'xp' | 'quick';
 
 const SORTS: { key: Sort; label: string }[] = [
-  { key: 'best', label: 'Best match' },
-  { key: 'xp', label: 'Most XP' },
-  { key: 'quick', label: 'Quickest' },
+  { key: 'best', label: N('Best match') },
+  { key: 'xp', label: N('Most XP') },
+  { key: 'quick', label: N('Quickest') },
 ];
 
 /**
@@ -93,16 +94,16 @@ export function LibraryModal({
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
-          <Text style={styles.heading}>Task library</Text>
+          <Text style={styles.heading}>{t('Task library')}</Text>
           <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button">
-            <Text style={styles.done}>Done</Text>
+            <Text style={styles.done}>{t('Done')}</Text>
           </Pressable>
         </View>
         <View style={styles.searchWrap}>
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder={`Search ${LIBRARY.length} tasks, e.g. “laundry” or “run”`}
+            placeholder={t('Search {n} tasks, e.g. “laundry” or “run”', { n: LIBRARY.length })}
             placeholderTextColor={C.muted}
             style={styles.search}
             autoCorrect={false}
@@ -111,25 +112,25 @@ export function LibraryModal({
         </View>
         <View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cats}>
-            <Chip label={query.trim() || sort !== 'best' ? 'All' : 'Recommended'} active={!category} onPress={() => setCategory(undefined)} />
+            <Chip label={query.trim() || sort !== 'best' ? t('All') : t('Recommended')} active={!category} onPress={() => setCategory(undefined)} />
             <Chip
-              label="Willpower"
+              label={t('Willpower')}
               active={category === WILLPOWER_FILTER}
               onPress={() => setCategory(category === WILLPOWER_FILTER ? undefined : WILLPOWER_FILTER)}
             />
             {CATEGORIES.map((c) => (
               <Chip
                 key={c.id}
-                label={c.label}
+                label={t(c.label)}
                 active={category === c.id}
                 onPress={() => setCategory(category === c.id ? undefined : c.id)}
               />
             ))}
           </ScrollView>
           <View style={styles.sortRow}>
-            <Text style={styles.sortLabel}>Sort</Text>
+            <Text style={styles.sortLabel}>{t('Sort')}</Text>
             {SORTS.map((o) => (
-              <Chip key={o.key} label={o.label} active={sort === o.key} onPress={() => setSort(o.key)} />
+              <Chip key={o.key} label={t(o.label)} active={sort === o.key} onPress={() => setSort(o.key)} />
             ))}
           </View>
         </View>
@@ -141,13 +142,13 @@ export function LibraryModal({
           ListHeaderComponent={
             <Text style={styles.sub}>
               {browsing
-                ? `Recommended by the ${APP_NAME} team`
-                : `${results.length} ${results.length === 1 ? 'task' : 'tasks'}`}
+                ? t('Recommended by the {app} team', { app: APP_NAME })
+                : tn(results.length, '{n} task', '{n} tasks')}
             </Text>
           }
           ListEmptyComponent={
             <Text style={styles.empty}>
-              {browsing ? 'You have all of these on your list already. Search or pick an area for more.' : 'Nothing found. You can still add it as your own task on the Today screen.'}
+              {browsing ? t('You have all of these on your list already. Search or pick an area for more.') : t('Nothing found. You can still add it as your own task on the Today screen.')}
             </Text>
           }
           renderItem={({ item }) => <LibraryRow task={item} picked={picked.has(item.id)} onAdd={() => open(item)} />}
@@ -156,11 +157,11 @@ export function LibraryModal({
           <View style={styles.bar}>
             <View style={{ flex: 1 }}>
               <Text style={styles.barCount}>
-                {count} {count === 1 ? 'task' : 'tasks'} picked
+                {tn(count, '{n} task picked', '{n} tasks picked')}
               </Text>
-              <Text style={styles.barXp}>+{xp} XP each time you do them all</Text>
+              <Text style={styles.barXp}>{t('+{xp} XP each time you do them all', { xp })}</Text>
             </View>
-            <VividButton label={`Add ${count} ${count === 1 ? 'task' : 'tasks'}`} onPress={addAll} compact />
+            <VividButton label={tn(count, 'Add {n} task', 'Add {n} tasks')} onPress={addAll} compact />
           </View>
         )}
 

@@ -7,9 +7,10 @@ import { brandLine, tierFlame } from '../vivid';
 import { Fire } from './Fire';
 import { MultiplierPill } from './MultiplierPill';
 import { fill, GradientText, VIVID_HEAVY } from './Vivid';
+import { N, t } from '../i18n';
 
-const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-const DOT_WORDS: Record<WeekDot, string> = { done: 'done', rest: 'rest day', today: 'today', missed: 'missed', future: 'to come' };
+const DAY_NAMES = [N('Monday'), N('Tuesday'), N('Wednesday'), N('Thursday'), N('Friday'), N('Saturday'), N('Sunday')];
+const DOT_WORDS: Record<WeekDot, string> = { done: N('done'), rest: N('rest day'), today: N('today'), missed: N('missed'), future: N('to come') };
 
 /**
  * The streak on the home screen: a still flame, the big glowing day count and
@@ -33,14 +34,14 @@ export function StreakCard({
   const s = useStyles(makeStyles);
   const c = useTheme();
   const grad = tierFlame(streak.tier);
-  const days = week.map((d, i) => `${DAY_NAMES[i]} ${DOT_WORDS[d]}`).join(', ');
+  const days = week.map((d, i) => `${t(DAY_NAMES[i])} ${t(DOT_WORDS[d])}`).join(', ');
 
   return (
     <Pressable
       onPress={onPress}
       style={[s.border, grad ? fill(grad, 135) : { backgroundColor: c.border }]}
       accessibilityRole="button"
-      accessibilityLabel={`${streak.days} day streak, ${streakTierName(streak.tier)}. This week: ${days}. Show the streak bonus and fire tiers`}
+      accessibilityLabel={t('{n}-day streak, {tier}. This week: {days}. Show the streak bonus and fire tiers', { n: streak.days, tier: streakTierName(streak.tier), days })}
     >
       <View style={s.card}>
         <View style={s.row}>
@@ -48,7 +49,7 @@ export function StreakCard({
           <StreakNumber days={streak.days} tier={streak.tier} />
           <View style={{ flex: 1, gap: 4 }}>
             <Text style={s.label} numberOfLines={1}>
-              day streak
+              {t('day streak')}
             </Text>
             {/* The multiplier shares the tier's line, so a long streak still fits on small phones. */}
             <View style={s.labelRow}>
@@ -64,16 +65,16 @@ export function StreakCard({
           {week.map((d, i) => (
             <View key={i} style={s.day}>
               <Dot state={d} grad={grad} />
-              <Text style={[s.dayLetter, d === 'today' && s.dayToday]}>{DAY_NAMES[i][0]}</Text>
+              <Text style={[s.dayLetter, d === 'today' && s.dayToday]}>{t(DAY_NAMES[i])[0]}</Text>
             </View>
           ))}
         </View>
-        {streak.atRisk && <Text style={s.risk}>Nothing done yet today. One task keeps your streak going.</Text>}
-        {streak.days === 0 && <Text style={s.note}>Finish a task today to light your streak.</Text>}
+        {streak.atRisk && <Text style={s.risk}>{t('Nothing done yet today. One task keeps your streak going.')}</Text>}
+        {streak.days === 0 && <Text style={s.note}>{t('Finish a task today to light your streak.')}</Text>}
         {/* Flame lights the moment the streak has earned its XP. */}
         {streak.days > 0 && streak.tier === 0 && (
           <Text style={s.note}>
-            {STREAK_TIERS[0].weekXp - streak.streakXp} XP more to light {STREAK_TIERS[0].name}
+            {t('{n} XP more to light {tier}', { n: STREAK_TIERS[0].weekXp - streak.streakXp, tier: t(STREAK_TIERS[0].name) })}
           </Text>
         )}
       </View>

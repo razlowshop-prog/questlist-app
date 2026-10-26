@@ -3,11 +3,12 @@ import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { APP_NAME } from '../brand';
 import { backupName, backupSummary, readBackup, type Backup } from '../backup';
 import { openBackupFile, saveBackupFile } from '../backupFile';
-import { STREAK_REMINDER_HOUR, type Settings } from '../game';
+import { shownName, STREAK_REMINDER_HOUR, type Settings } from '../game';
 import { Sheet } from '../components/Sheet';
 import { brandFillSmall, brandInk, brandTextShadow, VIVID_HEAVY, VividButton, VividSwitch } from '../components/Vivid';
 import { themed, useStyles, useTheme } from '../theme';
 import { MenuGroup, MenuRow } from './MenuScreen';
+import { LANGS, locale, systemLang, t, tn } from '../i18n';
 
 /** Settings, opened from the Menu: reminders, the daily quote email, vibration, privacy, backup and the setup questions. */
 export function SettingsScreen({
@@ -37,12 +38,12 @@ export function SettingsScreen({
     try {
       if (await saveBackupFile(backupName(today), backupText(new Date().toISOString()))) {
         onSettings({ lastBackup: today });
-        setNote({ text: 'Backup saved. Keep the file somewhere safe, like your email or a cloud drive.' });
+        setNote({ text: t('Backup saved. Keep the file somewhere safe, like your email or a cloud drive.') });
       } else {
-        setNote({ text: 'This phone can’t share files right now.', error: true });
+        setNote({ text: t('This phone can’t share files right now.'), error: true });
       }
     } catch {
-      setNote({ text: 'The backup couldn’t be saved. Please try again.', error: true });
+      setNote({ text: t('The backup couldn’t be saved. Please try again.'), error: true });
     }
   }
 
@@ -55,58 +56,77 @@ export function SettingsScreen({
       if (read.ok) setRestore(read);
       else setNote({ text: read.error, error: true });
     } catch {
-      setNote({ text: 'That file couldn’t be opened.', error: true });
+      setNote({ text: t('That file couldn’t be opened.'), error: true });
     }
   }
   const emailValid = /^\S+@\S+\.\S+$/.test(settings.email);
   const visibility = settings.profileVisibility ?? 'friends';
+  const language = settings.lang ?? systemLang();
 
   return (
     <ScrollView contentContainerStyle={s.content}>
-      <MenuGroup label="Notifications">
+      <MenuGroup label={t('Language')}>
+        <View style={s.visibility}>
+          <View style={s.choices} accessibilityRole="radiogroup" accessibilityLabel={t('Language')}>
+            {LANGS.map((l) => (
+              <Pressable
+                key={l.id}
+                onPress={() => onSettings({ lang: l.id })}
+                style={[s.choice, language === l.id && s.choiceActive]}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: language === l.id }}
+              >
+                <Text style={[s.choiceText, language === l.id && s.choiceTextActive]}>{l.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      </MenuGroup>
+
+      <MenuGroup label={t('Notifications')}>
         <MenuRow
           first
-          label="Streak reminders"
-          sub={`A notification at ${STREAK_REMINDER_HOUR}:00 when nothing is done yet and your streak is at risk.`}
-          right={<VividSwitch value={settings.streakReminders !== false} onValueChange={(v) => onSettings({ streakReminders: v })} accessibilityLabel="Streak reminders" />}
+          label={t('Streak reminders')}
+          sub={t('A notification at {h}:00 when nothing is done yet and your streak is at risk.', { h: STREAK_REMINDER_HOUR })}
+          right={<VividSwitch value={settings.streakReminders !== false} onValueChange={(v) => onSettings({ streakReminders: v })} accessibilityLabel={t('Streak reminders')} />}
         />
         <MenuRow
-          label="Daily motivation by email"
-          sub="A short motivational quote every morning. Unsubscribe any time."
-          right={<VividSwitch value={settings.quoteEmails} onValueChange={(v) => onSettings({ quoteEmails: v })} accessibilityLabel="Daily motivation by email" />}
+          label={t('Daily motivation by email')}
+          sub={t('A short motivational quote every morning. Unsubscribe any time.')}
+          right={<VividSwitch value={settings.quoteEmails} onValueChange={(v) => onSettings({ quoteEmails: v })} accessibilityLabel={t('Daily motivation by email')} />}
         />
         {settings.quoteEmails && (
           <View style={s.emailBox}>
             <TextInput
               value={settings.email}
               onChangeText={(email) => onSettings({ email: email.trim() })}
-              placeholder="you@example.com"
+              placeholder={t('you@example.com')}
               placeholderTextColor={c.muted}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
               style={s.emailInput}
-              accessibilityLabel="Email address for the daily quote"
+              accessibilityLabel={t('Email address for the daily quote')}
             />
             <Text style={s.small}>
-              {emailValid ? `✓ Saved. Emails start once ${APP_NAME} accounts are live.` : 'Enter your email address to receive the quotes.'}
+              {emailValid ? `✓ ${t('Saved. Emails start once {app} accounts are live.', { app: APP_NAME })}` : t('Enter your email address to receive the quotes.')}
             </Text>
           </View>
         )}
       </MenuGroup>
 
-      <MenuGroup label="Feel">
+      <MenuGroup label={t('Feel')}>
         <MenuRow
           first
-          label="Vibration"
-          sub="A small buzz when you tick off a task, level up or win on the wheel."
-          right={<VividSwitch value={settings.haptics !== false} onValueChange={(v) => onSettings({ haptics: v })} accessibilityLabel="Vibration" />}
+          label={t('Vibration')}
+          sub={t('A small buzz when you tick off a task, level up or win on the wheel.')}
+          right={<VividSwitch value={settings.haptics !== false} onValueChange={(v) => onSettings({ haptics: v })} accessibilityLabel={t('Vibration')} />}
         />
       </MenuGroup>
 
-      <MenuGroup label="Privacy">
+      <MenuGroup label={t('Privacy')}>
         <View style={s.visibility}>
-          <Text style={s.label}>Who can find my profile</Text>
+          <Text style={s.label}>{t('Who can find my profile')}</Text>
           <View style={s.choices} accessibilityRole="radiogroup">
             {(['friends', 'public'] as const).map((v) => (
               <Pressable
@@ -116,45 +136,45 @@ export function SettingsScreen({
                 accessibilityRole="radio"
                 accessibilityState={{ checked: visibility === v }}
               >
-                <Text style={[s.choiceText, visibility === v && s.choiceTextActive]}>{v === 'friends' ? 'Friends only' : 'Everyone'}</Text>
+                <Text style={[s.choiceText, visibility === v && s.choiceTextActive]}>{v === 'friends' ? t('Friends only') : t('Everyone')}</Text>
               </Pressable>
             ))}
           </View>
-          <Text style={s.small}>Used once accounts arrive. Everyone can then search for you and see your level and badges.</Text>
+          <Text style={s.small}>{t('Used once accounts arrive. Everyone can then search for you and see your level and badges.')}</Text>
         </View>
         <MenuRow
-          label="Share my activity with friends"
-          sub="Off unless you turn it on. Only friends you add will see it."
-          right={<VividSwitch value={settings.shareActivity === true} onValueChange={(v) => onSettings({ shareActivity: v })} accessibilityLabel="Share my activity with friends" />}
+          label={t('Share my activity with friends')}
+          sub={t('Off unless you turn it on. Only friends you add will see it.')}
+          right={<VividSwitch value={settings.shareActivity === true} onValueChange={(v) => onSettings({ shareActivity: v })} accessibilityLabel={t('Share my activity with friends')} />}
         />
       </MenuGroup>
 
-      <MenuGroup label="Backup">
+      <MenuGroup label={t('Backup')}>
         <MenuRow
           first
-          label="Save a backup"
-          sub={`Everything is kept on this phone until accounts arrive. A backup file brings it back on a new phone or after a reset. ${settings.lastBackup ? `Last saved ${longDate(settings.lastBackup)}.` : 'No backup saved yet.'}`}
+          label={t('Save a backup')}
+          sub={`${t('Everything is kept on this phone until accounts arrive. A backup file brings it back on a new phone or after a reset.')} ${settings.lastBackup ? t('Last saved {date}.', { date: longDate(settings.lastBackup) }) : t('No backup saved yet.')}`}
           onPress={saveBackup}
         />
-        <MenuRow label="Restore from a backup" sub="Pick a backup file. You see what’s in it before anything changes." onPress={pickBackup} />
+        <MenuRow label={t('Restore from a backup')} sub={t('Pick a backup file. You see what’s in it before anything changes.')} onPress={pickBackup} />
         {note && <Text style={[s.note, note.error && { color: c.flame }]}>{note.text}</Text>}
       </MenuGroup>
 
-      <MenuGroup label="Account">
-        <MenuRow first label="Account and Premium" sub="Sign in, email, password, deleting your account and the subscription arrive with accounts." />
+      <MenuGroup label={t('Account')}>
+        <MenuRow first label={t('Account and Premium')} sub={t('Sign in, email, password, deleting your account and the subscription arrive with accounts.')} />
       </MenuGroup>
 
-      <VividButton label="Redo setup questions" kind="secondary" compact onPress={onRedoSetup} style={{ marginTop: 18 }} />
+      <VividButton label={t('Redo setup questions')} kind="secondary" compact onPress={onRedoSetup} style={{ marginTop: 18 }} />
 
-      <Sheet visible={!!restore} onClose={() => setRestore(undefined)} closeLabel="Cancel" eyebrow="Backup" title="Restore this backup?">
+      <Sheet visible={!!restore} onClose={() => setRestore(undefined)} closeLabel={t('Cancel')} eyebrow={t('Backup')} title={t('Restore this backup?')}>
         {restore && <RestoreSummary backup={restore} />}
-        <Text style={s.small}>Everything on this phone now is replaced by it. Save a backup first if you want to keep today’s progress.</Text>
+        <Text style={s.small}>{t('Everything on this phone now is replaced by it. Save a backup first if you want to keep today’s progress.')}</Text>
         <VividButton
-          label="Replace my progress"
+          label={t('Replace my progress')}
           onPress={() => {
             if (restore) onRestore(restore);
             setRestore(undefined);
-            setNote({ text: 'Backup restored.' });
+            setNote({ text: t('Backup restored.') });
           }}
           style={{ marginTop: 6 }}
         />
@@ -168,17 +188,17 @@ function RestoreSummary({ backup }: { backup: Backup }) {
   const { level, tasks, tasksDone } = backupSummary(backup.state);
   return (
     <View style={s.summary}>
-      {backup.savedAt ? <Text style={s.label}>Saved {longDate(backup.savedAt.slice(0, 10))}</Text> : null}
+      {backup.savedAt ? <Text style={s.label}>{t('Saved {date}', { date: longDate(backup.savedAt.slice(0, 10)) })}</Text> : null}
       <Text style={s.summaryText}>
-        {backup.state.profile.name} · level {level} · {tasks} {tasks === 1 ? 'task' : 'tasks'} on the list · {tasksDone} done in total
+        {shownName(backup.state.profile.name)} · {t('level {n}', { n: level })} · {tn(tasks, '{n} task on the list', '{n} tasks on the list')} · {t('{n} done in total', { n: tasksDone })}
       </Text>
     </View>
   );
 }
 
-/** "25 October 2026" for a YYYY-MM-DD day. */
+/** "25 October 2026" or "25. Oktober 2026" for a YYYY-MM-DD day. */
 function longDate(day: string): string {
-  return new Date(`${day}T12:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
+  return new Date(`${day}T12:00:00`).toLocaleDateString(locale(), { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 const makeStyles = themed((c) => ({

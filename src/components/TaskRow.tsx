@@ -18,7 +18,8 @@ import { FIRE_COLORS } from './Fire';
 import { CoinCheck, HoloBorder } from './Fortuna';
 import { taskEffort, tonightHour, tooEarlyToTick } from '../estimate';
 import { stepStatus } from '../steps';
-import { taskCategory } from '../library';
+import { shownTitle, taskCategory } from '../library';
+import { quoted, t, tn } from '../i18n';
 import { brandLine, categoryLook, midColor, MYTHIC } from '../vivid';
 import { FinishFx, RowPulse, RowSheen, useThemeFx } from './ThemeFx';
 import { fill, GradientText, Sticker } from './Vivid';
@@ -101,21 +102,23 @@ export function TaskRow({
     return () => clearInterval(timer);
   }, [task.createdAt]);
   const perWeek = timesPerWeek(task);
-  const weekly = perWeek > 0 && perWeek < 7 ? ` · ${doneThisWeek(state, task, today)}/${perWeek} this week` : '';
+  const weekly = perWeek > 0 && perWeek < 7 ? ` · ${t('{done}/{n} this week', { done: doneThisWeek(state, task, today), n: perWeek })}` : '';
+  const name = shownTitle(task.title);
+  const coverName = coveredBy && shownTitle(coveredBy);
 
   function press() {
     if (!done && coveredBy) {
-      setLabel({ text: `Already part of “${coveredBy}”`, warn: true });
+      setLabel({ text: t('Already part of {task}', { task: quoted(coverName!) }), warn: true });
       animate(false);
       return;
     }
     if (!done && tooEarlyToTick(task, Date.now())) {
-      setLabel({ text: `Tick it off from ${tonightHour(task)}:00`, warn: true });
+      setLabel({ text: t('Tick it off from {h}:00', { h: tonightHour(task)! }), warn: true });
       animate(false);
       return;
     }
     if (!done && waitLeft > 0) {
-      setLabel({ text: `New tasks can be ticked ${waitSeconds} s after adding`, warn: true });
+      setLabel({ text: t('New tasks can be ticked {n} s after adding', { n: waitSeconds }), warn: true });
       animate(false);
       return;
     }
@@ -133,7 +136,7 @@ export function TaskRow({
 
   function pressStep(i: number) {
     if (waitLeft > 0) {
-      setLabel({ text: `New tasks can be ticked ${waitSeconds} s after adding`, warn: true });
+      setLabel({ text: t('New tasks can be ticked {n} s after adding', { n: waitSeconds }), warn: true });
       animate(false);
       return;
     }
@@ -219,35 +222,35 @@ export function TaskRow({
         style={s.main}
         accessibilityRole="checkbox"
         accessibilityState={{ checked: done, disabled: covered }}
-        accessibilityHint={covered ? `Already covered by ${coveredBy}` : early ? `Can be ticked from ${tonightHour(task)}:00` : undefined}
+        accessibilityHint={covered ? t('Already covered by {task}', { task: coverName! }) : early ? t('Can be ticked from {h}:00', { h: tonightHour(task)! }) : undefined}
       >
         <Sticker grad={cat} glyph={cat.glyph} size={26} flat />
         <View style={{ flex: 1 }}>
-          <Text style={[s.title, done && s.titleDone]}>{task.title}</Text>
+          <Text style={[s.title, done && s.titleDone]}>{name}</Text>
           {covered ? (
             <Text style={s.meta} numberOfLines={2}>
-              Covered by “{coveredBy}”
+              {t('Covered by {task}', { task: quoted(coverName!) })}
             </Text>
           ) : locked ? (
             <Text style={[s.meta, s.wait]}>
-              Wait {waitLeft} more {waitLeft === 1 ? 'second' : 'seconds'}
+              {tn(waitLeft, 'Wait {n} more second', 'Wait {n} more seconds')}
             </Text>
           ) : (
             <View style={s.metaRow}>
               <Text style={s.meta}>
                 {/* A willpower task's time says nothing, so it isn't shown. */}
-                {early ? `From ${tonightHour(task)}:00 · ` : task.minutes && taskEffort(task) !== 'willpower' ? `${durationLabel(task.minutes)} · ` : ''}
+                {early ? `${t('From {h}:00', { h: tonightHour(task)! })} · ` : task.minutes && taskEffort(task) !== 'willpower' ? `${durationLabel(task.minutes)} · ` : ''}
                 {repeatLabel(task)}
                 {weekly}
               </Text>
               {onFocus && !done && (
-                <Pressable onPress={onFocus} hitSlop={8} style={[s.focus, focusing && s.focusOn]} accessibilityRole="button" accessibilityLabel={focusing ? `Open the focus timer for ${task.title}` : `Start a focus timer for ${task.title}`}>
+                <Pressable onPress={onFocus} hitSlop={8} style={[s.focus, focusing && s.focusOn]} accessibilityRole="button" accessibilityLabel={focusing ? t('Open the focus timer for {task}', { task: name }) : t('Start a focus timer for {task}', { task: name })}>
                   <Timer size={12} color={focusing ? c.accent : c.muted} strokeWidth={2} aria-hidden />
-                  <Text style={[s.focusText, focusing && { color: c.accent }]}>{focusing ? 'Focusing' : 'Focus'}</Text>
+                  <Text style={[s.focusText, focusing && { color: c.accent }]}>{focusing ? t('Focusing') : t('Focus')}</Text>
                 </Pressable>
               )}
               {task.reminder && (
-                <View style={s.reminder} accessibilityLabel={`Reminder at ${task.reminder}`}>
+                <View style={s.reminder} accessibilityLabel={t('Reminder at {time}', { time: task.reminder })}>
                   <Bell size={12} color={c.faint} strokeWidth={1.5} aria-hidden />
                   <Text style={[s.meta, { marginTop: 0 }]}>{task.reminder}</Text>
                 </View>
@@ -261,7 +264,7 @@ export function TaskRow({
               style={s.stepStrip}
               accessibilityRole="button"
               accessibilityState={{ expanded: stepsOpen }}
-              accessibilityLabel={`${steps.doneCount} of ${steps.titles.length} steps done. ${stepsOpen ? 'Hide' : 'Show'} steps`}
+              accessibilityLabel={`${tn(steps.titles.length, '{done} of {n} step done.', '{done} of {n} steps done.', { done: steps.doneCount })} ${stepsOpen ? t('Hide steps') : t('Show steps')}`}
             >
               <View style={s.stepBars}>
                 {steps.done.map((d, i) => (
@@ -269,7 +272,7 @@ export function TaskRow({
                 ))}
               </View>
               <Text style={s.stepCount}>
-                {steps.doneCount}/{steps.titles.length} steps
+                {t('{done}/{n} steps', { done: steps.doneCount, n: steps.titles.length })}
               </Text>
               {stepsOpen ? <ChevronUp size={14} color={c.muted} strokeWidth={1.75} aria-hidden /> : <ChevronDown size={14} color={c.muted} strokeWidth={1.75} aria-hidden />}
             </Pressable>
@@ -323,7 +326,7 @@ export function TaskRow({
           )}
         </View>
       </Pressable>
-      <Pressable onPress={onDelete} hitSlop={10} style={s.deleteWrap} accessibilityLabel={`Delete ${task.title}`}>
+      <Pressable onPress={onDelete} hitSlop={10} style={s.deleteWrap} accessibilityLabel={t('Delete {task}', { task: name })}>
         <Text style={s.delete}>✕</Text>
       </Pressable>
       </View>
@@ -338,7 +341,7 @@ export function TaskRow({
                 style={s.step}
                 accessibilityRole="checkbox"
                 accessibilityState={{ checked: steps.done[i] }}
-                accessibilityLabel={`${title}${last ? ', finishes the task' : ''}`}
+                accessibilityLabel={last ? t('{step}, finishes the task', { step: title }) : title}
               >
                 {c.check === 'coin' ? (
                   <CoinCheck done={steps.done[i]} size={18} />
@@ -348,7 +351,7 @@ export function TaskRow({
                   </View>
                 )}
                 <Text style={[s.stepTitle, steps.done[i] && s.stepTitleDone]}>{title}</Text>
-                {!steps.done[i] && <Text style={[s.stepXp, last && s.stepXpLast]}>{last ? 'Finish' : `+${steps.xpEach} XP`}</Text>}
+                {!steps.done[i] && <Text style={[s.stepXp, last && s.stepXpLast]}>{last ? t('Finish') : `+${steps.xpEach} XP`}</Text>}
               </Pressable>
             );
           })}

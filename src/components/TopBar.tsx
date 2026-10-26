@@ -2,6 +2,7 @@ import { Backpack, ChevronLeft } from 'lucide-react-native';
 import { Pressable, Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { APP_NAME } from '../brand';
+import { t, tn } from '../i18n';
 import { FONTS, themed, useStyles, useTheme } from '../theme';
 import { BRAND, brandLine } from '../vivid';
 import { Avatar } from './ProfileFrame';
@@ -53,7 +54,7 @@ export function TopBar({
   return (
     <View style={s.bar}>
       <View style={s.middle} pointerEvents="box-none">
-        <Pressable onPress={onHome} hitSlop={8} accessibilityRole="button" accessibilityLabel={`${APP_NAME}, go to Today`}>
+        <Pressable onPress={onHome} hitSlop={8} accessibilityRole="button" accessibilityLabel={t('{app}, go to Today', { app: APP_NAME })}>
           <GradientText style={s.wordmark} numberOfLines={1}>
             {APP_NAME.toUpperCase()}
           </GradientText>
@@ -64,7 +65,7 @@ export function TopBar({
         onPress={onInventory}
         style={s.icon}
         accessibilityRole="button"
-        accessibilityLabel={`Inventory${bagCount ? `, ${bagCount} new` : ''}`}
+        accessibilityLabel={bagCount ? t('Inventory, {n} new', { n: bagCount }) : t('Inventory')}
       >
         <View style={[s.bag, fill(BAG, 145)]}>
           <Backpack size={18} color="#FFFFFF" strokeWidth={2} aria-hidden />
@@ -75,7 +76,7 @@ export function TopBar({
         onPress={onProfile}
         style={s.avatarHit}
         accessibilityRole="button"
-        accessibilityLabel={`Profile, level ${level}, ${Math.round(shown * 100)}% to the next level${toClaim ? `, ${toClaim} to claim` : ''}${newLooks ? `, ${newLooks} new ${newLooks === 1 ? 'look' : 'looks'}` : ''}`}
+        accessibilityLabel={`${t('Profile, level {n}, {pct}% to the next level', { n: level, pct: Math.round(shown * 100) })}${toClaim ? `, ${t('{n} to claim', { n: toClaim })}` : ''}${newLooks ? `, ${tn(newLooks, '{n} new look', '{n} new looks')}` : ''}`}
       >
         <View style={s.ring}>
           <Svg width={RING} height={RING} style={s.ringSvg}>
@@ -99,7 +100,7 @@ export function TopBar({
           {/* An outlined "LV 8" pill under the avatar, so it doesn't read as a notification badge. */}
           <View style={s.levelWrap} pointerEvents="none">
             <View style={s.level}>
-              <Text style={s.levelLv}>LV</Text>
+              <Text style={s.levelLv}>{t('LV')}</Text>
               <Text style={s.levelText}>{level}</Text>
             </View>
           </View>
@@ -116,7 +117,7 @@ export function BackBar({ backTo, title, onBack }: { backTo: string; title: stri
   const c = useTheme();
   return (
     <View style={s.bar}>
-      <Pressable onPress={onBack} hitSlop={8} style={s.back} accessibilityRole="button" accessibilityLabel={`Back to ${backTo}`}>
+      <Pressable onPress={onBack} hitSlop={8} style={s.back} accessibilityRole="button" accessibilityLabel={t('Back to {page}', { page: backTo })}>
         <ChevronLeft size={22} color={brandLine(c)} strokeWidth={2} aria-hidden />
         <Text style={s.backText}>{backTo}</Text>
       </Pressable>

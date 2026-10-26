@@ -4,6 +4,7 @@ import Reanimated, { interpolateColor, useAnimatedStyle, type SharedValue } from
 import Svg, { Circle, Defs, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { useReduceMotion } from './FireAura';
 import { useLiveProgress } from './Vivid';
+import { t } from '../i18n';
 
 // The Fortuna theme's own pieces (design thread, "Fortuna theme and wheel
 // spec"): a four-point star, the gold coin check, the shimmering XP bar,
@@ -267,7 +268,7 @@ export function TicketStub({ width = 86, height = 50, dim = false }: { width?: n
       <Text
         style={{ position: 'absolute', left: 0, width: stub, top: 0, bottom: 0, textAlign: 'center', textAlignVertical: 'center', lineHeight: height, fontFamily: 'Cinzel_800ExtraBold', fontSize: 10.5, letterSpacing: 0.5, color: GOLD.ink }}
       >
-        TICKET
+        {t('TICKET')}
       </Text>
       <Star4 size={12} color={GOLD.ink} style={{ position: 'absolute', left: stub + (width - stub) / 2 - 6, top: height / 2 - 6 }} />
     </View>

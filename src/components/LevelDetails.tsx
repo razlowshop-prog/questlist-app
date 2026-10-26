@@ -1,7 +1,7 @@
 import { Check } from 'lucide-react-native';
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { nextLevelReward } from '../achievements';
+import { milestoneLabel, nextLevelReward } from '../achievements';
 import {
   levelInfo,
   nextStreakBonus,
@@ -16,6 +16,7 @@ import { Fire, fireColor } from './Fire';
 import { FireAura } from './FireAura';
 import { RewardPicture } from './RewardPicture';
 import { brandLine, brandGlow } from '../vivid';
+import { decimal, num, t, tn } from '../i18n';
 
 /** Opened by tapping the level: XP, the streak multiplier and fire tiers, the next reward. */
 export function LevelDetails({
@@ -38,17 +39,17 @@ export function LevelDetails({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={s.backdrop} onPress={onClose} accessibilityLabel="Close" />
+      <Pressable style={s.backdrop} onPress={onClose} accessibilityLabel={t('Close')} />
       <SafeAreaView style={s.sheetWrap} pointerEvents="box-none">
         <View style={s.sheet}>
           <ScrollView contentContainerStyle={{ gap: 18 }}>
             <View style={{ gap: 4 }}>
-              <Text style={s.eyebrow}>Level {info.level}</Text>
+              <Text style={s.eyebrow}>{t('Level {n}', { n: info.level })}</Text>
               <Text style={s.title}>{info.rank}</Text>
               <Text style={s.muted}>
                 {info.maxed
-                  ? `Max level · ${totalXp.toLocaleString()} XP in total`
-                  : `${(info.xpForLevel - info.xpIntoLevel).toLocaleString()} XP to level ${info.level + 1} · ${totalXp.toLocaleString()} XP in total`}
+                  ? t('Max level · {total} XP in total', { total: num(totalXp) })
+                  : t('{n} XP to level {level} · {total} XP in total', { n: num(info.xpForLevel - info.xpIntoLevel), level: info.level + 1, total: num(totalXp) })}
               </Text>
             </View>
 
@@ -57,41 +58,42 @@ export function LevelDetails({
                 <Fire tier={streak.tier} size={30} />
                 <View style={{ flex: 1 }}>
                   <Text style={s.sectionTitle}>
-                    {streak.days}-day streak · {streakTierName(streak.tier)}
+                    {t('{n}-day streak', { n: streak.days })} · {streakTierName(streak.tier)}
                   </Text>
                   <Text style={s.muted}>
-                    {bonus > 0 ? `${(1 + bonus).toFixed(1)}x XP on every task` : 'No XP bonus yet'}
-                    {next ? ` · ${next.daysLeft} more ${next.daysLeft === 1 ? 'day' : 'days'} to ${(1 + next.bonus).toFixed(1)}x` : ''}
+                    {bonus > 0 ? t('{x}x XP on every task', { x: decimal(1 + bonus) }) : t('No XP bonus yet')}
+                    {next ? ` · ${tn(next.daysLeft, '{n} more day to {x}x', '{n} more days to {x}x', { x: decimal(1 + next.bonus) })}` : ''}
                   </Text>
                 </View>
               </View>
-              <Text style={s.small}>Streak bonus</Text>
+              <Text style={s.small}>{t('Streak bonus')}</Text>
               <View style={s.steps}>
                 {STREAK_BONUSES.map((b) => {
                   const on = streak.days >= b.days;
                   return (
                     <View key={b.days} style={[s.step, on && s.stepOn]}>
-                      <Text style={[s.stepValue, on && s.stepValueOn]}>{(1 + b.bonus).toFixed(1)}x</Text>
-                      <Text style={s.stepDays}>{b.days} days</Text>
+                      <Text style={[s.stepValue, on && s.stepValueOn]}>{decimal(1 + b.bonus)}x</Text>
+                      <Text style={s.stepDays}>{tn(b.days, '{n} day', '{n} days')}</Text>
                       {on && <Check size={12} color={c.accent} strokeWidth={2} aria-hidden />}
                     </View>
                   );
                 })}
               </View>
-              <Text style={s.small}>Fire tiers</Text>
-              {STREAK_TIERS.map((t) => (
-                <View key={t.tier} style={s.tierRow}>
-                  <FireAura tier={t.tier} id={`tier-${t.tier}`} />
-                  <Fire tier={t.tier} size={18} />
-                  <Text style={[s.tierName, { color: fireColor(t.tier, c) }]}>{t.name}</Text>
-                  <Text style={s.muted}>{t.tier === 1 ? `${t.weekXp} XP, instantly` : `${t.weekXp} XP a week`}</Text>
-                  {streak.tier >= t.tier && <Check size={14} color={c.accent} strokeWidth={2} aria-hidden />}
+              <Text style={s.small}>{t('Fire tiers')}</Text>
+              {STREAK_TIERS.map((tier) => (
+                <View key={tier.tier} style={s.tierRow}>
+                  <FireAura tier={tier.tier} id={`tier-${tier.tier}`} />
+                  <Fire tier={tier.tier} size={18} />
+                  <Text style={[s.tierName, { color: fireColor(tier.tier, c) }]}>{t(tier.name)}</Text>
+                  <Text style={s.muted}>{tier.tier === 1 ? t('{n} XP, instantly', { n: tier.weekXp }) : t('{n} XP a week', { n: tier.weekXp })}</Text>
+                  {streak.tier >= tier.tier && <Check size={14} color={c.accent} strokeWidth={2} aria-hidden />}
                 </View>
               ))}
               <Text style={s.note}>
-                This week: {streak.weekXp} XP. Flame lights the moment your streak earns {STREAK_TIERS[0].weekXp} XP. For Blaze and
-                Inferno, reach the threshold in a week and your fire moves up on Monday. Keep it going with one task a day: a
-                missed day costs a tier, and on Flame or below it ends the streak.
+                {t(
+                  'This week: {week} XP. Flame lights the moment your streak earns {n} XP. For Blaze and Inferno, reach the threshold in a week and your fire moves up on Monday. Keep it going with one task a day: a missed day costs a tier, and on Flame or below it ends the streak.',
+                  { week: streak.weekXp, n: STREAK_TIERS[0].weekXp },
+                )}
               </Text>
             </View>
 
@@ -101,16 +103,16 @@ export function LevelDetails({
                   <RewardPicture milestone={reward.milestone} size={reward.milestone.reward?.kind === 'theme' ? 22 : 18} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.sectionTitle}>Next reward at level {reward.milestone.level}</Text>
+                  <Text style={s.sectionTitle}>{t('Next reward at level {n}', { n: reward.milestone.level })}</Text>
                   <Text style={s.muted}>
-                    {reward.milestone.reward?.label ?? `+${reward.milestone.bonusXp} XP bonus`} · {reward.xpInto} / {reward.xpNeeded} XP
+                    {milestoneLabel(reward.milestone)} · {reward.xpInto} / {reward.xpNeeded} XP
                   </Text>
                 </View>
               </View>
             )}
           </ScrollView>
           <Pressable onPress={onClose} style={s.close} accessibilityRole="button">
-            <Text style={s.closeText}>Close</Text>
+            <Text style={s.closeText}>{t('Close')}</Text>
           </Pressable>
         </View>
       </SafeAreaView>

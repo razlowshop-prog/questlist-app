@@ -5,6 +5,9 @@
 // other scripts are let through. A server-side AI check can follow once
 // accounts exist.
 
+import { t } from './i18n.ts';
+
+const notATask = () => t('That doesn’t look like a task yet. Try e.g. “{example}”.', { example: t('Clean the kitchen') });
 const VOWELS = /[aeiouyäöüàáâãåæèéêëìíîïòóôõøùúûýÿœ]/;
 const LATIN = /^[a-zà-öø-ÿßœæ]+$/;
 /** Five keys side by side on a QWERTY or QWERTZ keyboard: "asdfg", "qwert". */
@@ -51,14 +54,14 @@ export function mashedWord(word: string): boolean {
 export function nonsenseReason(title: string): string | undefined {
   const words = title.toLowerCase().match(/\p{L}+/gu) ?? [];
   const letters = words.join('');
-  if (letters.length < 2) return 'Give your task a name in words, e.g. “Clean the kitchen”.';
+  if (letters.length < 2) return t('Give your task a name in words, e.g. “{example}”.', { example: t('Clean the kitchen') });
   // Another script (Cyrillic, Chinese …): nothing here can judge it.
   if (!words.every((w) => LATIN.test(w))) return undefined;
-  if (new Set(letters).size === 1) return 'That doesn’t look like a task yet. Try e.g. “Clean the kitchen”.';
+  if (new Set(letters).size === 1) return notATask();
   const long = words.filter((w) => w.length >= 4);
   const mashed = long.filter(mashedWord).length;
   // More than half of the real words: one odd word ("Herbstschmuck") among others is fine.
-  if (long.length > 0 && mashed * 2 > long.length) return 'That doesn’t look like a task yet. Try e.g. “Clean the kitchen”.';
-  if (!words.some((w) => w.length >= 2 && VOWELS.test(w))) return 'That doesn’t look like a task yet. Try e.g. “Clean the kitchen”.';
+  if (long.length > 0 && mashed * 2 > long.length) return notATask();
+  if (!words.some((w) => w.length >= 2 && VOWELS.test(w))) return notATask();
   return undefined;
 }

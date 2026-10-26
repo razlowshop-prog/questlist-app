@@ -20,6 +20,7 @@ import {
   isDoneToday,
   MAX_STEP_LENGTH,
   MAX_STEPS,
+  shownName,
   totalXp,
   xpFor,
   type GameState,
@@ -31,8 +32,8 @@ import {
   weekDots,
   type xpMultiplier,
 } from '../game';
-import { CATEGORIES, FEATURED, guessCategory, libraryMatch, librarySteps, OTHER_CATEGORY, searchLibrary, taskCategory, type LibraryTask } from '../library';
-import { DEFAULT_AMOUNTS, measuredTitle, parseMeasured } from '../measure';
+import { CATEGORIES, FEATURED, guessCategory, libraryMatch, librarySteps, libraryTitle, OTHER_CATEGORY, searchLibrary, shownTitle, taskCategory, type LibraryTask } from '../library';
+import { DEFAULT_AMOUNTS, measuredTitle, parseMeasured, shownMeasuredTitle } from '../measure';
 import { focusOffered } from '../focus';
 import { coveredBy } from '../covers';
 import { AmountPicker } from '../components/AmountPicker';
@@ -41,6 +42,7 @@ import { estimateMinutes, tonightHour } from '../estimate';
 import { nonsenseReason } from '../sense';
 import { quoteOfTheDay, quoteSideFor } from '../quotes';
 import { card, eyebrow, FONTS, themed, useStyles, useTheme, headingCase } from '../theme';
+import { N, quoted, t, tn } from '../i18n';
 
 export function TodayScreen({
   state,
@@ -134,7 +136,7 @@ export function TodayScreen({
   const quote = quoteOfTheDay(today);
   const typed = title.trim();
   const suggestions = useMemo(
-    () => (typed.length >= 2 ? searchLibrary(typed, 12).filter((t) => t.title.toLowerCase() !== typed.toLowerCase() && !owned.has(t.id)).slice(0, 4) : []),
+    () => (typed.length >= 2 ? searchLibrary(typed, 12).filter((l) => libraryTitle(l).toLowerCase() !== typed.toLowerCase() && !owned.has(l.id)).slice(0, 4) : []),
     [typed, owned],
   );
   // Common tasks to start from while the field is empty.
@@ -142,9 +144,9 @@ export function TodayScreen({
   // Walk, Run and Steps: the amount is part of the title, set with the picker
   // ("Walk" on its own starts at half an hour).
   const bare = libraryMatch(typed);
-  const measured = parseMeasured(typed) ?? (bare?.measure && bare.title.toLowerCase() === typed.toLowerCase() ? { measure: bare.measure, amount: DEFAULT_AMOUNTS[bare.measure] } : undefined);
-  /** The title it is saved under: "Walk 30 min" for a bare "Walk". */
-  const finalTitle = measured ? measuredTitle(measured.measure, measured.amount) : typed;
+  const measured = parseMeasured(typed) ?? (bare?.measure ? { measure: bare.measure, amount: DEFAULT_AMOUNTS[bare.measure] } : undefined);
+  /** The title it is saved under, always the English one for library tasks: "Walk 30 min" for a bare "Walk" (or "Gehen"). */
+  const finalTitle = measured ? measuredTitle(measured.measure, measured.amount) : (bare?.title ?? typed);
   const chosenCategory = category ?? guessCategory(typed) ?? OTHER_CATEGORY;
   // The planned day can't be left behind after midnight.
   const shownSchedule = schedule.date < today ? { ...schedule, date: today } : schedule;
@@ -170,10 +172,10 @@ export function TodayScreen({
   }
 
   /** Fills the form from a library task so its days and frequency can be picked before adding. */
-  function prefill(t: LibraryTask) {
-    setTitle(t.measure ? measuredTitle(t.measure, DEFAULT_AMOUNTS[t.measure]) : t.title);
-    setSchedule({ ...defaultSchedule(today), repeat: t.perWeek > 0, perWeek: t.perWeek > 0 ? t.perWeek : 3 });
-    setCategory(t.category);
+  function prefill(l: LibraryTask) {
+    setTitle(l.measure ? shownMeasuredTitle(l.measure, DEFAULT_AMOUNTS[l.measure]) : libraryTitle(l));
+    setSchedule({ ...defaultSchedule(today), repeat: l.perWeek > 0, perWeek: l.perWeek > 0 ? l.perWeek : 3 });
+    setCategory(l.category);
     setStepDraft(undefined);
   }
 
@@ -272,8 +274,8 @@ export function TodayScreen({
             <>
               <QuoteFlip
                 quote={quote}
-                name={state.profile.name}
-                summary={tasks.length ? `${doneCount} of ${tasks.length} ${tasks.length === 1 ? 'task' : 'tasks'} done${streak.days > 0 ? ` · ${streak.days}-day streak` : ''}` : undefined}
+                name={shownName(state.profile.name)}
+                summary={tasks.length ? tn(tasks.length, '{done} of {n} task done', '{done} of {n} tasks done', { done: doneCount }) + (streak.days > 0 ? ` · ${t('{n}-day streak', { n: streak.days })}` : '') : undefined}
                 side={quoteSideFor(state.settings.quoteSide, today)}
                 onSide={onQuoteSide}
               />
@@ -290,7 +292,7 @@ export function TodayScreen({
               {guide}
 
               <View style={s.sectionRow}>
-                <Text style={s.sectionTitle}>Today’s tasks</Text>
+                <Text style={s.sectionTitle}>{t('Today’s tasks')}</Text>
                 {tasks.length > 0 && (
                   <Text style={s.sectionCount}>
                     <GradientText style={s.sectionCountStrong}>{doneCount}</GradientText> / {tasks.length}
@@ -298,13 +300,13 @@ export function TodayScreen({
                 )}
               </View>
               {tasks.length > 0 && open.length === 0 && (
-                <EmptyState glyph="Trophy" grad={RARITY.legendary} before="All " word="done" after=" for today" body="Every task is ticked off. Enjoy the rest of your day." />
+                <EmptyState glyph="Trophy" grad={RARITY.legendary} before={t('All ')} word={t('done')} after={t(' for today')} body={t('Every task is ticked off. Enjoy the rest of your day.')} />
               )}
             </>
           }
           ListEmptyComponent={
             loaded && tasks.length === 0 ? (
-              <EmptyState glyph="Sparkle" mythic before="A " word="fresh" after=" start" body="No tasks for today. Tap Add Task below to add one or pick some from the library." />
+              <EmptyState glyph="Sparkle" mythic before={t('A ')} word={t('fresh')} after={t(' start')} body={t('No tasks for today. Tap Add Task below to add one or pick some from the library.')} />
             ) : undefined
           }
           ListFooterComponent={
@@ -312,11 +314,11 @@ export function TodayScreen({
               {tonightTasks.length > 0 && (
                 <View style={s.tonight}>
                   <View style={s.sectionRow}>
-                    <Text style={s.sectionTitle}>Tonight’s check</Text>
+                    <Text style={s.sectionTitle}>{t('Tonight’s check')}</Text>
                   </View>
-                  <Text style={s.tonightHint}>All-day goals. Tick them off once the day is done.</Text>
-                  {tonightTasks.map((t, i) => (
-                    <View key={t.id}>{row(t, openTasks.length + i)}</View>
+                  <Text style={s.tonightHint}>{t('All-day goals. Tick them off once the day is done.')}</Text>
+                  {tonightTasks.map((task, i) => (
+                    <View key={task.id}>{row(task, openTasks.length + i)}</View>
                   ))}
                 </View>
               )}
@@ -327,23 +329,23 @@ export function TodayScreen({
                     style={s.doneToggle}
                     accessibilityRole="button"
                     accessibilityState={{ expanded: showDone }}
-                    accessibilityLabel={`Done today, ${doneTasks.length}. ${showDone ? 'Hide' : 'Show'}`}
+                    accessibilityLabel={t('Done today, {n}. {action}', { n: doneTasks.length, action: showDone ? t('Hide') : t('Show') })}
                   >
-                    <Text style={s.doneLabel}>Done today · {doneTasks.length}</Text>
+                    <Text style={s.doneLabel}>{t('Done today · {n}', { n: doneTasks.length })}</Text>
                     {showDone ? <ChevronUp size={16} color={c.muted} strokeWidth={1.75} aria-hidden /> : <ChevronDown size={16} color={c.muted} strokeWidth={1.75} aria-hidden />}
                   </Pressable>
-                  {showDone && doneTasks.map((t, i) => <View key={t.id}>{row(t, i)}</View>)}
+                  {showDone && doneTasks.map((task, i) => <View key={task.id}>{row(task, i)}</View>)}
                 </View>
               )}
               {upcoming.length > 0 && (
                 <View style={s.upcoming}>
-                  <Text style={s.upcomingHeading}>Coming up</Text>
-                  {upcoming.map((t) => (
-                    <View key={t.id} style={s.upcomingRow}>
+                  <Text style={s.upcomingHeading}>{t('Coming up')}</Text>
+                  {upcoming.map((task) => (
+                    <View key={task.id} style={s.upcomingRow}>
                       <Text style={s.upcomingTitle} numberOfLines={1}>
-                        {t.title}
+                        {shownTitle(task.title)}
                       </Text>
-                      <Text style={s.upcomingDay}>{dayLabel(t.date!)}</Text>
+                      <Text style={s.upcomingDay}>{dayLabel(task.date!)}</Text>
                     </View>
                   ))}
                 </View>
@@ -358,9 +360,9 @@ export function TodayScreen({
 
       <ConfirmSheet
         visible={!!removing}
-        title="Remove this task?"
-        body={removing ? `“${removing.title}” leaves your list. The XP you already earned with it stays.` : undefined}
-        confirmLabel="Remove"
+        title={t('Remove this task?')}
+        body={removing ? t('{task} leaves your list. The XP you already earned with it stays.', { task: quoted(shownTitle(removing.title)) }) : undefined}
+        confirmLabel={t('Remove')}
         onCancel={() => setRemoving(null)}
         onConfirm={() => {
           if (removing) onDelete(removing);
@@ -369,12 +371,12 @@ export function TodayScreen({
       />
 
       <Modal visible={adding} transparent animationType="slide" onRequestClose={closeSheet}>
-        <Pressable style={s.backdrop} onPress={closeSheet} accessibilityLabel="Close" />
+        <Pressable style={s.backdrop} onPress={closeSheet} accessibilityLabel={t('Close')} />
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.sheetWrap} pointerEvents="box-none">
           <SafeAreaView edges={['bottom', 'left', 'right']} style={s.sheet}>
             <View style={s.sheetHead}>
-              <Text style={s.sheetTitle}>Add a task</Text>
-              <Pressable onPress={closeSheet} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close">
+              <Text style={s.sheetTitle}>{t('Add a task')}</Text>
+              <Pressable onPress={closeSheet} hitSlop={10} accessibilityRole="button" accessibilityLabel={t('Close')}>
                 <X size={20} color={c.muted} strokeWidth={1.75} />
               </Pressable>
             </View>
@@ -384,7 +386,7 @@ export function TodayScreen({
                 value={title}
                 onChangeText={setTitle}
                 onSubmitEditing={add}
-                placeholder="Add a task or search ideas…"
+                placeholder={t('Add a task or search ideas…')}
                 placeholderTextColor={c.muted}
                 style={s.input}
                 returnKeyType="done"
@@ -394,7 +396,7 @@ export function TodayScreen({
                 disabled={!canAdd}
                 style={[s.plus, !canAdd && { opacity: 0.35 }]}
                 accessibilityRole="button"
-                accessibilityLabel="Add task"
+                accessibilityLabel={t('Add task')}
               >
                 <Plus size={22} color={brandInk(c)} strokeWidth={2.5} />
               </Pressable>
@@ -402,18 +404,18 @@ export function TodayScreen({
 
             {typed.length === 0 && quick.length > 0 && (
               <View style={{ gap: 8 }}>
-                <Text style={s.small}>Quick add</Text>
+                <Text style={s.small}>{t('Quick add')}</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.quickRow}>
-                  {quick.map((t) => (
+                  {quick.map((l) => (
                     <Pressable
-                      key={t.title}
-                      onPress={() => prefill(t)}
+                      key={l.id}
+                      onPress={() => prefill(l)}
                       style={s.quick}
                       accessibilityRole="button"
-                      accessibilityLabel={`Plan ${t.title}`}
+                      accessibilityLabel={t('Plan {task}', { task: libraryTitle(l) })}
                     >
                       <Plus size={14} color={c.accent} strokeWidth={2} />
-                      <Text style={s.quickText}>{t.title}</Text>
+                      <Text style={s.quickText}>{libraryTitle(l)}</Text>
                     </Pressable>
                   ))}
                 </ScrollView>
@@ -422,10 +424,10 @@ export function TodayScreen({
 
             {suggestions.length > 0 && (
               <View>
-                <Text style={s.small}>Suggestions</Text>
+                <Text style={s.small}>{t('Suggestions')}</Text>
                 <View style={{ marginTop: 8 }}>
-                  {suggestions.map((t) => (
-                    <LibraryRow key={t.id} task={t} onAdd={() => prefill(t)} />
+                  {suggestions.map((l) => (
+                    <LibraryRow key={l.id} task={l} onAdd={() => prefill(l)} />
                   ))}
                 </View>
               </View>
@@ -441,12 +443,12 @@ export function TodayScreen({
                     </Text>
                   )
                 ) : (
-                  <View style={s.estimate} accessibilityLabel={`Takes about ${durationLabel(chosenMinutes)}, ${xpFor(chosenMinutes, estimate.effort)} XP`}>
+                  <View style={s.estimate} accessibilityLabel={t('Takes about {time}, {xp} XP', { time: durationLabel(chosenMinutes), xp: xpFor(chosenMinutes, estimate.effort) })}>
                     <Sparkles size={16} color={c.accent} strokeWidth={1.5} aria-hidden />
                     <Text style={s.estimateText}>
-                      About <Text style={s.estimateStrong}>{durationLabel(chosenMinutes)}</Text> · +{xpFor(chosenMinutes, estimate.effort)} XP
+                      {t('About')} <Text style={s.estimateStrong}>{durationLabel(chosenMinutes)}</Text> · +{xpFor(chosenMinutes, estimate.effort)} XP
                     </Text>
-                    <Text style={s.estimateNote}>{estimate.source === 'default' ? 'standard time' : 'estimated from the title'}</Text>
+                    <Text style={s.estimateNote}>{estimate.source === 'default' ? t('standard time') : t('estimated from the title')}</Text>
                   </View>
                 )}
                 {measured && (
@@ -454,7 +456,7 @@ export function TodayScreen({
                     measure={measured.measure}
                     value={measured.amount}
                     onChange={(amount) => {
-                      setTitle(measuredTitle(measured.measure, amount));
+                      setTitle(shownMeasuredTitle(measured.measure, amount));
                       setStepDraft(undefined);
                     }}
                   />
@@ -462,11 +464,11 @@ export function TodayScreen({
                 <SchedulePicker value={shownSchedule} onChange={setSchedule} title={typed} today={today} />
                 {offerSteps && (
                   <View style={{ gap: 8 }}>
-                    <Text style={s.small}>Steps</Text>
+                    <Text style={s.small}>{t('Steps')}</Text>
                     <Text style={s.stepsHint}>
                       {shownSteps.length
-                        ? `+${stepXp} XP for each step, the rest when you finish. The last step finishes the task.`
-                        : 'Split a long task into steps to earn a little XP on the way.'}
+                        ? t('+{xp} XP for each step, the rest when you finish. The last step finishes the task.', { xp: stepXp })
+                        : t('Split a long task into steps to earn a little XP on the way.')}
                     </Text>
                     {shownSteps.map((st, i) => (
                       <View key={`${i}-${st}`} style={s.stepRow}>
@@ -476,7 +478,7 @@ export function TodayScreen({
                           onPress={() => setStepDraft(shownSteps.filter((_, j) => j !== i))}
                           hitSlop={8}
                           accessibilityRole="button"
-                          accessibilityLabel={`Remove step ${st}`}
+                          accessibilityLabel={t('Remove step {step}', { step: st })}
                         >
                           <X size={16} color={c.muted} strokeWidth={1.75} />
                         </Pressable>
@@ -488,23 +490,23 @@ export function TodayScreen({
                           value={newStep}
                           onChangeText={setNewStep}
                           onSubmitEditing={addStep}
-                          placeholder="Add a step"
+                          placeholder={t('Add a step')}
                           placeholderTextColor={c.muted}
                           maxLength={MAX_STEP_LENGTH}
                           style={s.stepInput}
                           returnKeyType="done"
                         />
-                        <Pressable onPress={addStep} disabled={!newStep.trim()} hitSlop={8} style={!newStep.trim() && { opacity: 0.35 }} accessibilityRole="button" accessibilityLabel="Add step">
+                        <Pressable onPress={addStep} disabled={!newStep.trim()} hitSlop={8} style={!newStep.trim() && { opacity: 0.35 }} accessibilityRole="button" accessibilityLabel={t('Add step')}>
                           <Plus size={18} color={c.accent} strokeWidth={2} />
                         </Pressable>
                       </View>
                     )}
                   </View>
                 )}
-                <Text style={s.small}>Category</Text>
+                <Text style={s.small}>{t('Category')}</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.quickRow}>
-                  {[...CATEGORIES, { id: OTHER_CATEGORY, label: 'Other' }].map((cat) => (
-                    <Chip key={cat.id} label={cat.label} active={chosenCategory === cat.id} onPress={() => setCategory(cat.id)} />
+                  {[...CATEGORIES, { id: OTHER_CATEGORY, label: N('Other') }].map((cat) => (
+                    <Chip key={cat.id} label={t(cat.label)} active={chosenCategory === cat.id} onPress={() => setCategory(cat.id)} />
                   ))}
                 </ScrollView>
                 <Pressable
@@ -514,18 +516,18 @@ export function TodayScreen({
                   accessibilityRole="button"
                 >
                   <Text style={s.addButtonText}>
-                    {nonsense ? 'Name it in words first' : problem ? 'Pick the days first' : `Add task${canAdd ? ` · +${xpFor(chosenMinutes, estimate.effort)} XP` : ''}`}
+                    {nonsense ? t('Name it in words first') : problem ? t('Pick the days first') : canAdd ? t('Add task · +{xp} XP', { xp: xpFor(chosenMinutes, estimate.effort) }) : t('Add task')}
                   </Text>
                 </Pressable>
                 <Pressable onPress={reset} style={s.cancel} accessibilityRole="button">
-                  <Text style={s.cancelText}>Start over</Text>
+                  <Text style={s.cancelText}>{t('Start over')}</Text>
                 </Pressable>
               </>
             )}
 
             {typed.length === 0 && (
               <VividButton
-                label="Browse the task library"
+                label={t('Browse the task library')}
                 kind="secondary"
                 compact
                 onPress={() => {

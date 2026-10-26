@@ -12,6 +12,7 @@ import { card, eyebrow, FONTS, themed, useStyles, useTheme } from '../theme';
 import { FLAMES, RARITY } from '../vivid';
 import { Fire } from './Fire';
 import { ConfettiBurst, Glyph, GradientText, VIVID_HEAVY, VividButton } from './Vivid';
+import { N, t } from '../i18n';
 
 export type Moment = { kind: 'perfect' } | { kind: 'streak'; days: number };
 
@@ -32,23 +33,23 @@ export function MomentCelebration({ moment, onClose }: { moment: Moment; onClose
   const cardStyle = useAnimatedStyle(() => ({ opacity: Math.min(1, pop.value * 1.5), transform: [{ scale: 0.7 + 0.3 * pop.value }] }));
 
   const perfect = moment.kind === 'perfect';
-  const title = perfect ? 'Perfect day' : `${moment.days}-day streak`;
+  const title = perfect ? t('Perfect day') : t('{n}-day streak', { n: moment.days });
   const body = perfect
-    ? `Every task for today is done. +${PERFECT_DAY_XP} XP bonus.`
+    ? t('Every task for today is done. +{xp} XP bonus.', { xp: PERFECT_DAY_XP })
     : moment.days >= 365
-      ? 'A whole year, every single day. Legendary.'
-      : `You showed up ${moment.days} days in a row. Keep the fire going.`;
+      ? t('A whole year, every single day. Legendary.')
+      : t('You showed up {n} days in a row. Keep the fire going.', { n: moment.days });
   const message = perfect
-    ? `Perfect day on ${APP_NAME}: every task done today ✨`
-    : `I just hit a ${moment.days}-day streak on ${APP_NAME} 🔥`;
+    ? t('Perfect day on {app}: every task done today ✨', { app: APP_NAME })
+    : t('I just hit a {n}-day streak on {app} 🔥', { n: moment.days, app: APP_NAME });
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={s.backdrop} onPress={onClose} accessibilityLabel="Close" />
+      <Pressable style={s.backdrop} onPress={onClose} accessibilityLabel={t('Close')} />
       <SafeAreaView style={s.center} pointerEvents="box-none">
         <ConfettiBurst scale={1.4} />
         <Animated.View style={[s.card, cardStyle]} accessibilityViewIsModal>
-          <Text style={s.eyebrow}>{perfect ? 'All done' : 'Streak milestone'}</Text>
+          <Text style={s.eyebrow}>{perfect ? t('All done') : t('Streak milestone')}</Text>
           <View style={s.emblem}>
             {perfect ? <Glyph name="Trophy" size={64} grad={RARITY.legendary} /> : <Fire tier={3} size={76} />}
           </View>
@@ -57,10 +58,10 @@ export function MomentCelebration({ moment, onClose }: { moment: Moment; onClose
           </GradientText>
           <Text style={s.body}>{body}</Text>
           <View style={s.buttons}>
-            <VividButton label="Share" kind="secondary" compact onPress={() => Share.share({ message }).catch(() => {})} />
-            <VividButton label="Nice!" compact onPress={onClose} />
+            <VividButton label={t('Share')} kind="secondary" compact onPress={() => Share.share({ message }).catch(() => {})} />
+            <VividButton label={t('Nice!')} compact onPress={onClose} />
           </View>
-          <Text style={[s.small, { color: c.faint }]}>Tap anywhere to close</Text>
+          <Text style={[s.small, { color: c.faint }]}>{t('Tap anywhere to close')}</Text>
         </Animated.View>
       </SafeAreaView>
     </Modal>
@@ -130,7 +131,7 @@ export function ComboPill({ count, play, style: place }: { count: number; play: 
   const label = (
     <View style={s.comboWords}>
       {piece('×', { fontFamily: VIVID_HEAVY })}
-      {piece(`${count}${look.suffix ?? ' combo'}`)}
+      {piece(`${count}${t(look.suffix ?? N(' combo'))}`)}
     </View>
   );
   const pill: ViewStyle = look.fill
@@ -166,7 +167,7 @@ export function ComboPill({ count, play, style: place }: { count: number; play: 
     </View>
   );
   return (
-    <Animated.View style={[s.combo, place, style]} pointerEvents="none" accessibilityLiveRegion="polite" accessibilityLabel={`${count} times combo`}>
+    <Animated.View style={[s.combo, place, style]} pointerEvents="none" accessibilityLiveRegion="polite" accessibilityLabel={t('{n} times combo', { n: count })}>
       {look.borderGradient ? (
         // A gradient border: the gradient behind, the fill on top, one pixel in.
         <View style={{ borderRadius: look.radius, padding: 1, backgroundColor: look.borderGradient[1], backgroundImage: `linear-gradient(90deg, ${look.borderGradient[0]}, ${look.borderGradient[1]})`, ...(look.shadow && { boxShadow: look.shadow }) } as ViewStyle}>

@@ -126,7 +126,7 @@ test('week dots: done days, rest days, today, missed and days still to come', ()
 test('the default theme is Indigo with its blue-violet fade, and Dusk can still be picked', () => {
   const src = readFileSync(new URL('./theme.tsx', import.meta.url), 'utf8');
   const first = src.slice(src.indexOf('export const THEMES'));
-  const ids = [...first.matchAll(/\bid: '(\w+)',\s*name: '(\w+)',(\s*reward:)?/g)].map((m) => [m[1], m[2], !!m[3]]);
+  const ids = [...first.matchAll(/\bid: '(\w+)',\s*name: N\('(\w+)'\),(\s*reward:)?/g)].map((m) => [m[1], m[2], !!m[3]]);
   assert.deepEqual(ids[0], ['classic', 'Indigo', false], 'everyone on the default moves to Indigo');
   assert.deepEqual(ids[1], ['dusk', 'Dusk', false], 'Dusk stays free to pick');
   assert.equal(new Set(ids.map((i) => i[0])).size, ids.length, 'theme ids are unique');

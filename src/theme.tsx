@@ -1,5 +1,6 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import { Platform, StyleSheet, type ImageStyle, type TextStyle, type ViewStyle } from 'react-native';
+import { N } from './i18n';
 
 type NamedStyles = { [key: string]: ViewStyle | TextStyle | ImageStyle };
 
@@ -199,7 +200,7 @@ const CORMORANT = heading('CormorantGaramond_500Medium', 'CormorantGaramond_500M
 export const THEMES: ThemeDef[] = [
   {
     id: 'classic',
-    name: 'Indigo',
+    name: N('Indigo'),
     palette: palette({
       colors: ['12151f', '1b2030', '262c40', '2f3650', 'eef1fa', 'b6bdd2', '8f97ae', '59607a', 'a3b3ea', '12151f'],
       bgImage: 'linear-gradient(165deg, #13213a 0%, #12151f 48%, #1f1636 100%)',
@@ -210,7 +211,7 @@ export const THEMES: ThemeDef[] = [
   },
   {
     id: 'dusk',
-    name: 'Dusk',
+    name: N('Dusk'),
     palette: palette({
       colors: ['1c1815', '28221e', '322a25', '4a423a', 'f4f0e9', 'c4bbaf', 'a0968a', '6e6458', 'd4b27a', '1c1815'],
       radius: 4, listStyle: 'lines', check: 'circle', lineWeight: 2, tip: true,
@@ -219,7 +220,7 @@ export const THEMES: ThemeDef[] = [
   },
   {
     id: 'forest',
-    name: 'Forest',
+    name: N('Forest'),
     reward: 'Forest theme',
     palette: palette({
       light: true,
@@ -232,7 +233,7 @@ export const THEMES: ThemeDef[] = [
   },
   {
     id: 'ocean',
-    name: 'Ocean',
+    name: N('Ocean'),
     reward: 'Ocean theme',
     // Dark since the animated themes (spec "themes-frames-event"): deep sea, boat on the bar.
     palette: palette({
@@ -246,7 +247,7 @@ export const THEMES: ThemeDef[] = [
   },
   {
     id: 'sunset',
-    name: 'Sunset',
+    name: N('Sunset'),
     reward: 'Sunset theme',
     palette: palette({
       light: true,
@@ -260,7 +261,7 @@ export const THEMES: ThemeDef[] = [
   },
   {
     id: 'thunder',
-    name: 'Thunder',
+    name: N('Thunder'),
     reward: 'Thunder theme',
     palette: palette({
       colors: ['15161c', '1f2028', '282a34', '3a3c48', 'f1f1f5', 'b9bac6', '9496a4', '5d6070', 'e6d36a', '15161c'],
@@ -281,7 +282,7 @@ export const THEMES: ThemeDef[] = [
   },
   {
     id: 'summit',
-    name: 'Summit',
+    name: N('Summit'),
     reward: 'Summit theme',
     palette: palette({
       light: true,
@@ -294,7 +295,7 @@ export const THEMES: ThemeDef[] = [
   },
   {
     id: 'ember',
-    name: 'Ember',
+    name: N('Ember'),
     reward: 'Ember theme',
     palette: palette({
       colors: ['1e1614', '2b1f1b', '352722', '4f3a33', 'f6eee9', 'cbb9b1', 'a8968e', '75605a', 'ea8d66', '1e1614'],
@@ -306,7 +307,7 @@ export const THEMES: ThemeDef[] = [
   },
   {
     id: 'gold',
-    name: 'Gold',
+    name: N('Gold'),
     reward: 'Gold theme',
     // Design "Noir": black and gold, a sheen running round the task cards, gold dust.
     palette: palette({
@@ -321,7 +322,7 @@ export const THEMES: ThemeDef[] = [
   },
   {
     id: 'midnight',
-    name: 'Midnight',
+    name: N('Midnight'),
     reward: 'Midnight theme',
     palette: palette({
       colors: ['12141c', '1b1e29', '242838', '343a4c', 'eef1fa', 'b6bdd2', '8f97ae', '59607a', 'a3b3ea', '12141c'],
@@ -334,7 +335,7 @@ export const THEMES: ThemeDef[] = [
   },
   {
     id: 'neon',
-    name: 'Neon',
+    name: N('Neon'),
     reward: 'Neon theme',
     palette: palette({
       colors: ['0a0614', '120822', '1c1030', '3a2266', 'f2eaff', 'cdbcee', 'a58fd0', '6b5296', '22e8ff', '0a0614'],
@@ -347,7 +348,7 @@ export const THEMES: ThemeDef[] = [
   },
   {
     id: 'notepad',
-    name: 'Notepad',
+    name: N('Notepad'),
     reward: 'Notepad theme',
     palette: palette({
       light: true,
@@ -369,7 +370,7 @@ export const THEMES: ThemeDef[] = [
   },
   {
     id: 'gym',
-    name: 'Gym',
+    name: N('Gym'),
     reward: 'Gym theme',
     palette: palette({
       colors: ['141518', '1e2024', '2a2d33', '33363d', 'f4f4f2', 'c4c6cb', '9a9da4', '5e6168', 'ff5a1f', '141518'],
@@ -383,7 +384,7 @@ export const THEMES: ThemeDef[] = [
   {
     // Only won on the lucky wheel (design thread, "Fortuna theme and wheel spec").
     id: 'fortune',
-    name: 'Fortuna',
+    name: N('Fortuna'),
     reward: 'Fortuna theme',
     palette: palette({
       colors: ['120a1f', '1f1530', '2a1d40', '3d2d5c', 'fbf6ea', 'cfc3e0', 'a596bf', '7a66a2', 'f2c55c', '2a1600'],

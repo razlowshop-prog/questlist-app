@@ -1,4 +1,5 @@
 import { addDays, DEFAULT_MINUTES, weekStart, type GameState } from './game.ts';
+import { N, t, tn } from './i18n.ts';
 
 // The weekly recap: a short look back at the week, shown on Today from
 // Sunday evening until Monday is over, and easy to share.
@@ -6,7 +7,8 @@ import { addDays, DEFAULT_MINUTES, weekStart, type GameState } from './game.ts';
 /** Sunday from this hour on shows the week that is ending. */
 export const RECAP_SUNDAY_HOUR = 17;
 
-const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+/** In English; shown with t(). */
+const WEEKDAYS = [N('Monday'), N('Tuesday'), N('Wednesday'), N('Thursday'), N('Friday'), N('Saturday'), N('Sunday')];
 
 export interface WeekRecap {
   /** Monday of the week. */
@@ -50,6 +52,7 @@ export function recapToShow(state: GameState, today: string, hour: number): Week
 }
 
 export function recapShareText(recap: WeekRecap, appName: string): string {
-  const best = recap.bestDay ? ` Best day: ${recap.bestDay.name}.` : '';
-  return `My week on ${appName}: ${recap.tasks} ${recap.tasks === 1 ? 'task' : 'tasks'} done, +${recap.xp} XP, active ${recap.activeDays} of 7 days.${best}`;
+  const best = recap.bestDay ? ` ${t('Best day: {day}.', { day: t(recap.bestDay.name) })}` : '';
+  const vars = { app: appName, xp: recap.xp, days: recap.activeDays };
+  return tn(recap.tasks, 'My week on {app}: {n} task done, +{xp} XP, active {days} of 7 days.', 'My week on {app}: {n} tasks done, +{xp} XP, active {days} of 7 days.', vars) + best;
 }

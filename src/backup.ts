@@ -1,4 +1,5 @@
 import { levelInfo, mergeSaved, totalXp, type GameState } from './game.ts';
+import { t } from './i18n.ts';
 
 // A backup file of everything the app keeps on this phone: the game state and
 // the profile photo. Until accounts and cloud sync exist this is the only way
@@ -43,7 +44,7 @@ export function backupName(today: string): string {
   return `succedo-backup-${today}.json`;
 }
 
-const NOT_A_BACKUP = `This isn’t a ${APP} backup file.`;
+const notABackup = () => t('This isn’t a {app} backup file.', { app: APP });
 
 /** Reads a backup file's text, or says why it can't be used. */
 export function readBackup(text: string): BackupRead {
@@ -51,21 +52,21 @@ export function readBackup(text: string): BackupRead {
   try {
     file = JSON.parse(text);
   } catch {
-    return { ok: false, error: NOT_A_BACKUP };
+    return { ok: false, error: notABackup() };
   }
-  if (!file || typeof file !== 'object') return { ok: false, error: NOT_A_BACKUP };
+  if (!file || typeof file !== 'object') return { ok: false, error: notABackup() };
   const f = file as Record<string, unknown>;
-  if (f.app !== APP || f.kind !== KIND) return { ok: false, error: NOT_A_BACKUP };
+  if (f.app !== APP || f.kind !== KIND) return { ok: false, error: notABackup() };
   if (typeof f.version !== 'number' || f.version > BACKUP_VERSION) {
-    return { ok: false, error: `This backup comes from a newer version of ${APP}. Update the app, then try again.` };
+    return { ok: false, error: t('This backup comes from a newer version of {app}. Update the app, then try again.', { app: APP }) };
   }
   const state = f.state as Partial<GameState> | undefined;
   if (!state || typeof state !== 'object' || !Array.isArray(state.tasks) || !Array.isArray(state.completions) || typeof state.settings !== 'object' || !state.settings) {
-    return { ok: false, error: NOT_A_BACKUP };
+    return { ok: false, error: notABackup() };
   }
   const photo = typeof f.photo === 'string' && f.photo.startsWith('data:image/') ? f.photo : undefined;
   if (f.check !== checksum(body(state as GameState, typeof f.photo === 'string' ? f.photo : undefined))) {
-    return { ok: false, error: 'This file was changed after it was saved, so it can’t be restored.' };
+    return { ok: false, error: t('This file was changed after it was saved, so it can’t be restored.') };
   }
   return { ok: true, state: mergeSaved(state), photo, savedAt: typeof f.savedAt === 'string' ? f.savedAt : '' };
 }

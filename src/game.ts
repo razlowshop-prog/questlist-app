@@ -1,8 +1,10 @@
 import type { CelebrationId, FlameStyleId } from './cosmetics.ts';
 import { EFFORT_FACTOR, WILLPOWER_XP, type Effort } from './effort.ts';
 import { taskEffort, tooEarlyToTick } from './estimate.ts';
+import { lang, N, t, type Lang } from './i18n.ts';
 import type { FocusSession } from './focus.ts';
 import type { IconName } from './icons.ts';
+import { shownTitle } from './library.ts';
 
 // Pure game rules: XP, levels, ranks and streaks. No React or storage here,
 // so everything in this file can be unit tested.
@@ -226,6 +228,8 @@ export interface Settings {
   reviewAsks?: string[];
   /** Small vibrations on tick, level up and the wheel; on unless turned off. */
   haptics?: boolean;
+  /** The app's language; unset follows the phone (English unless the phone is in German). */
+  lang?: Lang;
   /** Monday of the last week whose recap was seen or closed. */
   recapSeen?: string;
   /** The first-steps card on Today was hidden. */
@@ -247,11 +251,14 @@ export type QuoteSide = 'quote' | 'greet';
 /** Evening time of the "your streak is about to end" notification. */
 export const STREAK_REMINDER_HOUR = 20;
 
+/** The name a player has until they type one; saved in English like other data. */
+export const DEFAULT_NAME = N('Player');
+
 export const emptyState: GameState = {
   tasks: [],
   completions: [],
   claims: [],
-  profile: { name: 'Player' },
+  profile: { name: DEFAULT_NAME },
   onboarded: false,
   goals: [],
   settings: { quoteEmails: false, email: '', theme: 'classic' },
@@ -302,23 +309,24 @@ export function taskXp(task: Task): number {
 }
 
 export function durationLabel(minutes: number): string {
-  if (minutes < 60) return `${minutes} min`;
+  if (minutes < 60) return t('{n} min', { n: minutes });
   const h = minutes / 60;
-  return `${Number.isInteger(h) ? h : h.toFixed(1)} h`;
+  const shown = Number.isInteger(h) ? String(h) : h.toFixed(1);
+  return t('{n} h', { n: lang() === 'de' ? shown.replace('.', ',') : shown });
 }
 
 const RANKS = [
-  'Rookie', // 1-9
-  'Apprentice', // 10-19
-  'Achiever',
-  'Go-Getter',
-  'Pro',
-  'Expert',
-  'Master',
-  'Grandmaster',
-  'Legend',
-  'Mythic', // 90-99
-  'Immortal', // 100
+  N('Rookie'), // 1-9
+  N('Apprentice'), // 10-19
+  N('Achiever'),
+  N('Go-Getter'),
+  N('Pro'),
+  N('Expert'),
+  N('Master'),
+  N('Grandmaster'),
+  N('Legend'),
+  N('Mythic'), // 90-99
+  N('Immortal'), // 100
 ];
 
 export const MAX_LEVEL = 100;
@@ -372,7 +380,7 @@ export function levelInfo(totalXp: number) {
 }
 
 export function rankFor(level: number): string {
-  return RANKS[Math.min(Math.floor(level / 10), RANKS.length - 1)];
+  return t(RANKS[Math.min(Math.floor(level / 10), RANKS.length - 1)]);
 }
 
 export function totalXp(state: GameState): number {
@@ -413,13 +421,13 @@ export function wheelXp(state: Pick<GameState, 'wheelSpins'>): number {
  * Flame also lights right away, the day a streak has earned its weekXp.
  */
 export const STREAK_TIERS = [
-  { tier: 1, name: 'Flame', weekXp: 100 },
-  { tier: 2, name: 'Blaze', weekXp: 200 },
-  { tier: 3, name: 'Inferno', weekXp: 300 },
+  { tier: 1, name: N('Flame'), weekXp: 100 },
+  { tier: 2, name: N('Blaze'), weekXp: 200 },
+  { tier: 3, name: N('Inferno'), weekXp: 300 },
 ] as const;
 
 export function streakTierName(tier: number): string {
-  return tier === 0 ? 'Spark' : STREAK_TIERS[tier - 1].name;
+  return t(tier === 0 ? N('Spark') : STREAK_TIERS[tier - 1].name);
 }
 
 export interface StreakStatus {
@@ -551,9 +559,10 @@ export function comebackDaysLeft(state: Pick<GameState, 'completions' | 'restDay
  */
 export function xpMultiplier(state: GameState, today: string): { total: number; parts: { label: string; x: number }[]; streak: number } {
   const streak = currentStreak([...state.completions, { taskId: '', date: today, xp: 0 }], today, restDaysOf(state));
-  const parts = [{ label: 'Streak', x: 1 + streakBonus(streak) }];
-  if (state.doubleDays?.includes(today)) parts.push({ label: 'Double XP', x: 2 });
-  if (comebackDaysLeft(state, today) > 0) parts.push({ label: 'Comeback', x: 1 + COMEBACK_BONUS });
+  // Labels in English; shown with t().
+  const parts = [{ label: N('Streak'), x: 1 + streakBonus(streak) }];
+  if (state.doubleDays?.includes(today)) parts.push({ label: N('Double XP'), x: 2 });
+  if (comebackDaysLeft(state, today) > 0) parts.push({ label: N('Comeback'), x: 1 + COMEBACK_BONUS });
   return { total: parts.reduce((t, p) => t * p.x, 1), parts, streak };
 }
 
@@ -598,10 +607,11 @@ export function weekdayOf(day: string): number {
 
 /**
  * Most times per week a task may repeat. Tasks for the whole week, like
- * "Meal prep for the week" or a "Weekly review", only make sense once.
+ * "Meal prep for the week" or a "Weekly review" ("Wochenplanung" in German),
+ * only make sense once.
  */
 export function maxPerWeek(title: string): number {
-  return /\b(week|weekly|weekend)\b/i.test(title) ? 1 : 7;
+  return /\b(week|weekly|weekend)\b/i.test(title) || /(?<!\p{L})(woche|wöchentlich)/iu.test(title) ? 1 : 7;
 }
 
 /** Whether a task is planned for this day at all (before checking what is done). */
@@ -758,9 +768,9 @@ export function toggleTask(state: GameState, taskId: string, today: string, now?
 export function limitMessage(limit: Limit): string {
   switch (limit) {
     case 'daily':
-      return 'Daily limit of 16 h of tasks reached';
+      return t('Daily limit of 16 h of tasks reached');
     case 'repeat':
-      return 'Done more than 5 times today: less XP';
+      return t('Done more than 5 times today: less XP');
   }
 }
 
@@ -847,23 +857,23 @@ export interface ChallengeDef {
 }
 
 export const CHALLENGE_POOL: ChallengeDef[] = [
-  { id: 'tasks15', title: 'Finish 15 tasks this week', icon: 'ListChecks', rewardXp: 100, target: 15, unit: 'tasks', metric: 'tasksDone' },
-  { id: 'tasks25', title: 'Finish 25 tasks this week', icon: 'Trophy', rewardXp: 180, target: 25, unit: 'tasks', metric: 'tasksDone' },
-  { id: 'hours5', title: 'Spend 5 hours on your tasks', icon: 'Hourglass', rewardXp: 120, target: 5, unit: 'h', metric: 'hoursDone' },
-  { id: 'hours10', title: 'Spend 10 hours on your tasks', icon: 'Timer', rewardXp: 200, target: 10, unit: 'h', metric: 'hoursDone' },
-  { id: 'long3', title: 'Finish 3 tasks of an hour or more', icon: 'Mountain', rewardXp: 120, target: 3, unit: 'long tasks', metric: 'longDone' },
-  { id: 'variety8', title: 'Do 8 different tasks', icon: 'Shuffle', rewardXp: 110, target: 8, unit: 'tasks', metric: 'variety' },
-  { id: 'busy3', title: 'Finish 3 or more tasks on 3 days', icon: 'Rocket', rewardXp: 130, target: 3, unit: 'days', metric: 'busyDays' },
-  { id: 'days5', title: 'Be active on 5 days', icon: 'CalendarDays', rewardXp: 120, target: 5, unit: 'days', metric: 'activeDays' },
-  { id: 'days7', title: 'Be active every day this week', icon: 'CalendarCheck', rewardXp: 200, target: 7, unit: 'days', metric: 'activeDays' },
-  { id: 'xp300', title: 'Earn 300 XP from tasks', icon: 'Zap', rewardXp: 100, target: 300, unit: 'XP', metric: 'xpEarned' },
-  { id: 'xp600', title: 'Earn 600 XP from tasks', icon: 'Gem', rewardXp: 180, target: 600, unit: 'XP', metric: 'xpEarned' },
+  { id: 'tasks15', title: N('Finish 15 tasks this week'), icon: 'ListChecks', rewardXp: 100, target: 15, unit: N('tasks'), metric: 'tasksDone' },
+  { id: 'tasks25', title: N('Finish 25 tasks this week'), icon: 'Trophy', rewardXp: 180, target: 25, unit: N('tasks'), metric: 'tasksDone' },
+  { id: 'hours5', title: N('Spend 5 hours on your tasks'), icon: 'Hourglass', rewardXp: 120, target: 5, unit: N('h'), metric: 'hoursDone' },
+  { id: 'hours10', title: N('Spend 10 hours on your tasks'), icon: 'Timer', rewardXp: 200, target: 10, unit: N('h'), metric: 'hoursDone' },
+  { id: 'long3', title: N('Finish 3 tasks of an hour or more'), icon: 'Mountain', rewardXp: 120, target: 3, unit: N('long tasks'), metric: 'longDone' },
+  { id: 'variety8', title: N('Do 8 different tasks'), icon: 'Shuffle', rewardXp: 110, target: 8, unit: N('tasks'), metric: 'variety' },
+  { id: 'busy3', title: N('Finish 3 or more tasks on 3 days'), icon: 'Rocket', rewardXp: 130, target: 3, unit: N('days'), metric: 'busyDays' },
+  { id: 'days5', title: N('Be active on 5 days'), icon: 'CalendarDays', rewardXp: 120, target: 5, unit: N('days'), metric: 'activeDays' },
+  { id: 'days7', title: N('Be active every day this week'), icon: 'CalendarCheck', rewardXp: 200, target: 7, unit: N('days'), metric: 'activeDays' },
+  { id: 'xp300', title: N('Earn 300 XP from tasks'), icon: 'Zap', rewardXp: 100, target: 300, unit: N('XP'), metric: 'xpEarned' },
+  { id: 'xp600', title: N('Earn 600 XP from tasks'), icon: 'Gem', rewardXp: 180, target: 600, unit: N('XP'), metric: 'xpEarned' },
 ];
 
 /** Need phone sensors or health data, so they arrive with the phone app builds. */
 export const SENSOR_CHALLENGES: ChallengeDef[] = [
-  { id: 'sleep8', title: 'Sleep 8 hours with your phone down', icon: 'Moon', rewardXp: 150, target: 5, unit: 'nights' },
-  { id: 'walk10', title: 'Walk 10 km this week', icon: 'Footprints', rewardXp: 150, target: 10, unit: 'km' },
+  { id: 'sleep8', title: N('Sleep 8 hours with your phone down'), icon: 'Moon', rewardXp: 150, target: 5, unit: N('nights') },
+  { id: 'walk10', title: N('Walk 10 km this week'), icon: 'Footprints', rewardXp: 150, target: 10, unit: N('km') },
 ];
 
 /** Three challenges per week, the same for everyone, rotating weekly. */
@@ -953,23 +963,37 @@ export function profileStats(state: GameState, today: string) {
   };
 }
 
-export const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const WEEKDAY_NAMES = [N('Mon'), N('Tue'), N('Wed'), N('Thu'), N('Fri'), N('Sat'), N('Sun')];
+
+/** Short weekday names, Monday first, in the current language. */
+export function weekdays(): string[] {
+  return WEEKDAY_NAMES.map((d) => t(d));
+}
+
+/** "Every day", "3× a week" (also used by the library, which has no task yet). */
+export function perWeekLabel(n: number): string {
+  if (n === 0) return t('One-time');
+  if (n >= 7) return t('Every day');
+  return n === 1 ? t('Once a week') : t('{n}× a week', { n });
+}
 
 export function repeatLabel(task: Task): string {
   const n = timesPerWeek(task);
-  if (n === 0) return task.date ? `One-time · ${dayLabel(task.date)}` : 'One-time';
-  if (n === 7) return 'Every day';
+  if (n === 0) return task.date ? `${t('One-time')} · ${dayLabel(task.date)}` : t('One-time');
+  if (n === 7) return t('Every day');
   if (task.days?.length) {
-    if (task.days.join() === '0,1,2,3,4') return 'Weekdays';
-    if (task.days.join() === '5,6') return 'Weekends';
-    return task.days.map((d) => WEEKDAYS[d]).join(', ');
+    if (task.days.join() === '0,1,2,3,4') return t('Weekdays');
+    if (task.days.join() === '5,6') return t('Weekends');
+    return task.days.map((d) => weekdays()[d]).join(', ');
   }
-  return n === 1 ? 'Once a week' : `${n}× a week`;
+  return perWeekLabel(n);
 }
 
-/** "Wed 23", in English like the rest of the app. */
+/** "Wed 23" in English, "Mi, 23." in German. */
 export function dayLabel(day: string): string {
-  return `${WEEKDAYS[weekdayOf(day)]} ${Number(day.slice(8, 10))}`;
+  const name = weekdays()[weekdayOf(day)];
+  const date = Number(day.slice(8, 10));
+  return lang() === 'de' ? `${name}, ${date}.` : `${name} ${date}`;
 }
 
 export interface PlannedReminder {
@@ -1004,7 +1028,7 @@ export function reminderPlan(state: GameState, now: Date, days = 7, limit = 60):
       }
       const [y, mo, d] = day.split('-').map(Number);
       const at = new Date(y, mo - 1, d, h, m);
-      if (at.getTime() > now.getTime()) out.push({ taskId: task.id, title: task.title, at });
+      if (at.getTime() > now.getTime()) out.push({ taskId: task.id, title: shownTitle(task.title), at });
     }
   }
   // Streak warning at 20:00 on days nothing is done yet, today and the next two.
@@ -1013,15 +1037,23 @@ export function reminderPlan(state: GameState, now: Date, days = 7, limit = 60):
     // A rest day already covers today.
     const doneToday = state.completions.some((c) => c.date === today) || restDaysOf(state).includes(today);
     const fire = streakTierName(streak.tier);
-    const ends = streak.tier >= 2 ? `drops from ${fire} to ${streakTierName(streak.tier - 1)}` : 'ends';
+    const lower = streak.tier >= 2 ? streakTierName(streak.tier - 1) : '';
     for (let i = doneToday ? 1 : 0; i < 3; i++) {
       const [y, mo, d] = addDays(today, i).split('-').map(Number);
       const at = new Date(y, mo - 1, d, STREAK_REMINDER_HOUR, 0);
       if (at.getTime() <= now.getTime()) continue;
       out.push(
         i === 0
-          ? { taskId: 'streak', title: `Your ${streak.days}-day streak ${ends} at midnight`, body: 'One task today keeps it going.', at }
-          : { taskId: 'streak', title: 'Keep your streak alive', body: 'Nothing done yet today. One task is enough.', at },
+          ? {
+              taskId: 'streak',
+              title:
+                streak.tier >= 2
+                  ? t('Your {days}-day streak drops from {fire} to {lower} at midnight', { days: streak.days, fire, lower })
+                  : t('Your {days}-day streak ends at midnight', { days: streak.days }),
+              body: t('One task today keeps it going.'),
+              at,
+            }
+          : { taskId: 'streak', title: t('Keep your streak alive'), body: t('Nothing done yet today. One task is enough.'), at },
       );
     }
   }
@@ -1035,6 +1067,11 @@ export function finishSetup(state: GameState, name: string, goals: string[]): Ga
 
 export function updateSettings(state: GameState, settings: Partial<Settings>): GameState {
   return { ...state, settings: { ...state.settings, ...settings } };
+}
+
+/** The player's name as shown: the placeholder name in the current language. */
+export function shownName(name: string): string {
+  return name === DEFAULT_NAME ? t(DEFAULT_NAME) : name;
 }
 
 export function setName(state: GameState, name: string): GameState {

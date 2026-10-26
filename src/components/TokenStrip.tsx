@@ -5,6 +5,7 @@ import { card, themed, useStyles, useTheme } from '../theme';
 import { doubleXpActive, restOffer } from '../tokens';
 import { TOKEN_ICONS } from './RewardPicture';
 import { brandFillSmall, brandInk } from './Vivid';
+import { t, tn } from '../i18n';
 
 /**
  * Boosts that matter today, under the streak card: a rest day offer when one
@@ -26,10 +27,11 @@ export function TokenStrip({ state, today, onRest }: { state: GameState; today: 
         <Pressable onPress={() => onRest(offer.day)} style={s.offer} accessibilityRole="button">
           <TOKEN_ICONS.rest size={18} color={c.accent} strokeWidth={1.5} aria-hidden />
           <Text style={s.offerText}>
-            You missed yesterday. Use a rest day to keep{' '}
-            {offer.streakLost ? `your ${offer.keeps}-day streak` : `your ${streakTierName(offer.tier)} fire`}.
+            {offer.streakLost
+              ? t('You missed yesterday. Use a rest day to keep your {n}-day streak.', { n: offer.keeps })
+              : t('You missed yesterday. Use a rest day to keep your {tier} fire.', { tier: streakTierName(offer.tier) })}
           </Text>
-          <Text style={s.offerAction}>Use</Text>
+          <Text style={s.offerAction}>{t('Use')}</Text>
         </Pressable>
       )}
       {(double || comeback > 0) && (
@@ -37,17 +39,17 @@ export function TokenStrip({ state, today, onRest }: { state: GameState; today: 
           {double && (
             <View style={[s.pill, s.pillActive]}>
               <TOKEN_ICONS.double size={14} color={brandInk(c)} strokeWidth={2} aria-hidden />
-              <Text style={[s.pillText, { color: brandInk(c) }]}>2x XP today</Text>
+              <Text style={[s.pillText, { color: brandInk(c) }]}>{t('2x XP today')}</Text>
             </View>
           )}
           {comeback > 0 && (
             <View style={s.pill}>
               <TrendingUp size={14} color={c.accent} strokeWidth={1.75} aria-hidden />
               <Text style={s.pillText}>
-                Comeback boost: +{Math.round(COMEBACK_BONUS * 100)}% XP
+                {t('Comeback boost: +{pct}% XP', { pct: Math.round(COMEBACK_BONUS * 100) })}
               </Text>
               <Text style={s.pillCount}>
-                {comeback} {comeback === 1 ? 'day' : 'days'}
+                {tn(comeback, '{n} day', '{n} days')}
               </Text>
             </View>
           )}

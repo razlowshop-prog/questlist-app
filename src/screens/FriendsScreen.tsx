@@ -3,6 +3,7 @@ import { Avatar } from '../components/ProfileFrame';
 import { GradientText, Sticker, VIVID_HEAVY, VividSwitch } from '../components/Vivid';
 import { card, FONTS, themed, useStyles } from '../theme';
 import { brandLine, RARITY } from '../vivid';
+import { num, t } from '../i18n';
 
 /**
  * The Friends and Leaderboard pages from the Menu. Both need accounts, so
@@ -34,35 +35,34 @@ export function FriendsScreen({
       {view === 'friends' ? (
         <View style={s.card}>
           <Sticker grad={RARITY.rare} glyph="UsersThree" size={48} />
-          <Text style={s.title}>Friends arrive with accounts</Text>
+          <Text style={s.title}>{t('Friends arrive with accounts')}</Text>
           <Text style={s.body}>
-            Soon you can find people, add friends and contacts, accept requests and see each other’s level and streak. Everyone
-            who chooses to share shows up in your activity feed.
+            {t('Soon you can find people, add friends and contacts, accept requests and see each other’s level and streak. Everyone who chooses to share shows up in your activity feed.')}
           </Text>
           <View style={s.shareRow}>
             <View style={{ flex: 1 }}>
-              <Text style={s.shareTitle}>Share my activity with friends</Text>
-              <Text style={s.small}>Off unless you turn it on. Only friends you add will see it.</Text>
+              <Text style={s.shareTitle}>{t('Share my activity with friends')}</Text>
+              <Text style={s.small}>{t('Off unless you turn it on. Only friends you add will see it.')}</Text>
             </View>
-            <VividSwitch value={shareActivity} onValueChange={onShareActivity} accessibilityLabel="Share my activity with friends" />
+            <VividSwitch value={shareActivity} onValueChange={onShareActivity} accessibilityLabel={t('Share my activity with friends')} />
           </View>
         </View>
       ) : (
         <>
-          <View style={s.me} accessible accessibilityLabel={`You, ${name}: level ${level}, ${streak}-day streak, ${totalXp} XP`}>
+          <View style={s.me} accessible accessibilityLabel={t('You, {name}: level {level}, {n}-day streak, {xp} XP', { name, level, n: streak, xp: num(totalXp) })}>
             <Text style={s.rank}>–</Text>
             <Avatar initials={initials} size={36} />
             <View style={{ flex: 1 }}>
               <Text style={s.meName} numberOfLines={1}>
-                {name || 'You'}
+                {name || t('You')}
               </Text>
               <Text style={s.small}>
-                Level {level} · {streak} day streak
+                {t('Level {n}', { n: level })} · {t('{n}-day streak', { n: streak })}
               </Text>
             </View>
-            <GradientText style={s.xp}>{totalXp.toLocaleString()} XP</GradientText>
+            <GradientText style={s.xp}>{num(totalXp)} XP</GradientText>
           </View>
-          <Text style={s.note}>The global leaderboard opens once accounts arrive. Your spot is ready: the XP you earn now counts.</Text>
+          <Text style={s.note}>{t('The global leaderboard opens once accounts arrive. Your spot is ready: the XP you earn now counts.')}</Text>
         </>
       )}
     </ScrollView>

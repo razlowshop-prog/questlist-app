@@ -10,6 +10,7 @@ import {
   type StepTick,
   type Task,
 } from './game.ts';
+import { t } from './i18n.ts';
 import { librarySteps } from './library.ts';
 
 // Steps for long tasks: each ticked step pays a little XP right away, and
@@ -35,8 +36,8 @@ export function suggestedSteps(title: string, minutes: number): string[] {
 export function timeCheckpoints(minutes: number): string[] {
   if (minutes < CHECKPOINT_MINUTES) return [];
   const parts = minutes <= 90 ? 3 : 4;
-  const marks = Array.from({ length: parts - 1 }, (_, i) => `${durationLabel(Math.round((minutes * (i + 1)) / parts / 5) * 5)} in`);
-  return [...marks, `Full ${durationLabel(minutes)} done`];
+  const marks = Array.from({ length: parts - 1 }, (_, i) => t('{time} in', { time: durationLabel(Math.round((minutes * (i + 1)) / parts / 5) * 5) }));
+  return [...marks, t('Full {time} done', { time: durationLabel(minutes) })];
 }
 
 /** XP for one step: an even share of STEP_SHARE, with today's multiplier. */

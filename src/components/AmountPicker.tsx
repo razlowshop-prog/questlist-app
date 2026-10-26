@@ -3,8 +3,9 @@ import { amountLabel, clampAmount, MEASURE_RANGES, UNIT_STARTS, type Amount, typ
 import { eyebrow, themed, useStyles } from '../theme';
 import { Chip } from './Chip';
 import { Stepper } from './Stepper';
+import { N, t } from '../i18n';
 
-const UNIT_NAMES: Record<MeasureUnit, string> = { min: 'Time', km: 'Distance', steps: 'Steps' };
+const UNIT_NAMES: Record<MeasureUnit, string> = { min: N('Time'), km: N('Distance'), steps: N('Steps') };
 
 /** How far or how long for Walk and Run (time or distance), or how many steps. XP follows the amount. */
 export function AmountPicker({ measure, value, onChange }: { measure: Measure; value: Amount; onChange: (a: Amount) => void }) {
@@ -13,11 +14,11 @@ export function AmountPicker({ measure, value, onChange }: { measure: Measure; v
   const range = MEASURE_RANGES[measure][value.unit]!;
   return (
     <>
-      <Text style={s.small}>{measure === 'steps' ? 'How many steps?' : 'How far or how long?'}</Text>
+      <Text style={s.small}>{measure === 'steps' ? t('How many steps?') : t('How far or how long?')}</Text>
       {units.length > 1 && (
         <View style={s.row}>
           {units.map((u) => (
-            <Chip key={u} label={UNIT_NAMES[u]} active={value.unit === u} onPress={() => u !== value.unit && onChange(clampAmount(measure, { unit: u, value: UNIT_STARTS[measure][u]! }))} />
+            <Chip key={u} label={t(UNIT_NAMES[u])} active={value.unit === u} onPress={() => u !== value.unit && onChange(clampAmount(measure, { unit: u, value: UNIT_STARTS[measure][u]! }))} />
           ))}
         </View>
       )}

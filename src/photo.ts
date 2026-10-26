@@ -1,5 +1,7 @@
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
+import { APP_NAME } from './brand';
+import { t } from './i18n';
 
 /** Profile photos are stored this big: sharp on a large avatar, a few dozen KB. */
 const SIZE = 256;
@@ -15,7 +17,7 @@ export async function pickPhoto(from: 'library' | 'camera'): Promise<PhotoResult
   try {
     if (from === 'camera') {
       const permission = await ImagePicker.requestCameraPermissionsAsync();
-      if (!permission.granted) return { error: 'Succedo needs the camera to take a photo. You can allow it in your phone settings.' };
+      if (!permission.granted) return { error: t('{app} needs the camera to take a photo. You can allow it in your phone settings.', { app: APP_NAME }) };
     }
     const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 1 };
     const result = from === 'camera' ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
@@ -30,10 +32,10 @@ export async function pickPhoto(from: 'library' | 'camera'): Promise<PhotoResult
     context.resize({ width: SIZE, height: SIZE });
     const image = await context.renderAsync();
     const saved = await image.saveAsync({ format: SaveFormat.JPEG, compress: 0.75, base64: true });
-    if (!saved.base64) return { error: 'That photo didn’t work. Try another one.' };
+    if (!saved.base64) return { error: t('That photo didn’t work. Try another one.') };
     return { photo: `data:image/jpeg;base64,${saved.base64}` };
   } catch (e) {
     console.warn('Photo failed', e);
-    return { error: 'That photo didn’t work. Try another one.' };
+    return { error: t('That photo didn’t work. Try another one.') };
   }
 }
