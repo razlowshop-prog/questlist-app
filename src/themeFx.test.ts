@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { mascotLeft, MASCOT_SIZE, PLAIN_FX, THEME_FX, themeFx } from './themeFx.ts';
+import { COMBO_LOOKS, comboLook, DEFAULT_COMBO, entranceAt } from './combo.ts';
 
 test('the mascot centres on the tip but never leaves the bar', () => {
   assert.equal(mascotLeft(0.5, 300, 60), 120);
@@ -23,5 +24,26 @@ test('every theme effect belongs to a real theme, and mascots have a size', () =
   assert.equal(themeFx('gold').mascot, 'crown');
   assert.equal(themeFx('gold').finish, 'gild');
   assert.equal(themeFx('neon').ambient, 'circuit');
-  assert.equal(themeFx('fortune'), PLAIN_FX, 'Fortuna stays as it is');
+  const { combo, ...fortune } = themeFx('fortune');
+  assert.deepEqual(fortune, PLAIN_FX, 'Fortuna stays as it is');
+  assert.equal(combo?.icon, 'coin');
+});
+
+test('every theme has its combo pop-up, and later themes fall back to Indigo', () => {
+  for (const id of ['classic', 'dusk', 'forest', 'ocean', 'sunset', 'thunder', 'summit', 'ember', 'gold', 'midnight', 'fortune', 'neon', 'notepad', 'gym']) {
+    assert.ok(COMBO_LOOKS[id], `${id} has a combo look`);
+  }
+  assert.equal(comboLook('someday'), DEFAULT_COMBO);
+  assert.equal(themeFx('neon'), themeFx('neon'), 'the same object each time, for the context');
+  // Notepad has no pill: just the red handwriting with a circle round it.
+  assert.equal(COMBO_LOOKS.notepad.fill, undefined);
+  assert.ok(COMBO_LOOKS.notepad.circle);
+});
+
+test('combo entrances start hidden and end at rest', () => {
+  for (const kind of ['pop', 'grow', 'bob', 'rise', 'zap', 'flick', 'slam'] as const) {
+    assert.equal(entranceAt(kind, 0).opacity, 0, `${kind} starts hidden`);
+    assert.deepEqual(entranceAt(kind, 1), { scale: 1, y: 0, x: 0, opacity: 1 }, `${kind} lands`);
+  }
+  assert.ok(entranceAt('slam', 0).scale > 1.5, 'Gym slams down from big');
 });

@@ -1,3 +1,5 @@
+import { comboLook, type ComboLook } from './combo.ts';
+
 // What makes each theme move (design spec "themes-frames-event-spec.md"):
 // its XP bar, the mascot riding on the bar, the background layer, and how a
 // ticked task leaves the list. Themes without an entry keep the brand bar
@@ -45,6 +47,8 @@ export interface ThemeFx {
   rowPulse?: [string, string];
   /** Task cards whose outline catches a light running round it: [outline, light] (Gold). */
   rowSheen?: [string, string];
+  /** The "×3 combo" pop-up's look (combo.ts). */
+  combo?: ComboLook;
 }
 
 const linear = (angle: number, ...colors: string[]) => `linear-gradient(${angle}deg, ${colors.join(', ')})`;
@@ -186,8 +190,16 @@ export const THEME_FX: Record<string, ThemeFx> = {
   },
 };
 
+const withCombo = new Map<string, ThemeFx>();
+
+/** The theme's motion, with its combo pop-up look; the same object each time, so it can sit in a context. */
 export function themeFx(themeId: string): ThemeFx {
-  return THEME_FX[themeId] ?? PLAIN_FX;
+  let fx = withCombo.get(themeId);
+  if (!fx) {
+    fx = { ...(THEME_FX[themeId] ?? PLAIN_FX), combo: comboLook(themeId) };
+    withCombo.set(themeId, fx);
+  }
+  return fx;
 }
 
 /**
