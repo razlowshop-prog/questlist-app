@@ -2,9 +2,9 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LogoMark } from '../components/LogoMark';
-import { newPick, pickMinutes, PickSheet, pickTitle, pickToTask, type LibraryPick } from '../components/PickSheet';
+import { newPick, pickMinutes, PickSheet, pickTitle, pickToTask, pickXp, type LibraryPick } from '../components/PickSheet';
 import { scheduleProblem, scheduleSummary } from '../components/SchedulePicker';
-import { durationLabel, xpFor } from '../game';
+import { sizeLabel } from '../components/LibraryRow';
 import { CATEGORIES, categoryOf, suggestionsFor, type LibraryTask } from '../library';
 import { eyebrow, themed, useStyles, useTheme, FONTS, headingCase } from '../theme';
 import { BRAND_FILL_SMALL, brandFill, brandFillSmall, brandInk, brandTextShadow, VIVID_HEAVY } from '../components/Vivid';
@@ -99,7 +99,7 @@ export function SetupScreen({
   }
 
   const pickedCount = chosen.length;
-  const weeklyXp = chosen.reduce((sum, p) => sum + xpFor(pickMinutes(p)) * weeklyTimes(p, today), 0);
+  const weeklyXp = chosen.reduce((sum, p) => sum + pickXp(p) * weeklyTimes(p, today), 0);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -203,7 +203,7 @@ export function SetupScreen({
                           >
                             <Text style={styles.taskTitle}>{pickTitle(shown)}</Text>
                             <Text style={styles.taskMeta}>
-                              {durationLabel(minutes)} · +{xpFor(minutes)} XP each time
+                              {sizeLabel(shown.task, minutes)} · +{pickXp(shown)} XP each time
                             </Text>
                             {pick && <Text style={styles.taskWhen}>{scheduleSummary(pick.schedule, pickTitle(pick), today)} · Change</Text>}
                           </Pressable>

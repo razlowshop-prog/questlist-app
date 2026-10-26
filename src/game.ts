@@ -1,4 +1,6 @@
 import type { CelebrationId, FlameStyleId } from './cosmetics.ts';
+import { EFFORT_FACTOR, WILLPOWER_XP, type Effort } from './effort.ts';
+import { taskEffort, tooEarlyToTick } from './estimate.ts';
 import type { FocusSession } from './focus.ts';
 import type { IconName } from './icons.ts';
 
@@ -281,19 +283,22 @@ export const DEFAULT_MINUTES = 15;
 export const DURATIONS = [5, 15, 30, 60, 90, 120, 180, 240, 480];
 
 /**
- * XP for a task, from how long it takes alone (how hard something feels is
- * personal and easy to game). Grows a bit slower than time (minutes^0.7) so
- * very long tasks don't dwarf everything else: 5 min = 5 XP, 15 min = 15,
- * 30 min = 20, 60 min = 35, 2 h = 55, 8 h = 150.
+ * XP for a task, from how long it takes and how hard it is (effort.ts). The
+ * effort comes from the library or the title, never from the player, so it
+ * can't be gamed. Time grows a bit slower than linear (minutes^0.7) so very
+ * long tasks don't dwarf everything else: light 5 min = 5 XP, 15 min = 15,
+ * 30 min = 20, 60 min = 35, 2 h = 55, 8 h = 150; active pays x1.25, hard
+ * x1.5, and willpower tasks a flat WILLPOWER_XP.
  */
-export function xpFor(minutes: number): number {
+export function xpFor(minutes: number, effort: Effort = 'light'): number {
+  if (effort === 'willpower') return WILLPOWER_XP;
   const m = Math.min(Math.max(minutes, 1), MAX_TASK_MINUTES);
-  const raw = 2 * Math.pow(m, 0.7);
+  const raw = 2 * Math.pow(m, 0.7) * EFFORT_FACTOR[effort];
   return Math.max(5, Math.round(raw / 5) * 5);
 }
 
 export function taskXp(task: Task): number {
-  return xpFor(task.minutes ?? DEFAULT_MINUTES);
+  return xpFor(task.minutes ?? DEFAULT_MINUTES, taskEffort(task));
 }
 
 export function durationLabel(minutes: number): string {
@@ -694,7 +699,8 @@ export function secondsUntilTickable(task: Task, now: number): number {
  * Tick or untick a task for today. Ticking awards base XP plus the streak
  * bonus (the streak includes today). Unticking removes exactly what was given.
  * `now` (ms) enables the wait after adding: within QUICK_TICK_MS of creation
- * the tick is refused and the state is returned unchanged.
+ * the tick is refused and the state is returned unchanged, as it is for an
+ * evening willpower task ticked too early in the day.
  */
 /** `focusXp` is the focus timer bonus, added on top when the task is finished (see focus.ts). */
 export function toggleTask(state: GameState, taskId: string, today: string, now?: number, focusXp = 0): GameState {
@@ -711,6 +717,8 @@ export function toggleTask(state: GameState, taskId: string, today: string, now?
   }
 
   if (now !== undefined && secondsUntilTickable(task, now) > 0) return state;
+  // Willpower tasks settled in the evening wait for it (effort.ts).
+  if (now !== undefined && tooEarlyToTick(task, now)) return state;
 
   let xp = taskXp(task) * xpMultiplier(state, today).total;
   let limited: Limit | undefined;

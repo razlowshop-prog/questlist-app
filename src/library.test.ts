@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CATEGORIES, categoryForTitle, guessCategory, LIBRARY, searchLibrary, sortTasks, suggestionsFor, taskCategory } from './library.ts';
+import { CATEGORIES, categoryForTitle, guessCategory, LIBRARY, searchLibrary, sortTasks, suggestionsFor, taskCategory, WILLPOWER_FILTER } from './library.ts';
 
 test('library is big and every task has a known category', () => {
   assert.ok(LIBRARY.length >= 300, `only ${LIBRARY.length} tasks`);
@@ -60,4 +60,12 @@ test('the focus timer is offered for sit-down tasks only', () => {
   assert.equal(on('Do your taxes'), true);
   assert.equal(on('Practise a language for 15 minutes'), true);
   assert.equal(on('Listen to a podcast'), false);
+});
+
+test('the Willpower filter gathers the all-day tasks from every area', () => {
+  const all = searchLibrary('', LIBRARY.length, WILLPOWER_FILTER);
+  assert.equal(all.length, 25);
+  assert.ok(new Set(all.map((t) => t.category)).size > 3);
+  assert.ok(searchLibrary('willpower', 50).some((t) => t.title === 'No alcohol today'));
+  assert.ok(!CATEGORIES.some((c) => c.id === WILLPOWER_FILTER), 'not an area id');
 });

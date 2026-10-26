@@ -4,16 +4,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { APP_NAME } from '../brand';
 import { Chip } from '../components/Chip';
 import { LibraryRow } from '../components/LibraryRow';
-import { newPick, pickMinutes, PickSheet, pickTitle, type LibraryPick } from '../components/PickSheet';
+import { newPick, PickSheet, pickTitle, pickXp, type LibraryPick } from '../components/PickSheet';
+import { libraryEffort } from '../effort';
+import { xpFor } from '../game';
 import { scheduleProblem } from '../components/SchedulePicker';
 import { VividButton } from '../components/Vivid';
-import { xpFor } from '../game';
-import { CATEGORIES, FEATURED, LIBRARY, searchLibrary, sortTasks, type LibraryTask } from '../library';
+import { CATEGORIES, FEATURED, LIBRARY, searchLibrary, sortTasks, WILLPOWER_FILTER, type LibraryTask } from '../library';
 import { themed, useStyles, useTheme, FONTS, headingCase } from '../theme';
 
 /** "3 tasks · +55 XP": what the picks are worth when each is done once. */
 export function picksSummary(picks: LibraryPick[]): { count: number; xp: number } {
-  return { count: picks.length, xp: picks.reduce((sum, p) => sum + xpFor(pickMinutes(p)), 0) };
+  return { count: picks.length, xp: picks.reduce((sum, p) => sum + pickXp(p), 0) };
 }
 
 type Sort = 'best' | 'xp' | 'quick';
@@ -85,7 +86,7 @@ export function LibraryModal({
   const browsing = !query.trim() && !category && sort === 'best';
   const results = useMemo(() => {
     const found = (browsing ? FEATURED : searchLibrary(query, LIBRARY.length, category)).filter((t) => !owned.has(t.id));
-    return sort === 'best' ? found : sortTasks(found, sort);
+    return sort === 'best' ? found : sortTasks(found, sort, (t) => xpFor(t.minutes, libraryEffort(t.id)));
   }, [query, category, sort, browsing, owned]);
 
   return (
@@ -111,6 +112,11 @@ export function LibraryModal({
         <View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cats}>
             <Chip label={query.trim() || sort !== 'best' ? 'All' : 'Recommended'} active={!category} onPress={() => setCategory(undefined)} />
+            <Chip
+              label="Willpower"
+              active={category === WILLPOWER_FILTER}
+              onPress={() => setCategory(category === WILLPOWER_FILTER ? undefined : WILLPOWER_FILTER)}
+            />
             {CATEGORIES.map((c) => (
               <Chip
                 key={c.id}

@@ -16,6 +16,7 @@ import type { CelebrationId } from '../cosmetics';
 import { card, FONTS, nativeDriver, themed, useStyles, useTheme, type Palette } from '../theme';
 import { FIRE_COLORS } from './Fire';
 import { CoinCheck, HoloBorder } from './Fortuna';
+import { taskEffort, tonightHour, tooEarlyToTick } from '../estimate';
 import { stepStatus } from '../steps';
 import { taskCategory } from '../library';
 import { brandLine, categoryLook, midColor, MYTHIC } from '../vivid';
@@ -105,6 +106,11 @@ export function TaskRow({
   function press() {
     if (!done && coveredBy) {
       setLabel({ text: `Already part of “${coveredBy}”`, warn: true });
+      animate(false);
+      return;
+    }
+    if (!done && tooEarlyToTick(task, Date.now())) {
+      setLabel({ text: `Tick it off from ${tonightHour(task)}:00`, warn: true });
       animate(false);
       return;
     }
@@ -198,6 +204,8 @@ export function TaskRow({
   };
   const locked = waitLeft > 0 && !done;
   const covered = !!coveredBy && !done;
+  // An evening willpower task before its hour (effort.ts).
+  const early = !done && tooEarlyToTick(task, Date.now());
 
   const row = (
     <View style={[s.row, label && !c.holo && { zIndex: 2 }, covered && s.covered]}>
@@ -211,7 +219,7 @@ export function TaskRow({
         style={s.main}
         accessibilityRole="checkbox"
         accessibilityState={{ checked: done, disabled: covered }}
-        accessibilityHint={covered ? `Already covered by ${coveredBy}` : undefined}
+        accessibilityHint={covered ? `Already covered by ${coveredBy}` : early ? `Can be ticked from ${tonightHour(task)}:00` : undefined}
       >
         <Sticker grad={cat} glyph={cat.glyph} size={26} flat />
         <View style={{ flex: 1 }}>
@@ -227,7 +235,8 @@ export function TaskRow({
           ) : (
             <View style={s.metaRow}>
               <Text style={s.meta}>
-                {task.minutes ? `${durationLabel(task.minutes)} · ` : ''}
+                {/* A willpower task's time says nothing, so it isn't shown. */}
+                {early ? `From ${tonightHour(task)}:00 · ` : task.minutes && taskEffort(task) !== 'willpower' ? `${durationLabel(task.minutes)} · ` : ''}
                 {repeatLabel(task)}
                 {weekly}
               </Text>
@@ -293,7 +302,7 @@ export function TaskRow({
           {c.check === 'coin' ? (
             <Animated.View
               style={[
-                locked && s.checkboxLocked,
+                (locked || early) && s.checkboxLocked,
                 {
                   transform: [
                     { perspective: 400 },
@@ -307,7 +316,7 @@ export function TaskRow({
             </Animated.View>
           ) : (
             <Animated.View
-              style={[s.checkbox, { borderColor: catLine }, done && { ...fill(cat), borderColor: 'transparent' }, (locked || covered) && s.checkboxLocked, { transform: [{ scale: pop }, ...rotate] }]}
+              style={[s.checkbox, { borderColor: catLine }, done && { ...fill(cat), borderColor: 'transparent' }, (locked || covered || early) && s.checkboxLocked, { transform: [{ scale: pop }, ...rotate] }]}
             >
               {done && <Text style={[s.checkmark, { color: cat.ink }, c.check === 'diamond' && s.checkmarkDiamond]}>✓</Text>}
             </Animated.View>

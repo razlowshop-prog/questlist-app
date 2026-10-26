@@ -48,35 +48,35 @@ test('steps are cleaned when the task is added', () => {
 });
 
 test('steps pay a little each, and the task total never changes', () => {
-  let s = withTask('Deep clean one room', 90); // 45 XP, 5 steps
+  let s = withTask('Deep clean one room', 90); // 70 XP (hard), 5 steps
   const full = taskXp(s.tasks[0]);
-  assert.equal(full, 45);
-  assert.equal(stepXpEach(s.tasks[0], 5), 3); // 30 % of 45 = 13.5, split in 5
+  assert.equal(full, 70);
+  assert.equal(stepXpEach(s.tasks[0], 5), 4); // 30 % of 70 = 21, split in 5
 
   s = tickStep(s, 't', 0, TODAY, Date.now()).state;
   s = tickStep(s, 't', 2, TODAY, Date.now()).state;
-  assert.equal(totalXp(s), 6);
+  assert.equal(totalXp(s), 8);
   const status = stepStatus(s, s.tasks[0], TODAY);
   assert.deepEqual(status.done, [true, false, true, false, false]);
   assert.equal(status.doneCount, 2);
 
-  // Ticking the whole task pays the full 45 in total, not 45 on top of the steps.
+  // Ticking the whole task pays the full 70 in total, not 70 on top of the steps.
   const finished = toggleTask(s, 't', TODAY, Date.now());
   assert.equal(totalXp(finished), full);
   assert.deepEqual(stepStatus(finished, finished.tasks[0], TODAY).done, [true, true, true, true, true]);
   // Unticking the task leaves the steps' XP.
-  assert.equal(totalXp(toggleTask(finished, 't', TODAY)), 6);
+  assert.equal(totalXp(toggleTask(finished, 't', TODAY)), 8);
 });
 
 test('the last step finishes the task', () => {
-  let s = withTask('Go to the gym', 60); // 35 XP, 3 steps of 4 (30 % of 35 = 10.5)
+  let s = withTask('Go to the gym', 60); // 55 XP (hard), 3 steps of 6 (30 % of 55 = 16.5)
   s = tickStep(s, 't', 0, TODAY).state;
   s = tickStep(s, 't', 1, TODAY).state;
-  assert.equal(totalXp(s), 8);
+  assert.equal(totalXp(s), 12);
   const last = tickStep(s, 't', 2, TODAY);
   assert.ok(last.finished);
   assert.ok(isDoneToday(last.state, last.state.tasks[0], TODAY));
-  assert.equal(totalXp(last.state), 35);
+  assert.equal(totalXp(last.state), 55);
   // Once done, steps don't change.
   assert.equal(tickStep(last.state, 't', 0, TODAY).state, last.state);
 });
@@ -84,7 +84,7 @@ test('the last step finishes the task', () => {
 test('a step can be unticked, which takes its XP back', () => {
   let s = withTask('Go to the gym', 60);
   s = tickStep(s, 't', 1, TODAY).state;
-  assert.equal(totalXp(s), 4);
+  assert.equal(totalXp(s), 6);
   const undone = tickStep(s, 't', 1, TODAY);
   assert.equal(totalXp(undone.state), 0);
   assert.equal(undone.finished, false);
@@ -96,14 +96,14 @@ test('repeating tasks start their steps over each day; one-off tasks keep them',
   daily = tickStep(daily, 't', 0, TODAY).state;
   assert.equal(stepStatus(daily, daily.tasks[0], TOMORROW).doneCount, 0);
   // Yesterday's step XP stays: it was earned.
-  assert.equal(totalXp(daily), 4);
+  assert.equal(totalXp(daily), 6);
 
   let oneOff = withTask('Deep clean one room', 90, false);
   oneOff = tickStep(oneOff, 't', 0, TODAY).state;
   oneOff = tickStep(oneOff, 't', 1, TODAY).state;
   assert.equal(stepStatus(oneOff, oneOff.tasks[0], TOMORROW).doneCount, 2);
   const done = toggleTask(oneOff, 't', TOMORROW);
-  assert.equal(totalXp(done), 45);
+  assert.equal(totalXp(done), 70);
 });
 
 test('steps follow the task rules: wait after adding, multipliers, the daily limit', () => {
@@ -111,7 +111,7 @@ test('steps follow the task rules: wait after adding, multipliers, the daily lim
   assert.equal(tickStep(fresh, 't', 0, TODAY, Date.now()).state, fresh);
 
   const doubled = { ...withTask('Go to the gym', 60), doubleDays: [TODAY] };
-  assert.equal(tickStep(doubled, 't', 0, TODAY).state.stepTicks![0].xp, 7);
+  assert.equal(tickStep(doubled, 't', 0, TODAY).state.stepTicks![0].xp, 11);
 
   // 16 h of tasks done today: steps still tick but pay nothing.
   const busy = withTask('Go to the gym', 60);
@@ -130,12 +130,12 @@ test('unfinished steps show in the activity timeline, finished ones count as the
   s = tickStep(s, 't', 0, TODAY).state;
   s = tickStep(s, 't', 1, TODAY).state;
   let day = activityTimeline(s, TODAY).find((d) => d.date === TODAY)!;
-  assert.equal(day.xp, 8);
-  assert.deepEqual(day.events.filter((e) => e.kind === 'steps'), [{ kind: 'steps', title: 'Go to the gym', count: 2, xp: 8 }]);
+  assert.equal(day.xp, 12);
+  assert.deepEqual(day.events.filter((e) => e.kind === 'steps'), [{ kind: 'steps', title: 'Go to the gym', count: 2, xp: 12 }]);
 
   s = tickStep(s, 't', 2, TODAY).state;
   day = activityTimeline(s, TODAY).find((d) => d.date === TODAY)!;
-  assert.equal(day.xp, 35);
+  assert.equal(day.xp, 55);
   assert.equal(day.events.filter((e) => e.kind === 'steps').length, 0);
   assert.equal(day.taskCount, 1);
 });

@@ -1,3 +1,4 @@
+import { libraryEffort } from './effort.ts';
 import type { IconName } from './icons.ts';
 import { DEFAULT_AMOUNTS, measuredMinutes, measuredSteps, parseMeasured, type Measure } from './measure.ts';
 
@@ -520,15 +521,24 @@ export function categoryOf(id: string): Category | undefined {
  * Search the library. Titles starting with the query rank first, then
  * words in the title starting with it, then matches anywhere / in tags.
  */
+/** A filter next to the areas: the all-day willpower tasks from every area, ticked off in the evening. */
+export const WILLPOWER_FILTER = 'willpower';
+
 export function searchLibrary(query: string, limit = 50, category?: string): LibraryTask[] {
   const q = query.trim().toLowerCase();
-  const pool = category ? LIBRARY.filter((t) => t.category === category) : LIBRARY;
+  const pool =
+    category === WILLPOWER_FILTER
+      ? LIBRARY.filter((t) => libraryEffort(t.id) === 'willpower')
+      : category
+        ? LIBRARY.filter((t) => t.category === category)
+        : LIBRARY;
   if (!q) return pool.slice(0, limit);
   const words = q.split(/\s+/);
   const scored: { task: LibraryTask; score: number }[] = [];
   for (const task of pool) {
     const title = task.title.toLowerCase();
-    const haystack = `${title} ${task.tags.join(' ')} ${categoryOf(task.category)?.label.toLowerCase() ?? ''}`;
+    const willpower = libraryEffort(task.id) === 'willpower' ? ' willpower' : '';
+    const haystack = `${title} ${task.tags.join(' ')} ${categoryOf(task.category)?.label.toLowerCase() ?? ''}${willpower}`;
     if (!words.every((w) => haystack.includes(w))) continue;
     let score = 0;
     if (title.startsWith(q)) score += 100;
@@ -540,10 +550,10 @@ export function searchLibrary(query: string, limit = 50, category?: string): Lib
   return scored.sort((a, b) => b.score - a.score).slice(0, limit).map((s) => s.task);
 }
 
-/** Most XP = longest first (XP grows with time), quickest = shortest first; ties by name. */
-export function sortTasks(tasks: LibraryTask[], sort: 'xp' | 'quick'): LibraryTask[] {
-  const dir = sort === 'xp' ? -1 : 1;
-  return [...tasks].sort((a, b) => dir * (a.minutes - b.minutes) || a.title.localeCompare(b.title));
+/** Most XP first (`xpOf` gives each task's XP), or quickest first. */
+export function sortTasks(tasks: LibraryTask[], sort: 'xp' | 'quick', xpOf: (t: LibraryTask) => number = (t) => t.minutes): LibraryTask[] {
+  const key = sort === 'xp' ? (t: LibraryTask) => -xpOf(t) : (t: LibraryTask) => t.minutes;
+  return [...tasks].sort((a, b) => key(a) - key(b) || a.title.localeCompare(b.title));
 }
 
 /** Suggestions for the setup screen: featured first, from the chosen areas, without the ones already on the list. */

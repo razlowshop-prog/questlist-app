@@ -37,7 +37,7 @@ import { focusOffered } from '../focus';
 import { coveredBy } from '../covers';
 import { AmountPicker } from '../components/AmountPicker';
 import { STEP_SHARE, suggestedSteps } from '../steps';
-import { estimateMinutes } from '../estimate';
+import { estimateMinutes, tonightHour } from '../estimate';
 import { nonsenseReason } from '../sense';
 import { quoteOfTheDay, quoteSideFor } from '../quotes';
 import { card, eyebrow, FONTS, themed, useStyles, useTheme, headingCase } from '../theme';
@@ -160,7 +160,7 @@ export function TodayScreen({
   const shownSteps = stepDraft ?? suggested;
   // Steps are offered for longer tasks, or whenever some are already there.
   const offerSteps = typed.length > 0 && (shownSteps.length > 0 || chosenMinutes >= 30);
-  const stepXp = shownSteps.length ? Math.max(1, Math.round((xpFor(chosenMinutes) * STEP_SHARE) / shownSteps.length)) : 0;
+  const stepXp = shownSteps.length ? Math.max(1, Math.round((xpFor(chosenMinutes, estimate.effort) * STEP_SHARE) / shownSteps.length)) : 0;
 
   function addStep() {
     const name = newStep.trim();
@@ -211,9 +211,12 @@ export function TodayScreen({
   const [leaving, setLeaving] = useState<Set<string>>(() => new Set());
   const [showDone, setShowDone] = useState(false);
   // Tasks covered by a bigger one that is done sink to the end of the open list.
-  const openTasks = sorted
+  const open = sorted
     .filter((t) => !isDoneToday(state, t, today) || leaving.has(t.id))
     .sort((x, y) => Number(!!coveredBy(state, x, today)) - Number(!!coveredBy(state, y, today)));
+  // All-day willpower tasks settled in the evening wait together under "Tonight's check", earliest hour first.
+  const openTasks = open.filter((t) => tonightHour(t) === undefined);
+  const tonightTasks = open.filter((t) => tonightHour(t) !== undefined).sort((x, y) => tonightHour(x)! - tonightHour(y)!);
   const doneTasks = sorted.filter((t) => isDoneToday(state, t, today) && !leaving.has(t.id));
   const leave = (id: string) => setLeaving((l) => new Set(l).add(id));
   const left = (id: string) =>
@@ -294,18 +297,29 @@ export function TodayScreen({
                   </Text>
                 )}
               </View>
-              {tasks.length > 0 && openTasks.length === 0 && (
+              {tasks.length > 0 && open.length === 0 && (
                 <EmptyState glyph="Trophy" grad={RARITY.legendary} before="All " word="done" after=" for today" body="Every task is ticked off. Enjoy the rest of your day." />
               )}
             </>
           }
           ListEmptyComponent={
-            loaded ? (
+            loaded && tasks.length === 0 ? (
               <EmptyState glyph="Sparkle" mythic before="A " word="fresh" after=" start" body="No tasks for today. Tap Add Task below to add one or pick some from the library." />
             ) : undefined
           }
           ListFooterComponent={
             <>
+              {tonightTasks.length > 0 && (
+                <View style={s.tonight}>
+                  <View style={s.sectionRow}>
+                    <Text style={s.sectionTitle}>Tonight's check</Text>
+                  </View>
+                  <Text style={s.tonightHint}>All-day goals. Tick them off once the day is done.</Text>
+                  {tonightTasks.map((t, i) => (
+                    <View key={t.id}>{row(t, openTasks.length + i)}</View>
+                  ))}
+                </View>
+              )}
               {doneTasks.length > 0 && (
                 <View style={s.doneBox}>
                   <Pressable
@@ -427,10 +441,10 @@ export function TodayScreen({
                     </Text>
                   )
                 ) : (
-                  <View style={s.estimate} accessibilityLabel={`Takes about ${durationLabel(chosenMinutes)}, ${xpFor(chosenMinutes)} XP`}>
+                  <View style={s.estimate} accessibilityLabel={`Takes about ${durationLabel(chosenMinutes)}, ${xpFor(chosenMinutes, estimate.effort)} XP`}>
                     <Sparkles size={16} color={c.accent} strokeWidth={1.5} aria-hidden />
                     <Text style={s.estimateText}>
-                      About <Text style={s.estimateStrong}>{durationLabel(chosenMinutes)}</Text> · +{xpFor(chosenMinutes)} XP
+                      About <Text style={s.estimateStrong}>{durationLabel(chosenMinutes)}</Text> · +{xpFor(chosenMinutes, estimate.effort)} XP
                     </Text>
                     <Text style={s.estimateNote}>{estimate.source === 'default' ? 'standard time' : 'estimated from the title'}</Text>
                   </View>
@@ -500,7 +514,7 @@ export function TodayScreen({
                   accessibilityRole="button"
                 >
                   <Text style={s.addButtonText}>
-                    {nonsense ? 'Name it in words first' : problem ? 'Pick the days first' : `Add task${canAdd ? ` · +${xpFor(chosenMinutes)} XP` : ''}`}
+                    {nonsense ? 'Name it in words first' : problem ? 'Pick the days first' : `Add task${canAdd ? ` · +${xpFor(chosenMinutes, estimate.effort)} XP` : ''}`}
                   </Text>
                 </Pressable>
                 <Pressable onPress={reset} style={s.cancel} accessibilityRole="button">
@@ -571,6 +585,8 @@ const makeStyles = themed((c) => ({
   cancelText: { ...eyebrow(c, 11), color: c.muted },
   upcoming: { marginTop: 28, gap: 2 },
   doneBox: { marginBottom: 8 },
+  tonight: { marginBottom: 16 },
+  tonightHint: { color: c.muted, fontSize: 13, lineHeight: 18, marginTop: 6, marginBottom: 4 },
   doneToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10 },
   doneLabel: { ...eyebrow(c, 11), color: c.muted },
   upcomingHeading: { ...eyebrow(c), color: c.muted, marginBottom: 4 },

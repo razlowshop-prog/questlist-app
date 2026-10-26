@@ -121,7 +121,7 @@ test('streak bonus is applied on completion', () => {
   // 6 earlier days done, so today makes 7 -> 1.1x
   s = { ...s, completions: streakOf(6, addDays(TODAY, -1)).map((c) => ({ ...c, xp: 0 })) };
   s = toggleTask(s, 't1', TODAY);
-  assert.equal(s.completions.at(-1)!.xp, Math.round(xpFor(DEFAULT_MINUTES) * 1.1));
+  assert.equal(s.completions.at(-1)!.xp, Math.round(xpFor(DEFAULT_MINUTES, 'hard') * 1.1));
 });
 
 test('daily tasks reset each day, one-off tasks disappear after the day they were done', () => {
@@ -226,17 +226,30 @@ test('finishing setup stores goals and name', () => {
   assert.deepEqual(s.goals, ['home', 'fitness']);
 });
 
-test('XP comes from time alone', () => {
+test('XP comes from time and effort', () => {
   assert.equal(xpFor(5), 5);
   assert.equal(xpFor(15), 15);
   assert.equal(xpFor(30), 20);
   assert.equal(xpFor(60), 35);
   assert.equal(xpFor(120), 55);
+  // Active pays x1.25, hard x1.5, willpower a flat 10 whatever the time.
+  assert.equal(xpFor(30, 'active'), 25);
+  assert.equal(xpFor(30, 'hard'), 30);
+  assert.equal(xpFor(60, 'hard'), 55);
+  assert.equal(xpFor(5, 'willpower'), 10);
+  assert.equal(xpFor(480, 'willpower'), 10);
   // Walking 5 km (~60 min) beats doing the dishes (~15 min) by a lot
   assert.ok(xpFor(60) >= 2 * xpFor(15));
   const s = addTask(emptyState, 'Walk 5 km', false, 'w', 60);
-  assert.equal(taskXp(s.tasks[0]), xpFor(60));
-  assert.equal(toggleTask(s, 'w', TODAY).completions[0].xp, xpFor(60));
+  assert.equal(taskXp(s.tasks[0]), xpFor(60, 'active'));
+  assert.equal(toggleTask(s, 'w', TODAY).completions[0].xp, xpFor(60, 'active'));
+  // The effort comes from the task, never from the player.
+  const lib = addTask(emptyState, 'Strength workout', true, 'g', 45, { libraryId: 'strength-workout' });
+  assert.equal(taskXp(lib.tasks[0]), 45);
+  assert.equal(taskXp({ ...lib.tasks[0], title: 'Renamed' }), 45, 'the saved library id wins');
+  assert.equal(taskXp(addTask(emptyState, 'No alcohol today', true, 'n', 5).tasks[0]), 10);
+  assert.equal(taskXp(addTask(emptyState, 'Run 10 km', false, 'r', 60).tasks[0]), xpFor(60, 'hard'));
+  assert.equal(taskXp(addTask(emptyState, 'Sort my photos', false, 'p', 30).tasks[0]), 20, 'unknown tasks are light');
   // Old saved tasks with a difficulty and no time get the default time's XP
   assert.equal(taskXp({ id: 'o', title: 'Old', difficulty: 'hard', daily: true, createdAt: '' }), xpFor(DEFAULT_MINUTES));
 });
