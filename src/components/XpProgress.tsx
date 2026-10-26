@@ -108,7 +108,7 @@ export function XpProgress({ totalXp, onPress }: { totalXp: number; onPress: () 
         onPress={onPress}
         style={s.press}
         accessibilityRole="button"
-        accessibilityLabel={`${t('Level {n}', { n: real.level })}, ${real.rank}. ${real.maxed ? t('Max level') : t('{n} of {total} XP to level {level}', { n: real.xpIntoLevel, total: real.xpForLevel, level: real.level + 1 })}. ${t('Show level details')}`}
+        accessibilityLabel={`${t('Level {n}', { n: real.level })}, ${real.rank}. ${real.maxed ? t('Max level') : t('{n} of {total} XP to level {level}', { n: real.xpIntoLevel, total: real.xpForLevel, level: real.level + 1 })}. ${t('Show upcoming rewards')}`}
       >
         {fx.bar ? (
           <ThemeXpBar spec={fx.bar} mascot={fx.mascot} scale={fx.mascotScale} live={fraction} ghost={ghost} progress={real.progress} gainKey={gainKey} />

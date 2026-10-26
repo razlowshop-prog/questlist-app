@@ -53,6 +53,7 @@ export function TodayScreen({
   multiplier,
   xpProgress,
   onOpenStreak,
+  onOpenRewards,
   tokenStrip,
   guide,
   today,
@@ -80,6 +81,8 @@ export function TodayScreen({
   /** Level and XP bar, shown under the greeting. */
   xpProgress?: React.ReactNode;
   onOpenStreak: () => void;
+  /** The coming level rewards, from the XP bar in the pinned status line. */
+  onOpenRewards: () => void;
   /** Tokens to use, shown under the streak. */
   tokenStrip?: React.ReactNode;
   /** The first-steps card for new players. */
@@ -359,7 +362,7 @@ export function TodayScreen({
           }
           renderItem={({ item, index }) => row(item, index)}
         />
-        <StickyStatus totalXp={totalXp(state)} streak={streak} shown={sticky} onPress={onOpenStreak} />
+        <StickyStatus totalXp={totalXp(state)} streak={streak} shown={sticky} onStreak={onOpenStreak} onLevel={onOpenRewards} />
         {combo && <ComboPill count={combo.count} play={combo.play} style={comboStyle} />}
       </View>
 

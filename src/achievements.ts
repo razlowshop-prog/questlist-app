@@ -449,3 +449,23 @@ export function nextLevelReward(xp: number): NextLevelReward | undefined {
   }
   return { levels, milestone, xpInto: info.xpIntoLevel, xpNeeded };
 }
+
+/** How many levels the rewards preview shows when the XP bar is tapped. */
+export const UPCOMING_REWARDS = 12;
+
+/**
+ * The rewards of the next levels, nearest first, each with the XP still to
+ * earn to reach it: what the XP bar's preview shows. Empty at the top level.
+ */
+export function upcomingLevelRewards(xp: number, count = UPCOMING_REWARDS): { milestone: LevelMilestone; xpAway: number }[] {
+  const info = levelInfo(xp);
+  if (info.maxed) return [];
+  const out: { milestone: LevelMilestone; xpAway: number }[] = [];
+  let away = info.xpForLevel - info.xpIntoLevel;
+  for (let l = info.level + 1; l <= MAX_LEVEL && out.length < count; l++) {
+    const milestone = LEVEL_MILESTONES.find((m) => m.level === l);
+    if (milestone) out.push({ milestone, xpAway: away });
+    away += xpToNext(l);
+  }
+  return out;
+}
