@@ -7,6 +7,7 @@ import { DEFAULT_COMBO, entranceAt, type ComboIcon } from '../combo';
 import { useThemeFx } from './ThemeFx';
 import { APP_NAME } from '../brand';
 import { buzz } from '../haptics';
+import { sound } from '../sounds';
 import { PERFECT_DAY_XP } from '../moments';
 import { card, eyebrow, FONTS, themed, useStyles, useTheme } from '../theme';
 import { FLAMES, RARITY } from '../vivid';
@@ -28,6 +29,7 @@ export function MomentCelebration({ moment, onClose }: { moment: Moment; onClose
   useEffect(() => {
     pop.value = withSpring(1, { damping: 11, stiffness: 140 });
     buzz('prize');
+    sound(moment.kind === 'perfect' ? 'perfect' : 'streak');
   }, []);
 
   const cardStyle = useAnimatedStyle(() => ({ opacity: Math.min(1, pop.value * 1.5), transform: [{ scale: 0.7 + 0.3 * pop.value }] }));

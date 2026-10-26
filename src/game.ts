@@ -1,3 +1,4 @@
+import type { SoundStyle } from './sounds.ts';
 import type { CelebrationId, FlameStyleId } from './cosmetics.ts';
 import { EFFORT_FACTOR, WILLPOWER_XP, type Effort } from './effort.ts';
 import { taskEffort, tooEarlyToTick } from './estimate.ts';
@@ -228,6 +229,10 @@ export interface Settings {
   reviewAsks?: string[];
   /** Small vibrations on tick, level up and the wheel; on unless turned off. */
   haptics?: boolean;
+  /** Soft sounds at the same moments; on unless turned off (sounds.ts). */
+  sounds?: boolean;
+  /** Which set plays for ticks, combos, level-ups, perfect days and streaks; Marimba unless changed. */
+  soundStyle?: SoundStyle;
   /** The app's language; unset follows the phone (English unless the phone is in German). */
   lang?: Lang;
   /** Monday of the last week whose recap was seen or closed. */

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { clockLabel, focusBonus, focusBonusFor, focusElapsed, focusGoalMinutes, focusOffered, pauseFocus, resumeFocus, setFocusGoal, startFocus } from './focus.ts';
+import { clockLabel, focusBonus, focusBonusFor, focusElapsed, focusGoalMinutes, focusOffered, msUntilFocusDone, pauseFocus, resumeFocus, setFocusGoal, startFocus } from './focus.ts';
 
 const FOCUS_BONUS_XP = 10;
 import { emptyState, toggleTask, totalXp, type Task } from './game.ts';
@@ -78,4 +78,13 @@ test('clock labels', () => {
   assert.equal(clockLabel(25 * MIN), '25:00');
   assert.equal(clockLabel(62 * MIN + 5000), '1:02:05');
   assert.equal(clockLabel(-5), '0:00');
+});
+
+test('the time-up sound waits for the full time and skips paused or finished timers', () => {
+  const task = { minutes: 10 };
+  const s = startFocus('t', 0);
+  assert.equal(msUntilFocusDone(task, s, 4 * 60_000), 6 * 60_000);
+  assert.equal(msUntilFocusDone(task, s, 10 * 60_000), undefined);
+  assert.equal(msUntilFocusDone(task, pauseFocus(s, 60_000), 2 * 60_000), undefined);
+  assert.equal(msUntilFocusDone(task, { ...s, pausedMs: 60_000 }, 4 * 60_000), 7 * 60_000);
 });

@@ -1,4 +1,5 @@
 import { buzz } from '../haptics';
+import { sound } from '../sounds';
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Animated, Easing, Modal, PanResponder, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -132,6 +133,7 @@ export function SpinScreen({
     if (now - lastTick.current >= TICK_MS) {
       lastTick.current = now;
       buzz('step');
+      sound('wheel');
     }
   }
 
