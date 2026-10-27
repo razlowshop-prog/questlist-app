@@ -13,7 +13,7 @@ import { DEFAULT_SOUND_STYLE, sound, SOUND_STYLES, type SoundStyle } from '../so
 
 const STYLE_LABEL: Record<SoundStyle, string> = { marimba: N('Marimba'), air: N('Air') };
 
-/** Settings, opened from the Menu: reminders, the daily quote email, sounds and vibration, privacy, backup and the setup questions. */
+/** Settings, opened from the Menu: reminders, the daily quote email, sounds and vibration, privacy, backup, the setup questions and starting over. */
 export function SettingsScreen({
   settings,
   today,
@@ -21,6 +21,7 @@ export function SettingsScreen({
   onRedoSetup,
   backupText,
   onRestore,
+  onReset,
 }: {
   settings: Settings;
   today: string;
@@ -30,11 +31,15 @@ export function SettingsScreen({
   backupText: (savedAt: string) => string;
   /** Replaces all progress on this phone with a backup's. */
   onRestore: (backup: Backup) => void;
+  /** Deletes all progress on this phone; the setup questions come next. */
+  onReset: () => void;
 }) {
   const s = useStyles(makeStyles);
   const c = useTheme();
   const [restore, setRestore] = useState<Backup>();
   const [note, setNote] = useState<{ text: string; error?: boolean }>();
+  /** Reset all progress: asked twice, 1 = first question, 2 = "are you sure". */
+  const [resetStep, setResetStep] = useState<0 | 1 | 2>(0);
 
   async function saveBackup() {
     setNote(undefined);
@@ -199,6 +204,47 @@ export function SettingsScreen({
 
       <VividButton label={t('Redo setup questions')} kind="secondary" compact onPress={onRedoSetup} style={{ marginTop: 18 }} />
 
+      <Pressable onPress={() => setResetStep(1)} style={s.reset} accessibilityRole="button">
+        <Text style={s.resetText}>{t('Reset all progress')}</Text>
+      </Pressable>
+
+      <Sheet
+        visible={resetStep > 0}
+        onClose={() => setResetStep(0)}
+        closeLabel={t('Cancel')}
+        eyebrow={t('Start fresh')}
+        title={resetStep === 1 ? t('Reset all progress?') : t('Are you sure?')}
+      >
+        {resetStep === 1 ? (
+          <>
+            <Text style={s.body}>
+              {t('Your tasks, XP, levels, streak, items, looks and photo are deleted from this phone, and the setup questions start again. Your settings stay.')}
+            </Text>
+            <Text style={s.small}>{t('Save a backup first if you might want it back later.')}</Text>
+            {note && <Text style={[s.note, note.error && { color: c.flame }]}>{note.text}</Text>}
+            <VividButton label={t('Save a backup first')} kind="secondary" onPress={saveBackup} style={{ marginTop: 6 }} />
+            <Pressable onPress={() => setResetStep(2)} style={s.danger} accessibilityRole="button">
+              <Text style={s.dangerText}>{t('Continue')}</Text>
+            </Pressable>
+          </>
+        ) : (
+          <>
+            <Text style={s.body}>{t('This can’t be undone. Without a backup, your progress is gone for good.')}</Text>
+            <Pressable
+              onPress={() => {
+                setResetStep(0);
+                setNote(undefined);
+                onReset();
+              }}
+              style={[s.danger, s.dangerFilled]}
+              accessibilityRole="button"
+            >
+              <Text style={[s.dangerText, { color: c.bg }]}>{t('Yes, delete everything')}</Text>
+            </Pressable>
+          </>
+        )}
+      </Sheet>
+
       <Sheet visible={!!restore} onClose={() => setRestore(undefined)} closeLabel={t('Cancel')} eyebrow={t('Backup')} title={t('Restore this backup?')}>
         {restore && <RestoreSummary backup={restore} />}
         <Text style={s.small}>{t('Everything on this phone now is replaced by it. Save a backup first if you want to keep today’s progress.')}</Text>
@@ -237,6 +283,12 @@ function longDate(day: string): string {
 const makeStyles = themed((c) => ({
   content: { padding: 20, paddingTop: 0, paddingBottom: 48, maxWidth: 640, width: '100%', alignSelf: 'center' },
   small: { color: c.muted, fontSize: 12 },
+  body: { color: c.text, fontSize: 15, lineHeight: 21 },
+  reset: { alignSelf: 'center', minHeight: 44, justifyContent: 'center', paddingHorizontal: 16, marginTop: 28 },
+  resetText: { color: c.flame, fontSize: 14, fontWeight: '700' },
+  danger: { minHeight: 48, borderRadius: c.radius, borderWidth: 1.5, borderColor: c.flame, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  dangerFilled: { backgroundColor: c.flame },
+  dangerText: { color: c.flame, fontSize: 15, fontWeight: '800' },
   note: { color: c.muted, fontSize: 13, paddingBottom: 12 },
   summary: { gap: 4, padding: 12, borderRadius: c.radius, backgroundColor: c.surfaceAlt },
   summaryText: { color: c.text, fontSize: 14 },

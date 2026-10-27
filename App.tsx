@@ -21,6 +21,7 @@ import {
   dayKey,
   deleteTask,
   emptyState,
+  resetProgress,
   finishSetup,
   isDoneToday,
   levelInfo,
@@ -717,6 +718,14 @@ function Succedo() {
                     setPhoto(backup.photo);
                     savePhoto(backup.photo);
                     showToast(t('Backup restored'));
+                  }}
+                  onReset={() => {
+                    setState((s) => resetProgress(s));
+                    setPhoto(undefined);
+                    savePhoto(undefined);
+                    setRedoSetup(false);
+                    setPage(null);
+                    setTab('today');
                   }}
                 />
               )}

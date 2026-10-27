@@ -14,6 +14,7 @@ import {
   DEFAULT_MINUTES,
   deleteTask,
   emptyState,
+  resetProgress,
   finishSetup,
   levelInfo,
   longestStreak,
@@ -526,4 +527,52 @@ test('streak warning at 20:00 while nothing is done today, unless turned off', (
   // Turned off, or no streak
   assert.equal(reminderPlan(updateSettings(s, { streakReminders: false }), noon).length, 0);
   assert.equal(reminderPlan(emptyState, noon).length, 0);
+});
+
+test('resetting progress starts a new player but keeps how the app is set up', () => {
+  let s = addTask(emptyState, 'Wash dishes', true, 't1');
+  s = toggleTask(s, 't1', TODAY);
+  s = {
+    ...s,
+    onboarded: true,
+    joinedAt: TODAY,
+    goals: ['fitness'],
+    profile: { name: 'Fabian' },
+    settings: {
+      ...s.settings,
+      theme: 'gold',
+      title: 'Early bird',
+      frame: 'bronze',
+      showcase: ['x'],
+      guideHidden: true,
+      lang: 'de',
+      sounds: false,
+      haptics: false,
+      email: 'a@b.at',
+      quoteEmails: true,
+      lastBackup: TODAY,
+      reviewAsks: [TODAY],
+    },
+  };
+  assert.ok(totalXp(s) > 0);
+  const r = resetProgress(s);
+  assert.equal(totalXp(r), 0);
+  assert.equal(r.tasks.length, 0);
+  assert.equal(r.completions.length, 0);
+  assert.equal(r.onboarded, false);
+  assert.equal(r.joinedAt, '');
+  assert.deepEqual(r.goals, []);
+  assert.deepEqual(r.profile, emptyState.profile);
+  assert.deepEqual(r.settings, {
+    quoteEmails: true,
+    email: 'a@b.at',
+    theme: 'classic',
+    lang: 'de',
+    sounds: false,
+    haptics: false,
+    lastBackup: TODAY,
+    reviewAsks: [TODAY],
+  });
+  // A fresh player resets to the same fresh player.
+  assert.deepEqual(resetProgress(emptyState), emptyState);
 });
