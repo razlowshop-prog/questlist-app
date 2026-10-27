@@ -72,21 +72,17 @@ function face(mood: BizzyMood): string {
   }
 }
 
-/** Bizzy's mitten colours: white with a gold cuff. */
-const MITTEN = { palm: '#F4F6FF', thumb: '#E3E8FA', crease: '#C9D2F5', cuff: 'url(#bzg)' };
-
 /**
- * A mitten with its thumb on the left, drawn pointing up from (0, 0), then
- * turned to follow the arm's last stretch (from the curve's control point to the hand).
+ * A round hand with a thumb on its left, in the arm's colour, drawn pointing up
+ * from (0, 0), then turned to follow the arm's last stretch (from the curve's
+ * control point to the hand).
  */
-function mitten(hx: number, hy: number, cx: number, cy: number): string {
+function hand(hx: number, hy: number, cx: number, cy: number): string {
   const turn = r1((Math.atan2(hy - cy, hx - cx) * 180) / Math.PI + 90);
   return (
     `<g transform="translate(${hx} ${hy}) rotate(${turn}) scale(1.3)">` +
-    `<ellipse cx="-6.2" cy="-2.5" rx="3.2" ry="5.2" transform="rotate(-28 -6.2 -2.5)" fill="${MITTEN.thumb}"/>` +
-    `<path d="M-6 3 C-7.5 -5 -6.5 -13.5 0 -13.5 C6.5 -13.5 7.5 -5 6 3 C5 6.5 -5 6.5 -6 3Z" fill="${MITTEN.palm}"/>` +
-    `<path d="M-3.2 -1.5 Q-4 -6 -2.6 -9.5" fill="none" stroke="${MITTEN.crease}" stroke-width="1.3" stroke-linecap="round"/>` +
-    `<rect x="-6.6" y="1.2" width="13.2" height="4.6" rx="2.3" fill="${MITTEN.cuff}"/>` +
+    `<ellipse cx="-5.6" cy="-3.2" rx="2.4" ry="3.8" transform="rotate(-38 -5.6 -3.2)" fill="${LEG}"/>` +
+    `<circle cx="0" cy="-5" r="5.8" fill="${LEG}"/>` +
     `</g>`
   );
 }
@@ -94,7 +90,7 @@ function mitten(hx: number, hy: number, cx: number, cy: number): string {
 /** Arms for the waving mood: left arm resting, right arm up, thumbs towards the body. */
 function waveArms(): string {
   const arm = (sx: number, sy: number, cx: number, cy: number, hx: number, hy: number) =>
-    `<path d="M${sx} ${sy} Q${cx} ${cy} ${hx} ${hy}" fill="none" stroke="${LEG}" stroke-width="7" stroke-linecap="round"/>` + mitten(hx, hy, cx, cy);
+    `<path d="M${sx} ${sy} Q${cx} ${cy} ${hx} ${hy}" fill="none" stroke="${LEG}" stroke-width="7" stroke-linecap="round"/>` + hand(hx, hy, cx, cy);
   return arm(54, 128, 40, 136, 45, 156) + arm(146, 128, 176, 124, 172, 82);
 }
 

@@ -109,7 +109,7 @@ test('bizzy: every mood is one complete SVG with its own gradient', () => {
   }
   assert.equal(new Set(all).size, moods.length);
   assert.ok(!bizzySvg('happy', false).includes('opacity=".3"'));
-  // Mittens (with a thumb) only come out for the wave.
+  // Hands with a thumb only come out for the wave.
   assert.equal((bizzySvg('wave').match(/scale\(1\.3\)/g) ?? []).length, 2);
   assert.ok(!bizzySvg('happy').includes('scale(1.3)'));
 });
