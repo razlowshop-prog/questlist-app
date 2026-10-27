@@ -94,6 +94,8 @@ import { bagChanged, bagSnapshot, newInBag, type BagItem } from './src/bag';
 import { claimSeason, seasonStatus } from './src/seasons';
 import { frameName } from './src/cosmetics';
 import { askReminderPermission, REMINDERS_SUPPORTED, syncReminders } from './src/reminders';
+import { updateWidget } from './src/widget';
+import { widgetData } from './src/widgetData';
 import { reviewDue } from './src/review';
 import { askStoreReview } from './src/storeReview';
 import { buzz, setHapticsEnabled } from './src/haptics';
@@ -217,6 +219,17 @@ function Succedo() {
     if (!loaded || !REMINDERS_SUPPORTED) return;
     syncReminders(state).catch((e) => console.warn('Reminders failed to update', e));
   }, [state.tasks, state.completions, state.settings.lang, loaded, today]);
+
+  // The home screen widget (tasks left, streak, level, Bizzy's mood) is redrawn
+  // whenever what it shows changes; the phone also refreshes it every 30 minutes.
+  const widgetShown = useRef('');
+  useEffect(() => {
+    if (!loaded) return;
+    const shows = JSON.stringify(widgetData(state, new Date()));
+    if (shows === widgetShown.current) return;
+    widgetShown.current = shows;
+    updateWidget(state).catch((e) => console.warn('Widget failed to update', e));
+  }, [state, loaded, today]);
 
   setHapticsEnabled(state.settings.haptics);
   setSounds(state.settings.sounds, state.settings.soundStyle);
