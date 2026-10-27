@@ -83,15 +83,16 @@ function waveArms(): string {
 export function bizzySvg(mood: BizzyMood = 'happy', shadow = true): string {
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">` +
-    `<defs><linearGradient id="bzg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE9A8"/><stop offset="1" stop-color="#E0A93C"/></linearGradient></defs>` +
+    `<defs><linearGradient id="bzg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE9A8"/><stop offset="1" stop-color="#E0A93C"/></linearGradient><clipPath id="bzc"><ellipse cx="100" cy="122" rx="52" ry="54"/></clipPath></defs>` +
     (shadow ? `<ellipse cx="100" cy="186" rx="42" ry="7" fill="#000" opacity=".3"/>` : '') +
     `<ellipse cx="74" cy="70" rx="24" ry="30" fill="#DDF3FF" opacity=".75" transform="rotate(-24 74 70)"/>` +
     `<ellipse cx="126" cy="70" rx="24" ry="30" fill="#DDF3FF" opacity=".75" transform="rotate(24 126 70)"/>` +
     `<path d="M88 60 Q80 40 70 36 M112 60 Q120 40 130 36" fill="none" stroke="${LEG}" stroke-width="3.5" stroke-linecap="round"/>` +
     `<circle cx="70" cy="36" r="5.5" fill="url(#bzg)"/><circle cx="130" cy="36" r="5.5" fill="url(#bzg)"/>` +
     `<ellipse cx="100" cy="122" rx="52" ry="54" fill="url(#bzg)"/>` +
-    `<path d="M50 118 Q100 104 150 118 L151 134 Q100 120 49 134Z" fill="${NAVY}"/>` +
-    `<path d="M56 152 Q100 140 144 152 L138 164 Q100 154 62 164Z" fill="${NAVY}"/>` +
+    // Stripes are cut to the body's outline; the top one sits well below the mouth.
+    `<g clip-path="url(#bzc)"><path d="M44 130 Q100 114 156 130 L156 144 Q100 128 44 144Z" fill="${NAVY}"/>` +
+    `<path d="M44 160 Q100 148 156 160 L156 172 Q100 160 44 172Z" fill="${NAVY}"/></g>` +
     `<path d="M66 96 Q74 82 90 78" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" opacity=".55"/>` +
     face(mood) +
     `<path d="M100 176 L94 186 L106 186Z" fill="${NAVY}"/>` +
