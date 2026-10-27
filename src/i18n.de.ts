@@ -936,4 +936,13 @@ export const DE: Record<string, string> = {
   "One task today keeps it going.": "Eine Aufgabe heute hält sie am Leben.",
   "Keep your streak alive": "Halte deine Serie am Leben",
   "Nothing done yet today. One task is enough.": "Heute noch nichts erledigt. Eine Aufgabe reicht.",
+  "Hi!": "Hallo!",
+  "I’m Bizzy. Tap to plan your day.": "Ich bin Bizzy. Tipp hier und plane deinen Tag.",
+  "Free day": "Freier Tag",
+  "Nothing planned. Tap to add a task.": "Nichts geplant. Tipp hier für eine neue Aufgabe.",
+  "All done!": "Alles erledigt!",
+  "+{n} XP today. See you tomorrow.": "+{n} XP heute. Bis morgen!",
+  "task left today": "Aufgabe heute offen",
+  "tasks left today": "Aufgaben heute offen",
+  "Open Succedo": "Succedo öffnen",
 };
