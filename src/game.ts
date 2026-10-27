@@ -281,6 +281,33 @@ export function mergeSaved(saved: Partial<GameState>): GameState {
   };
 }
 
+/**
+ * Settings → Reset all progress: back to a brand-new player (setup questions
+ * next), keeping only how the app is set up. Won looks, titles and the theme
+ * go with the progress; the store-review days stay, so a reset never asks again.
+ */
+export function resetProgress(state: GameState): GameState {
+  const s = state.settings;
+  const kept: Settings = {
+    ...emptyState.settings,
+    quoteEmails: s.quoteEmails,
+    email: s.email,
+    streakReminders: s.streakReminders,
+    askedNotifications: s.askedNotifications,
+    shareActivity: s.shareActivity,
+    profileVisibility: s.profileVisibility,
+    haptics: s.haptics,
+    sounds: s.sounds,
+    soundStyle: s.soundStyle,
+    lang: s.lang,
+    lastBackup: s.lastBackup,
+    reviewAsks: s.reviewAsks,
+  };
+  // Leave out what was never set, so saved data stays as small as before.
+  for (const k of Object.keys(kept) as (keyof Settings)[]) if (kept[k] === undefined) delete kept[k];
+  return { ...emptyState, settings: kept };
+}
+
 /** Fills in fields that older saved data doesn't have yet. */
 export function withDefaults(state: GameState, today: string): GameState {
   if (state.joinedAt) return state;
