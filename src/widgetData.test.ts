@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { addDays, addTask, emptyState, type GameState } from './game.ts';
-import { bizzySvg, type BizzyMood } from './bizzy.ts';
+import { bizzyGripSvg, bizzySvg, type BizzyMood } from './bizzy.ts';
 import { setLang } from './i18n.ts';
-import { bizzyLine, widgetData } from './widgetData.ts';
+import { bizzyLine, bizzyMood, widgetData } from './widgetData.ts';
 
 const TODAY = '2026-10-27';
 const at = (hour: number, day = TODAY) => {
@@ -136,8 +136,40 @@ test('bizzy line: nothing on a day without tasks, and German texts', () => {
   }
 });
 
+test('bizzy mood on the streak card: happy, worried, sleepy, proud', () => {
+  const s = player();
+  assert.equal(bizzyMood(s, at(10)), 'happy');
+  assert.equal(bizzyMood(s, at(19)), 'happy');
+  assert.equal(bizzyMood(s, at(20)), 'worried');
+  // A streak in danger wins over sleepy.
+  assert.equal(bizzyMood(s, at(23)), 'worried');
+  const one = { ...s, completions: [...s.completions, { taskId: 'dishes', date: TODAY, xp: 20 }] };
+  assert.equal(bizzyMood(one, at(20)), 'happy');
+  assert.equal(bizzyMood(one, at(23)), 'sleepy');
+  assert.equal(bizzyMood(one, at(3)), 'sleepy');
+  const all = { ...one, completions: [...one.completions, { taskId: 'read', date: TODAY, xp: 15 }] };
+  assert.equal(bizzyMood(all, at(9)), 'proud');
+  assert.equal(bizzyMood(all, at(23)), 'proud');
+  // Nothing planned today and no streak: just happy.
+  assert.equal(bizzyMood({ ...emptyState, onboarded: true }, at(10)), 'happy');
+});
+
+test('bizzy: looking around, blinking and holding on', () => {
+  const plain = bizzySvg('happy');
+  assert.notEqual(bizzySvg('happy', true, { look: [3, 2] }), plain);
+  assert.equal(bizzySvg('happy', true, { look: [0, 0] }), plain);
+  // A blink swaps the round eyes for shut ones.
+  const shut = bizzySvg('happy', true, { blink: true });
+  assert.ok((plain.match(/fill="#fff"/g) ?? []).length > (shut.match(/fill="#fff"/g) ?? []).length);
+  assert.notEqual(bizzySvg('curious'), plain);
+  for (const svg of [shut, bizzySvg('curious', false, { look: [-2, 3] }), bizzyGripSvg()]) {
+    assert.match(svg, /^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg"[^>]*>.*<\/svg>$/s);
+    assert.ok(!/NaN|undefined/.test(svg));
+  }
+});
+
 test('bizzy: every mood is one complete SVG with its own gradient', () => {
-  const moods: BizzyMood[] = ['happy', 'excited', 'proud', 'worried', 'sleepy', 'wave'];
+  const moods: BizzyMood[] = ['happy', 'excited', 'proud', 'worried', 'sleepy', 'wave', 'curious'];
   const all = moods.map((m) => bizzySvg(m));
   for (const svg of all) {
     assert.match(svg, /^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg"[^>]*>.*<\/svg>$/s);

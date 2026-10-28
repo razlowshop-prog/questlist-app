@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronUp, Plus, Sparkles, X } from 'lucide-react-native';
 import Animated, { Easing, LinearTransition, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { ComboPill } from '../components/Moments';
@@ -13,8 +13,7 @@ import { RARITY } from '../vivid';
 import { LibraryRow } from '../components/LibraryRow';
 import { defaultSchedule, scheduleProblem, SchedulePicker, scheduleToTask, type Schedule } from '../components/SchedulePicker';
 import { StreakCard } from '../components/StreakCard';
-import { BizzySays } from '../components/Bizzy';
-import { bizzyLine } from '../widgetData';
+import { bizzyMood } from '../widgetData';
 import { TaskRow } from '../components/TaskRow';
 import {
   dayLabel,
@@ -219,7 +218,7 @@ export function TodayScreen({
     return tasks.map((t, i) => ({ t, i, rank: order.indexOf(taskCategory(t)) })).sort((x, y) => x.rank - y.rank || x.i - y.i).map((x) => x.t);
   }, [tasks]);
   const doneCount = tasks.filter((t) => isDoneToday(state, t, today)).length;
-  // Bizzy's line above the list follows the time of day, so it is worked out again on every full hour too.
+  // Bizzy's mood on the streak card follows the time of day, so it is worked out again on every full hour too.
   const [hourTick, setHourTick] = useState(0);
   useEffect(() => {
     const now = new Date();
@@ -227,7 +226,14 @@ export function TodayScreen({
     const id = setTimeout(() => setHourTick((n) => n + 1), toNextHour);
     return () => clearTimeout(id);
   }, [hourTick]);
-  const line = useMemo(() => bizzyLine(state, new Date()), [state, today, hourTick]);
+  const mood = useMemo(() => bizzyMood(state, new Date()), [state, today, hourTick]);
+  // He jumps each time another task of today gets done.
+  const [cheer, setCheer] = useState(0);
+  const lastDone = useRef(doneCount);
+  useEffect(() => {
+    if (doneCount > lastDone.current) setCheer((n) => n + 1);
+    lastDone.current = doneCount;
+  }, [doneCount]);
   // A ticked task plays its theme's finish animation, then leaves the list for "Done today".
   const [leaving, setLeaving] = useState<Set<string>>(() => new Set());
   const [showDone, setShowDone] = useState(false);
@@ -303,13 +309,12 @@ export function TodayScreen({
               <View onLayout={(e) => (comboY.value = HEADER_TOP + e.nativeEvent.layout.y)} />
 
               <View onLayout={(e) => (stickyFrom.value = HEADER_TOP + e.nativeEvent.layout.y + e.nativeEvent.layout.height)}>
-                <StreakCard streak={streak} week={weekDots(state, today)} multiplier={multiplier} onPress={onOpenStreak} />
+                <StreakCard streak={streak} week={weekDots(state, today)} multiplier={multiplier} bizzy={{ mood, cheer }} onPress={onOpenStreak} />
               </View>
               {tokenStrip}
               {recap}
               {focusBar}
               {guide}
-              {line && <BizzySays mood={line.mood} text={line.text} />}
 
               <View style={s.sectionRow}>
                 <Text style={s.sectionTitle}>{t('Today’s tasks')}</Text>

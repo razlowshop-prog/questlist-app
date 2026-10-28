@@ -1,9 +1,11 @@
 import { useEffect } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
+import type { BizzyMood } from '../bizzy';
 import { STREAK_TIERS, streakTierName, type StreakStatus, type WeekDot, type xpMultiplier } from '../game';
 import { card, themed, useStyles, useTheme } from '../theme';
 import { brandLine, tierFlame } from '../vivid';
+import { Bizzy } from './Bizzy';
 import { Fire } from './Fire';
 import { MultiplierPill } from './MultiplierPill';
 import { fill, GradientText, VIVID_HEAVY } from './Vivid';
@@ -16,19 +18,23 @@ const DOT_WORDS: Record<WeekDot, string> = { done: N('done'), rest: N('rest day'
  * The streak on the home screen: a still flame, the big glowing day count and
  * the fire's name on top, this week's days spread over the full width below,
  * inside a thin border in the fire tier's gradient. The XP
- * multiplier sits on the right while it is above 1. Tapping the card opens the
+ * multiplier sits on the right while it is above 1. Bizzy lives in the free
+ * corner on the right, in the mood of the day. Tapping the card opens the
  * level sheet with the streak bonus and the fire tiers.
  */
 export function StreakCard({
   streak,
   week,
   multiplier,
+  bizzy,
   onPress,
 }: {
   streak: StreakStatus;
   /** Monday to Sunday of this week. */
   week: WeekDot[];
   multiplier: ReturnType<typeof xpMultiplier>;
+  /** Bizzy's mood, and a count that goes up each time he should jump for joy. */
+  bizzy?: { mood: BizzyMood; cheer: number };
   onPress: () => void;
 }) {
   const s = useStyles(makeStyles);
@@ -59,6 +65,7 @@ export function StreakCard({
               {multiplier.total > 1 && <MultiplierPill multiplier={multiplier} size="small" />}
             </View>
           </View>
+          {bizzy && <Bizzy mood={bizzy.mood} cheer={bizzy.cheer} size={68} look={[-2, 1]} />}
         </View>
         {/* This week's days spread over the whole card, each with its letter. */}
         <View style={s.week}>

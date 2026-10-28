@@ -3,7 +3,13 @@
 // natively, and the app can show them with react-native-svg's SvgXml.
 // 200x200 drawing; every gradient is defined inside, so each string stands alone.
 
-export type BizzyMood = 'happy' | 'excited' | 'proud' | 'worried' | 'sleepy' | 'wave';
+export type BizzyMood = 'happy' | 'excited' | 'proud' | 'worried' | 'sleepy' | 'wave' | 'curious';
+
+/** Extras for the app: where the eyes look (a few units each way) and a blink. */
+export interface BizzyLook {
+  look?: [number, number];
+  blink?: boolean;
+}
 
 const INK = '#12151F';
 const NAVY = '#2F3650';
@@ -14,7 +20,8 @@ const SOFT = '#C9D2F5';
 const r1 = (n: number) => Math.round(n * 10) / 10;
 const stroke = (w: number) => `fill="none" stroke="${INK}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"`;
 
-function eye(x: number, y: number, r: number): string {
+function eyeOf(x: number, y: number, r: number, shut = false): string {
+  if (shut) return `<path d="M${r1(x - r)} ${y} Q${x} ${r1(y + r * 0.55)} ${r1(x + r)} ${y}" ${stroke(3.2)}/>`;
   return `<circle cx="${x}" cy="${y}" r="${r}" fill="${INK}"/><circle cx="${r1(x + r * 0.38)}" cy="${r1(y - r * 0.38)}" r="${r1(r * 0.36)}" fill="#fff"/>`;
 }
 
@@ -26,10 +33,11 @@ function sparkle(x: number, y: number, s: number): string {
   return `<path d="M${x} ${y - s} Q${x} ${y} ${x + s} ${y} Q${x} ${y} ${x} ${y + s} Q${x} ${y} ${x - s} ${y} Q${x} ${y} ${x} ${y - s}Z" fill="#FFE48A"/>`;
 }
 
-/** Eyes, brows, mouth and extras for one mood. Eyes sit at y 96, the mouth at y 106. */
-function face(mood: BizzyMood): string {
-  const [x1, x2, y, r, my, w] = [82, 118, 96, 7.5, 106, 7];
+/** Eyes, brows, mouth and extras for one mood. Eyes sit at y 96, the mouth at y 106; `lx`/`ly` move the eyes to look somewhere. */
+function face(mood: BizzyMood, [lx, ly]: [number, number] = [0, 0], shut = false): string {
+  const [x1, x2, y, r, my, w] = [82 + lx, 118 + lx, 96 + ly, 7.5, 106, 7];
   const smile = `<path d="M${x1 + 11} ${my} Q100 ${my + w} ${x2 - 11} ${my}" ${stroke(3.2)}/>`;
+  const eye = (x: number, ey: number, er: number) => eyeOf(x, ey, er, shut);
   switch (mood) {
     case 'excited': {
       const R = r * 1.18;
@@ -67,6 +75,14 @@ function face(mood: BizzyMood): string {
         // "z z z" drawn as paths, so no font is needed.
         `<path d="M150 40 h10 l-10 11 h10 M164 26 h7 l-7 8 h7 M174 15 h5 l-5 6 h5" fill="none" stroke="${SOFT}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>`
       );
+    case 'curious':
+      return (
+        cheeks(0.6) +
+        eye(x1, y, r * 1.05) +
+        eye(x2, y, r * 1.05) +
+        `<path d="M${x2 - 6} ${y - 13} Q${x2} ${y - 17} ${x2 + 7} ${y - 13}" ${stroke(3)}/>` +
+        `<ellipse cx="100" cy="${my + 3}" rx="3.2" ry="3.6" fill="${INK}"/>`
+      );
     default:
       return cheeks(0.7) + eye(x1, y, r) + eye(x2, y, r) + smile;
   }
@@ -95,7 +111,7 @@ function waveArms(): string {
 }
 
 /** Bizzy as a complete SVG document. `shadow` adds the soft ground shadow (off for tiny sizes). */
-export function bizzySvg(mood: BizzyMood = 'happy', shadow = true): string {
+export function bizzySvg(mood: BizzyMood = 'happy', shadow = true, { look, blink }: BizzyLook = {}): string {
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">` +
     `<defs><linearGradient id="bzg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE9A8"/><stop offset="1" stop-color="#E0A93C"/></linearGradient><clipPath id="bzc"><ellipse cx="100" cy="122" rx="52" ry="54"/></clipPath></defs>` +
@@ -109,9 +125,22 @@ export function bizzySvg(mood: BizzyMood = 'happy', shadow = true): string {
     `<g clip-path="url(#bzc)"><path d="M44 130 Q100 114 156 130 L156 144 Q100 128 44 144Z" fill="${NAVY}"/>` +
     `<path d="M44 160 Q100 148 156 160 L156 172 Q100 160 44 172Z" fill="${NAVY}"/></g>` +
     `<path d="M66 96 Q74 82 90 78" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" opacity=".55"/>` +
-    face(mood) +
+    face(mood, look, blink) +
     `<path d="M100 176 L94 186 L106 186Z" fill="${NAVY}"/>` +
     (mood === 'wave' ? waveArms() : '') +
     `</svg>`
+  );
+}
+
+/**
+ * One of Bizzy's hands seen from the front, fingers curled over an edge at the
+ * middle of its top: for when he holds on to a card or a field from behind.
+ */
+export function bizzyGripSvg(): string {
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -8 20 16" width="20" height="16">` +
+    `<ellipse cx="0" cy="1.5" rx="7.2" ry="5.2" fill="${LEG}"/>` +
+    `<circle cx="-4.4" cy="-1.6" r="2.6" fill="${LEG}"/><circle cx="0" cy="-2.4" r="2.7" fill="${LEG}"/><circle cx="4.4" cy="-1.6" r="2.6" fill="${LEG}"/>` +
+    `<path d="M-2.2 -1.4 v2.4 M2.2 -1.4 v2.4" stroke="#3E476F" stroke-width=".9" stroke-linecap="round"/></svg>`
   );
 }

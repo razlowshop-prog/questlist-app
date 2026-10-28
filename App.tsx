@@ -469,7 +469,7 @@ function Succedo() {
     if (next === state) return;
     setState(next);
     buzz('token');
-    showToast(day === today ? t('Rest day: your streak is safe today') : t('Streak saved with a rest day'));
+    showToast(day === today ? t('Rest day: Bizzy keeps watch, your streak is safe today') : t('Bizzy saved your streak with a rest day'));
   }
 
   function onToggle(task: Task, focusXp = 0): { xp: number; note?: string } {

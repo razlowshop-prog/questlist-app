@@ -19,8 +19,8 @@ export const DE: Record<string, string> = {
   "Notifications are off. Allow them in your phone settings to get reminders.": "Benachrichtigungen sind aus. Erlaube sie in den Handy-Einstellungen, um Erinnerungen zu bekommen.",
   "{n} task added. Let’s begin.": "{n} Aufgabe hinzugefügt. Los geht’s.",
   "{n} tasks added. Let’s begin.": "{n} Aufgaben hinzugefügt. Los geht’s.",
-  "Rest day: your streak is safe today": "Ruhetag: Deine Serie ist heute sicher",
-  "Streak saved with a rest day": "Serie mit einem Ruhetag gerettet",
+  "Rest day: Bizzy keeps watch, your streak is safe today": "Ruhetag: Bizzy passt auf, deine Serie ist heute sicher",
+  "Bizzy saved your streak with a rest day": "Bizzy hat deine Serie mit einem Ruhetag gerettet",
   "New tasks can be ticked a few seconds after adding": "Neue Aufgaben kannst du ein paar Sekunden nach dem Hinzufügen abhaken",
   "Already part of {task}": "Schon Teil von {task}",
   "{task} done · +{xp} XP, with a +{bonus} focus bonus": "{task} erledigt · +{xp} XP, mit +{bonus} Fokus-Bonus",
@@ -956,5 +956,4 @@ export const DE: Record<string, string> = {
   "Good morning, {name}! Start with the quickest task.": "Guten Morgen, {name}! Fang mit der schnellsten Aufgabe an.",
   "{n} task today. You’ve got this!": "{n} Aufgabe heute. Du schaffst das!",
   "{n} tasks today. You’ve got this!": "{n} Aufgaben heute. Du schaffst das!",
-  "Hi, I’m Bizzy! I’ll cheer you on every day.": "Hi, ich bin Bizzy! Ich feuere dich jeden Tag an.",
 };
