@@ -868,7 +868,6 @@ export const DE: Record<string, string> = {
   "with {n} tasks": "mit {n} Aufgaben",
   "Max level": "Höchstes Level",
   "{n} of {total} XP to level {level}": "{n} von {total} XP bis Level {level}",
-  "Next reward at level {n}: {reward}. {into} of {needed} XP.": "Nächste Belohnung bei Level {n}: {reward}. {into} von {needed} XP.",
   // game
   "{n} min": "{n} Min.",
   "{n} h": "{n} Std.",
