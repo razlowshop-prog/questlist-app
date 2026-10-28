@@ -92,8 +92,9 @@ export interface TicketStatus {
 
 /** Tickets come from XP earned outside the wheel; unticking a task can take back one not spent yet. */
 export function ticketStatus(state: GameState, totalXp: number): TicketStatus {
-  const xp = Math.max(0, totalXp - wheelXp(state));
-  const earned = Math.floor(xp / XP_PER_TICKET);
+  // XP from picking a level on the developer page doesn't flood the wheel; its own tickets do.
+  const xp = Math.max(0, totalXp - wheelXp(state) - (state.dev?.xp ?? 0));
+  const earned = Math.floor(xp / XP_PER_TICKET) + (state.dev?.tickets ?? 0);
   const spent = state.wheelSpins?.length ?? 0;
   return { tickets: Math.max(0, earned - spent), progress: xp % XP_PER_TICKET, earned, spent };
 }
