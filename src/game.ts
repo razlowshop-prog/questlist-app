@@ -1047,6 +1047,15 @@ export function dayLabel(day: string): string {
   return lang() === 'de' ? `${name}, ${date}.` : `${name} ${date}`;
 }
 
+/** What Bizzy says under a task reminder; changes from day to day and task to task. */
+const BIZZY_NUDGES = [N('🐝 Bizzy here: time for this one!'), N('🐝 Bizzy says: let’s get this done today.'), N('🐝 Bzzz! This one is on your list today.')];
+
+export function bizzyNudge(day: string, taskId: string): string {
+  let h = 0;
+  for (const ch of day + taskId) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return t(BIZZY_NUDGES[h % BIZZY_NUDGES.length]);
+}
+
 export interface PlannedReminder {
   /** 'streak' for the streak warning. */
   taskId: string;
@@ -1079,7 +1088,7 @@ export function reminderPlan(state: GameState, now: Date, days = 7, limit = 60):
       }
       const [y, mo, d] = day.split('-').map(Number);
       const at = new Date(y, mo - 1, d, h, m);
-      if (at.getTime() > now.getTime()) out.push({ taskId: task.id, title: shownTitle(task.title), at });
+      if (at.getTime() > now.getTime()) out.push({ taskId: task.id, title: shownTitle(task.title), body: bizzyNudge(day, task.id), at });
     }
   }
   // Streak warning at 20:00 on days nothing is done yet, today and the next two.
@@ -1101,10 +1110,10 @@ export function reminderPlan(state: GameState, now: Date, days = 7, limit = 60):
                 streak.tier >= 2
                   ? t('Your {days}-day streak drops from {fire} to {lower} at midnight', { days: streak.days, fire, lower })
                   : t('Your {days}-day streak ends at midnight', { days: streak.days }),
-              body: t('One task today keeps it going.'),
+              body: t('🐝 Bizzy is getting nervous. One task today keeps it going.'),
               at,
             }
-          : { taskId: 'streak', title: t('Keep your streak alive'), body: t('Nothing done yet today. One task is enough.'), at },
+          : { taskId: 'streak', title: t('Keep your streak alive'), body: t('🐝 Bizzy misses you. One task is enough.'), at },
       );
     }
   }
