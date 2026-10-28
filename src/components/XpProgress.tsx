@@ -5,7 +5,9 @@ import { scheduleOnRN } from 'react-native-worklets';
 import { milestoneLabel, nextLevelReward } from '../achievements';
 import { num, t } from '../i18n';
 import { levelInfo, MAX_LEVEL, xpToNext } from '../game';
-import { eyebrow, themed, useStyles, useTheme } from '../theme';
+import { MASCOT_SIZE } from '../themeFx';
+import { themed, useStyles, useTheme } from '../theme';
+import { brandLine } from '../vivid';
 import { ShimmerBar } from './Fortuna';
 import { RewardPicture } from './RewardPicture';
 import { ThemeXpBar, useThemeFx } from './ThemeFx';
@@ -24,13 +26,16 @@ function levelPosition(totalXp: number): number {
   return info.maxed ? MAX_LEVEL : info.level + info.progress;
 }
 
+/** Tallest the theme's mascot may ride in the strip, so it stays a slim line under the header. */
+const STRIP_MASCOT = 26;
+
 /**
- * Level progress at the top of Today: the bar (with the theme's mascot in its
- * own lane above it), then "Level 8 → 9" and the XP into the level below it,
- * so the mascot never covers them, then the next reward. Gained XP counts up: a light "ghost" bar
- * jumps ahead to the new total, the solid bar fills after it, the numbers tick
- * up and "+N XP" pops in beside them. A level-up runs the bar to the end and continues
- * from zero on the new level. Tapping it opens the level details.
+ * Level progress under the header on every tab: "LV 8", the bar (with the
+ * theme's mascot riding it in its own lane above) and the XP into the level.
+ * Gained XP counts up wherever it was earned: a light "ghost" bar jumps ahead
+ * to the new total, the solid bar fills after it, the numbers tick up and
+ * "+N XP" pops up above them. A level-up runs the bar to the end and
+ * continues from zero on the new level. Tapping it opens the level details.
  *
  * The bar runs on the animation thread (Reanimated), so it stays smooth while
  * the rest of the app is busy; only the numbers re-render, once per XP.
@@ -98,43 +103,47 @@ export function XpProgress({ totalXp, onPress }: { totalXp: number; onPress: () 
   const ghost = shown.level === real.level ? real.progress : 1;
   const gainStyle = useAnimatedStyle(() => ({
     opacity: gainAnim.value < 0.1 ? gainAnim.value * 10 : gainAnim.value > 0.7 ? (1 - gainAnim.value) / 0.3 : 1,
-    // Pops up into the label row and stays there, clear of the bar above.
+    // Pops up above the numbers and stays there, in the free space beside the mascot's lane.
     transform: [{ translateY: 6 * (1 - Math.min(1, gainAnim.value / 0.25)) }],
   }));
 
+  const size = fx.mascot ? MASCOT_SIZE[fx.mascot] : undefined;
+  const mascotScale = size ? Math.min(fx.mascotScale ?? 1, STRIP_MASCOT / size.height) : 1;
+  // The level and the numbers sit level with the bar, below the mascot's lane.
+  const side = { height: fx.bar ? fx.bar.height : c.bar.kind === 'shimmer' ? 18 : 16, marginBottom: fx.bar?.decor === 'vine' ? 6 : 0 };
+
   return (
-    <View style={s.wrap}>
-      <Pressable
-        onPress={onPress}
-        style={s.press}
-        accessibilityRole="button"
-        accessibilityLabel={`${t('Level {n}', { n: real.level })}, ${real.rank}. ${real.maxed ? t('Max level') : t('{n} of {total} XP to level {level}', { n: real.xpIntoLevel, total: real.xpForLevel, level: real.level + 1 })}. ${t('Show upcoming rewards')}`}
-      >
+    <Pressable
+      onPress={onPress}
+      // Without a mascot there is no lane above the bar: leave room there for "+N XP".
+      style={[s.strip, !(fx.bar && fx.mascot) && s.noLane]}
+      accessibilityRole="button"
+      accessibilityLabel={`${t('Level {n}', { n: real.level })}, ${real.rank}. ${real.maxed ? t('Max level') : t('{n} of {total} XP to level {level}', { n: real.xpIntoLevel, total: real.xpForLevel, level: real.level + 1 })}. ${t('Show upcoming rewards')}`}
+    >
+      <View style={[s.side, side]}>
+        <View style={s.pill}>
+          <Text style={s.pillLv}>{t('LV')}</Text>
+          <Text style={s.pillLevel}>{shown.level}</Text>
+        </View>
+      </View>
+      <View style={s.bar}>
         {fx.bar ? (
-          <ThemeXpBar spec={fx.bar} mascot={fx.mascot} scale={fx.mascotScale} live={fraction} ghost={ghost} progress={real.progress} gainKey={gainKey} />
+          <ThemeXpBar spec={fx.bar} mascot={fx.mascot} scale={mascotScale} live={fraction} ghost={ghost} progress={real.progress} gainKey={gainKey} />
         ) : c.bar.kind === 'shimmer' ? (
           <ShimmerBar progress={real.progress} live={fraction} ghost={ghost} glow={gain > 0 ? glow : undefined} glowFrom={c.xp} glowTo={c.text} />
         ) : (
           <PrismBar progress={real.progress} live={fraction} ghost={ghost} />
         )}
-        <View style={s.labels}>
-          <Text style={s.level}>{maxed ? t('Level {n} · max', { n: shown.level }) : t('Level {n} → {next}', { n: shown.level, next: shown.level + 1 })}</Text>
-          <View style={s.xpWrap}>
-            {gain > 0 && (
-              <Animated.View style={gainStyle}>
-                <GradientText style={s.gain}>+{gain} XP</GradientText>
-              </Animated.View>
-            )}
-            {!maxed && (
-              <GradientText style={s.xpNumbers}>
-                {shown.xp} / {forLevel} XP
-              </GradientText>
-            )}
-          </View>
-        </View>
-      </Pressable>
-      <NextReward totalXp={totalXp} />
-    </View>
+      </View>
+      <View style={[s.side, s.xpSide, side]}>
+        {gain > 0 && (
+          <Animated.View style={[s.gainWrap, gainStyle]}>
+            <GradientText style={s.gain}>+{gain} XP</GradientText>
+          </Animated.View>
+        )}
+        <GradientText style={s.xpNumbers}>{maxed ? t('Max level') : `${shown.xp} / ${forLevel} XP`}</GradientText>
+      </View>
+    </Pressable>
   );
 }
 
@@ -142,7 +151,7 @@ export function XpProgress({ totalXp, onPress }: { totalXp: number; onPress: () 
  * The coming levels as small slots, empty unless the level pays out, then the
  * next reward level and the XP still to go to reach it.
  */
-function NextReward({ totalXp }: { totalXp: number }) {
+export function NextReward({ totalXp }: { totalXp: number }) {
   const s = useStyles(makeStyles);
   const next = nextLevelReward(totalXp);
   if (!next) return null;
@@ -183,14 +192,28 @@ function NextReward({ totalXp }: { totalXp: number }) {
 }
 
 const makeStyles = themed((c) => ({
-  wrap: { gap: 10, marginTop: 14 },
-  press: { gap: 8 },
-  labels: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
-  level: { ...eyebrow(c, 12), color: c.muted },
-  xpWrap: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
-  gain: { fontFamily: VIVID_HEAVY, fontSize: 14 },
-  xpNumbers: { fontFamily: VIVID_HEAVY, fontSize: 15, fontVariant: ['tabular-nums'] },
-  next: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  strip: { flexDirection: 'row', alignItems: 'flex-end', gap: 10, paddingHorizontal: 16, paddingTop: 2, paddingBottom: 8, maxWidth: 664, width: '100%', alignSelf: 'center' },
+  noLane: { paddingTop: 18 },
+  side: { justifyContent: 'center' },
+  xpSide: { alignItems: 'flex-end', minWidth: 74 },
+  bar: { flex: 1 },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    height: 20,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: brandLine(c),
+    backgroundColor: c.surface,
+  },
+  pillLv: { color: c.muted, fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
+  pillLevel: { color: brandLine(c), fontFamily: VIVID_HEAVY, fontSize: 13, fontVariant: ['tabular-nums'] },
+  gainWrap: { position: 'absolute', right: 0, bottom: '100%', marginBottom: 6 },
+  gain: { fontFamily: VIVID_HEAVY, fontSize: 13 },
+  xpNumbers: { fontFamily: VIVID_HEAVY, fontSize: 13, fontVariant: ['tabular-nums'] },
+  next: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 },
   slots: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   slot: { width: 10, height: 10, borderRadius: 5, borderWidth: 1, borderColor: c.outline },
   slotNext: { borderColor: c.muted },

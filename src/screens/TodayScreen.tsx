@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronUp, Plus, Sparkles, X } from 'lucide-react-native';
-import Animated, { Easing, LinearTransition, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { LinearTransition, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { ComboPill } from '../components/Moments';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Chip } from '../components/Chip';
 import { QuoteFlip } from '../components/QuoteFlip';
 import { ConfirmSheet } from '../components/Sheet';
-import { STICKY_HEIGHT, StickyStatus } from '../components/StickyStatus';
 import { brandFill, brandFillSmall, brandInk, brandTextShadow, EmptyState, GradientText, VIVID_HEAVY, VividButton } from '../components/Vivid';
 import { RARITY } from '../vivid';
 import { LibraryRow } from '../components/LibraryRow';
@@ -59,11 +58,10 @@ export function TodayScreen({
   upcoming,
   streak,
   multiplier,
-  xpProgress,
+  nextReward,
   onOpenStreak,
   onEvolve,
   onTapBizzy,
-  onOpenRewards,
   tokenStrip,
   guide,
   today,
@@ -88,14 +86,12 @@ export function TodayScreen({
   upcoming: Task[];
   streak: StreakStatus;
   multiplier: ReturnType<typeof xpMultiplier>;
-  /** Level and XP bar, shown under the greeting. */
-  xpProgress?: React.ReactNode;
+  /** The next level reward, shown under the greeting (the XP bar itself sits under the header). */
+  nextReward?: React.ReactNode;
   onOpenStreak: () => void;
   /** Bizzy evolves into his next form (only offered once the level allows it). */
   onEvolve: () => void;
   onTapBizzy: () => void;
-  /** The coming level rewards, from the XP bar in the pinned status line. */
-  onOpenRewards: () => void;
   /** Tokens to use, shown under the streak. */
   tokenStrip?: React.ReactNode;
   /** The first-steps card for new players. */
@@ -126,22 +122,13 @@ export function TodayScreen({
 }) {
   const s = useStyles(makeStyles);
   const c = useTheme();
-  // Once the streak card has scrolled away, a slim streak + XP line pins to the top.
-  // The combo pill sits just under the XP bar and then just under that line.
+  // The combo pill pops up just above the streak card and stays in sight at the top as the list scrolls.
   const scrollY = useSharedValue(0);
   const comboY = useSharedValue(0);
-  const stickyFrom = useSharedValue(Number.MAX_SAFE_INTEGER);
-  const pinned = useSharedValue(0);
-  const sticky = useSharedValue(0);
   const onScroll = useAnimatedScrollHandler((e) => {
     scrollY.value = e.contentOffset.y;
-    const now = e.contentOffset.y > stickyFrom.value ? 1 : 0;
-    if (now !== pinned.value) {
-      pinned.value = now;
-      sticky.value = withTiming(now, { duration: 180, easing: Easing.out(Easing.quad) });
-    }
   });
-  const comboStyle = useAnimatedStyle(() => ({ top: Math.max(6 + STICKY_HEIGHT * sticky.value, comboY.value - scrollY.value) }));
+  const comboStyle = useAnimatedStyle(() => ({ top: Math.max(6, comboY.value - scrollY.value) }));
   const [removing, setRemoving] = useState<Task | null>(null);
   const [title, setTitle] = useState('');
   const [schedule, setSchedule] = useState<Schedule>(() => defaultSchedule(today));
@@ -341,13 +328,11 @@ export function TodayScreen({
                 side={quoteSideFor(state.settings.quoteSide, today)}
                 onSide={onQuoteSide}
               />
-              {xpProgress}
+              {nextReward}
               {/* Where the combo pill pops up: the header starts below the list's top padding. */}
               <View onLayout={(e) => (comboY.value = HEADER_TOP + e.nativeEvent.layout.y)} />
 
-              <View onLayout={(e) => (stickyFrom.value = HEADER_TOP + e.nativeEvent.layout.y + e.nativeEvent.layout.height)}>
-                <StreakCard streak={streak} week={weekDots(state, today)} multiplier={multiplier} bizzy={{ mood, cheer, form: bizzyFormOf(state.bizzyForm).n, level: levelInfo(totalXp(state)).level, onEvolve, talk, taps: state.bizzyTaps ?? 0, onTap: onTapBizzy }} onPress={onOpenStreak} />
-              </View>
+              <StreakCard streak={streak} week={weekDots(state, today)} multiplier={multiplier} bizzy={{ mood, cheer, form: bizzyFormOf(state.bizzyForm).n, level: levelInfo(totalXp(state)).level, onEvolve, talk, taps: state.bizzyTaps ?? 0, onTap: onTapBizzy }} onPress={onOpenStreak} />
               {tokenStrip}
               {recap}
               {focusBar}
@@ -416,7 +401,6 @@ export function TodayScreen({
           }
           renderItem={({ item, index }) => row(item, index)}
         />
-        <StickyStatus totalXp={totalXp(state)} streak={streak} shown={sticky} onStreak={onOpenStreak} onLevel={onOpenRewards} />
         {combo && <ComboPill count={combo.count} play={combo.play} style={comboStyle} />}
       </View>
 

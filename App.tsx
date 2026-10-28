@@ -9,7 +9,7 @@ import { Animated, BackHandler, Easing, Platform, Pressable, StyleSheet, Text, V
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { activitySummary } from './src/activity';
 import { BackBar, TopBar } from './src/components/TopBar';
-import { XpProgress } from './src/components/XpProgress';
+import { NextReward, XpProgress } from './src/components/XpProgress';
 import { FirstDayGuide } from './src/components/FirstDayGuide';
 import { MomentCelebration, type Moment } from './src/components/Moments';
 import { PERFECT_DAY_XP, reachStreakMilestone, syncPerfectDay } from './src/moments';
@@ -655,6 +655,7 @@ function Succedo() {
                   onInventory={() => setPage('inventory')}
                   onProfile={() => setPage('profile')}
                 />
+                <XpProgress totalXp={xp} onPress={() => setRewardsOpen(true)} />
               </View>
             )}
 
@@ -774,7 +775,7 @@ function Succedo() {
                   upcoming={upcoming}
                   streak={streakInfo}
                   multiplier={multiplier}
-                  xpProgress={<XpProgress totalXp={xp} onPress={() => setRewardsOpen(true)} />}
+                  nextReward={<NextReward totalXp={xp} />}
                   onOpenStreak={() => setLevelOpen(true)}
                   onEvolve={() => {
                     const next = evolveBizzy(state);
@@ -784,7 +785,6 @@ function Succedo() {
                     setEvolving({ from: bizzyFormOf(state.bizzyForm).n, to: bizzyFormOf(next.bizzyForm).n });
                   }}
                   onTapBizzy={() => setState((s) => tapBizzy(s))}
-                  onOpenRewards={() => setRewardsOpen(true)}
                   tokenStrip={
                     <TokenStrip
                       state={state}
