@@ -1017,4 +1017,7 @@ export const DE: Record<string, string> = {
   "Keep playing around to find it.": "Spiel einfach weiter herum, um sie zu finden.",
   "Won with a secret achievement. Can you find it?": "Gewinnst du mit einer geheimen Auszeichnung. Findest du sie?",
   "Bizzy. Tap to hear what he says": "Bizzy. Tippen, um zu hören, was er sagt",
+  "Something went wrong": "Etwas ist schiefgelaufen",
+  "Your progress is saved. Please send a screenshot of this screen so it can be fixed.": "Dein Fortschritt ist gespeichert. Bitte schick einen Screenshot dieser Seite, damit der Fehler behoben werden kann.",
+  "Try again": "Nochmal versuchen",
 };
