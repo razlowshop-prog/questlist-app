@@ -64,6 +64,8 @@ import { makeBackup } from './src/backup';
 import { InventoryScreen } from './src/screens/InventoryScreen';
 import { MenuScreen, type MenuPage } from './src/screens/MenuScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
+import { DevScreen } from './src/screens/DevScreen';
+import { devAllowed } from './src/devTools';
 import { LibraryModal } from './src/screens/LibraryModal';
 import { SetupScreen } from './src/screens/SetupScreen';
 import { pickToTask, type LibraryPick } from './src/components/PickSheet';
@@ -138,6 +140,7 @@ const PAGE_TITLES: Record<Page, string> = {
   friends: N('Friends'),
   leaderboard: N('Leaderboard'),
   settings: N('Settings'),
+  dev: N('Developer'),
   apps: N('Connected apps'),
   help: N('Contact & help'),
   legal: N('Legal'),
@@ -195,7 +198,8 @@ function Succedo() {
 
   /** Saved progress made ready to play: missing fields filled, old tasks timed, level rewards handed out. */
   function prepared(s: GameState): GameState {
-    const ready = withEstimatedTimes(withDefaults(s, dayKey()));
+    // Store builds drop changes made on the developer page (devTools.ts).
+    const ready = withEstimatedTimes(withDefaults(devAllowed(s), dayKey()));
     // Level rewards for levels reached before the reward ladder existed.
     return grantLevelRewards(ready, levelInfo(totalXp(ready)).level);
   }
@@ -252,18 +256,20 @@ function Succedo() {
   const ownedTasks = useMemo(() => ownedLibraryIds(state, today), [state.tasks, state.completions, today]);
   const week = useMemo(() => activitySummary(state, today), [state, today]);
   const rewards = useMemo(() => unlockedRewards(state), [state.achievementClaims, state.levelRewards, state.wheelSpins]);
+  // Everything owned: browser previews, or "Unlock everything" on the developer page.
+  const allUnlocked = PREVIEW_ALL_THEMES || !!state.dev?.unlockAll;
   const unlockedThemes = useMemo(() => {
     const labels = new Set(rewards.map((r) => r.label));
-    return new Set(THEMES.filter((t) => !t.reward || labels.has(t.reward) || PREVIEW_ALL_THEMES).map((t) => t.id));
-  }, [rewards]);
+    return new Set(THEMES.filter((t) => !t.reward || labels.has(t.reward) || allUnlocked).map((t) => t.id));
+  }, [rewards, allUnlocked]);
   // Trophies won, as a key that only changes when one is won: each gives a title and maybe a frame.
   const trophiesWon = trophies
     .filter((t) => t.earned)
     .map((t) => t.def.id)
     .join(',');
   const owned = useMemo(
-    () => ownedLooks(state, PREVIEW_ALL_THEMES, trophiesWon ? trophiesWon.split(',') : []),
-    [state.achievementClaims, state.levelRewards, state.seasonClaims, state.wheelSpins, trophiesWon],
+    () => ownedLooks(state, allUnlocked, trophiesWon ? trophiesWon.split(',') : []),
+    [state.achievementClaims, state.levelRewards, state.seasonClaims, state.wheelSpins, trophiesWon, allUnlocked],
   );
   const tickets = ticketStatus(state, xp);
   const looks = equippedLooks(state.settings, owned);
@@ -739,6 +745,17 @@ function Succedo() {
                     setRedoSetup(false);
                     setPage(null);
                     setTab('today');
+                  }}
+                />
+              )}
+              {page === 'dev' && (
+                <DevScreen
+                  state={state}
+                  today={today}
+                  onChange={(next) => {
+                    // A picked level celebrates again, even one reached before.
+                    bestLevel.current = null;
+                    apply(next);
                   }}
                 />
               )}
