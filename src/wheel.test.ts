@@ -5,6 +5,7 @@ import { activityTimeline } from './activity.ts';
 import { addDays, emptyState, totalXp, xpMultiplier, type Completion, type GameState, type WheelSpin } from './game.ts';
 import { tokenCounts } from './tokens.ts';
 import {
+  wheelSize,
   JACKPOT_XP,
   ownsWheelTheme,
   PITY_SPINS,
@@ -146,4 +147,18 @@ test('the XP multiplier lists what it is made of, counting today in the streak',
   const doubled = xpMultiplier({ ...run, doubleDays: [TODAY] }, TODAY);
   assert.deepEqual(doubled.parts.map((p) => p.label), ['Streak', 'Double XP']);
   assert.ok(Math.abs(doubled.total - 2.2) < 1e-9);
+});
+
+test('wheel: sizes itself so the whole wheel fits between header and tab bar', () => {
+  // Regular phone (360 wide, ~600 between the bars): limited by the width.
+  assert.equal(wheelSize(360, 600), 304);
+  assert.equal(wheelSize(360, 470), 294);
+  // Small phone (~420 between the bars): limited by the height, so nothing is cut off.
+  assert.equal(wheelSize(360, 420), 244);
+  // Big phone or tablet: capped.
+  assert.equal(wheelSize(412, 780), 356);
+  assert.equal(wheelSize(1024, 1200), 360);
+  // Never smaller than 200.
+  assert.equal(wheelSize(300, 200), 200);
+  for (const [w, h] of [[320, 480], [360, 560], [390, 700], [412, 760]]) assert.ok(wheelSize(w, h) + 176 <= h && wheelSize(w, h) + 56 <= w, `${w}x${h}`);
 });

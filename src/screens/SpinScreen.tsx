@@ -1,18 +1,17 @@
 import { buzz } from '../haptics';
 import { sound } from '../sounds';
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Animated, Easing, Modal, PanResponder, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
+import { Animated, Easing, Modal, PanResponder, Pressable, ScrollView, Text, useWindowDimensions, View, type StyleProp, type TextStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Reanimated, { cancelAnimation, Easing as REasing, useAnimatedReaction, useAnimatedStyle, useSharedValue, withRepeat, withTiming, type SharedValue } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import Svg, { Circle, Defs, G, LinearGradient, Mask, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
-import { CoinCheck, CoinShower, GOLD, GoldDust, GoldText, HOLO, HoloBorder, ShimmerBar, Star4, StarRule, TicketStub } from '../components/Fortuna';
+import { CoinCheck, CoinShower, GOLD, GoldText, HOLO, HoloBorder, ShimmerBar, Star4, StarRule } from '../components/Fortuna';
 import { KEYLINE, MYTHIC, prizeIcon, PrizeSticker, RARITY_COLORS } from '../components/PrizeSticker';
 import { TOKEN_INFO } from '../tokens';
-import { fill, VIVID_HEAVY } from '../components/Vivid';
-import { BRAND } from '../vivid';
+import { VIVID_HEAVY } from '../components/Vivid';
 import { useReduceMotion } from '../components/FireAura';
-import { eyebrow, FONTS, headingCase, themed, useStyles } from '../theme';
+import { eyebrow, FONTS, headingCase, themed, useStyles, useTheme } from '../theme';
 import {
   JACKPOT,
   PITY_SPINS,
@@ -20,6 +19,7 @@ import {
   prizeLabel,
   rarityName,
   segmentFor,
+  wheelSize,
   WHEEL_PRIZES,
   WHEEL_SEGMENTS,
   XP_PER_TICKET,
@@ -38,6 +38,11 @@ const SPIN_MS = 3200;
 /** At most one haptic tick per this many ms. */
 const TICK_MS = 40;
 const CINZEL = 'Cinzel_800ExtraBold';
+/** The gold centre's width as a share of the wheel: it is the Spin button. */
+const HUB_SHARE = 0.3;
+/** Room above the wheel for the pointer, and the same below, so the corner chips stay clear of the rim. */
+const SLOT_PAD = 26;
+
 
 /** Each slice's short label on the wheel (design "Calm"); rarity shows as the rim arc and icon colour. */
 const LABELS: Record<string, string> = {
@@ -71,9 +76,13 @@ function prizeColor(prize: WheelPrize): string {
 const isMythic = (prize: WheelPrize) => !!prize.theme || prize.id === JACKPOT.id;
 
 /**
- * The lucky wheel tab, always in the Fortuna look: tickets and how they're
- * earned, the wheel with its slices drawn to scale, the odds and the latest
- * wins. A spin runs about five seconds with the rim bulbs blinking and the
+ * The lucky wheel tab (design "layout B, look L4"): the page wears the
+ * player's theme, and only the wheel, its gold centre and a soft glow behind
+ * it are Fortuna. The whole wheel fits the screen as the tab opens: it sizes
+ * itself to the space left. The gold centre is the Spin button and shows the
+ * tickets; tickets, the odds ("?"), the next ticket and the lucky meter sit
+ * as small chips in the free corners round the wheel. How tickets work and
+ * the latest wins follow below. A spin runs about five seconds with the
  * pointer flicking (and the phone ticking) over each slice edge, then the
  * prize card pops up.
  */
@@ -98,9 +107,12 @@ export function SpinScreen({
   onBusy?: (busy: boolean) => void;
 }) {
   const s = useStyles(makeStyles);
+  const c = useTheme();
   const reduceMotion = useReduceMotion();
-  const { width } = useWindowDimensions();
-  const size = Math.min(320, Math.max(240, width - 40));
+  const window = useWindowDimensions();
+  // The space between the header and the tab bar; until it's measured, a guess from the window.
+  const [room, setRoom] = useState({ w: window.width, h: window.height - 190 });
+  const size = wheelSize(room.w, room.h);
   const k = size / 320;
   // The wheel and pointer turn on the animation thread (Reanimated), so the spin stays smooth.
   const rotation = useSharedValue(0);
@@ -214,7 +226,7 @@ export function SpinScreen({
           if (moved < 8) {
             const tx = rx + g.dx;
             const ty = ry + g.dy;
-            if (Math.hypot(tx, ty) < size * 0.14) return;
+            if (Math.hypot(tx, ty) < size * HUB_SHARE * 0.5) return;
             // The tapped spot's angle, clockwise from the top, then back onto the unturned face.
             const tapped = (Math.atan2(tx, -ty) * 180) / Math.PI;
             const seg = WHEEL_SEGMENTS[segmentAt(angle.current - tapped)];
@@ -239,68 +251,71 @@ export function SpinScreen({
   const recent = spins.slice(-5).reverse();
   const toGo = XP_PER_TICKET - tickets.progress;
 
+  const hub = size * HUB_SHARE;
   return (
-    <View style={s.screen}>
-      <GoldDust />
+    <View style={s.screen} onLayout={(e) => setRoom({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
       <ScrollView contentContainerStyle={s.content}>
+        {/* The first screen: title, the wheel with its corner chips, and the hint. */}
         <View style={s.eyebrowRow}>
-          <StarRule end="left" style={{ width: 54 }} />
-          <Text style={s.eyebrow}>{t('Fortuna')}</Text>
-          <StarRule end="right" style={{ width: 54 }} />
+          <StarRule end="left" style={{ width: 40 }} />
+          <Text style={[s.eyebrow, !c.dark && { color: GOLD.deep }]}>{t('Fortuna')}</Text>
+          <StarRule end="right" style={{ width: 40 }} />
         </View>
-        <GoldText style={s.heading}>{t('Spin the wheel')}</GoldText>
-        <Pressable onPress={() => setOddsOpen(true)} hitSlop={10} style={s.oddsButton} accessibilityRole="button" accessibilityLabel={t('Show the odds')}>
-          <Text style={s.oddsButtonText}>?</Text>
-        </Pressable>
+        <Gold dark={c.dark} style={s.heading}>
+          {t('Spin the wheel')}
+        </Gold>
 
-        <HoloBorder radius={14} style={{ marginTop: 18 }}>
-          <View style={s.ticketCard}>
-            <View style={s.ticketRow}>
-              <TicketStub dim={!has} />
-              <View style={{ flex: 1 }}>
-                <GoldText style={s.ticketCount}>× {tickets.tickets}</GoldText>
-                <Text style={s.ticketLabel}>{tickets.tickets === 1 ? t('ticket ready to spin') : t('tickets ready to spin')}</Text>
-              </View>
-            </View>
-            <View style={{ gap: 2 }}>
-              <Text style={s.nextLabel}>
-                {t('Next ticket · {n} XP to go', { n: toGo })}
-              </Text>
-              <ShimmerBar progress={tickets.progress / XP_PER_TICKET} ghost={tickets.progress / XP_PER_TICKET} />
-            </View>
-            <Text style={s.copy}>
-              {t('You earn 1 ticket for every {n} XP from tasks, challenges and achievements. Tickets are free and can never be bought.', { n: XP_PER_TICKET })}
-            </Text>
+        <View style={[s.slot, { height: size + 2 * SLOT_PAD }]}>
+          <Halo size={size} light={!c.dark} />
+          <View style={[s.wheelBox, { width: size, height: size, borderRadius: size / 2 }]}>
+            <Rim size={size} />
+            <Reanimated.View style={[{ position: 'absolute', width: size, height: size }, wheelStyle]}>
+              <WheelFace size={size} ownsTheme={ownsTheme} />
+              <SliceLabels size={size} ownsTheme={ownsTheme} rotation={rotation} still={reduceMotion} />
+            </Reanimated.View>
+            {/* Doesn't turn, so touch positions stay simple; the gold centre sits above it. */}
+            <View
+              {...touch.panHandlers}
+              style={{ position: 'absolute', width: size, height: size, borderRadius: size / 2 }}
+              accessibilityHint={t('Swipe around the wheel to spin it, or tap a slice to see what it gives')}
+            />
+            <Pressable
+              onPress={() => spin()}
+              disabled={spinning || !has}
+              style={{ width: hub, height: hub, borderRadius: hub / 2 }}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: spinning || !has }}
+              accessibilityLabel={has ? tn(tickets.tickets, 'Spin the wheel, {n} ticket', 'Spin the wheel, {n} tickets') : t('No tickets yet')}
+            >
+              <Hub size={hub} tickets={tickets.tickets} spinning={spinning} />
+            </Pressable>
+            <Reanimated.View
+              pointerEvents="none"
+              style={[{ position: 'absolute', top: -20 * k, width: 28 * k, height: 34 * k, transformOrigin: `${14 * k}px ${11 * k}px` }, pointerStyle]}
+            >
+              <Pointer scale={k} dark={!c.dark} />
+            </Reanimated.View>
           </View>
-        </HoloBorder>
-
-        <View style={[s.wheelBox, { width: size, height: size, borderRadius: size / 2, marginTop: 34 * k + 14 }]}>
-          <Rim size={size} />
-          <Reanimated.View style={[{ position: 'absolute', width: size, height: size }, wheelStyle]}>
-            <WheelFace size={size} ownsTheme={ownsTheme} />
-            <SliceLabels size={size} ownsTheme={ownsTheme} rotation={rotation} still={reduceMotion} />
-          </Reanimated.View>
-          {/* Doesn't turn, so touch positions stay simple; the hub coin sits above it. */}
-          <View
-            {...touch.panHandlers}
-            style={{ position: 'absolute', width: size, height: size, borderRadius: size / 2 }}
-            accessibilityHint={t('Swipe around the wheel to spin it, or tap a slice to see what it gives')}
-          />
-          <Pressable
-            onPress={() => spin()}
-            disabled={spinning || !has}
-            style={{ width: 64 * k, height: 64 * k, borderRadius: 32 * k, boxShadow: '0px 4px 14px rgba(0,0,0,0.5)' }}
-            accessibilityRole="button"
-            accessibilityLabel={has ? tn(tickets.tickets, 'Spin the wheel, {n} ticket', 'Spin the wheel, {n} tickets') : t('No tickets yet')}
-          >
-            <Hub size={64 * k} />
+          {/* The free corners round the wheel. */}
+          <View style={[s.chip, s.chipTopLeft]} accessibilityLabel={tn(tickets.tickets, '{n} ticket ready to spin', '{n} tickets ready to spin')}>
+            <MiniTicket dim={!has} />
+            <Text style={s.chipText}>× {tickets.tickets}</Text>
+          </View>
+          <Pressable onPress={() => setOddsOpen(true)} hitSlop={10} style={[s.chip, s.chipRound, s.chipTopRight]} accessibilityRole="button" accessibilityLabel={t('Show the odds')}>
+            <Text style={s.oddsButtonText}>?</Text>
           </Pressable>
-          <Reanimated.View
-            pointerEvents="none"
-            style={[{ position: 'absolute', top: -20 * k, width: 28 * k, height: 34 * k, transformOrigin: `${14 * k}px ${11 * k}px` }, pointerStyle]}
-          >
-            <Pointer scale={k} />
-          </Reanimated.View>
+          <View style={[s.chip, s.chipBottomLeft]} accessibilityLabel={t('Next ticket · {n} XP to go', { n: toGo })}>
+            <Text style={s.chipText}>{t('{n} XP', { n: toGo })}</Text>
+            <View style={s.mini}>
+              <View style={[s.miniFill, { width: `${(tickets.progress / XP_PER_TICKET) * 100}%` }]} />
+            </View>
+          </View>
+          {pity !== undefined && (
+            <View style={[s.chip, s.chipBottomRight]} accessibilityLabel={pity <= 1 ? t('Lucky meter: your next spin wins Fortuna for sure.') : t('Lucky meter: {n} spins left until Fortuna is guaranteed.', { n: pity })}>
+              <Star4 size={11} color={GOLD.mid} />
+              <Text style={s.chipText}>{pity}</Text>
+            </View>
+          )}
         </View>
 
         {about && !spinning ? (
@@ -309,18 +324,18 @@ export function SpinScreen({
             {about.theme && !ownsTheme && <ThemePreview />}
           </>
         ) : (
-          <Text style={s.hint}>{has ? t('Swipe the wheel or tap Spin · tap a slice to see what it gives') : t('Tap a slice to see what it gives')}</Text>
+          <Text style={s.hint}>{spinning ? t('Good luck…') : has ? t('Tap the gold middle or swipe the wheel · tap a slice to see what it gives') : t('Tap a slice to see what it gives')}</Text>
         )}
-        <SpinButton label={spinning ? t('Good luck…') : has ? t('Spin · 1 ticket') : t('No tickets yet')} disabled={!has || spinning} off={!has && !spinning} onPress={() => spin()} />
+
         {pity !== undefined && (
           <Text style={s.small}>
             {pity <= 1 ? t('Lucky meter: your next spin wins Fortuna for sure.') : t('Lucky meter: {n} spins left until Fortuna is guaranteed.', { n: pity })}
           </Text>
         )}
-
         <Text style={s.section}>{t('How tickets work')}</Text>
         <View style={s.panel}>
           <Info text={t('Every {n} XP from tasks, weekly challenges and achievements gives one ticket.', { n: XP_PER_TICKET })} />
+          <Info text={t('Next ticket · {n} XP to go', { n: toGo })} />
           <Info text={t('XP won on the wheel counts for your level, but doesn’t earn new tickets.')} />
           <Info text={t('Tickets are never sold and never come from ads. They only come from what you get done.')} />
         </View>
@@ -437,41 +452,6 @@ function RainbowDot() {
       </Defs>
       <Circle cx={5} cy={5} r={5} fill="url(#rainbowDot)" />
     </Svg>
-  );
-}
-
-/** The gold spin button, gently pulsing while a ticket is ready. */
-function SpinButton({ label, disabled, off, onPress }: { label: string; disabled: boolean; off: boolean; onPress: () => void }) {
-  const s = useStyles(makeStyles);
-  const reduceMotion = useReduceMotion();
-  const pulse = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    if (reduceMotion || disabled) return;
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, { toValue: 1, duration: 1200, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
-        Animated.timing(pulse, { toValue: 0, duration: 1200, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
-      ]),
-    );
-    loop.start();
-    return () => {
-      loop.stop();
-      pulse.setValue(0);
-    };
-  }, [reduceMotion, disabled]);
-  return (
-    <View style={s.spinWrap}>
-      {!off && (
-        <Animated.View
-          pointerEvents="none"
-          style={[s.spinGlow, { opacity: disabled ? 0.25 : pulse.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.95] }) }]}
-        />
-      )}
-      <Pressable onPress={onPress} disabled={disabled} style={[s.spinButton, off && s.spinButtonOff]} accessibilityRole="button" accessibilityState={{ disabled }}>
-        {!off && <GoldFill id="spinFill" />}
-        <Text style={[s.spinText, off && s.spinTextOff]}>{label.toUpperCase()}</Text>
-      </Pressable>
-    </View>
   );
 }
 
@@ -638,22 +618,107 @@ function Rim({ size }: { size: number }) {
   );
 }
 
-/** The 64 px brand-gradient hub that says SPIN. Tapping it spins. */
-function Hub({ size }: { size: number }) {
+/**
+ * The gold centre: the Spin button, with the tickets left under SPIN. It
+ * breathes softly while a ticket is ready, and goes dim without one.
+ */
+function Hub({ size, tickets, spinning }: { size: number; tickets: number; spinning: boolean }) {
+  const reduce = useReduceMotion();
+  const live = tickets > 0 && !spinning;
+  const pulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (reduce || !live) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 1100, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+        Animated.timing(pulse, { toValue: 0, duration: 1100, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+      ]),
+    );
+    loop.start();
+    return () => {
+      loop.stop();
+      pulse.setValue(0);
+    };
+  }, [reduce, live]);
+  const k = size / 96;
   return (
-    <View style={[{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center' }, fill(BRAND, 135)]}>
-      <Text style={{ color: '#FFFFFF', fontFamily: VIVID_HEAVY, fontSize: 14 * (size / 64), letterSpacing: 0.8 }}>{t('SPIN')}</Text>
+    <View style={{ width: size, height: size }}>
+      {live && (
+        <Animated.View
+          pointerEvents="none"
+          style={{ position: 'absolute', left: 0, top: 0, width: size, height: size, borderRadius: size / 2, boxShadow: `0px 0px ${22 * k}px ${GOLD.mid}`, opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.45, 1] }) }}
+        />
+      )}
+      <View style={{ width: size, height: size, borderRadius: size / 2, overflow: 'hidden', borderWidth: 1.5, borderColor: live ? KEYLINE : '#3d2d5c', alignItems: 'center', justifyContent: 'center', backgroundColor: '#2a1d40', boxShadow: '0px 4px 14px rgba(0,0,0,0.5)' }}>
+        {live && (
+          <Svg width={size} height={size} style={{ position: 'absolute', left: 0, top: 0 }} viewBox="0 0 100 100">
+            <Defs>
+              <RadialGradient id="hubGold" cx="40%" cy="30%" r="75%">
+                <Stop offset="0" stopColor={GOLD.light} />
+                <Stop offset="0.45" stopColor={GOLD.mid} />
+                <Stop offset="1" stopColor={GOLD.deep} />
+              </RadialGradient>
+            </Defs>
+            <Circle cx={50} cy={50} r={50} fill="url(#hubGold)" />
+          </Svg>
+        )}
+        <Text style={{ fontFamily: CINZEL, color: live ? GOLD.ink : '#a596bf', fontSize: 19 * k, lineHeight: 22 * k, letterSpacing: 1.2 * k }}>{t('SPIN')}</Text>
+        <Text style={{ fontFamily: VIVID_HEAVY, color: live ? GOLD.ink : '#a596bf', fontSize: 12 * k, lineHeight: 15 * k, opacity: 0.8 }}>× {tickets}</Text>
+      </View>
     </View>
   );
 }
 
-/** The white pin at the top. */
-function Pointer({ scale }: { scale: number }) {
+/** A soft violet glow behind the wheel, the one bit of Fortuna's page that stays in every theme. */
+function Halo({ size, light }: { size: number; light: boolean }) {
+  const d = size * 1.7;
+  return (
+    <View pointerEvents="none" style={{ position: 'absolute', top: SLOT_PAD + size / 2 - d / 2, width: d, height: d, alignSelf: 'center' }}>
+      <Svg width={d} height={d}>
+        <Defs>
+          <RadialGradient id="wheelHalo" cx="50%" cy="50%" r="50%">
+            <Stop offset="0.45" stopColor="#8a4fe0" stopOpacity={light ? 0.28 : 0.5} />
+            <Stop offset="0.7" stopColor="#6a3cc0" stopOpacity={light ? 0.12 : 0.22} />
+            <Stop offset="1" stopColor="#6a3cc0" stopOpacity={0} />
+          </RadialGradient>
+        </Defs>
+        <Circle cx={d / 2} cy={d / 2} r={d / 2} fill="url(#wheelHalo)" />
+      </Svg>
+    </View>
+  );
+}
+
+/** A small gold ticket for the tickets chip. */
+function MiniTicket({ dim }: { dim: boolean }) {
+  return (
+    <Svg width={26} height={16} viewBox="0 0 26 16" style={{ opacity: dim ? 0.45 : 1 }}>
+      <Defs>
+        <LinearGradient id="miniTicket" x1="0" y1="0" x2="1" y2="1">
+          <Stop offset="0" stopColor={GOLD.light} />
+          <Stop offset="0.5" stopColor={GOLD.mid} />
+          <Stop offset="1" stopColor={GOLD.deep} />
+        </LinearGradient>
+      </Defs>
+      <Path d="M2 0h22a2 2 0 0 1 2 2v4a2 2 0 0 0 0 4v4a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-4a2 2 0 0 0 0-4V2a2 2 0 0 1 2-2z" fill="url(#miniTicket)" />
+      <Path d="M18.5 2.5v11" stroke={GOLD.ink} strokeWidth={0.8} strokeDasharray="1.5 1.5" opacity={0.5} />
+      <Path d={STAR_SMALL} fill={GOLD.ink} opacity={0.55} />
+    </Svg>
+  );
+}
+const STAR_SMALL = 'M9 4l1 2.6 2.8.2-2.2 1.8.7 2.7L9 9.8l-2.3 1.5.7-2.7-2.2-1.8 2.8-.2z';
+
+/** Gold lettering: the shining gradient on dark themes, a deep gold that reads on light ones. */
+function Gold({ dark, style, children }: { dark: boolean; style?: StyleProp<TextStyle>; children: ReactNode }) {
+  return dark ? <GoldText style={style}>{children}</GoldText> : <Text style={[style, { color: '#8A5A06' }]}>{children}</Text>;
+}
+
+/** The pin at the top: white, or ink on light themes so it stands out. */
+function Pointer({ scale, dark }: { scale: number; dark: boolean }) {
   return (
     <Svg width={28 * scale} height={34 * scale} viewBox="0 0 28 34">
       <Path d="M14 33 2.6 10.6A12 12 0 1 1 25.4 10.6z" fill="#000000" opacity={0.35} transform="translate(0 1.5)" />
-      <Path d="M14 33 2.6 10.6A12 12 0 1 1 25.4 10.6z" fill="#FFFFFF" />
-      <Circle cx={14} cy={11} r={4} fill="#12151f" />
+      <Path d="M14 33 2.6 10.6A12 12 0 1 1 25.4 10.6z" fill={dark ? '#26324A' : '#FFFFFF'} />
+      <Circle cx={14} cy={11} r={4} fill={dark ? '#FFFFFF' : '#12151f'} />
     </Svg>
   );
 }
@@ -838,17 +903,27 @@ function ThemePreview() {
 
 const makeStyles = themed((c) => ({
   screen: { flex: 1, backgroundColor: c.bg },
-  content: { padding: 20, paddingBottom: 48, maxWidth: 640, width: '100%', alignSelf: 'center', alignItems: 'stretch' },
+  content: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 48, maxWidth: 640, width: '100%', alignSelf: 'center', alignItems: 'stretch' },
   eyebrowRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
   eyebrow: { fontFamily: CINZEL, color: GOLD.mid, fontSize: 12, letterSpacing: 4 },
-  heading: { fontFamily: FONTS.serif, fontSize: 30, lineHeight: 38, textAlign: 'center', marginTop: 6, ...headingCase(c) },
+  heading: { fontFamily: FONTS.serif, fontSize: 24, lineHeight: 30, textAlign: 'center', marginTop: 2, ...headingCase(c) },
+  slot: { marginTop: 4, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' },
+  chip: { position: 'absolute', flexDirection: 'row', alignItems: 'center', gap: 6, height: 30, paddingHorizontal: 9, borderRadius: 15, backgroundColor: c.surface, borderWidth: 1, borderColor: c.dark ? 'rgba(242,197,92,0.45)' : c.border },
+  chipRound: { width: 30, paddingHorizontal: 0, justifyContent: 'center' },
+  chipTopLeft: { left: 0, top: 0 },
+  chipTopRight: { right: 0, top: 0 },
+  chipBottomLeft: { left: 0, bottom: 0 },
+  chipBottomRight: { right: 0, bottom: 0 },
+  chipText: { color: c.text, fontSize: 12, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  mini: { width: 40, height: 5, borderRadius: 3, backgroundColor: c.dark ? 'rgba(255,255,255,0.14)' : c.border, overflow: 'hidden' },
+  miniFill: { height: '100%', borderRadius: 3, backgroundColor: GOLD.mid, backgroundImage: `linear-gradient(90deg, ${GOLD.deep}, ${GOLD.mid})` },
   ticketCard: { backgroundColor: c.surface, borderRadius: 14, padding: 16, gap: 12 },
   ticketRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   ticketCount: { fontFamily: CINZEL, fontSize: 30, lineHeight: 36, fontVariant: ['lining-nums'] },
   ticketLabel: { color: c.muted, fontSize: 14 },
   nextLabel: { ...eyebrow(c, 11), color: c.label },
   copy: { color: c.muted, fontSize: 13, lineHeight: 19 },
-  wheelBox: { alignSelf: 'center', alignItems: 'center', justifyContent: 'center', boxShadow: '0px 14px 44px rgba(122,60,210,0.55)' },
+  wheelBox: { alignSelf: 'center', alignItems: 'center', justifyContent: 'center' },
   spinWrap: { marginTop: 22, height: 58, alignSelf: 'stretch' },
   spinGlow: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, borderRadius: 29, boxShadow: `0px 0px 26px ${GOLD.mid}` },
   spinButton: {
@@ -864,7 +939,7 @@ const makeStyles = themed((c) => ({
   spinText: { fontFamily: CINZEL, color: GOLD.ink, fontSize: 16, letterSpacing: 1.5 },
   spinTextOff: { color: '#a596bf' },
   small: { color: c.muted, fontSize: 12, textAlign: 'center', marginTop: 12 },
-  hint: { color: c.muted, fontSize: 12, textAlign: 'center', marginTop: 16, minHeight: 16 },
+  hint: { color: c.muted, fontSize: 12, lineHeight: 16, textAlign: 'center', marginTop: 8, minHeight: 32 },
   note: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 14, padding: 12, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,224,102,0.25)' },
   noteTitle: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
   noteRarity: { fontSize: 12, fontWeight: '700' },
