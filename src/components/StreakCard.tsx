@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
-import type { BizzyMood } from '../bizzy';
+import { nextBizzyForm, type BizzyMood } from '../bizzy';
 import { STREAK_TIERS, streakTierName, type StreakStatus, type WeekDot, type xpMultiplier } from '../game';
 import { card, themed, useStyles, useTheme } from '../theme';
 import { brandLine, tierFlame } from '../vivid';
@@ -19,8 +19,10 @@ const DOT_WORDS: Record<WeekDot, string> = { done: N('done'), rest: N('rest day'
  * the fire's name on top, this week's days spread over the full width below,
  * inside a thin border in the fire tier's gradient. The XP
  * multiplier sits on the right while it is above 1. Bizzy lives in the free
- * corner on the right, in the mood of the day. Tapping the card opens the
- * level sheet with the streak bonus and the fire tiers.
+ * corner on the right, in the mood of the day, with his next evolution under
+ * him: an Evolve button once the level allows it, otherwise the level it
+ * needs. Tapping the card opens the level sheet with the streak bonus and the
+ * fire tiers.
  */
 export function StreakCard({
   streak,
@@ -33,8 +35,8 @@ export function StreakCard({
   /** Monday to Sunday of this week. */
   week: WeekDot[];
   multiplier: ReturnType<typeof xpMultiplier>;
-  /** Bizzy's mood, and a count that goes up each time he should jump for joy. */
-  bizzy?: { mood: BizzyMood; cheer: number };
+  /** Bizzy's mood, a count that goes up each time he should jump for joy, his form, the player's level and what Evolve does. */
+  bizzy?: { mood: BizzyMood; cheer: number; form: number; level: number; onEvolve: () => void };
   onPress: () => void;
 }) {
   const s = useStyles(makeStyles);
@@ -54,7 +56,7 @@ export function StreakCard({
           <Fire tier={streak.tier} size={48} still />
           <StreakNumber days={streak.days} tier={streak.tier} />
           <View style={{ flex: 1, gap: 4 }}>
-            <Text style={s.label} numberOfLines={1}>
+            <Text style={s.label} numberOfLines={2}>
               {t('day streak')}
             </Text>
             {/* The multiplier shares the tier's line, so a long streak still fits on small phones. */}
@@ -65,7 +67,12 @@ export function StreakCard({
               {multiplier.total > 1 && <MultiplierPill multiplier={multiplier} size="small" />}
             </View>
           </View>
-          {bizzy && <Bizzy mood={bizzy.mood} cheer={bizzy.cheer} size={68} look={[-2, 1]} />}
+          {bizzy && (
+            <View style={s.corner}>
+              <Bizzy mood={bizzy.mood} cheer={bizzy.cheer} size={68} look={[-2, 1]} />
+              <EvolveNext form={bizzy.form} level={bizzy.level} onEvolve={bizzy.onEvolve} />
+            </View>
+          )}
         </View>
         {/* This week's days spread over the whole card, each with its letter. */}
         <View style={s.week}>
@@ -86,6 +93,28 @@ export function StreakCard({
         )}
       </View>
     </Pressable>
+  );
+}
+
+/** Under Bizzy: Evolve (gently pulsing) when his next form's level is reached, else the level it needs; nothing once he is the Queen. */
+function EvolveNext({ form, level, onEvolve }: { form: number; level: number; onEvolve: () => void }) {
+  const s = useStyles(makeStyles);
+  const next = nextBizzyForm(form);
+  const ready = !!next && level >= next.level;
+  const reduce = useReducedMotion();
+  const pulse = useSharedValue(0);
+  useEffect(() => {
+    pulse.value = ready && !reduce ? withRepeat(withSequence(withTiming(1, { duration: 700, easing: Easing.inOut(Easing.sin) }), withTiming(0, { duration: 700, easing: Easing.inOut(Easing.sin) })), -1) : 0;
+  }, [ready, reduce]);
+  const style = useAnimatedStyle(() => ({ transform: [{ scale: 1 + 0.06 * pulse.value }], boxShadow: `0px 0px ${4 + 8 * pulse.value}px rgba(255,201,77,${0.35 + 0.35 * pulse.value})` }));
+  if (!next) return <Text style={s.evolveWait}>{t('Fully grown')}</Text>;
+  if (!ready) return <Text style={s.evolveWait}>{t('Reach level {n} to evolve', { n: next.level })}</Text>;
+  return (
+    <Animated.View style={[s.evolve, style]}>
+      <Pressable onPress={onEvolve} hitSlop={8} style={s.evolveTap} accessibilityRole="button" accessibilityLabel={t('Evolve Bizzy into {name}', { name: t(next.name) })}>
+        <Text style={s.evolveText}>{t('Evolve')} ✦</Text>
+      </Pressable>
+    </Animated.View>
   );
 }
 
@@ -154,7 +183,13 @@ function Dot({ state, grad }: { state: WeekDot; grad?: { c1: string; c2: string 
 const makeStyles = themed((c) => ({
   border: { borderRadius: c.radius + 1.5, padding: 1.5, marginTop: 16 },
   card: { ...card(c), borderWidth: 0, borderRadius: c.radius, paddingVertical: 14, paddingHorizontal: 16, gap: 10 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  corner: { minWidth: 84, maxWidth: 104, alignItems: 'center', gap: 2 },
+  // Honey gold, the same in every theme: evolving belongs to the rewards layer.
+  evolve: { borderRadius: 999, backgroundColor: '#FFC94D', backgroundImage: 'linear-gradient(90deg, #FFE48A, #FFB347)' },
+  evolveTap: { paddingHorizontal: 12, paddingVertical: 5 },
+  evolveText: { fontFamily: VIVID_HEAVY, fontSize: 13, color: '#2A1A05' },
+  evolveWait: { maxWidth: 84, color: c.muted, fontSize: 11, lineHeight: 14, fontWeight: '600', textAlign: 'center' },
   days: { fontFamily: VIVID_HEAVY, fontSize: 72, lineHeight: 80, fontVariant: ['lining-nums'], minWidth: 44, textAlign: 'center' },
   daysLong: { fontFamily: VIVID_HEAVY, fontSize: 56, lineHeight: 66 },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },

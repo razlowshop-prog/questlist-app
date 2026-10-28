@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View, type ViewStyle } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withSequence, withTiming, type SharedValue } from 'react-native-reanimated';
-import Svg, { Circle, Defs, Ellipse, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, Ellipse, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 import type { AmbientKind } from '../../themeFx';
 import { circuit, pointOn, PULSE_LOOP, PULSE_SHARE, PULSE_STAGGER, type Trace } from '../../circuit';
 import { keyframes, LEAF, seeded, useLoop, useLoopsOn } from './hooks';
@@ -19,6 +19,8 @@ export function Ambient({ kind }: { kind: AmbientKind }) {
       {size.h > 0 &&
         (on ? (
           <Layer kind={kind} w={size.w} h={size.h} />
+        ) : kind === 'comb' ? (
+          <Comb w={size.w} />
         ) : kind === 'circuit' ? (
           <Circuit w={size.w} h={size.h} still />
         ) : (
@@ -30,6 +32,8 @@ export function Ambient({ kind }: { kind: AmbientKind }) {
 
 function Layer({ kind, w, h }: { kind: AmbientKind; w: number; h: number }) {
   switch (kind) {
+    case 'comb':
+      return <Comb w={w} />;
     case 'stars':
       return <Stars />;
     case 'leaves':
@@ -53,6 +57,33 @@ function Layer({ kind, w, h }: { kind: AmbientKind; w: number; h: number }) {
     case 'night':
       return <Night w={w} h={h} />;
   }
+}
+
+/** Honey: a faint honeycomb over the top of the screen, fading out downwards. Still, so it stays with reduced motion too. */
+function Comb({ w }: { w: number }) {
+  const d = useMemo(() => {
+    const r = 18;
+    const dx = Math.sqrt(3) * r;
+    let path = '';
+    for (let row = 0; row * r * 1.5 < 260; row++) {
+      const y = row * r * 1.5;
+      for (let x = row % 2 ? dx / 2 : 0; x < w + dx; x += dx) {
+        path += `M${x.toFixed(1)} ${(y - r).toFixed(1)} l${(dx / 2).toFixed(1)} ${r / 2} v${r} l${(-dx / 2).toFixed(1)} ${r / 2} l${(-dx / 2).toFixed(1)} ${-r / 2} v${-r}z`;
+      }
+    }
+    return path;
+  }, [w]);
+  return (
+    <Svg width={w} height={260} style={{ position: 'absolute', left: 0, top: 0 }}>
+      <Defs>
+        <LinearGradient id="comb" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor="#f2b544" stopOpacity={0.12} />
+          <Stop offset="1" stopColor="#f2b544" stopOpacity={0} />
+        </LinearGradient>
+      </Defs>
+      <Path d={d} fill="none" stroke="url(#comb)" strokeWidth={1} />
+    </Svg>
+  );
 }
 
 const STAR = 'M12 0l2.6 9.4L24 12l-9.4 2.6L12 24l-2.6-9.4L0 12l9.4-2.6z';

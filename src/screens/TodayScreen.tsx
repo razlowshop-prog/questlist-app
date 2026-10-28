@@ -14,11 +14,13 @@ import { LibraryRow } from '../components/LibraryRow';
 import { defaultSchedule, scheduleProblem, SchedulePicker, scheduleToTask, type Schedule } from '../components/SchedulePicker';
 import { StreakCard } from '../components/StreakCard';
 import { bizzyMood } from '../widgetData';
+import { bizzyFormOf } from '../bizzy';
 import { TaskRow } from '../components/TaskRow';
 import {
   dayLabel,
   durationLabel,
   isDoneToday,
+  levelInfo,
   MAX_STEP_LENGTH,
   MAX_STEPS,
   shownName,
@@ -54,6 +56,7 @@ export function TodayScreen({
   multiplier,
   xpProgress,
   onOpenStreak,
+  onEvolve,
   onOpenRewards,
   tokenStrip,
   guide,
@@ -82,6 +85,8 @@ export function TodayScreen({
   /** Level and XP bar, shown under the greeting. */
   xpProgress?: React.ReactNode;
   onOpenStreak: () => void;
+  /** Bizzy evolves into his next form (only offered once the level allows it). */
+  onEvolve: () => void;
   /** The coming level rewards, from the XP bar in the pinned status line. */
   onOpenRewards: () => void;
   /** Tokens to use, shown under the streak. */
@@ -309,7 +314,7 @@ export function TodayScreen({
               <View onLayout={(e) => (comboY.value = HEADER_TOP + e.nativeEvent.layout.y)} />
 
               <View onLayout={(e) => (stickyFrom.value = HEADER_TOP + e.nativeEvent.layout.y + e.nativeEvent.layout.height)}>
-                <StreakCard streak={streak} week={weekDots(state, today)} multiplier={multiplier} bizzy={{ mood, cheer }} onPress={onOpenStreak} />
+                <StreakCard streak={streak} week={weekDots(state, today)} multiplier={multiplier} bizzy={{ mood, cheer, form: bizzyFormOf(state.bizzyForm).n, level: levelInfo(totalXp(state)).level, onEvolve }} onPress={onOpenStreak} />
               </View>
               {tokenStrip}
               {recap}

@@ -2,6 +2,7 @@ import type { SoundStyle } from './sounds.ts';
 import type { CelebrationId, FlameStyleId } from './cosmetics.ts';
 import { EFFORT_FACTOR, WILLPOWER_XP, type Effort } from './effort.ts';
 import { taskEffort, tooEarlyToTick } from './estimate.ts';
+import { bizzyFormOf, canEvolve } from './bizzy.ts';
 import { lang, N, t, type Lang } from './i18n.ts';
 import type { FocusSession } from './focus.ts';
 import type { IconName } from './icons.ts';
@@ -145,6 +146,8 @@ export interface GameState {
   perfectDays?: PerfectDay[];
   /** Streak milestones reached (7, 30, 100, 365 days), for the celebration and the profile. */
   streakMilestones?: { days: number; date: string }[];
+  /** How far Bizzy has evolved, 1 (Larva) to 10 (Queen); the player taps Evolve for each step (bizzy.ts). */
+  bizzyForm?: number;
   /** Test changes from the developer page; only kept in test builds (see devTools.ts). */
   dev?: DevSettings;
 }
@@ -1136,4 +1139,11 @@ export function shownName(name: string): string {
 
 export function setName(state: GameState, name: string): GameState {
   return { ...state, profile: { ...state.profile, name: name.slice(0, 24) } };
+}
+
+/** Bizzy evolves one form, if the player's level allows it; otherwise the state stays as it is. */
+export function evolveBizzy(state: GameState): GameState {
+  const form = bizzyFormOf(state.bizzyForm).n;
+  if (!canEvolve(form, levelInfo(totalXp(state)).level)) return state;
+  return { ...state, bizzyForm: form + 1 };
 }

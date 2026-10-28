@@ -60,6 +60,8 @@ export const DEFAULT_COMBO: ComboLook = {
 
 export const COMBO_LOOKS: Record<string, ComboLook> = {
   classic: DEFAULT_COMBO,
+  honey: { radius: 999, fill: '#201a12', border: { width: 1, color: '#f2b544' }, shadow: '0px 0px 12px rgba(242,181,68,0.35)', font: 'heavy', size: 15, color: '#f2b544', gradient: ['#ffe7a3', '#f2a93b'], icon: 'star', iconColor: '#ffe08a', entrance: 'pop' },
+  hive: { radius: 4, fill: '#ffc93c', font: 'heavy', size: 15, color: '#141414', upper: true, letterSpacing: 1, entrance: 'pop' },
   dusk: { radius: 999, fill: '#28221e', border: { width: 1, color: '#d4b27a' }, font: 'serifItalic', size: 16, color: '#d4b27a', entrance: 'pop' },
   forest: {
     radius: 14,

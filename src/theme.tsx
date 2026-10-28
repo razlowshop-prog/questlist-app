@@ -37,8 +37,8 @@ export interface Palette {
   radius: number;
   /** 'lines' = tasks as rows split by hairlines, 'cards' = each task in its own card. */
   listStyle: 'lines' | 'cards';
-  /** Shape of the task checkbox; 'coin' = a gold coin that flips when ticked (Fortuna). */
-  check: 'circle' | 'square' | 'diamond' | 'coin';
+  /** Shape of the task checkbox; 'coin' = a gold coin that flips when ticked (Fortuna), 'hex' = a honeycomb cell (Hive). */
+  check: 'circle' | 'square' | 'diamond' | 'coin' | 'hex';
   /** Thickness of progress lines (XP bar, challenges, achievements). */
   lineWeight: number;
   /** Diamond tip at the end of the XP line. */
@@ -216,6 +216,32 @@ export const THEMES: ThemeDef[] = [
       colors: ['1c1815', '28221e', '322a25', '4a423a', 'f4f0e9', 'c4bbaf', 'a0968a', '6e6458', 'd4b27a', '1c1815'],
       radius: 4, listStyle: 'lines', check: 'circle', lineWeight: 2, tip: true,
       eyebrowCaps: true, logoRule: true, italicAccent: true, headingUpper: false,
+    }),
+  },
+  {
+    // Bee themes (picked 2026-10-28), free like Indigo and Dusk: warm brown and honey, with a faint honeycomb at the top.
+    id: 'honey',
+    name: N('Honey'),
+    palette: palette({
+      colors: ['15120d', '201a12', '2e261a', '3a3022', 'f7f0e2', 'c9bba2', 'a3957d', '6b5d45', 'f2b544', '1a140b'],
+      bgImage: 'linear-gradient(180deg, #221a0f 0%, #15120d 45%)',
+      tabBar: 'rgba(21,18,13,0.92)',
+      radius: 8, listStyle: 'cards', check: 'circle', lineWeight: 2, tip: true,
+      eyebrowCaps: true, logoRule: true, italicAccent: true, headingUpper: false,
+      brand: { fill: 'linear-gradient(135deg, #ffe08a, #f2b544 50%, #d98a1f)', color: '#f2b544', ink: '#1a140b', line: '#f2b544', text: { c1: '#ffe7a3', c2: '#f2a93b' } },
+    }),
+  },
+  {
+    // Clean graphite and bee yellow: honeycomb checkboxes and a honeycomb XP bar, nothing else.
+    id: 'hive',
+    name: N('Hive'),
+    palette: palette({
+      colors: ['121212', '1c1c1e', '2a2a2d', '2c2c30', 'f4f4f2', 'b5b5ae', '8f8f89', '5c5c58', 'ffc93c', '141414'],
+      bgImage: 'linear-gradient(180deg, #171717 0%, #101010 100%)',
+      tabBar: 'rgba(21,21,21,0.94)',
+      radius: 12, listStyle: 'cards', check: 'hex', lineWeight: 2, tip: false,
+      eyebrowCaps: true, logoRule: false, italicAccent: false, headingUpper: false,
+      brand: { fill: 'linear-gradient(135deg, #ffd96b, #ffc93c 55%, #f0b21e)', color: '#ffc93c', ink: '#141414', line: '#ffc93c', text: { c1: '#ffe39a', c2: '#ffc93c' } },
     }),
   },
   {

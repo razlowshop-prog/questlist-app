@@ -15,6 +15,7 @@ import {
   DEFAULT_MINUTES,
   deleteTask,
   emptyState,
+  evolveBizzy,
   resetProgress,
   finishSetup,
   levelInfo,
@@ -37,6 +38,7 @@ import {
   xpFor,
   xpToNext,
   type Completion,
+  type GameState,
 } from './game.ts';
 
 const TODAY = '2026-10-21';
@@ -594,4 +596,21 @@ test('resetting progress starts a new player but keeps how the app is set up', (
   });
   // A fresh player resets to the same fresh player.
   assert.deepEqual(resetProgress(emptyState), emptyState);
+});
+
+test('Bizzy evolves one form per tap, only when the level allows it', () => {
+  const at = (xp: number): GameState => ({ ...emptyState, dev: { xp } });
+  assert.equal(levelInfo(0).level, 1);
+  const larva = at(0);
+  assert.equal(evolveBizzy(larva), larva, 'level 1: nothing happens');
+  const level2 = at(levelInfo(0).xpForLevel);
+  assert.equal(levelInfo(totalXp(level2)).level, 2);
+  const bud = evolveBizzy(level2);
+  assert.equal(bud.bizzyForm, 2);
+  assert.equal(evolveBizzy(bud), bud, 'Buzzling needs level 5');
+  // Far past several levels: one step per tap, until he is the Queen.
+  let s = at(10_000_000);
+  for (let i = 0; i < 20; i++) s = evolveBizzy(s);
+  assert.equal(s.bizzyForm, 10);
+  assert.equal(resetProgress(s).bizzyForm, undefined, 'starting over brings back the Larva');
 });

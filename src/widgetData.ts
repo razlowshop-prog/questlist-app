@@ -1,4 +1,4 @@
-import type { BizzyMood } from './bizzy.ts';
+import { bizzyFormOf, type BizzyMood } from './bizzy.ts';
 import { dayKey, isDoneToday, levelInfo, restDaysOf, streakStatus, totalXp, visibleTasks, STREAK_REMINDER_HOUR, type GameState } from './game.ts';
 import { t, tn } from './i18n.ts';
 
@@ -19,6 +19,8 @@ export interface WidgetData {
   /** 0 to 1, how full the XP bar is. */
   progress: number;
   mood: BizzyMood;
+  /** How far the player's Bizzy has evolved (1 to 10). */
+  form: number;
 }
 
 export function widgetData(state: GameState, now: Date): WidgetData {
@@ -32,6 +34,7 @@ export function widgetData(state: GameState, now: Date): WidgetData {
     streak: streakInfo.days > 0 ? tn(streakInfo.days, '{n} day', '{n} days') : '',
     level: info.level,
     progress: Math.max(0, Math.min(1, info.progress)),
+    form: bizzyFormOf(state.bizzyForm).n,
   };
 
   if (!state.onboarded || state.tasks.length === 0) {

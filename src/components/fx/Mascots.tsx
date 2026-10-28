@@ -1,8 +1,10 @@
-import { useEffect, useRef } from 'react';
+import { useContext, useEffect, useMemo, useRef } from 'react';
 import { View, type ViewStyle } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
-import Svg, { Circle, Defs, Ellipse, G, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { SvgXml, Circle, Defs, Ellipse, G, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 import type { MascotKind } from '../../themeFx';
+import { bizzySvg } from '../../bizzy';
+import { BizzyFormContext } from '../Bizzy';
 import { useLoop, useLoopsOn } from './hooks';
 
 // The mascots riding on the XP bar, one per theme (themeFx.ts). Each is drawn
@@ -11,6 +13,8 @@ import { useLoop, useLoopsOn } from './hooks';
 
 export function Mascot({ kind, scale, live, gainKey }: { kind: MascotKind; scale: number; live: SharedValue<number>; gainKey: number }) {
   switch (kind) {
+    case 'bee':
+      return <Bee scale={scale} gainKey={gainKey} />;
     case 'rocket':
       return <Rocket scale={scale} live={live} />;
     case 'sprout':
@@ -36,6 +40,27 @@ export function Mascot({ kind, scale, live, gainKey }: { kind: MascotKind; scale
     case 'crown':
       return <Crown scale={scale} />;
   }
+}
+
+/** Honey: the player's own Bizzy flies along the bar, bobbing, and cheers each time XP comes in. */
+function Bee({ scale, gainKey }: { scale: number; gainKey: number }) {
+  const form = useContext(BizzyFormContext);
+  const on = useLoopsOn();
+  const bob = useLoop(1600, on);
+  const hop = useSharedValue(0);
+  const first = useRef(gainKey);
+  useEffect(() => {
+    if (gainKey === first.current) return;
+    hop.value = 0;
+    hop.value = withTiming(1, { duration: 700, easing: Easing.out(Easing.quad) });
+  }, [gainKey]);
+  const happy = useMemo(() => bizzySvg('happy', false, { form }), [form]);
+  const style = useAnimatedStyle(() => ({ transform: [{ translateY: -3 * scale * bob.value - 10 * scale * Math.sin(Math.PI * hop.value) }] }));
+  return (
+    <Animated.View style={[{ width: 34 * scale, height: 34 * scale }, style]}>
+      <SvgXml xml={happy} width={34 * scale} height={34 * scale} />
+    </Animated.View>
+  );
 }
 
 /** Indigo: a small rocket that bobs on the bar; its flame grows as the level fills up. */
