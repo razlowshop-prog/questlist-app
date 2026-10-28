@@ -134,7 +134,7 @@ function HarvestScene({ live }: { live: boolean }) {
         ))}
       </View>
       {/* Bizzy stands in the field, cut off by the bottom of the picture. */}
-      <Bizzy mood="happy" size={drawn} motion={live ? 'idle' : 'none'} look={[-2, 0]} style={[s.bizzy, { right: 28 - (drawn - BIZZY) / 2, bottom: (-drawn * (14 + 46 * k)) / 200 }]} />
+      <Bizzy mood="happy" size={drawn} motion={live ? 'sway' : 'none'} flap={live} look={[-2, 0]} style={[s.bizzy, { right: 28 - (drawn - BIZZY) / 2, bottom: (-drawn * (14 + 46 * k)) / 200 }]} />
       {live && <FallingLeaves />}
     </View>
   );

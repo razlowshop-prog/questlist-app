@@ -135,16 +135,34 @@ export interface BizzyForm {
 const wing = (cx: number, cy: number, rx: number, ry: number, rot: number, color = '#DDF3FF', opacity = 0.75) =>
   `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${color}" opacity="${opacity}" transform="rotate(${rot} ${cx} ${cy})"/>`;
 
-const WINGS = {
-  none: '',
-  buds: wing(80, 78, 12, 16, -24) + wing(120, 78, 12, 16, 24),
-  normal: wing(74, 70, 24, 30, -24) + wing(126, 70, 24, 30, 24),
-  big: wing(72, 66, 27, 34, -26) + wing(128, 66, 27, 34, 26),
-  swift: wing(66, 70, 18, 42, -48, '#CFEFFF', 0.8) + wing(134, 70, 18, 42, 48, '#CFEFFF', 0.8),
-  amber: wing(72, 66, 27, 34, -26, '#FFF1CF', 0.7) + wing(128, 66, 27, 34, 26, '#FFF1CF', 0.7),
-  four: wing(54, 88, 26, 34, -42, '#DDF3FF', 0.55) + wing(146, 88, 26, 34, 42, '#DDF3FF', 0.55) + wing(74, 68, 24, 30, -24) + wing(126, 68, 24, 30, 24),
-  queen: wing(48, 86, 32, 42, -42, '#E6E0FF', 0.6) + wing(152, 86, 32, 42, 42, '#E6E0FF', 0.6) + wing(72, 64, 27, 34, -24, '#F3F0FF', 0.8) + wing(128, 64, 27, 34, 24, '#F3F0FF', 0.8),
+type WingSpec = [cx: number, cy: number, rx: number, ry: number, rot: number, color?: string, opacity?: number];
+/** The left wings of each kind, back ones first; the right ones are their mirror image. */
+const WINGS: Record<'none' | 'buds' | 'normal' | 'big' | 'swift' | 'amber' | 'four' | 'queen', WingSpec[]> = {
+  none: [],
+  buds: [[80, 78, 12, 16, -24]],
+  normal: [[74, 70, 24, 30, -24]],
+  big: [[72, 66, 27, 34, -26]],
+  swift: [[66, 70, 18, 42, -48, '#CFEFFF', 0.8]],
+  amber: [[72, 66, 27, 34, -26, '#FFF1CF', 0.7]],
+  four: [
+    [54, 88, 26, 34, -42, '#DDF3FF', 0.55],
+    [74, 68, 24, 30, -24],
+  ],
+  queen: [
+    [48, 86, 32, 42, -42, '#E6E0FF', 0.6],
+    [72, 64, 27, 34, -24, '#F3F0FF', 0.8],
+  ],
 };
+
+/** One side's wings of a form, in the full-grown drawing's units. */
+function wingsOf(f: BizzyForm, side: 'left' | 'right'): string {
+  return WINGS[f.wings].map(([cx, cy, rx, ry, rot, color, opacity]) => (side === 'left' ? wing(cx, cy, rx, ry, rot, color, opacity) : wing(200 - cx, cy, rx, ry, -rot, color, opacity))).join('');
+}
+
+/** Places a young form, which stands smaller on the same ground; empty for the full-grown size. */
+function placeOf(f: BizzyForm): string {
+  return f.k === 1 ? '' : `translate(${r1(100 * (1 - f.k))} ${r1(186 * (1 - f.k))}) scale(${f.k})`;
+}
 
 /** Body gradient, top to bottom. */
 const BODY: Record<BizzyForm['body'], [string, string]> = {
@@ -219,12 +237,12 @@ export function bizzyMiddle(form: number): number {
  * unless said otherwise). Ids carry the form, so different forms can share a
  * page; the same form draws the same gradients, so repeats don't matter.
  */
-export function bizzySvg(mood: BizzyMood = 'happy', shadow = true, { look, blink, form = 5 }: BizzyLook & { form?: number } = {}): string {
+export function bizzySvg(mood: BizzyMood = 'happy', shadow = true, { look, blink, form = 5, wings = true }: BizzyLook & { form?: number; wings?: boolean } = {}): string {
   const f = bizzyFormOf(form);
   const g = `bzg${f.n}`;
   const c = `bzc${f.n}`;
   const [top, bottom] = BODY[f.body];
-  const at = f.k === 1 ? '' : `translate(${r1(100 * (1 - f.k))} ${r1(186 * (1 - f.k))}) scale(${f.k})`;
+  const at = placeOf(f);
   const feelers =
     f.feelers === 'full'
       ? `<path d="M88 60 Q80 40 70 36 M112 60 Q120 40 130 36" fill="none" stroke="${LEG}" stroke-width="3.5" stroke-linecap="round"/><circle cx="70" cy="36" r="5.5" fill="url(#${g})"/><circle cx="130" cy="36" r="5.5" fill="url(#${g})"/>`
@@ -240,7 +258,7 @@ export function bizzySvg(mood: BizzyMood = 'happy', shadow = true, { look, blink
         : `<g clip-path="url(#${c})"><path d="M44 130 Q100 114 156 130 L156 144 Q100 128 44 144Z" fill="${NAVY}"/><path d="M44 160 Q100 148 156 160 L156 172 Q100 160 44 172Z" fill="${NAVY}"/></g>`;
   const cape = f.extra === 'queen' ? `<path d="M58 104 Q100 92 142 104 L160 182 Q100 196 40 182Z" fill="#6A3FC8"/><path d="M58 104 Q100 92 142 104" fill="none" stroke="#FFD95A" stroke-width="4"/>` : '';
   const body =
-    WINGS[f.wings] +
+    (wings ? wingsOf(f, 'left') + wingsOf(f, 'right') : '') +
     feelers +
     cape +
     `<ellipse cx="100" cy="122" rx="52" ry="54" fill="url(#${g})"/>` +
@@ -263,6 +281,26 @@ export function bizzySvg(mood: BizzyMood = 'happy', shadow = true, { look, blink
     (f.n >= 9 ? sparkle(30, 140, 6) + sparkle(172, 128, 5) + sparkle(160, 40, 4, SOFT) : '') +
     `</svg>`
   );
+}
+
+/**
+ * One side's wings on their own, as a full 200x200 drawing to lay behind
+ * `bizzySvg(..., { wings: false })` so they can flap; empty for the forms
+ * without wings.
+ */
+export function bizzyWingsSvg(form: number, side: 'left' | 'right'): string {
+  const f = bizzyFormOf(form);
+  const drawn = wingsOf(f, side);
+  if (!drawn) return '';
+  const at = placeOf(f);
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">` + (at ? `<g transform="${at}">${drawn}</g>` : drawn) + `</svg>`;
+}
+
+/** Where one side's wings join his back, as shares of his box (left, top): they flap around this point. */
+export function bizzyWingRoot(form: number, side: 'left' | 'right'): [number, number] {
+  const k = bizzyFormOf(form).k;
+  const x = side === 'left' ? 92 : 108;
+  return [(100 * (1 - k) + x * k) / 200, (186 * (1 - k) + 90 * k) / 200];
 }
 
 /**

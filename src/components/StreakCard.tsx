@@ -69,7 +69,7 @@ export function StreakCard({
           </View>
           {bizzy && (
             <View style={s.corner}>
-              <Bizzy mood={bizzy.mood} cheer={bizzy.cheer} size={68} look={[-2, 1]} />
+              <Bizzy mood={bizzy.mood} cheer={bizzy.cheer} size={68} look={[-2, 1]} motion="idle" />
               <EvolveNext form={bizzy.form} level={bizzy.level} onEvolve={bizzy.onEvolve} />
             </View>
           )}

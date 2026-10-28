@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { addDays, addTask, emptyState, type GameState } from './game.ts';
-import { BIZZY_FORMS, bizzyEdge, bizzyFormOf, bizzyGripSvg, bizzyMiddle, bizzySvg, canEvolve, cocoonSvg, nextBizzyForm, type BizzyMood } from './bizzy.ts';
+import { BIZZY_FORMS, bizzyEdge, bizzyFormOf, bizzyGripSvg, bizzyMiddle, bizzySvg, bizzyWingRoot, bizzyWingsSvg, canEvolve, cocoonSvg, nextBizzyForm, type BizzyMood } from './bizzy.ts';
 import { setLang } from './i18n.ts';
 import { bizzyMood, widgetData } from './widgetData.ts';
 
@@ -203,4 +203,35 @@ test('bizzy: the honey cocoon wraps each form and splits in two', () => {
   const zig = (svg: string) => svg.match(/ L([\d. L]+)Z/)?.[1];
   assert.equal(zig(cocoonSvg(3, 'left')), zig(cocoonSvg(3, 'right')));
   assert.ok(zig(cocoonSvg(3, 'left')));
+});
+
+test('bizzy: the wings come apart to flap, and together they draw the same Bizzy', () => {
+  const ellipses = (svg: string) => (svg.match(/<ellipse [^>]*rotate[^>]*\/>/g) ?? []).sort();
+  for (const f of BIZZY_FORMS) {
+    const whole = bizzySvg('happy', true, { form: f.n });
+    const bare = bizzySvg('happy', true, { form: f.n, wings: false });
+    const left = bizzyWingsSvg(f.n, 'left');
+    const right = bizzyWingsSvg(f.n, 'right');
+    if (f.wings === 'none') {
+      assert.equal(left, '');
+      assert.equal(right, '');
+      assert.equal(bare, whole);
+      continue;
+    }
+    for (const side of [left, right]) {
+      assert.match(side, /^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg"[^>]*>.*<\/svg>$/s);
+      assert.ok(!/NaN|undefined/.test(side));
+    }
+    // The split loses no wing and adds none: the bare body plus both sides hold exactly the whole drawing's wings.
+    assert.deepEqual([...ellipses(bare), ...ellipses(left), ...ellipses(right)].sort(), ellipses(whole));
+    assert.equal(ellipses(left).length, ellipses(right).length);
+    assert.ok(ellipses(left).length > 0);
+    // Young forms are placed like the body, so the wings sit on his back.
+    if (f.k !== 1) assert.ok(left.includes(`scale(${f.k})`));
+    // Left wings on the left, right wings on the right, roots on his back between them.
+    const [lx, ly] = bizzyWingRoot(f.n, 'left');
+    const [rx, ry] = bizzyWingRoot(f.n, 'right');
+    assert.ok(lx < 0.5 && rx > 0.5 && Math.abs(lx + rx - 1) < 1e-9 && ly === ry && ly > 0.3 && ly < 0.75);
+  }
+  assert.deepEqual(bizzyWingRoot(5, 'left'), [0.46, 0.45]);
 });

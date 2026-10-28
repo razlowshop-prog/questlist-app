@@ -1,10 +1,9 @@
-import { useContext, useEffect, useMemo, useRef } from 'react';
+import { useContext, useEffect, useRef } from 'react';
 import { View, type ViewStyle } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
-import Svg, { SvgXml, Circle, Defs, Ellipse, G, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, Ellipse, G, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 import type { MascotKind } from '../../themeFx';
-import { bizzySvg } from '../../bizzy';
-import { BizzyFormContext } from '../Bizzy';
+import { BizzyArt, BizzyFormContext } from '../Bizzy';
 import { useLoop, useLoopsOn } from './hooks';
 
 // The mascots riding on the XP bar, one per theme (themeFx.ts). Each is drawn
@@ -42,7 +41,7 @@ export function Mascot({ kind, scale, live, gainKey }: { kind: MascotKind; scale
   }
 }
 
-/** Honey: the player's own Bizzy flies along the bar, bobbing, and cheers each time XP comes in. */
+/** Honey: the player's own Bizzy flies along the bar, wings buzzing and bobbing, and cheers each time XP comes in. */
 function Bee({ scale, gainKey }: { scale: number; gainKey: number }) {
   const form = useContext(BizzyFormContext);
   const on = useLoopsOn();
@@ -54,11 +53,10 @@ function Bee({ scale, gainKey }: { scale: number; gainKey: number }) {
     hop.value = 0;
     hop.value = withTiming(1, { duration: 700, easing: Easing.out(Easing.quad) });
   }, [gainKey]);
-  const happy = useMemo(() => bizzySvg('happy', false, { form }), [form]);
   const style = useAnimatedStyle(() => ({ transform: [{ translateY: -3 * scale * bob.value - 10 * scale * Math.sin(Math.PI * hop.value) }] }));
   return (
     <Animated.View style={[{ width: 34 * scale, height: 34 * scale }, style]}>
-      <SvgXml xml={happy} width={34 * scale} height={34 * scale} />
+      <BizzyArt mood="happy" size={34 * scale} form={form} shadow={false} />
     </Animated.View>
   );
 }
