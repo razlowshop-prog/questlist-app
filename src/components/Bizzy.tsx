@@ -119,9 +119,10 @@ function useBlink(on: boolean): boolean {
  * (still while he sleeps, when `flap` is off, or when the phone asks for less
  * motion). The wings are layers of their own behind him, so they can flap.
  */
-export function BizzyArt({ mood, size, form, look, blink, shadow = true, flap = true }: BizzyLook & { mood: BizzyMood; size: number; form: number; shadow?: boolean; flap?: boolean }) {
+export function BizzyArt({ mood, size, form, look, blink, shadow = true, flap = true, fast = false }: BizzyLook & { mood: BizzyMood; size: number; form: number; shadow?: boolean; flap?: boolean; fast?: boolean }) {
   const on = useLoopsOn() && flap && mood !== 'sleepy';
-  const beat = useLoop(220, on);
+  // `fast` beats twice as quick, for when he zooms about.
+  const beat = useLoop(fast ? 110 : 220, on);
   const left = useMemo(() => bizzyWingsSvg(form, 'left'), [form]);
   const right = useMemo(() => bizzyWingsSvg(form, 'right'), [form]);
   const body = useMemo(() => bizzySvg(mood, shadow, { look, blink, form, wings: !left }), [mood, shadow, look?.[0], look?.[1], blink, form, left]);
@@ -163,6 +164,7 @@ export function Bizzy({
   look,
   motion = 'bob',
   flap = true,
+  fast = false,
   cheer = 0,
   form,
 }: {
@@ -175,6 +177,8 @@ export function Bizzy({
   motion?: 'idle' | 'bob' | 'sway' | 'none';
   /** Whether his wings buzz. */
   flap?: boolean;
+  /** Buzzes his wings twice as fast. */
+  fast?: boolean;
   /** Goes up by one for every reason to cheer (a ticked task). */
   cheer?: number;
   /** Draws this form instead of the player's own. */
@@ -251,7 +255,7 @@ export function Bizzy({
   const turn = swing.interpolate({ inputRange: [-1, 1], outputRange: ['-2.5deg', '2.5deg'] });
   return (
     <Animated.View style={[{ width: size, height: size, transform: [{ translateY: lift }, { rotate: turn }] }, style]} aria-hidden importantForAccessibility="no-hide-descendants">
-      <BizzyArt mood={shown} size={size} form={shape} look={eyes} blink={shut} flap={flap && !reduce} />
+      <BizzyArt mood={shown} size={size} form={shape} look={eyes} blink={shut} flap={flap && !reduce} fast={fast} />
     </Animated.View>
   );
 }

@@ -14,14 +14,19 @@ import { LibraryRow } from '../components/LibraryRow';
 import { defaultSchedule, scheduleProblem, SchedulePicker, scheduleToTask, type Schedule } from '../components/SchedulePicker';
 import { StreakCard } from '../components/StreakCard';
 import { bizzyMood } from '../widgetData';
-import { bizzyFormOf } from '../bizzy';
+import { bizzyFormOf, canEvolve, nextBizzyForm } from '../bizzy';
+import type { TalkContext } from '../bizzyTalk';
+import { achievementStatuses, claimableCount } from '../achievements';
+import { ticketStatus } from '../wheel';
 import { TaskRow } from '../components/TaskRow';
 import {
   dayLabel,
   durationLabel,
   isDoneToday,
+  DEFAULT_NAME,
   levelInfo,
   MAX_STEP_LENGTH,
+  nextStreakBonus,
   MAX_STEPS,
   shownName,
   totalXp,
@@ -232,6 +237,31 @@ export function TodayScreen({
     return () => clearTimeout(id);
   }, [hourTick]);
   const mood = useMemo(() => bizzyMood(state, new Date()), [state, today, hourTick]);
+  // What Bizzy knows about the day when he's tapped, worked out at the moment of the tap.
+  const talk = (): TalkContext => {
+    const xp = totalXp(state);
+    const info = levelInfo(xp);
+    const form = bizzyFormOf(state.bizzyForm).n;
+    // An award close to its next tier (not the one that only needs time to pass).
+    const near = achievementStatuses(state, today).find((a) => a.def.id !== 'member' && a.next && a.reached === a.claimed && a.value >= a.next.goal * 0.75);
+    return {
+      mood,
+      name: state.profile.name === DEFAULT_NAME ? '' : state.profile.name,
+      hour: new Date().getHours(),
+      tasksLeft: tasks.length - doneCount,
+      tasksDone: doneCount,
+      streak: streak.days,
+      nextBonus: nextStreakBonus(streak.days),
+      level: info.level,
+      xpToLevel: info.xpForLevel - info.xpIntoLevel,
+      maxed: info.maxed,
+      tickets: ticketStatus(state, xp).tickets,
+      claimable: claimableCount(state, today),
+      nearAward: near && t(near.def.title),
+      canEvolve: canEvolve(form, info.level),
+      evolveAt: nextBizzyForm(form)?.level,
+    };
+  };
   // He jumps each time another task of today gets done.
   const [cheer, setCheer] = useState(0);
   const lastDone = useRef(doneCount);
@@ -314,7 +344,7 @@ export function TodayScreen({
               <View onLayout={(e) => (comboY.value = HEADER_TOP + e.nativeEvent.layout.y)} />
 
               <View onLayout={(e) => (stickyFrom.value = HEADER_TOP + e.nativeEvent.layout.y + e.nativeEvent.layout.height)}>
-                <StreakCard streak={streak} week={weekDots(state, today)} multiplier={multiplier} bizzy={{ mood, cheer, form: bizzyFormOf(state.bizzyForm).n, level: levelInfo(totalXp(state)).level, onEvolve }} onPress={onOpenStreak} />
+                <StreakCard streak={streak} week={weekDots(state, today)} multiplier={multiplier} bizzy={{ mood, cheer, form: bizzyFormOf(state.bizzyForm).n, level: levelInfo(totalXp(state)).level, onEvolve, talk }} onPress={onOpenStreak} />
               </View>
               {tokenStrip}
               {recap}
