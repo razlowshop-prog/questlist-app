@@ -191,7 +191,7 @@ export function Celebration({
                     {milestone.reward?.token && <Text style={s.itemDesc}>{t(TOKEN_INFO[milestone.reward.token].description)}</Text>}
                     {(milestone.reward?.kind === 'frame' || milestone.reward?.kind === 'title') && <Text style={s.itemDesc}>{t('Wear it from your profile.')}</Text>}
                     {(milestone.reward?.kind === 'flame' || milestone.reward?.kind === 'celebration') && (
-                      <Text style={s.itemDesc}>{t('Pick it in your inventory at the top right, under Customise your app.')}</Text>
+                      <Text style={s.itemDesc}>{t('Pick it in your inventory at the top right, under Theme.')}</Text>
                     )}
                     <Text style={s.itemMeta}>
                       {t('Level {n} reward', { n: milestone.level })}

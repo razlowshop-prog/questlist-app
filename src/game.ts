@@ -148,6 +148,8 @@ export interface GameState {
   streakMilestones?: { days: number; date: string }[];
   /** How far Bizzy has evolved, 1 (Larva) to 10 (Queen); the player taps Evolve for each step (bizzy.ts). */
   bizzyForm?: number;
+  /** How often Bizzy has been tapped on the streak card, for the secret achievement (achievements.ts). */
+  bizzyTaps?: number;
   /** Test changes from the developer page; only kept in test builds (see devTools.ts). */
   dev?: DevSettings;
 }
@@ -1139,6 +1141,11 @@ export function shownName(name: string): string {
 
 export function setName(state: GameState, name: string): GameState {
   return { ...state, profile: { ...state.profile, name: name.slice(0, 24) } };
+}
+
+/** Counts one tap on Bizzy. */
+export function tapBizzy(state: GameState): GameState {
+  return { ...state, bizzyTaps: (state.bizzyTaps ?? 0) + 1 };
 }
 
 /** Bizzy evolves one form, if the player's level allows it; otherwise the state stays as it is. */

@@ -40,7 +40,7 @@ function itemLook(item: BagItem): { grad: Grad; glyph: GlyphName } {
  * The inventory, opened from the header, in two tabs. Bag: wheel tickets and
  * tokens in slots, five of a kind to a slot, each named underneath. When the
  * slots are full the rest waits in a tray below and can still be used. Tap a
- * slot to see what it does and use it. Customise your app: the theme, the
+ * slot to see what it does and use it. Theme: the theme, the
  * tick celebration and the streak flame (only here). Frames and titles stay
  * on the profile.
  */
@@ -91,7 +91,7 @@ export function InventoryScreen({
   const freshCelebrations = newOfKind(freshLooks, 'celebration');
   const freshFlames = newOfKind(freshLooks, 'flame');
   const freshLooksHere = freshThemes.size + freshCelebrations.size + freshFlames.size;
-  // New looks and nothing else new: open on Customise, where they are.
+  // New looks and nothing else new: open on Theme, where they are.
   const [tab, setTab] = useState<'bag' | 'customize'>(freshLooksHere > 0 ? 'customize' : 'bag');
   const counts: Record<BagItem, number> = { ticket: tickets, ...tokenCounts(state) };
   const capacity = bagCapacity(level);
@@ -153,9 +153,9 @@ export function InventoryScreen({
           style={[s.segmentItem, tab === v && s.segmentActive]}
           accessibilityRole="tab"
           accessibilityState={{ selected: tab === v }}
-          accessibilityLabel={v === 'bag' ? t('Bag') : freshLooksHere ? t('Customise your app, {n} new', { n: freshLooksHere }) : t('Customise your app')}
+          accessibilityLabel={v === 'bag' ? t('Bag') : freshLooksHere ? t('Theme, {n} new', { n: freshLooksHere }) : t('Theme')}
         >
-          <Text style={[s.segmentText, tab === v && s.segmentTextActive]}>{v === 'bag' ? t('Bag') : t('Customise your app')}</Text>
+          <Text style={[s.segmentText, tab === v && s.segmentTextActive]}>{v === 'bag' ? t('Bag') : t('Theme')}</Text>
           {v === 'customize' && <CountBadge count={freshLooksHere} style={s.segmentBadge} />}
         </Pressable>
       ))}

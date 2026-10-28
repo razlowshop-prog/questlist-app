@@ -43,6 +43,21 @@ export function Achievements({
         const shownTier = claimable ? tierToClaim : a.next;
         const prevGoal = a.reached > 0 ? a.def.tiers[a.reached - 1].goal : 0;
         const pct = a.next ? Math.min(1, Math.max(0, (a.value - prevGoal) / (a.next.goal - prevGoal))) : 1;
+        // Not found yet: no name, goal or progress, only that there is one.
+        if (a.def.secret && a.reached === 0) {
+          return (
+            <View key={a.def.id} style={s.card}>
+              <View style={s.row}>
+                <Sticker grad={achievementTierLook(0)} glyph={ICON_GLYPHS.Shield} size={48} dim />
+                <View style={{ flex: 1 }}>
+                  <Text style={s.title}>{t('Secret achievement')}</Text>
+                  <Text style={s.desc}>{t('Keep playing around to find it.')}</Text>
+                </View>
+                <GradientText style={s.reward}>???</GradientText>
+              </View>
+            </View>
+          );
+        }
         return (
           <View key={a.def.id} style={[s.card, claimable && s.cardClaimable]}>
             <View style={s.row}>

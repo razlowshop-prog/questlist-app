@@ -142,3 +142,26 @@ test('the XP bar preview lists the next levels with the XP still to go', () => {
   assert.ok(upcomingLevelRewards(top - 1).length <= 1);
   assert.deepEqual(upcomingLevelRewards(top + 5000), []);
 });
+
+test('the secret achievement: 150 taps on Bizzy win the Honey theme', async () => {
+  const { tapBizzy } = await import('./game.ts');
+  const { BIZZY_TAPS_SECRET, ACHIEVEMENTS } = await import('./achievements.ts');
+  const secret = () => (s: GameState) => achievementStatuses(s, TODAY).find((a) => a.def.id === 'secret')!;
+  assert.equal(BIZZY_TAPS_SECRET, 150);
+  assert.equal(ACHIEVEMENTS.find((a) => a.id === 'secret')?.secret, true);
+  let s = stateWith([]);
+  assert.equal(secret()(s).value, 0);
+  for (let i = 0; i < 149; i++) s = tapBizzy(s);
+  assert.equal(secret()(s).reached, 0);
+  assert.equal(claimableCount(s, TODAY), 0);
+  s = tapBizzy(s);
+  assert.equal(s.bizzyTaps, 150);
+  assert.equal(secret()(s).reached, 1);
+  assert.equal(claimableCount(s, TODAY), 1);
+  const won = claimAchievement(s, 'secret', TODAY);
+  assert.equal(won.tier?.xp, 50);
+  assert.deepEqual(won.tier?.reward, { kind: 'theme', label: 'Honey theme' });
+  assert.ok(unlockedRewards(won.state).some((r) => r.kind === 'theme' && r.label === 'Honey theme'));
+  // More taps don't give it again.
+  assert.equal(claimableCount(tapBizzy(won.state), TODAY), 0);
+});

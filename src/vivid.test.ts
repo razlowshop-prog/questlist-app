@@ -129,7 +129,7 @@ test('the default theme is Indigo with its blue-violet fade, and Dusk can still 
   const ids = [...first.matchAll(/\bid: '(\w+)',\s*name: N\('(\w+)'\),(\s*reward:)?/g)].map((m) => [m[1], m[2], !!m[3]]);
   assert.deepEqual(ids[0], ['classic', 'Indigo', false], 'everyone on the default moves to Indigo');
   assert.deepEqual(ids[1], ['dusk', 'Dusk', false], 'Dusk stays free to pick');
-  assert.deepEqual(ids.slice(2, 4), [['honey', 'Honey', false], ['hive', 'Hive', false]], 'the bee themes are free too');
+  assert.deepEqual(ids.slice(2, 4), [['honey', 'Honey', true], ['hive', 'Hive', false]], 'Honey is won with the secret achievement, Hive is free');
   assert.equal(new Set(ids.map((i) => i[0])).size, ids.length, 'theme ids are unique');
   assert.match(first, /bgImage: 'linear-gradient\(165deg, #13213a 0%, #12151f 48%, #1f1636 100%\)'/);
 });

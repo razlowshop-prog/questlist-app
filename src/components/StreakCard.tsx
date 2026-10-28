@@ -38,8 +38,8 @@ export function StreakCard({
   /** Monday to Sunday of this week. */
   week: WeekDot[];
   multiplier: ReturnType<typeof xpMultiplier>;
-  /** Bizzy's mood, a count that goes up each time he should jump for joy, his form, the player's level, what Evolve does and what he knows about the day. */
-  bizzy?: { mood: BizzyMood; cheer: number; form: number; level: number; onEvolve: () => void; talk: () => TalkContext };
+  /** Bizzy's mood, a count that goes up each time he should jump for joy, his form, the player's level, what Evolve does, what he knows about the day, and his taps so far. */
+  bizzy?: { mood: BizzyMood; cheer: number; form: number; level: number; onEvolve: () => void; talk: () => TalkContext; taps?: number; onTap?: () => void };
   onPress: () => void;
 }) {
   const s = useStyles(makeStyles);
@@ -102,7 +102,7 @@ export function StreakCard({
           </View>
           {bizzy && (
             <View style={s.corner}>
-              <TapBizzy mood={bizzy.mood} cheer={bizzy.cheer} size={68} look={[-2, 1]} talk={bizzy.talk} onSay={say} />
+              <TapBizzy mood={bizzy.mood} cheer={bizzy.cheer} size={68} look={[-2, 1]} talk={bizzy.talk} onSay={say} taps={bizzy.taps} onTap={bizzy.onTap} />
               <EvolveNext form={bizzy.form} level={bizzy.level} onEvolve={bizzy.onEvolve} />
             </View>
           )}

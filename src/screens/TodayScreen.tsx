@@ -62,6 +62,7 @@ export function TodayScreen({
   xpProgress,
   onOpenStreak,
   onEvolve,
+  onTapBizzy,
   onOpenRewards,
   tokenStrip,
   guide,
@@ -92,6 +93,7 @@ export function TodayScreen({
   onOpenStreak: () => void;
   /** Bizzy evolves into his next form (only offered once the level allows it). */
   onEvolve: () => void;
+  onTapBizzy: () => void;
   /** The coming level rewards, from the XP bar in the pinned status line. */
   onOpenRewards: () => void;
   /** Tokens to use, shown under the streak. */
@@ -243,7 +245,7 @@ export function TodayScreen({
     const info = levelInfo(xp);
     const form = bizzyFormOf(state.bizzyForm).n;
     // An award close to its next tier (not the one that only needs time to pass).
-    const near = achievementStatuses(state, today).find((a) => a.def.id !== 'member' && a.next && a.reached === a.claimed && a.value >= a.next.goal * 0.75);
+    const near = achievementStatuses(state, today).find((a) => a.def.id !== 'member' && !a.def.secret && a.next && a.reached === a.claimed && a.value >= a.next.goal * 0.75);
     return {
       mood,
       name: state.profile.name === DEFAULT_NAME ? '' : state.profile.name,
@@ -344,7 +346,7 @@ export function TodayScreen({
               <View onLayout={(e) => (comboY.value = HEADER_TOP + e.nativeEvent.layout.y)} />
 
               <View onLayout={(e) => (stickyFrom.value = HEADER_TOP + e.nativeEvent.layout.y + e.nativeEvent.layout.height)}>
-                <StreakCard streak={streak} week={weekDots(state, today)} multiplier={multiplier} bizzy={{ mood, cheer, form: bizzyFormOf(state.bizzyForm).n, level: levelInfo(totalXp(state)).level, onEvolve, talk }} onPress={onOpenStreak} />
+                <StreakCard streak={streak} week={weekDots(state, today)} multiplier={multiplier} bizzy={{ mood, cheer, form: bizzyFormOf(state.bizzyForm).n, level: levelInfo(totalXp(state)).level, onEvolve, talk, taps: state.bizzyTaps ?? 0, onTap: onTapBizzy }} onPress={onOpenStreak} />
               </View>
               {tokenStrip}
               {recap}

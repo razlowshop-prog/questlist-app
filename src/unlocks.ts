@@ -48,6 +48,8 @@ export function unlockFor(look: LockedLook, ctx: UnlockContext): Unlock {
       const status = ctx.achievements.find((a) => a.def.id === def.id);
       const value = Math.min(goal, status?.value ?? 0);
       const reached = (status?.reached ?? 0) > tier;
+      // A secret stays a secret: no hint of how it's won until it is.
+      if (def.secret && !reached) return { how: t('Won with a secret achievement. Can you find it?') };
       return {
         how: t('Win {tier} in the {award} award: {how}.', { tier: t(TIER_NAMES[tier]), award: t(def.title), how: lower(def.description(goal)) }),
         progress: { value, goal, unit: def.unit },
