@@ -113,9 +113,6 @@ import { loadPhoto, loadState, savePhoto, saveState } from './src/storage';
 import { nativeDriver, themeById, themed, ThemeProvider, THEMES, withFonts } from './src/theme';
 import { N, quoted, setLang, systemLang, t, tn } from './src/i18n';
 
-/** The Spin tab always wears the Fortuna look. */
-const FORTUNA = themeById('fortune').palette;
-
 /** Browser previews are built with this on so every theme and look can be tried without unlocking it. */
 const PREVIEW_ALL_THEMES = process.env.EXPO_PUBLIC_UNLOCK_THEMES === '1';
 /** Ticks closer together than this build a combo. */
@@ -851,21 +848,20 @@ function Succedo() {
                   }}
                 />
               )}
+              {/* The Spin tab wears the player's theme; only its wheel is Fortuna (design "look L4"). */}
               {!page && tab === 'spin' && (
-                <ThemeProvider palette={FORTUNA}>
-                  <SpinScreen
-                    tickets={tickets}
-                    pity={spinsToPity(state)}
-                    ownsTheme={ownsWheelTheme(state)}
-                    spins={state.wheelSpins ?? []}
-                    onSpin={onSpin}
-                    onBusy={setSpinBusy}
-                    onWearTheme={() => {
-                      setState(updateSettings(state, { theme: 'fortune' }));
-                      showToast(t('Fortuna is on. Good luck!'));
-                    }}
-                  />
-                </ThemeProvider>
+                <SpinScreen
+                  tickets={tickets}
+                  pity={spinsToPity(state)}
+                  ownsTheme={ownsWheelTheme(state)}
+                  spins={state.wheelSpins ?? []}
+                  onSpin={onSpin}
+                  onBusy={setSpinBusy}
+                  onWearTheme={() => {
+                    setState(updateSettings(state, { theme: 'fortune' }));
+                    showToast(t('Fortuna is on. Good luck!'));
+                  }}
+                />
               )}
               {!page && tab === 'menu' && <MenuScreen onOpen={setPage} />}
             </View>
