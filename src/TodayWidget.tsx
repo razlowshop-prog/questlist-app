@@ -48,7 +48,7 @@ export function TodayWidget({ data, width, height }: { data: WidgetData; width: 
           />
           <TextWidget text={data.sub} maxLines={small ? 3 : 4} style={{ fontSize: small ? 11 : 12, fontFamily: 'Assistant_400Regular', color: '#B6BDD2', marginTop: 2 }} />
         </FlexWidget>
-        <SvgWidget svg={bizzySvg(data.mood, false)} style={{ width: bee, height: bee, marginLeft: 4 }} />
+        <SvgWidget svg={bizzySvg(data.mood, false, { form: data.form })} style={{ width: bee, height: bee, marginLeft: 4 }} />
       </FlexWidget>
       <FlexWidget style={{ width: barWidth, height: 6, borderRadius: 3, backgroundColor: '#2F3650' }}>
         {fill > 0 ? (

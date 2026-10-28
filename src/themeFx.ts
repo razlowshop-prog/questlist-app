@@ -5,11 +5,11 @@ import { comboLook, type ComboLook } from './combo.ts';
 // ticked task leaves the list. Themes without an entry keep the brand bar
 // and a plain fade.
 
-export type MascotKind = 'rocket' | 'sprout' | 'boat' | 'car' | 'pencil' | 'lifter' | 'sun' | 'bolt' | 'climber' | 'flame' | 'moon' | 'crown';
+export type MascotKind = 'bee' | 'rocket' | 'sprout' | 'boat' | 'car' | 'pencil' | 'lifter' | 'sun' | 'bolt' | 'climber' | 'flame' | 'moon' | 'crown';
 export type FinishKind = 'rocket' | 'blow' | 'wash' | 'glitch' | 'cross' | 'throw' | 'sink' | 'zap' | 'up' | 'burn' | 'dust' | 'gild' | 'fade';
-export type AmbientKind = 'stars' | 'leaves' | 'sea' | 'circuit' | 'floor' | 'dusk' | 'storm' | 'peaks' | 'embers' | 'night' | 'noir';
+export type AmbientKind = 'comb' | 'stars' | 'leaves' | 'sea' | 'circuit' | 'floor' | 'dusk' | 'storm' | 'peaks' | 'embers' | 'night' | 'noir';
 /** Drawn on the fill and revealed as it grows. */
-export type BarDecor = 'vine' | 'wavetop' | 'arcs' | 'coals' | 'sheen';
+export type BarDecor = 'comb' | 'vine' | 'wavetop' | 'arcs' | 'coals' | 'sheen';
 
 export interface ThemeBarSpec {
   height: number;
@@ -27,6 +27,8 @@ export interface ThemeBarSpec {
   fillOpacity?: number;
   /** A glow around the fill (CSS box-shadow). */
   fillShadow?: string;
+  /** Cuts the bar into this many honeycomb cells, in `color` (the screen behind the bar) (Hive). */
+  cells?: { count: number; color: string };
   /**
    * How the fill moves to a new total, when it isn't the usual quick ease-out:
    * Gym waits while the lifter picks the barbell up, then carries it along.
@@ -63,6 +65,19 @@ export const THEME_FX: Record<string, ThemeFx> = {
     finish: 'rocket',
     finishMs: 950,
     ambient: 'stars',
+  },
+  // Bizzy himself rides the Honey bar, over a faint honeycomb.
+  honey: {
+    bar: { height: 10, track: '#2e261a', fill: linear(90, '#ffe08a', '#f2a93b'), fillColor: '#f5b84a', glow: '#ffd36b', decor: 'comb' },
+    mascot: 'bee',
+    finish: 'fade',
+    finishMs: 600,
+    ambient: 'comb',
+  },
+  hive: {
+    bar: { height: 12, track: '#2a2a2d', fill: '#ffc93c', fillColor: '#ffc93c', glow: '#ffe39a', radius: 0, cells: { count: 12, color: '#161616' } },
+    finish: 'fade',
+    finishMs: 600,
   },
   forest: {
     bar: { height: 10, track: '#d8e3d2', fill: linear(90, '#6aa060', '#3f6b4a'), fillColor: '#548655', glow: '#9cd08f', decor: 'vine' },
@@ -207,6 +222,7 @@ export function themeFx(themeId: string): ThemeFx {
  * drawing dips into the bar (the pencil's tip has to touch it).
  */
 export const MASCOT_SIZE: Record<MascotKind, { width: number; height: number; sink?: number }> = {
+  bee: { width: 34, height: 34, sink: 6 },
   rocket: { width: 58, height: 30 },
   sprout: { width: 26, height: 26 },
   boat: { width: 34, height: 30 },

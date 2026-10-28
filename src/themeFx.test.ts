@@ -14,7 +14,7 @@ test('the mascot centres on the tip but never leaves the bar', () => {
 
 test('every theme effect belongs to a real theme, and mascots have a size', () => {
   // Theme ids from theme.tsx (tests can't load .tsx files).
-  const ids = new Set(['classic', 'dusk', 'forest', 'ocean', 'sunset', 'thunder', 'summit', 'ember', 'gold', 'midnight', 'fortune', 'neon', 'notepad', 'gym']);
+  const ids = new Set(['classic', 'dusk', 'honey', 'hive', 'forest', 'ocean', 'sunset', 'thunder', 'summit', 'ember', 'gold', 'midnight', 'fortune', 'neon', 'notepad', 'gym']);
   for (const [id, fx] of Object.entries(THEME_FX)) {
     assert.ok(ids.has(id), `${id} is a theme`);
     if (fx.mascot) assert.ok(MASCOT_SIZE[fx.mascot], `${fx.mascot} has a size`);
@@ -24,13 +24,18 @@ test('every theme effect belongs to a real theme, and mascots have a size', () =
   assert.equal(themeFx('gold').mascot, 'crown');
   assert.equal(themeFx('gold').finish, 'gild');
   assert.equal(themeFx('neon').ambient, 'circuit');
+  // Bee themes: Bizzy rides the Honey bar over a faint honeycomb; Hive's bar is cut into honeycomb cells.
+  assert.equal(themeFx('honey').mascot, 'bee');
+  assert.equal(themeFx('honey').ambient, 'comb');
+  assert.equal(themeFx('hive').bar?.cells?.count, 12);
+  assert.equal(themeFx('hive').mascot, undefined);
   const { combo, ...fortune } = themeFx('fortune');
   assert.deepEqual(fortune, PLAIN_FX, 'Fortuna stays as it is');
   assert.equal(combo?.icon, 'coin');
 });
 
 test('every theme has its combo pop-up, and later themes fall back to Indigo', () => {
-  for (const id of ['classic', 'dusk', 'forest', 'ocean', 'sunset', 'thunder', 'summit', 'ember', 'gold', 'midnight', 'fortune', 'neon', 'notepad', 'gym']) {
+  for (const id of ['classic', 'dusk', 'honey', 'hive', 'forest', 'ocean', 'sunset', 'thunder', 'summit', 'ember', 'gold', 'midnight', 'fortune', 'neon', 'notepad', 'gym']) {
     assert.ok(COMBO_LOOKS[id], `${id} has a combo look`);
   }
   assert.equal(comboLook('someday'), DEFAULT_COMBO);

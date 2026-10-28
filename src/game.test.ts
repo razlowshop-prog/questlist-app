@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   addDays,
   addTask,
+  bizzyNudge,
   maxPerWeek,
   reminderPlan,
   upcomingTasks,
@@ -14,6 +15,7 @@ import {
   DEFAULT_MINUTES,
   deleteTask,
   emptyState,
+  evolveBizzy,
   resetProgress,
   finishSetup,
   levelInfo,
@@ -36,6 +38,7 @@ import {
   xpFor,
   xpToNext,
   type Completion,
+  type GameState,
 } from './game.ts';
 
 const TODAY = '2026-10-21';
@@ -519,6 +522,9 @@ test('streak warning at 20:00 while nothing is done today, unless turned off', (
   assert.equal(plan[0].at.getHours(), 20);
   assert.equal(plan[0].at.getDate(), d);
   assert.match(plan[0].title, /4-day streak ends at midnight/);
+  // Bizzy speaks in the reminders.
+  assert.match(plan[0].body ?? '', /^🐝 Bizzy is getting nervous/);
+  assert.match(plan[1].body ?? '', /^🐝 Bizzy misses you/);
   // Done today: tonight's warning goes, the next days stay
   s = { ...s, completions: [...s.completions, { taskId: 'x', date: TODAY, xp: 10 }] };
   plan = reminderPlan(s, noon).filter((r) => r.taskId === 'streak');
@@ -527,6 +533,21 @@ test('streak warning at 20:00 while nothing is done today, unless turned off', (
   // Turned off, or no streak
   assert.equal(reminderPlan(updateSettings(s, { streakReminders: false }), noon).length, 0);
   assert.equal(reminderPlan(emptyState, noon).length, 0);
+});
+
+test('task reminders carry a line from Bizzy that changes from day to day', () => {
+  const lines = new Set<string>();
+  for (let i = 0; i < 14; i++) lines.add(bizzyNudge(addDays(TODAY, i), 't1'));
+  assert.ok(lines.size >= 2);
+  for (const l of lines) assert.match(l, /^🐝 /);
+  // The same day and task always get the same line.
+  assert.equal(bizzyNudge(TODAY, 't1'), bizzyNudge(TODAY, 't1'));
+  const [y, m, d] = TODAY.split('-').map(Number);
+  let s = addTask(emptyState, 'Wash dishes', true, 't1');
+  s = { ...s, tasks: s.tasks.map((t) => ({ ...t, reminder: '18:00' })) };
+  const plan = taskReminders(s, new Date(y, m - 1, d, 9, 0));
+  assert.ok(plan.length > 0);
+  assert.equal(plan[0].body, bizzyNudge(TODAY, 't1'));
 });
 
 test('resetting progress starts a new player but keeps how the app is set up', () => {
@@ -575,4 +596,21 @@ test('resetting progress starts a new player but keeps how the app is set up', (
   });
   // A fresh player resets to the same fresh player.
   assert.deepEqual(resetProgress(emptyState), emptyState);
+});
+
+test('Bizzy evolves one form per tap, only when the level allows it', () => {
+  const at = (xp: number): GameState => ({ ...emptyState, dev: { xp } });
+  assert.equal(levelInfo(0).level, 1);
+  const larva = at(0);
+  assert.equal(evolveBizzy(larva), larva, 'level 1: nothing happens');
+  const level2 = at(levelInfo(0).xpForLevel);
+  assert.equal(levelInfo(totalXp(level2)).level, 2);
+  const bud = evolveBizzy(level2);
+  assert.equal(bud.bizzyForm, 2);
+  assert.equal(evolveBizzy(bud), bud, 'Buzzling needs level 5');
+  // Far past several levels: one step per tap, until he is the Queen.
+  let s = at(10_000_000);
+  for (let i = 0; i < 20; i++) s = evolveBizzy(s);
+  assert.equal(s.bizzyForm, 10);
+  assert.equal(resetProgress(s).bizzyForm, undefined, 'starting over brings back the Larva');
 });

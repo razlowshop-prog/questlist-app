@@ -11,6 +11,7 @@ import { sound } from '../sounds';
 import { PERFECT_DAY_XP } from '../moments';
 import { card, eyebrow, FONTS, themed, useStyles, useTheme } from '../theme';
 import { FLAMES, RARITY } from '../vivid';
+import { Bizzy } from './Bizzy';
 import { Fire } from './Fire';
 import { ConfettiBurst, Glyph, GradientText, VIVID_HEAVY, VividButton } from './Vivid';
 import { N, t } from '../i18n';
@@ -53,7 +54,8 @@ export function MomentCelebration({ moment, onClose }: { moment: Moment; onClose
         <Animated.View style={[s.card, cardStyle]} accessibilityViewIsModal>
           <Text style={s.eyebrow}>{perfect ? t('All done') : t('Streak milestone')}</Text>
           <View style={s.emblem}>
-            {perfect ? <Glyph name="Trophy" size={64} grad={RARITY.legendary} /> : <Fire tier={3} size={76} />}
+            {/* Bizzy guards the streak, so he celebrates its milestones next to the fire. */}
+            {perfect ? <Glyph name="Trophy" size={64} grad={RARITY.legendary} /> : <><Fire tier={3} size={76} /><Bizzy mood="excited" size={88} /></>}
           </View>
           <GradientText style={s.title} colors={perfect ? undefined : FLAMES.ember} glow={perfect ? undefined : FLAMES.ember.c2} glowRadius={14}>
             {title}
@@ -253,7 +255,7 @@ const makeStyles = themed((c) => ({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   card: { ...card(c), backgroundColor: c.bg, width: '100%', maxWidth: 360, alignItems: 'center', gap: 10, padding: 24, borderRadius: 24 },
   eyebrow: { ...eyebrow(c, 12), color: c.muted },
-  emblem: { height: 96, alignItems: 'center', justifyContent: 'center' },
+  emblem: { height: 96, flexDirection: 'row', gap: 4, alignItems: 'center', justifyContent: 'center' },
   title: { fontFamily: FONTS.serif, fontSize: 32, lineHeight: 38, textAlign: 'center' },
   body: { color: c.muted, fontSize: 15, lineHeight: 21, textAlign: 'center' },
   buttons: { flexDirection: 'row', gap: 10, marginTop: 8 },

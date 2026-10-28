@@ -24,6 +24,7 @@ import { buzz } from '../haptics';
 import { brandLine, categoryLook, midColor, MYTHIC } from '../vivid';
 import { FinishFx, RowPulse, RowSheen, useThemeFx } from './ThemeFx';
 import { fill, GradientText, Sticker } from './Vivid';
+import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 
 /** The tick celebration the player has equipped. */
 export const CelebrationContext = createContext<CelebrationId>('classic');
@@ -321,6 +322,11 @@ export function TaskRow({
             >
               <CoinCheck done={done} size={30} />
             </Animated.View>
+          ) : c.check === 'hex' ? (
+            <Animated.View style={[s.hexBox, (locked || covered || early) && { opacity: 0.6 }, { transform: [{ scale: pop }] }]}>
+              <HexCheck size={26} line={catLine} grad={cat} done={done} dashed={locked || covered || early} />
+              {done && <Text style={[s.checkmark, { color: cat.ink }]}>✓</Text>}
+            </Animated.View>
           ) : (
             <Animated.View
               style={[s.checkbox, { borderColor: catLine }, done && { ...fill(cat), borderColor: 'transparent' }, (locked || covered || early) && s.checkboxLocked, { transform: [{ scale: pop }, ...rotate] }]}
@@ -349,6 +355,11 @@ export function TaskRow({
               >
                 {c.check === 'coin' ? (
                   <CoinCheck done={steps.done[i]} size={18} />
+                ) : c.check === 'hex' ? (
+                  <View style={s.hexStep}>
+                    <HexCheck size={20} line={catLine} grad={cat} done={steps.done[i]} />
+                    {steps.done[i] && <Text style={[s.stepTick, { color: cat.ink }]}>✓</Text>}
+                  </View>
                 ) : (
                   <View style={[s.stepCheck, { borderColor: catLine }, steps.done[i] && { ...fill(cat), borderColor: 'transparent' }]}>
                     {steps.done[i] && <Text style={[s.stepTick, { color: cat.ink }]}>✓</Text>}
@@ -552,6 +563,8 @@ const makeStyles = themed((c) => ({
     justifyContent: 'center',
   },
   checkboxLocked: { borderStyle: 'dashed', opacity: 0.6 },
+  hexBox: { width: 26, height: 26, alignItems: 'center', justifyContent: 'center' },
+  hexStep: { width: 20, height: 20, alignItems: 'center', justifyContent: 'center' },
   checkmark: { color: '#FFFFFF', fontWeight: '800', fontSize: 13 },
   /** Turns the tick upright again inside the rotated diamond. */
   checkmarkDiamond: { transform: [{ rotate: '-45deg' }] },
@@ -592,3 +605,27 @@ const makeStyles = themed((c) => ({
   stepXpLast: { color: c.accent, fontWeight: '700' },
   floatWarn: { fontFamily: FONTS.bodySemiBold, color: c.flame, fontSize: 13, right: 0, top: 8, textShadowRadius: 0 },
 }));
+
+/** Hive's checkbox: a honeycomb cell, outlined in the category's colour, filled with its gradient once ticked. */
+function HexCheck({ size, line, grad, done, dashed }: { size: number; line: string; grad: { c1: string; c2: string }; done: boolean; dashed?: boolean }) {
+  // One gradient per category colour pair, so repeats on a page are the same drawing.
+  const id = `hex${grad.c1}${grad.c2}`.replace(/#/g, '');
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" style={{ position: 'absolute' }}>
+      <Defs>
+        <LinearGradient id={id} x1="0" y1="0" x2="1" y2="1">
+          <Stop offset="0" stopColor={grad.c1} />
+          <Stop offset="1" stopColor={grad.c2} />
+        </LinearGradient>
+      </Defs>
+      <Path
+        d="M7 2.8 H17 L21.8 12 L17 21.2 H7 L2.2 12Z"
+        fill={done ? `url(#${id})` : 'none'}
+        stroke={done ? 'none' : line}
+        strokeWidth={1.6}
+        strokeLinejoin="round"
+        strokeDasharray={dashed ? '3 2.2' : undefined}
+      />
+    </Svg>
+  );
+}

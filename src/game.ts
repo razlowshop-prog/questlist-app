@@ -2,6 +2,7 @@ import type { SoundStyle } from './sounds.ts';
 import type { CelebrationId, FlameStyleId } from './cosmetics.ts';
 import { EFFORT_FACTOR, WILLPOWER_XP, type Effort } from './effort.ts';
 import { taskEffort, tooEarlyToTick } from './estimate.ts';
+import { bizzyFormOf, canEvolve } from './bizzy.ts';
 import { lang, N, t, type Lang } from './i18n.ts';
 import type { FocusSession } from './focus.ts';
 import type { IconName } from './icons.ts';
@@ -145,6 +146,8 @@ export interface GameState {
   perfectDays?: PerfectDay[];
   /** Streak milestones reached (7, 30, 100, 365 days), for the celebration and the profile. */
   streakMilestones?: { days: number; date: string }[];
+  /** How far Bizzy has evolved, 1 (Larva) to 10 (Queen); the player taps Evolve for each step (bizzy.ts). */
+  bizzyForm?: number;
   /** Test changes from the developer page; only kept in test builds (see devTools.ts). */
   dev?: DevSettings;
 }
@@ -1047,6 +1050,15 @@ export function dayLabel(day: string): string {
   return lang() === 'de' ? `${name}, ${date}.` : `${name} ${date}`;
 }
 
+/** What Bizzy says under a task reminder; changes from day to day and task to task. */
+const BIZZY_NUDGES = [N('🐝 Bizzy here: time for this one!'), N('🐝 Bizzy says: let’s get this done today.'), N('🐝 Bzzz! This one is on your list today.')];
+
+export function bizzyNudge(day: string, taskId: string): string {
+  let h = 0;
+  for (const ch of day + taskId) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return t(BIZZY_NUDGES[h % BIZZY_NUDGES.length]);
+}
+
 export interface PlannedReminder {
   /** 'streak' for the streak warning. */
   taskId: string;
@@ -1079,7 +1091,7 @@ export function reminderPlan(state: GameState, now: Date, days = 7, limit = 60):
       }
       const [y, mo, d] = day.split('-').map(Number);
       const at = new Date(y, mo - 1, d, h, m);
-      if (at.getTime() > now.getTime()) out.push({ taskId: task.id, title: shownTitle(task.title), at });
+      if (at.getTime() > now.getTime()) out.push({ taskId: task.id, title: shownTitle(task.title), body: bizzyNudge(day, task.id), at });
     }
   }
   // Streak warning at 20:00 on days nothing is done yet, today and the next two.
@@ -1101,10 +1113,10 @@ export function reminderPlan(state: GameState, now: Date, days = 7, limit = 60):
                 streak.tier >= 2
                   ? t('Your {days}-day streak drops from {fire} to {lower} at midnight', { days: streak.days, fire, lower })
                   : t('Your {days}-day streak ends at midnight', { days: streak.days }),
-              body: t('One task today keeps it going.'),
+              body: t('🐝 Bizzy is getting nervous. One task today keeps it going.'),
               at,
             }
-          : { taskId: 'streak', title: t('Keep your streak alive'), body: t('Nothing done yet today. One task is enough.'), at },
+          : { taskId: 'streak', title: t('Keep your streak alive'), body: t('🐝 Bizzy misses you. One task is enough.'), at },
       );
     }
   }
@@ -1127,4 +1139,11 @@ export function shownName(name: string): string {
 
 export function setName(state: GameState, name: string): GameState {
   return { ...state, profile: { ...state.profile, name: name.slice(0, 24) } };
+}
+
+/** Bizzy evolves one form, if the player's level allows it; otherwise the state stays as it is. */
+export function evolveBizzy(state: GameState): GameState {
+  const form = bizzyFormOf(state.bizzyForm).n;
+  if (!canEvolve(form, levelInfo(totalXp(state)).level)) return state;
+  return { ...state, bizzyForm: form + 1 };
 }

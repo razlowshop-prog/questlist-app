@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { APP_NAME } from '../brand';
 import { DEV_TOOLS } from '../devTools';
+import { Bizzy } from '../components/Bizzy';
 import { CountBadge, fill } from '../components/Vivid';
 import { card, eyebrow, FONTS, headingCase, themed, useStyles, useTheme } from '../theme';
 import { N, t } from '../i18n';
@@ -53,7 +54,11 @@ export function MenuScreen({ counts, onOpen }: { /** Small pink counts on rows, 
           ))}
         </MenuGroup>
       ))}
-      <Text style={s.footer}>{t('{app} 1.0 · made in Austria', { app: APP_NAME })}</Text>
+      {/* Bizzy naps at the bottom of the menu. */}
+      <View style={s.footerRow}>
+        <Text style={s.footer}>{t('{app} 1.0 · made in Austria', { app: APP_NAME })}</Text>
+        <Bizzy mood="sleepy" size={56} />
+      </View>
     </ScrollView>
   );
 }
@@ -126,5 +131,6 @@ const makeStyles = themed((c) => ({
   tile: { width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   label: { color: c.text, fontSize: 15, fontWeight: '700' },
   sub: { color: c.muted, fontSize: 12 },
-  footer: { color: c.faint, fontSize: 12, textAlign: 'center', marginTop: 24 },
+  footerRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'flex-end', gap: 6, marginTop: 16 },
+  footer: { color: c.faint, fontSize: 12, textAlign: 'center', marginBottom: 10 },
 }));

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useContext, useEffect, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming, type SharedValue } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Ellipse, LinearGradient, Path, RadialGradient, Stop } from 'react-native-svg';
@@ -7,6 +7,8 @@ import { locale, t, tn } from '../i18n';
 import { areaList } from '../library';
 import { SEASON_XP, type SeasonStatus } from '../seasons';
 import { SEASON_PILL } from '../vivid';
+import { bizzyFormOf } from '../bizzy';
+import { Bizzy, BizzyFormContext } from './Bizzy';
 import { useReduceMotion } from './FireAura';
 import { BRAND_FILL_SMALL, BRAND_INK, BRAND_TEXT_SHADOW, fill, VIVID_HEAVY } from './Vivid';
 
@@ -99,11 +101,15 @@ const LEAVES: [number, number, string, number, number, number][] = [
 ];
 const STALKS = 14;
 const PUMPKIN = 26;
+const BIZZY = 84;
 
-/** October: a sunset field with a pulsing sun, swaying wheat and falling leaves. The pumpkin sits on the progress bar. */
+/** October: a sunset field with a pulsing sun, swaying wheat, Bizzy and falling leaves. The pumpkin sits on the progress bar. */
 function HarvestScene({ live }: { live: boolean }) {
   const sun = useWave(5000, live);
   const sunStyle = useAnimatedStyle(() => ({ transform: [{ scale: 1 + 0.08 * sun.value }] }));
+  // The young forms are drawn bigger, so the same part of him (down to his middle) shows above the bottom.
+  const { k } = bizzyFormOf(useContext(BizzyFormContext));
+  const drawn = BIZZY / k;
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <Animated.View style={[s.sun, sunStyle]}>
@@ -127,6 +133,8 @@ function HarvestScene({ live }: { live: boolean }) {
           <Stalk key={i} live={live} delay={i * 0.37} />
         ))}
       </View>
+      {/* Bizzy stands in the field, cut off by the bottom of the picture. */}
+      <Bizzy mood="happy" size={drawn} motion={live ? 'sway' : 'none'} flap={live} look={[-2, 0]} style={[s.bizzy, { right: 28 - (drawn - BIZZY) / 2, bottom: (-drawn * (14 + 46 * k)) / 200 }]} />
       {live && <FallingLeaves />}
     </View>
   );
@@ -221,6 +229,7 @@ const s = StyleSheet.create({
   harvestSky: { backgroundColor: '#F48A4A', backgroundImage: 'linear-gradient(180deg, #FFB06A 0%, #F48A4A 38%, #C9572A 70%)' } as ViewStyle,
   sun: { position: 'absolute', right: 40, top: 26, width: 70, height: 70 },
   hills: { position: 'absolute', left: 0, bottom: 0 },
+  bizzy: { position: 'absolute' },
   wheat: { position: 'absolute', left: 0, right: 0, bottom: 22, flexDirection: 'row', justifyContent: 'space-around', paddingHorizontal: 6 },
   text: { position: 'absolute', left: 18, top: 18, right: 120, gap: 3 },
   eyebrow: { fontFamily: VIVID_HEAVY, fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: '#5a250c' },

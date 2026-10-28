@@ -12,6 +12,8 @@ export const DECOR_PAD = 16;
 
 export function BarDecor({ kind, width, height, live }: { kind: DecorKind; width: number; height: number; live: SharedValue<number> }) {
   switch (kind) {
+    case 'comb':
+      return <CombDecor width={width} height={height} />;
     case 'vine':
       return <Vine width={width} height={height} live={live} />;
     case 'wavetop':
@@ -23,6 +25,21 @@ export function BarDecor({ kind, width, height, live }: { kind: DecorKind; width
     case 'sheen':
       return <Sheen width={width} height={height} />;
   }
+}
+
+/** Honey: small honeycomb cells drawn darker on the fill. */
+function CombDecor({ width, height }: { width: number; height: number }) {
+  const r = height / 2;
+  const dx = Math.sqrt(3) * r;
+  let d = '';
+  for (let x = dx / 2; x < width + dx; x += dx) {
+    d += `M${(x - dx / 2).toFixed(1)} ${(r / 2).toFixed(1)} l${(dx / 2).toFixed(1)} ${(-r / 2).toFixed(1)} l${(dx / 2).toFixed(1)} ${(r / 2).toFixed(1)} v${r.toFixed(1)} l${(-dx / 2).toFixed(1)} ${(r / 2).toFixed(1)} l${(-dx / 2).toFixed(1)} ${(-r / 2).toFixed(1)}z`;
+  }
+  return (
+    <Svg width={width} height={height}>
+      <Path d={d} fill="none" stroke="#b8651b" strokeOpacity={0.35} strokeWidth={1} />
+    </Svg>
+  );
 }
 
 const VINE_LEAVES = [6, 15, 24, 33, 42, 51, 60, 69, 78, 87, 96].map((x, i) => ({

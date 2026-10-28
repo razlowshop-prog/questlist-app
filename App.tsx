@@ -31,6 +31,7 @@ import {
   setName,
   shownName,
   toggleTask,
+  evolveBizzy,
   totalXp,
   updateSettings,
   upcomingTasks,
@@ -54,6 +55,9 @@ import {
 } from './src/achievements';
 import { shownTitle } from './src/library';
 import { Celebration, type CelebrationEvent } from './src/components/Celebration';
+import { EvolveScene } from './src/components/Evolve';
+import { BizzyFormContext } from './src/components/Bizzy';
+import { bizzyFormOf } from './src/bizzy';
 import { LevelDetails } from './src/components/LevelDetails';
 import { LevelRewards } from './src/components/LevelRewards';
 import { ActivityScreen } from './src/screens/ActivityScreen';
@@ -174,6 +178,8 @@ function Succedo() {
   const [levelOpen, setLevelOpen] = useState(false);
   const [rewardsOpen, setRewardsOpen] = useState(false);
   const [celebration, setCelebration] = useState<CelebrationEvent | null>(null);
+  /** Bizzy evolving full screen: the form he leaves and the one he becomes. */
+  const [evolving, setEvolving] = useState<{ from: number; to: number } | null>(null);
   /** Perfect days and streak milestones waiting to be celebrated, after any level-up. */
   const [moments, setMoments] = useState<Moment[]>([]);
   /** Days whose perfect day was celebrated this session, so an untick and tick again doesn't repeat it. */
@@ -469,7 +475,7 @@ function Succedo() {
     if (next === state) return;
     setState(next);
     buzz('token');
-    showToast(day === today ? t('Rest day: your streak is safe today') : t('Streak saved with a rest day'));
+    showToast(day === today ? t('Rest day: Bizzy keeps watch, your streak is safe today') : t('Bizzy saved your streak with a rest day'));
   }
 
   function onToggle(task: Task, focusXp = 0): { xp: number; note?: string } {
@@ -630,6 +636,7 @@ function Succedo() {
       <FlameStyleContext.Provider value={looks.flameStyle}>
         <CelebrationContext.Provider value={looks.celebration}>
           <AvatarDiscContext.Provider value={state.settings.avatar}>
+          <BizzyFormContext.Provider value={bizzyFormOf(state.bizzyForm).n}>
           <AvatarPhotoContext.Provider value={photo}>
           <SafeAreaView edges={['top', 'left', 'right']} style={styles.safe}>
             <StatusBar style={statusBar} />
@@ -771,6 +778,13 @@ function Succedo() {
                   multiplier={multiplier}
                   xpProgress={<XpProgress totalXp={xp} onPress={() => setRewardsOpen(true)} />}
                   onOpenStreak={() => setLevelOpen(true)}
+                  onEvolve={() => {
+                    const next = evolveBizzy(state);
+                    if (next === state) return;
+                    // Saved at once, so closing the app mid-animation keeps the new form.
+                    setState(next);
+                    setEvolving({ from: bizzyFormOf(state.bizzyForm).n, to: bizzyFormOf(next.bizzyForm).n });
+                  }}
                   onOpenRewards={() => setRewardsOpen(true)}
                   tokenStrip={
                     <TokenStrip
@@ -955,6 +969,8 @@ function Succedo() {
               />
             )}
 
+            {evolving && <EvolveScene key={evolving.to} from={evolving.from} to={evolving.to} onClose={() => setEvolving(null)} />}
+
             {celebration && (
               <Celebration
                 key={celebration.level}
@@ -973,6 +989,7 @@ function Succedo() {
             )}
           </SafeAreaView>
           </AvatarPhotoContext.Provider>
+          </BizzyFormContext.Provider>
           </AvatarDiscContext.Provider>
         </CelebrationContext.Provider>
       </FlameStyleContext.Provider>

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, Text, View } from 'react-native';
 import { milestoneLabel, type LevelMilestone } from '../achievements';
 import { eyebrow, FONTS, nativeDriver, themed, useStyles, useTheme } from '../theme';
+import { Bizzy } from './Bizzy';
 import { CoinShower } from './Fortuna';
 import { TOKEN_INFO } from '../tokens';
 import { RewardPicture } from './RewardPicture';
@@ -141,6 +142,9 @@ export function Celebration({
               <Animated.Text style={[s.rank, { opacity: intro }]}>
                 {event.newRank ? t('New rank · {rank}', { rank: event.rank }) : event.rank}
               </Animated.Text>
+              <Animated.View style={{ opacity: intro }}>
+                <Bizzy mood="excited" size={96} />
+              </Animated.View>
               <Text style={s.hint}>{milestone ? t('Tap to see your reward') : t('Tap to continue')}</Text>
             </>
           ) : (

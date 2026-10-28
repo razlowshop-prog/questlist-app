@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronUp, Plus, Sparkles, X } from 'lucide-react-native';
 import Animated, { Easing, LinearTransition, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { ComboPill } from '../components/Moments';
@@ -13,12 +13,20 @@ import { RARITY } from '../vivid';
 import { LibraryRow } from '../components/LibraryRow';
 import { defaultSchedule, scheduleProblem, SchedulePicker, scheduleToTask, type Schedule } from '../components/SchedulePicker';
 import { StreakCard } from '../components/StreakCard';
+import { bizzyMood } from '../widgetData';
+import { bizzyFormOf, canEvolve, nextBizzyForm } from '../bizzy';
+import type { TalkContext } from '../bizzyTalk';
+import { achievementStatuses, claimableCount } from '../achievements';
+import { ticketStatus } from '../wheel';
 import { TaskRow } from '../components/TaskRow';
 import {
   dayLabel,
   durationLabel,
   isDoneToday,
+  DEFAULT_NAME,
+  levelInfo,
   MAX_STEP_LENGTH,
+  nextStreakBonus,
   MAX_STEPS,
   shownName,
   totalXp,
@@ -53,6 +61,7 @@ export function TodayScreen({
   multiplier,
   xpProgress,
   onOpenStreak,
+  onEvolve,
   onOpenRewards,
   tokenStrip,
   guide,
@@ -81,6 +90,8 @@ export function TodayScreen({
   /** Level and XP bar, shown under the greeting. */
   xpProgress?: React.ReactNode;
   onOpenStreak: () => void;
+  /** Bizzy evolves into his next form (only offered once the level allows it). */
+  onEvolve: () => void;
   /** The coming level rewards, from the XP bar in the pinned status line. */
   onOpenRewards: () => void;
   /** Tokens to use, shown under the streak. */
@@ -217,6 +228,47 @@ export function TodayScreen({
     return tasks.map((t, i) => ({ t, i, rank: order.indexOf(taskCategory(t)) })).sort((x, y) => x.rank - y.rank || x.i - y.i).map((x) => x.t);
   }, [tasks]);
   const doneCount = tasks.filter((t) => isDoneToday(state, t, today)).length;
+  // Bizzy's mood on the streak card follows the time of day, so it is worked out again on every full hour too.
+  const [hourTick, setHourTick] = useState(0);
+  useEffect(() => {
+    const now = new Date();
+    const toNextHour = 3600000 - (now.getMinutes() * 60000 + now.getSeconds() * 1000 + now.getMilliseconds()) + 500;
+    const id = setTimeout(() => setHourTick((n) => n + 1), toNextHour);
+    return () => clearTimeout(id);
+  }, [hourTick]);
+  const mood = useMemo(() => bizzyMood(state, new Date()), [state, today, hourTick]);
+  // What Bizzy knows about the day when he's tapped, worked out at the moment of the tap.
+  const talk = (): TalkContext => {
+    const xp = totalXp(state);
+    const info = levelInfo(xp);
+    const form = bizzyFormOf(state.bizzyForm).n;
+    // An award close to its next tier (not the one that only needs time to pass).
+    const near = achievementStatuses(state, today).find((a) => a.def.id !== 'member' && a.next && a.reached === a.claimed && a.value >= a.next.goal * 0.75);
+    return {
+      mood,
+      name: state.profile.name === DEFAULT_NAME ? '' : state.profile.name,
+      hour: new Date().getHours(),
+      tasksLeft: tasks.length - doneCount,
+      tasksDone: doneCount,
+      streak: streak.days,
+      nextBonus: nextStreakBonus(streak.days),
+      level: info.level,
+      xpToLevel: info.xpForLevel - info.xpIntoLevel,
+      maxed: info.maxed,
+      tickets: ticketStatus(state, xp).tickets,
+      claimable: claimableCount(state, today),
+      nearAward: near && t(near.def.title),
+      canEvolve: canEvolve(form, info.level),
+      evolveAt: nextBizzyForm(form)?.level,
+    };
+  };
+  // He jumps each time another task of today gets done.
+  const [cheer, setCheer] = useState(0);
+  const lastDone = useRef(doneCount);
+  useEffect(() => {
+    if (doneCount > lastDone.current) setCheer((n) => n + 1);
+    lastDone.current = doneCount;
+  }, [doneCount]);
   // A ticked task plays its theme's finish animation, then leaves the list for "Done today".
   const [leaving, setLeaving] = useState<Set<string>>(() => new Set());
   const [showDone, setShowDone] = useState(false);
@@ -292,7 +344,7 @@ export function TodayScreen({
               <View onLayout={(e) => (comboY.value = HEADER_TOP + e.nativeEvent.layout.y)} />
 
               <View onLayout={(e) => (stickyFrom.value = HEADER_TOP + e.nativeEvent.layout.y + e.nativeEvent.layout.height)}>
-                <StreakCard streak={streak} week={weekDots(state, today)} multiplier={multiplier} onPress={onOpenStreak} />
+                <StreakCard streak={streak} week={weekDots(state, today)} multiplier={multiplier} bizzy={{ mood, cheer, form: bizzyFormOf(state.bizzyForm).n, level: levelInfo(totalXp(state)).level, onEvolve, talk }} onPress={onOpenStreak} />
               </View>
               {tokenStrip}
               {recap}
@@ -308,13 +360,13 @@ export function TodayScreen({
                 )}
               </View>
               {tasks.length > 0 && open.length === 0 && (
-                <EmptyState glyph="Trophy" grad={RARITY.legendary} before={t('All ')} word={t('done')} after={t(' for today')} body={t('Every task is ticked off. Enjoy the rest of your day.')} />
+                <EmptyState bizzy="excited" glyph="Trophy" grad={RARITY.legendary} before={t('All ')} word={t('done')} after={t(' for today')} body={t('Every task is ticked off. Enjoy the rest of your day.')} />
               )}
             </>
           }
           ListEmptyComponent={
             loaded && tasks.length === 0 ? (
-              <EmptyState glyph="Sparkle" mythic before={t('A ')} word={t('fresh')} after={t(' start')} body={t('No tasks for today. Tap Add Task below to add one or pick some from the library.')} />
+              <EmptyState bizzy="wave" glyph="Sparkle" mythic before={t('A ')} word={t('fresh')} after={t(' start')} body={t('No tasks for today. Tap Add Task below to add one or pick some from the library.')} />
             ) : undefined
           }
           ListFooterComponent={

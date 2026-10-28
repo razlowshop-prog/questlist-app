@@ -2,6 +2,7 @@ import { createContext, useContext, useState } from 'react';
 import { View, type ViewStyle } from 'react-native';
 import Animated, { useAnimatedStyle, type SharedValue } from 'react-native-reanimated';
 import { MASCOT_SIZE, mascotLeft, PLAIN_FX, type MascotKind, type ThemeBarSpec, type ThemeFx } from '../themeFx';
+import Svg, { Path } from 'react-native-svg';
 import { BarDecor, DECOR_PAD } from './fx/BarDecor';
 import { Mascot } from './fx/Mascots';
 
@@ -80,6 +81,7 @@ export function ThemeXpBar({
               fillStyle,
             ]}
           />
+          {spec.cells && width > 0 && <Cells width={width} height={spec.height} count={spec.cells.count} color={spec.cells.color} />}
         </View>
         {spec.decor && width > 0 && (
           // Drawn over the whole bar, shown only as far as the fill reaches; it may poke out above and below.
@@ -91,6 +93,27 @@ export function ThemeXpBar({
         )}
       </View>
     </View>
+  );
+}
+
+/**
+ * Cuts the bar into honeycomb cells (Hive): everything around `count`
+ * hexagons is painted in the colour of the screen behind the bar.
+ */
+function Cells({ width, height, count, color }: { width: number; height: number; count: number; color: string }) {
+  const cell = width / count;
+  const gap = 1.5;
+  let d = `M0 0 H${width} V${height} H0Z`;
+  for (let i = 0; i < count; i++) {
+    const x0 = i * cell + gap;
+    const x1 = (i + 1) * cell - gap;
+    const tip = Math.min(height / 2, (x1 - x0) / 3);
+    d += ` M${(x0 + tip).toFixed(1)} 0 H${(x1 - tip).toFixed(1)} L${x1.toFixed(1)} ${height / 2} L${(x1 - tip).toFixed(1)} ${height} H${(x0 + tip).toFixed(1)} L${x0.toFixed(1)} ${height / 2}Z`;
+  }
+  return (
+    <Svg width={width} height={height} style={{ position: 'absolute', left: 0, top: 0 }} pointerEvents="none">
+      <Path d={d} fill={color} fillRule="evenodd" />
+    </Svg>
   );
 }
 

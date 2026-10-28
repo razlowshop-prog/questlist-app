@@ -1,4 +1,4 @@
-import type { BizzyMood } from './bizzy.ts';
+import { bizzyFormOf, type BizzyMood } from './bizzy.ts';
 import { dayKey, isDoneToday, levelInfo, restDaysOf, streakStatus, totalXp, visibleTasks, STREAK_REMINDER_HOUR, type GameState } from './game.ts';
 import { t, tn } from './i18n.ts';
 
@@ -19,6 +19,8 @@ export interface WidgetData {
   /** 0 to 1, how full the XP bar is. */
   progress: number;
   mood: BizzyMood;
+  /** How far the player's Bizzy has evolved (1 to 10). */
+  form: number;
 }
 
 export function widgetData(state: GameState, now: Date): WidgetData {
@@ -32,6 +34,7 @@ export function widgetData(state: GameState, now: Date): WidgetData {
     streak: streakInfo.days > 0 ? tn(streakInfo.days, '{n} day', '{n} days') : '',
     level: info.level,
     progress: Math.max(0, Math.min(1, info.progress)),
+    form: bizzyFormOf(state.bizzyForm).n,
   };
 
   if (!state.onboarded || state.tasks.length === 0) {
@@ -51,4 +54,19 @@ export function widgetData(state: GameState, now: Date): WidgetData {
   const sub = tn(left, 'task left today', 'tasks left today');
   if (hour >= WIDGET_NIGHT_HOUR || hour < 5) return { ...base, headline, sub, mood: 'sleepy' };
   return { ...base, headline, sub, mood: 'happy' };
+}
+
+/**
+ * Bizzy's mood on the streak card: proud once today's tasks are all done,
+ * worried when the streak is at risk in the evening, sleepy late at night,
+ * happy otherwise. (Each ticked task also makes him jump for a moment.)
+ */
+export function bizzyMood(state: GameState, now: Date): BizzyMood {
+  const today = dayKey(now);
+  const hour = now.getHours();
+  const tasks = visibleTasks(state, today);
+  if (tasks.length > 0 && tasks.every((task) => isDoneToday(state, task, today))) return 'proud';
+  if (streakStatus(state.completions, today, restDaysOf(state)).atRisk && hour >= STREAK_REMINDER_HOUR) return 'worried';
+  if (hour >= WIDGET_NIGHT_HOUR || hour < 5) return 'sleepy';
+  return 'happy';
 }
