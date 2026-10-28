@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LogoMark } from '../components/LogoMark';
+import { BizzySays } from '../components/Bizzy';
 import { newPick, pickMinutes, pickName, PickSheet, pickTitle, pickToTask, pickXp, type LibraryPick } from '../components/PickSheet';
 import { scheduleProblem, scheduleSummary } from '../components/SchedulePicker';
 import { sizeLabel } from '../components/LibraryRow';
@@ -143,6 +144,7 @@ export function SetupScreen({
             <View style={styles.mark}>
               <LogoMark textStyle={styles.wordmark} />
             </View>
+            <BizzySays mood="wave" size={84} text={t('Hi, I’m Bizzy! I’ll cheer you on every day.')} />
             <Text style={styles.heading}>
               {/* The word between the stars is set in italics. */}
               {t('Small tasks. *Steady* rise.')

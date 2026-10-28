@@ -945,4 +945,12 @@ export const DE: Record<string, string> = {
   "task left today": "Aufgabe heute offen",
   "tasks left today": "Aufgaben heute offen",
   "Open Succedo": "Succedo öffnen",
+  "Your {days}-day streak ends at midnight. One task saves it!": "Deine {days}-Tage-Serie endet um Mitternacht. Eine Aufgabe rettet sie!",
+  "It’s getting late. {n} task left for today.": "Es wird spät. Noch {n} Aufgabe für heute.",
+  "It’s getting late. {n} tasks left for today.": "Es wird spät. Noch {n} Aufgaben für heute.",
+  "{done} done, {left} to go. Nice pace!": "{done} erledigt, {left} noch offen. Starkes Tempo!",
+  "Good morning, {name}! Start with the quickest task.": "Guten Morgen, {name}! Fang mit der schnellsten Aufgabe an.",
+  "{n} task today. You’ve got this!": "{n} Aufgabe heute. Du schaffst das!",
+  "{n} tasks today. You’ve got this!": "{n} Aufgaben heute. Du schaffst das!",
+  "Hi, I’m Bizzy! I’ll cheer you on every day.": "Hi, ich bin Bizzy! Ich feuere dich jeden Tag an.",
 };

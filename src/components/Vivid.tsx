@@ -5,6 +5,8 @@ import Reanimated, { useAnimatedStyle, useSharedValue, type SharedValue } from '
 import Svg, { Circle, Defs, LinearGradient, Path, Polygon, Stop } from 'react-native-svg';
 import { GLYPHS, type GlyphName } from '../glyphs';
 import { nativeDriver, useTheme, type Palette } from '../theme';
+import type { BizzyMood } from '../bizzy';
+import { Bizzy } from './Bizzy';
 import { BADGE_RED, BRAND, brandGlow, KEYLINE, levelBand, linear, MYTHIC, PRISM, RARITY, textGradient, textSolid, type Grad, type Rarity } from '../vivid';
 import { useReduceMotion } from './FireAura';
 
@@ -483,13 +485,14 @@ export function ConfettiBurst({ play = 0, scale = 1 }: { play?: number; scale?: 
 }
 
 /** A big sticker with a confetti burst and a heading with one gradient word: empty and "all done" states. */
-export function EmptyState({ glyph, grad, mythic, before, word, after, body }: { glyph: GlyphName; grad?: Grad; mythic?: boolean; before?: string; word: string; after?: string; body?: string }) {
+/** `bizzy` shows the mascot in that mood instead of the sticker. */
+export function EmptyState({ glyph, grad, mythic, before, word, after, body, bizzy }: { glyph: GlyphName; grad?: Grad; mythic?: boolean; before?: string; word: string; after?: string; body?: string; bizzy?: BizzyMood }) {
   const c = useTheme();
   return (
     <View style={{ alignItems: 'center', gap: 10, paddingVertical: 24 }}>
       <View style={{ alignItems: 'center', justifyContent: 'center' }}>
         <ConfettiBurst />
-        <Sticker grad={grad} mythic={mythic} glyph={glyph} size={72} />
+        {bizzy ? <Bizzy mood={bizzy} size={104} /> : <Sticker grad={grad} mythic={mythic} glyph={glyph} size={72} />}
       </View>
       <Text style={{ fontFamily: VIVID_HEAVY, color: c.text, fontSize: 20, textAlign: 'center' }}>
         {before}

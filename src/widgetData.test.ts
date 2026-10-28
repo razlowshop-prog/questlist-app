@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { addDays, addTask, emptyState, type GameState } from './game.ts';
 import { bizzySvg, type BizzyMood } from './bizzy.ts';
 import { setLang } from './i18n.ts';
-import { widgetData } from './widgetData.ts';
+import { bizzyLine, widgetData } from './widgetData.ts';
 
 const TODAY = '2026-10-27';
 const at = (hour: number, day = TODAY) => {
@@ -93,6 +93,44 @@ test('widget: German texts', () => {
     assert.equal(d.sub, 'Aufgaben heute offen');
     assert.equal(d.streak, '3 Tage');
     assert.equal(widgetData(player(), at(21)).sub, 'Deine 3-Tage-Serie endet um Mitternacht');
+  } finally {
+    setLang('en');
+  }
+});
+
+test('bizzy line: tip in the morning, plain count in the afternoon', () => {
+  setLang('en');
+  const s = { ...player(), profile: { ...player().profile, name: 'Fabian' } };
+  assert.deepEqual(bizzyLine(s, at(9)), { mood: 'happy', text: 'Good morning, Fabian! Start with the quickest task.' });
+  assert.deepEqual(bizzyLine(s, at(15)), { mood: 'happy', text: '2 tasks today. You’ve got this!' });
+});
+
+test('bizzy line: praise once something is done, nothing when all done', () => {
+  setLang('en');
+  const s = player();
+  const one = { ...s, completions: [...s.completions, { taskId: 'dishes', date: TODAY, xp: 20 }] };
+  assert.deepEqual(bizzyLine(one, at(9)), { mood: 'proud', text: '1 done, 1 to go. Nice pace!' });
+  assert.equal(bizzyLine({ ...one, completions: [...one.completions, { taskId: 'read', date: TODAY, xp: 15 }] }, at(9)), null);
+});
+
+test('bizzy line: worried when the streak is at risk, sleepy late at night', () => {
+  setLang('en');
+  const s = player();
+  assert.deepEqual(bizzyLine(s, at(20)), { mood: 'worried', text: 'Your 3-day streak ends at midnight. One task saves it!' });
+  assert.equal(bizzyLine(s, at(19))?.mood, 'happy');
+  const one = { ...s, completions: [...s.completions, { taskId: 'dishes', date: TODAY, xp: 20 }] };
+  assert.deepEqual(bizzyLine(one, at(23)), { mood: 'sleepy', text: 'It’s getting late. 1 task left for today.' });
+  assert.equal(bizzyLine(one, at(3))?.mood, 'sleepy');
+});
+
+test('bizzy line: nothing on a day without tasks, and German texts', () => {
+  let free: GameState = { ...emptyState, onboarded: true };
+  free = addTask(free, 'Dentist', false, 'dentist', undefined, { date: addDays(TODAY, 3) });
+  assert.equal(bizzyLine(free, at(10)), null);
+  setLang('de');
+  try {
+    assert.ok(bizzyLine(player(), at(15))?.text.startsWith('2 '));
+    assert.notEqual(bizzyLine(player(), at(15))?.text, '2 tasks today. You’ve got this!');
   } finally {
     setLang('en');
   }
