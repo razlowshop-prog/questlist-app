@@ -39,3 +39,5 @@ npm run typecheck
 ```
 
 The game rules live in `src/game.ts` and have no UI code, so they are easy to test (`src/game.test.ts`).
+
+Test builds (`npm start`, `npm run web`, the EAS `preview` APK, and web exports made with `EXPO_PUBLIC_DEV_TOOLS=1`) have a **Developer** page in the Menu: jump to a level, add XP, multiply task XP, unlock every look, fake a streak and fill the bag. Store builds (the EAS `production` profile) leave the page out and drop any of those changes from saved data and backups (`src/devTools.ts`).

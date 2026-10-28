@@ -7,11 +7,12 @@ import { emptyState, shownName } from './game.ts';
 import { lang, num, setLang, t, tn } from './i18n.ts';
 
 const ROOT = new URL('..', import.meta.url).pathname;
+// The developer page is only in test builds and stays English (devTools.ts).
 const SOURCES = [
   'App.tsx',
   ...['src', 'src/screens', 'src/components', 'src/components/fx'].flatMap((dir) =>
     readdirSync(ROOT + dir)
-      .filter((f) => /\.tsx?$/.test(f) && !f.endsWith('.test.ts') && f !== 'i18n.de.ts')
+      .filter((f) => /\.tsx?$/.test(f) && !f.endsWith('.test.ts') && f !== 'i18n.de.ts' && f !== 'DevScreen.tsx')
       .map((f) => `${dir}/${f}`),
   ),
 ];

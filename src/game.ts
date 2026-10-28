@@ -145,6 +145,22 @@ export interface GameState {
   perfectDays?: PerfectDay[];
   /** Streak milestones reached (7, 30, 100, 365 days), for the celebration and the profile. */
   streakMilestones?: { days: number; date: string }[];
+  /** Test changes from the developer page; only kept in test builds (see devTools.ts). */
+  dev?: DevSettings;
+}
+
+/** What the developer page changed, kept apart so it can be undone in one go (devTools.ts). */
+export interface DevSettings {
+  /** XP added (or taken away) to reach a picked level. */
+  xp?: number;
+  /** Extra XP multiplier on finished tasks. */
+  multiplier?: number;
+  /** Every theme and look is owned. */
+  unlockAll?: boolean;
+  /** Extra tokens in the bag. */
+  tokens?: Partial<Record<'rest' | 'double' | 'reroll' | 'adfree', number>>;
+  /** Extra wheel tickets. */
+  tickets?: number;
 }
 
 export interface DailyClaim {
@@ -416,7 +432,7 @@ export function rankFor(level: number): string {
 }
 
 export function totalXp(state: GameState): number {
-  return (
+  const sum =
     state.completions.reduce((sum, c) => sum + c.xp, 0) +
     state.claims.reduce((sum, c) => sum + c.xp, 0) +
     state.achievementClaims.reduce((sum, c) => sum + c.xp, 0) +
@@ -424,8 +440,10 @@ export function totalXp(state: GameState): number {
     (state.perfectDays ?? []).reduce((sum, d) => sum + d.xp, 0) +
     wheelXp(state) +
     stepXp(state) +
-    (state.seasonClaims ?? []).reduce((sum, c) => sum + (c.xp ?? 0), 0)
-  );
+    (state.seasonClaims ?? []).reduce((sum, c) => sum + (c.xp ?? 0), 0) +
+    (state.dev?.xp ?? 0);
+  // Test XP can be below zero when a lower level was picked; the total never is.
+  return Math.max(0, sum);
 }
 
 /**
@@ -595,6 +613,7 @@ export function xpMultiplier(state: GameState, today: string): { total: number; 
   const parts = [{ label: N('Streak'), x: 1 + streakBonus(streak) }];
   if (state.doubleDays?.includes(today)) parts.push({ label: N('Double XP'), x: 2 });
   if (comebackDaysLeft(state, today) > 0) parts.push({ label: N('Comeback'), x: 1 + COMEBACK_BONUS });
+  if (state.dev?.multiplier && state.dev.multiplier !== 1) parts.push({ label: N('Test'), x: state.dev.multiplier });
   return { total: parts.reduce((t, p) => t * p.x, 1), parts, streak };
 }
 

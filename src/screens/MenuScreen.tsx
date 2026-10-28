@@ -1,12 +1,13 @@
-import { Bell, ChevronRight, FileText, Link, Mail, Medal, Settings, Users, type LucideIcon } from 'lucide-react-native';
+import { Bell, ChevronRight, FileText, FlaskConical, Link, Mail, Medal, Settings, Users, type LucideIcon } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { APP_NAME } from '../brand';
+import { DEV_TOOLS } from '../devTools';
 import { CountBadge, fill } from '../components/Vivid';
 import { card, eyebrow, FONTS, headingCase, themed, useStyles, useTheme } from '../theme';
 import { N, t } from '../i18n';
 
-export type MenuPage = 'activity' | 'friends' | 'leaderboard' | 'settings' | 'apps' | 'help' | 'legal';
+export type MenuPage = 'activity' | 'friends' | 'leaderboard' | 'settings' | 'apps' | 'help' | 'legal' | 'dev';
 
 type Row = { page: MenuPage; label: string; sub: string; Icon: LucideIcon; grad: [string, string] };
 
@@ -33,6 +34,10 @@ const GROUPS: { label: string; rows: Row[] }[] = [
       { page: 'legal', label: N('Legal'), sub: N('Terms, privacy, imprint'), Icon: FileText, grad: ['#9AA3BD', '#59607a'] },
     ],
   },
+  // Test builds only (devTools.ts).
+  ...(DEV_TOOLS
+    ? [{ label: N('Testing'), rows: [{ page: 'dev', label: N('Developer'), sub: N('Level, XP multiplier, unlock everything'), Icon: FlaskConical, grad: ['#FFB86B', '#FF5E3A'] }] as Row[] }]
+    : []),
 ];
 
 /** The Menu tab: everything that isn't a daily screen, in groups. Every row opens a page. */
