@@ -102,6 +102,7 @@ import { claimSeason, seasonStatus } from './src/seasons';
 import { frameName } from './src/cosmetics';
 import { askReminderPermission, REMINDERS_SUPPORTED, syncReminders } from './src/reminders';
 import { updateWidget } from './src/widget';
+import { CrashGuard } from './src/components/CrashScreen';
 import { widgetData } from './src/widgetData';
 import { reviewDue } from './src/review';
 import { askStoreReview } from './src/storeReview';
@@ -151,7 +152,9 @@ const PAGE_TITLES: Record<Page, string> = {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <Succedo />
+      <CrashGuard>
+        <Succedo />
+      </CrashGuard>
     </SafeAreaProvider>
   );
 }
