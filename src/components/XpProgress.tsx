@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import Animated, { Easing, useAnimatedReaction, useAnimatedStyle, useDerivedValue, useSharedValue, withDelay, withSequence, withTiming } from 'react-native-reanimated';
+import Animated, { cancelAnimation, Easing, useAnimatedReaction, useAnimatedStyle, useDerivedValue, useSharedValue, withDelay, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
-import { milestoneLabel, nextLevelReward } from '../achievements';
+import { LEVEL_MILESTONES, milestoneLabel, nextLevelReward, type LevelMilestone } from '../achievements';
 import { num, t } from '../i18n';
+import { useReduceMotion } from './FireAura';
 import { levelInfo, MAX_LEVEL, xpToNext } from '../game';
 import { MASCOT_SIZE } from '../themeFx';
 import { themed, useStyles, useTheme } from '../theme';
@@ -31,7 +32,8 @@ const STRIP_MASCOT = 26;
 
 /**
  * Level progress under the header on every tab: "LV 8", the bar (with the
- * theme's mascot riding it in its own lane above) and the XP into the level.
+ * theme's mascot riding it in its own lane above) ending in a sticker of the
+ * next level's reward, and the XP into the level.
  * Gained XP counts up wherever it was earned: a light "ghost" bar jumps ahead
  * to the new total, the solid bar fills after it, the numbers tick up and
  * "+N XP" pops up above them. A level-up runs the bar to the end and
@@ -111,6 +113,8 @@ export function XpProgress({ totalXp, onPress }: { totalXp: number; onPress: () 
   const mascotScale = size ? Math.min(fx.mascotScale ?? 1, STRIP_MASCOT / size.height) : 1;
   // The level and the numbers sit level with the bar, below the mascot's lane.
   const side = { height: fx.bar ? fx.bar.height : c.bar.kind === 'shimmer' ? 18 : 16, marginBottom: fx.bar?.decor === 'vine' ? 6 : 0 };
+  // The reward the bar runs towards; it moves on as the bar passes a level-up.
+  const goal = maxed ? undefined : LEVEL_MILESTONES.find((m) => m.level > shown.level);
 
   return (
     <Pressable
@@ -126,7 +130,7 @@ export function XpProgress({ totalXp, onPress }: { totalXp: number; onPress: () 
           <Text style={s.pillLevel}>{shown.level}</Text>
         </View>
       </View>
-      <View style={s.bar}>
+      <View style={[s.bar, goal && s.barToGoal]}>
         {fx.bar ? (
           <ThemeXpBar spec={fx.bar} mascot={fx.mascot} scale={mascotScale} live={fraction} ghost={ghost} progress={real.progress} gainKey={gainKey} />
         ) : c.bar.kind === 'shimmer' ? (
@@ -134,6 +138,7 @@ export function XpProgress({ totalXp, onPress }: { totalXp: number; onPress: () 
         ) : (
           <PrismBar progress={real.progress} live={fraction} ghost={ghost} />
         )}
+        {goal && <GoalSticker milestone={goal} totalXp={totalXp} close={real.progress >= CLOSE} bottom={side.marginBottom + side.height / 2 - GOAL / 2} />}
       </View>
       <View style={[s.side, s.xpSide, side]}>
         {gain > 0 && (
@@ -147,47 +152,68 @@ export function XpProgress({ totalXp, onPress }: { totalXp: number; onPress: () 
   );
 }
 
+/** Size of the reward sticker at the end of the bar. */
+const GOAL = 26;
+/** From this far into the level the sticker starts to glow. */
+const CLOSE = 0.75;
+
 /**
- * The coming levels as small slots, empty unless the level pays out, then the
- * next reward level and the XP still to go to reach it.
+ * The next level's reward as a sticker at the finish of the bar, so the
+ * mascot always flies towards it (big ones, themes and Premium, get a gold
+ * ring). Close to the level-up it pulses. Tapping it names the reward and the
+ * XP still to go in a small bubble under the strip.
  */
-export function NextReward({ totalXp }: { totalXp: number }) {
+function GoalSticker({ milestone, totalXp, close, bottom }: { milestone: LevelMilestone; totalXp: number; close: boolean; bottom: number }) {
   const s = useStyles(makeStyles);
+  const reduce = useReduceMotion();
+  const [tip, setTip] = useState(false);
+  const pulse = useSharedValue(0);
+  const big = milestone.reward?.kind === 'theme' || milestone.reward?.kind === 'premium';
   const next = nextLevelReward(totalXp);
-  if (!next) return null;
-  const { milestone, levels } = next;
-  // Long gaps: the first few levels, a gap mark, then the reward level.
-  const shown = levels.length > 5 ? [...levels.slice(0, 3), null, levels[levels.length - 1]] : levels;
+  const toGo = next ? next.xpNeeded - next.xpInto : 0;
+
+  useEffect(() => {
+    if (close && !reduce) pulse.value = withRepeat(withSequence(withTiming(1, { duration: 700 }), withTiming(0, { duration: 700 })), -1);
+    else {
+      cancelAnimation(pulse);
+      pulse.value = withTiming(0, { duration: 200 });
+    }
+    return () => cancelAnimation(pulse);
+  }, [close, reduce]);
+  useEffect(() => {
+    if (!tip) return;
+    const timer = setTimeout(() => setTip(false), 3000);
+    return () => clearTimeout(timer);
+  }, [tip]);
+  // A new reward to run towards: the old bubble no longer fits it.
+  useEffect(() => setTip(false), [milestone.level]);
+  const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: 1 + 0.14 * pulse.value }] }));
+  const glowStyle = useAnimatedStyle(() => ({ opacity: close ? (reduce ? 0.6 : 0.3 + 0.7 * pulse.value) : 0 }));
   const label = milestoneLabel(milestone);
+
   return (
-    <View
-      style={s.next}
-      accessible
-      accessibilityLabel={t('Next reward at level {n}: {reward}. {into} of {needed} XP.', { n: milestone.level, reward: label, into: next.xpInto, needed: next.xpNeeded })}
-    >
-      <View style={s.slots}>
-        {shown.map((l, i) =>
-          l === null ? (
-            <Text key="gap" style={s.gap}>···</Text>
-          ) : l.milestone ? (
-            <View key={l.level} style={[s.slot, s.slotReward]}>
-              <RewardPicture milestone={l.milestone} size={l.milestone.reward?.kind === 'theme' ? 14 : 12} />
-            </View>
-          ) : (
-            <View key={l.level} style={[s.slot, i === 0 && s.slotNext]} />
-          ),
-        )}
-      </View>
-      <Text style={s.nextLabel} numberOfLines={1}>
-        {t('Lvl {n}', { n: milestone.level })} · {label}
-      </Text>
-      {/* When the reward is the very next level, the bar above already shows these numbers. */}
-      {levels.length > 1 && (
-        <Text style={s.nextXp}>
-          {num(next.xpInto)} / {num(next.xpNeeded)} XP
-        </Text>
+    <>
+      <Pressable
+        onPress={() => setTip((v) => !v)}
+        hitSlop={8}
+        style={[s.goal, { bottom }]}
+        accessibilityRole="button"
+        accessibilityLabel={`${t('Next reward at level {n}', { n: milestone.level })}: ${label}`}
+      >
+        <Animated.View style={[s.goalGlow, big && s.goalGlowBig, glowStyle]} pointerEvents="none" />
+        <Animated.View style={[s.goalSticker, big && s.goalBig, pulseStyle]}>
+          <RewardPicture milestone={milestone} size={GOAL} />
+        </Animated.View>
+      </Pressable>
+      {tip && (
+        <View style={s.tip} pointerEvents="none" accessibilityLiveRegion="polite">
+          <Text style={s.tipText} numberOfLines={1}>
+            {t('Lvl {n}', { n: milestone.level })} · {label}
+            {toGo > 0 && <Text style={s.tipXp}> · {num(toGo)} XP</Text>}
+          </Text>
+        </View>
       )}
-    </View>
+    </>
   );
 }
 
@@ -213,12 +239,27 @@ const makeStyles = themed((c) => ({
   gainWrap: { position: 'absolute', right: 0, bottom: '100%', marginBottom: 6 },
   gain: { fontFamily: VIVID_HEAVY, fontSize: 13 },
   xpNumbers: { fontFamily: VIVID_HEAVY, fontSize: 13, fontVariant: ['tabular-nums'] },
-  next: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 },
-  slots: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  slot: { width: 10, height: 10, borderRadius: 5, borderWidth: 1, borderColor: c.outline },
-  slotNext: { borderColor: c.muted },
-  slotReward: { width: 22, height: 22, borderRadius: 11, borderColor: c.accent, alignItems: 'center', justifyContent: 'center' },
-  gap: { color: c.faint, fontSize: 11, letterSpacing: 1 },
-  nextLabel: { flex: 1, color: c.muted, fontSize: 12 },
-  nextXp: { color: c.muted, fontSize: 12, fontVariant: ['tabular-nums'] },
+  barToGoal: { marginRight: GOAL / 2 + 2 },
+  goal: { position: 'absolute', right: -GOAL / 2 - 2, width: GOAL, height: GOAL, zIndex: 3, alignItems: 'center', justifyContent: 'center' },
+  goalSticker: { width: GOAL, height: GOAL, borderRadius: GOAL / 2, alignItems: 'center', justifyContent: 'center' },
+  goalBig: { borderRadius: GOAL / 2, boxShadow: '0px 0px 0px 2px #FFD36B, 0px 0px 10px rgba(255,211,107,0.6)' },
+  // A soft shadow glow rather than a blur filter, which older Android phones don't draw.
+  goalGlow: { position: 'absolute', width: GOAL, height: GOAL, borderRadius: GOAL / 2, backgroundColor: c.xp, opacity: 0, boxShadow: `0px 0px 10px 4px ${c.xp}` },
+  goalGlowBig: { backgroundColor: '#FFD36B', boxShadow: '0px 0px 10px 4px #FFD36B' },
+  tip: {
+    position: 'absolute',
+    right: -6,
+    top: '100%',
+    marginTop: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: c.surface,
+    borderWidth: 1,
+    borderColor: c.border,
+    boxShadow: '0px 8px 20px rgba(0,0,0,0.35)',
+    zIndex: 20,
+  },
+  tipText: { color: c.text, fontSize: 13, fontWeight: '700' },
+  tipXp: { color: c.muted, fontWeight: '600' },
 }));

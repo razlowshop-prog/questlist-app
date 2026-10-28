@@ -9,7 +9,7 @@ import { Animated, BackHandler, Easing, Platform, Pressable, StyleSheet, Text, V
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { activitySummary } from './src/activity';
 import { BackBar, TopBar } from './src/components/TopBar';
-import { NextReward, XpProgress } from './src/components/XpProgress';
+import { XpProgress } from './src/components/XpProgress';
 import { FirstDayGuide } from './src/components/FirstDayGuide';
 import { MomentCelebration, type Moment } from './src/components/Moments';
 import { PERFECT_DAY_XP, reachStreakMilestone, syncPerfectDay } from './src/moments';
@@ -643,7 +643,7 @@ function Succedo() {
             {page ? (
               <BackBar backTo={t(TABS.find((x) => x.key === tab)!.label)} title={t(PAGE_TITLES[page])} onBack={() => setPage(null)} />
             ) : (
-              <View pointerEvents={spinBusy ? 'none' : 'auto'}>
+              <View pointerEvents={spinBusy ? 'none' : 'auto'} style={{ zIndex: 5 }}>
                 <TopBar
                   level={level.level}
                   progress={level.progress}
@@ -775,7 +775,6 @@ function Succedo() {
                   upcoming={upcoming}
                   streak={streakInfo}
                   multiplier={multiplier}
-                  nextReward={<NextReward totalXp={xp} />}
                   onOpenStreak={() => setLevelOpen(true)}
                   onEvolve={() => {
                     const next = evolveBizzy(state);

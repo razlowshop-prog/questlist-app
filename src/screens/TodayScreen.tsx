@@ -58,7 +58,6 @@ export function TodayScreen({
   upcoming,
   streak,
   multiplier,
-  nextReward,
   onOpenStreak,
   onEvolve,
   onTapBizzy,
@@ -86,8 +85,6 @@ export function TodayScreen({
   upcoming: Task[];
   streak: StreakStatus;
   multiplier: ReturnType<typeof xpMultiplier>;
-  /** The next level reward, shown under the greeting (the XP bar itself sits under the header). */
-  nextReward?: React.ReactNode;
   onOpenStreak: () => void;
   /** Bizzy evolves into his next form (only offered once the level allows it). */
   onEvolve: () => void;
@@ -328,7 +325,6 @@ export function TodayScreen({
                 side={quoteSideFor(state.settings.quoteSide, today)}
                 onSide={onQuoteSide}
               />
-              {nextReward}
               {/* Where the combo pill pops up: the header starts below the list's top padding. */}
               <View onLayout={(e) => (comboY.value = HEADER_TOP + e.nativeEvent.layout.y)} />
 
