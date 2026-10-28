@@ -112,6 +112,11 @@ export function tickleLine(): Line {
   return { key: 'tickle', text: t('Hehe, that tickles!') };
 }
 
+/** The tap that finds the secret achievement. */
+export function secretLine(): Line {
+  return { key: 'secret', text: t('You found a secret! Look in your Awards.') };
+}
+
 export type Reaction = 'giggle' | 'hop' | 'wave' | 'loop' | 'blush' | 'wiggle' | 'zoom' | 'burst' | 'worry' | 'wake' | 'proud';
 
 /** The surprise mix: one of these on any tap. */

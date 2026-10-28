@@ -219,9 +219,11 @@ export const THEMES: ThemeDef[] = [
     }),
   },
   {
-    // Bee themes (picked 2026-10-28), free like Indigo and Dusk: warm brown and honey, with a faint honeycomb at the top.
+    // Bee themes (picked 2026-10-28): warm brown and honey, with a faint honeycomb at the top.
+    // Won with the secret achievement (tap Bizzy 150 times); Hive stays free like Indigo and Dusk.
     id: 'honey',
     name: N('Honey'),
+    reward: 'Honey theme',
     palette: palette({
       colors: ['15120d', '201a12', '2e261a', '3a3022', 'f7f0e2', 'c9bba2', 'a3957d', '6b5d45', 'f2b544', '1a140b'],
       bgImage: 'linear-gradient(180deg, #221a0f 0%, #15120d 45%)',

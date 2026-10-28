@@ -52,3 +52,13 @@ test('level looks name their level, trophy frames their trophy, the event frame 
   assert.match(event.how, /^Finish 20 home, money or food tasks in October for the Harvest event/);
   assert.deepEqual(event.progress, { value: 0, goal: 20, unit: 'tasks' });
 });
+
+test('the Honey theme keeps its secret until the 150 taps are done', () => {
+  const hidden = unlockFor({ kind: 'theme', reward: 'Honey theme' }, ctx({ ...emptyState, bizzyTaps: 149 }));
+  assert.equal(hidden.how, 'Won with a secret achievement. Can you find it?');
+  assert.equal(hidden.progress, undefined);
+  assert.doesNotMatch(hidden.how, /tap|150/i);
+  const found = unlockFor({ kind: 'theme', reward: 'Honey theme' }, ctx({ ...emptyState, bizzyTaps: 150 }));
+  assert.match(found.how, /Bee Whisperer/);
+  assert.match(found.ready ?? '', /Claim it under Awards/);
+});

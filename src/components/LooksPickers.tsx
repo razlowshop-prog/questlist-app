@@ -1,6 +1,6 @@
 import { Lock } from 'lucide-react-native';
 import { Pressable, Text, View } from 'react-native';
-import { levelForLook } from '../achievements';
+import { ACHIEVEMENTS, levelForLook } from '../achievements';
 import { CELEBRATIONS, FLAME_STYLES, FRAMES, frameName, TROPHY_FRAMES, type CelebrationId, type FlameStyleId } from '../cosmetics';
 import { TROPHY_FRAMES_ON } from '../inventory';
 import { THEMES, themeById, themed, useStyles, useTheme } from '../theme';
@@ -11,6 +11,9 @@ import { Sheet } from './Sheet';
 import type { Unlock } from '../unlocks';
 import { brandFillSmall, brandInk, brandTextShadow, CountBadge, Sticker, VIVID_HEAVY } from './Vivid';
 import { N, num, t } from '../i18n';
+
+/** Themes won with a secret achievement: their tiles don't say which award. */
+const SECRET_THEMES = new Set(ACHIEVEMENTS.filter((a) => a.secret).flatMap((a) => a.tiers.map((tier) => tier.reward?.label)));
 
 // The pickers for every look: theme, profile frame, flame, title and tick
 // celebration. Looks not won yet show where they come from. A look won but not
@@ -49,7 +52,7 @@ export function ThemeGrid({
               key={th.id}
               label={t(th.name)}
               active={current === th.id}
-              lockedLabel={has ? undefined : th.id === 'fortune' ? t('Wheel') : t('Award')}
+              lockedLabel={has ? undefined : th.id === 'fortune' ? t('Wheel') : th.reward && SECRET_THEMES.has(th.reward) ? t('Secret') : t('Award')}
               onPress={has ? () => onPick(th.id) : onLocked && (() => onLocked(th.id))}
               locked={!has}
               isNew={has && fresh?.ids?.has(th.id)}

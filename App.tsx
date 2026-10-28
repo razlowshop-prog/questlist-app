@@ -32,6 +32,7 @@ import {
   shownName,
   toggleTask,
   evolveBizzy,
+  tapBizzy,
   totalXp,
   updateSettings,
   upcomingTasks,
@@ -286,7 +287,7 @@ function Succedo() {
     [unlockedThemes, owned],
   );
   const freshLooks = useMemo(() => newLooks(allLookKeys, state.settings.seenLooks), [allLookKeys, state.settings.seenLooks]);
-  // Frames and titles are worn on the Profile, every other look is picked in the bag (Customise your app).
+  // Frames and titles are worn on the Profile, every other look is picked in the bag (Theme tab).
   const freshOnProfile = [...freshLooks].filter(isProfileLook).length;
   const freshInBag = freshLooks.size - freshOnProfile;
   const seeLook = (key: string) => setState((s) => updateSettings(s, { seenLooks: markLooksSeen(s.settings.seenLooks, [key]) }));
@@ -782,6 +783,7 @@ function Succedo() {
                     setState(next);
                     setEvolving({ from: bizzyFormOf(state.bizzyForm).n, to: bizzyFormOf(next.bizzyForm).n });
                   }}
+                  onTapBizzy={() => setState((s) => tapBizzy(s))}
                   onOpenRewards={() => setRewardsOpen(true)}
                   tokenStrip={
                     <TokenStrip

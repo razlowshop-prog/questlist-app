@@ -50,6 +50,8 @@ export interface AchievementDef {
   unit: string;
   tiers: Tier[];
   value: (state: GameState, today: string) => number;
+  /** Hidden until reached: the list shows a "Secret achievement" with no hint of how it's won. */
+  secret?: boolean;
 }
 
 /** In English; shown with t(). */
@@ -146,6 +148,9 @@ export function monthsSince(from: string, today: string): number {
   if (d2 < d1) months--;
   return Math.max(0, months);
 }
+
+/** Taps on Bizzy for the secret achievement. */
+export const BIZZY_TAPS_SECRET = 150;
 
 export const ACHIEVEMENTS: AchievementDef[] = [
   {
@@ -268,6 +273,17 @@ export const ACHIEVEMENTS: AchievementDef[] = [
       { goal: 10, xp: 150, reward: theme(N('Gold')) },
       { goal: 25, xp: 400, reward: title(N('Champion')) },
     ],
+  },
+  {
+    // Picked 2026-10-28: tapping Bizzy on the streak card 150 times unlocks the Honey theme.
+    id: 'secret',
+    icon: 'HandHeart',
+    title: N('Bee Whisperer'),
+    description: (g) => t('Tap Bizzy {n} times', { n: g }),
+    unit: N('taps'),
+    value: (s) => s.bizzyTaps ?? 0,
+    tiers: [{ goal: BIZZY_TAPS_SECRET, xp: 50, reward: theme(N('Honey')) }],
+    secret: true,
   },
 ];
 

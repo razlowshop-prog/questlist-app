@@ -3,7 +3,8 @@ import { Pressable, Text, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withSequence, withTiming, type SharedValue } from 'react-native-reanimated';
 import Svg, { Circle, Path } from 'react-native-svg';
 import type { BizzyMood } from '../bizzy';
-import { greeting, pickLine, pickReaction, tickleLine, type Line, type Reaction, type TalkContext } from '../bizzyTalk';
+import { BIZZY_TAPS_SECRET } from '../achievements';
+import { greeting, pickLine, pickReaction, secretLine, tickleLine, type Line, type Reaction, type TalkContext } from '../bizzyTalk';
 import { buzz } from '../haptics';
 import { t } from '../i18n';
 import { Bizzy } from './Bizzy';
@@ -47,7 +48,26 @@ function run(v: SharedValue<number>, frames: Frame[], key: keyof Omit<Frame, 'at
  * line to `onSay` for his speech bubble. Tapped many times quickly, he finds
  * it tickles. With less motion he only changes his face and talks.
  */
-export function TapBizzy({ mood, cheer, size, look, talk, onSay }: { mood: BizzyMood; cheer: number; size: number; look?: [number, number]; talk: () => TalkContext; onSay: (line: Line) => void }) {
+export function TapBizzy({
+  mood,
+  cheer,
+  size,
+  look,
+  talk,
+  onSay,
+  taps: tapCount,
+  onTap,
+}: {
+  mood: BizzyMood;
+  cheer: number;
+  size: number;
+  look?: [number, number];
+  talk: () => TalkContext;
+  onSay: (line: Line) => void;
+  /** Taps so far, kept in the game state; the 150th finds the secret achievement. */
+  taps?: number;
+  onTap?: () => void;
+}) {
   const reduce = useReducedMotion();
   const x = useSharedValue(0);
   const y = useSharedValue(0);
@@ -70,8 +90,23 @@ export function TapBizzy({ mood, cheer, size, look, talk, onSay }: { mood: Bizzy
     onSay(line);
   }
 
+  // The tap that reaches the secret: once the count comes back from the game state, he tells you.
+  const seenTaps = useRef(tapCount);
+  useEffect(() => {
+    const before = seenTaps.current;
+    seenTaps.current = tapCount;
+    if (before === undefined || tapCount === undefined) return;
+    if (before < BIZZY_TAPS_SECRET && tapCount >= BIZZY_TAPS_SECRET) {
+      timers.current.forEach(clearTimeout);
+      timers.current = [];
+      say(secretLine());
+      play('burst');
+    }
+  }, [tapCount]);
+
   function tap() {
     buzz('tap');
+    onTap?.();
     timers.current.forEach(clearTimeout);
     timers.current = [];
     const now = Date.now();
