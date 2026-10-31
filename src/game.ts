@@ -487,6 +487,16 @@ export const STREAK_TIERS = [
   { tier: 3, name: N('Inferno'), weekXp: 300 },
 ] as const;
 
+/**
+ * This week's XP against the fire tiers, for the weekly bar in the level
+ * sheet: the tier it reaches so far, the next one and the XP still needed,
+ * and whether Monday will raise the fire (it only ever goes up then).
+ */
+export function weekTierProgress(streak: Pick<StreakStatus, 'tier' | 'weekXp' | 'weekTier' | 'days'>): { reached: number; next?: (typeof STREAK_TIERS)[number]; toGo: number; mondayUp: boolean } {
+  const next = STREAK_TIERS.find((t) => streak.weekXp < t.weekXp);
+  return { reached: streak.weekTier, next, toGo: next ? next.weekXp - streak.weekXp : 0, mondayUp: streak.days > 0 && streak.weekTier > streak.tier };
+}
+
 export function streakTierName(tier: number): string {
   return t(tier === 0 ? N('Spark') : STREAK_TIERS[tier - 1].name);
 }

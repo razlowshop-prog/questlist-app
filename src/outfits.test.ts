@@ -127,3 +127,12 @@ test('every outfit draws on every form, and covers what it replaces', () => {
   assert.equal(outfitDrawing({}), undefined);
   assert.deepEqual(outfitDrawing({ head: 'beanie' })?.covers, { head: true, neck: false, back: false });
 });
+
+test('weekly tier progress: next tier, XP to go, and Monday', async () => {
+  const { weekTierProgress } = await import('./game.ts');
+  assert.deepEqual(weekTierProgress({ tier: 1, weekXp: 140, weekTier: 1, days: 5 }), { reached: 1, next: { tier: 2, name: 'Blaze', weekXp: 200 }, toGo: 60, mondayUp: false });
+  assert.equal(weekTierProgress({ tier: 1, weekXp: 210, weekTier: 2, days: 5 }).mondayUp, true);
+  assert.equal(weekTierProgress({ tier: 3, weekXp: 320, weekTier: 3, days: 30 }).next, undefined);
+  // No streak running: Monday raises nothing.
+  assert.equal(weekTierProgress({ tier: 0, weekXp: 250, weekTier: 2, days: 0 }).mondayUp, false);
+});

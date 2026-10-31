@@ -9,6 +9,7 @@ import {
   STREAK_TIERS,
   streakBonus,
   streakTierName,
+  weekTierProgress,
   type StreakStatus,
 } from '../game';
 import { card, eyebrow, FONTS, headingCase, themed, useStyles, useTheme } from '../theme';
@@ -80,19 +81,24 @@ export function LevelDetails({
                 })}
               </View>
               <Text style={s.small}>{t('Fire tiers')}</Text>
+              <WeekBar streak={streak} />
               {STREAK_TIERS.map((tier) => (
                 <View key={tier.tier} style={s.tierRow}>
                   <FireAura tier={tier.tier} id={`tier-${tier.tier}`} />
                   <Fire tier={tier.tier} size={18} />
                   <Text style={[s.tierName, { color: fireColor(tier.tier, c) }]}>{t(tier.name)}</Text>
                   <Text style={s.muted}>{tier.tier === 1 ? t('{n} XP, instantly', { n: tier.weekXp }) : t('{n} XP a week', { n: tier.weekXp })}</Text>
-                  {streak.tier >= tier.tier && <Check size={14} color={c.accent} strokeWidth={2} aria-hidden />}
+                  {streak.tier >= tier.tier ? (
+                    <Check size={14} color={c.accent} strokeWidth={2} aria-hidden />
+                  ) : tier.tier > 1 && streak.weekXp >= tier.weekXp ? (
+                    <Text style={[s.weekMark, { color: fireColor(tier.tier, c) }]}>{t('this week ✓')}</Text>
+                  ) : null}
                 </View>
               ))}
               <Text style={s.note}>
                 {t(
-                  'This week: {week} XP. Flame lights the moment your streak earns {n} XP. For Blaze and Inferno, reach the threshold in a week and your fire moves up on Monday. Keep it going with one task a day: a missed day costs a tier, and on Flame or below it ends the streak.',
-                  { week: streak.weekXp, n: STREAK_TIERS[0].weekXp },
+                  'Flame lights the moment your streak earns {n} XP. For Blaze and Inferno, reach the threshold in a week and your fire moves up on Monday. Keep it going with one task a day: a missed day costs a tier, and on Flame or below it ends the streak.',
+                  { n: STREAK_TIERS[0].weekXp },
                 )}
               </Text>
             </View>
@@ -120,7 +126,57 @@ export function LevelDetails({
   );
 }
 
+/**
+ * This week's XP on a bar marked at each fire tier, with how much is still
+ * needed for the next one and what Monday brings.
+ */
+function WeekBar({ streak }: { streak: StreakStatus }) {
+  const s = useStyles(makeStyles);
+  const c = useTheme();
+  const top = STREAK_TIERS[STREAK_TIERS.length - 1].weekXp;
+  const share = Math.min(1, streak.weekXp / top);
+  const { next, toGo, mondayUp, reached } = weekTierProgress(streak);
+  const line = next
+    ? t('{n} XP more this week for {tier}', { n: toGo, tier: t(next.name) })
+    : t('Inferno reached this week. The top tier!');
+  return (
+    <View style={s.week} accessibilityLabel={`${t('This week: {n} XP', { n: num(streak.weekXp) })}. ${line}`}>
+      <View style={s.weekHead}>
+        <Text style={s.weekTitle}>{t('This week: {n} XP', { n: num(streak.weekXp) })}</Text>
+        {reached > 0 && <Text style={[s.weekTier, { color: fireColor(reached, c) }]}>{streakTierName(reached)}</Text>}
+      </View>
+      <View style={s.weekTrack}>
+        <View style={[s.weekFill, { width: `${share * 100}%`, backgroundColor: fireColor(Math.max(1, reached), c) }]} />
+        {STREAK_TIERS.map((tier) => (
+          <View key={tier.tier} style={[s.weekTick, { left: `${(tier.weekXp / top) * 100}%` }, streak.weekXp >= tier.weekXp && { backgroundColor: c.text }]} />
+        ))}
+      </View>
+      <View style={s.weekScale}>
+        {STREAK_TIERS.map((tier) => (
+          <Text key={tier.tier} style={[s.weekLabel, { left: `${(tier.weekXp / top) * 100}%` }]}>
+            {tier.weekXp}
+          </Text>
+        ))}
+      </View>
+      <Text style={s.muted}>
+        {line}
+        {mondayUp ? ` ${t('Your fire moves up to {tier} on Monday.', { tier: streakTierName(reached) })}` : ''}
+      </Text>
+    </View>
+  );
+}
+
 const makeStyles = themed((c) => ({
+  week: { gap: 6, paddingVertical: 2 },
+  weekHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+  weekTitle: { color: c.text, fontSize: 14, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  weekTier: { fontSize: 13, fontWeight: '800' },
+  weekTrack: { height: 10, borderRadius: 5, backgroundColor: c.border, overflow: 'hidden' },
+  weekFill: { position: 'absolute', left: 0, top: 0, bottom: 0, borderRadius: 5 },
+  weekTick: { position: 'absolute', top: 0, bottom: 0, width: 2, marginLeft: -2, backgroundColor: c.faint },
+  weekScale: { height: 14 },
+  weekLabel: { position: 'absolute', width: 40, marginLeft: -38, textAlign: 'right', color: c.faint, fontSize: 11, fontVariant: ['tabular-nums'] },
+  weekMark: { fontSize: 11, fontWeight: '700' },
   backdrop: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: '#000', opacity: 0.55 },
   sheetWrap: { flex: 1, justifyContent: 'center', padding: 20 },
   sheet: { ...card(c), backgroundColor: c.bg, maxWidth: 480, width: '100%', alignSelf: 'center', maxHeight: '90%', padding: 20, gap: 16 },
