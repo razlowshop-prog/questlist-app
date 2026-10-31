@@ -669,7 +669,8 @@ function Succedo() {
           onLanguage={(l) => setState((s) => updateSettings(s, { lang: l }))}
           onFinish={onSetupDone}
           onSkip={() => {
-            setState({ ...state, onboarded: true });
+            // Skipping the questions still gets the tour, the first time.
+            setState({ ...state, onboarded: true, ...(!state.onboarded && { settings: { ...state.settings, tour: 'pending' as const } }) });
             setRedoSetup(false);
           }}
         />
