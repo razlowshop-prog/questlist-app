@@ -19,6 +19,7 @@ export function SettingsScreen({
   today,
   onSettings,
   onRedoSetup,
+  onReplayTour,
   backupText,
   onRestore,
   onReset,
@@ -27,6 +28,8 @@ export function SettingsScreen({
   today: string;
   onSettings: (s: Partial<Settings>) => void;
   onRedoSetup: () => void;
+  /** Bizzy shows them round the app again. */
+  onReplayTour: () => void;
   /** The backup file's text for everything on this phone, saved at the given ISO time. */
   backupText: (savedAt: string) => string;
   /** Replaces all progress on this phone with a backup's. */
@@ -202,7 +205,8 @@ export function SettingsScreen({
         <MenuRow first label={t('Account and Premium')} sub={t('Sign in, email, password, deleting your account and the subscription arrive with accounts.')} />
       </MenuGroup>
 
-      <VividButton label={t('Redo setup questions')} kind="secondary" compact onPress={onRedoSetup} style={{ marginTop: 18 }} />
+      <VividButton label={t('Show the app tour again')} kind="secondary" compact onPress={onReplayTour} style={{ marginTop: 18 }} />
+      <VividButton label={t('Redo setup questions')} kind="secondary" compact onPress={onRedoSetup} style={{ marginTop: 10 }} />
 
       <Pressable onPress={() => setResetStep(1)} style={s.reset} accessibilityRole="button">
         <Text style={s.resetText}>{t('Reset all progress')}</Text>

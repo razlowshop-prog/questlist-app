@@ -130,7 +130,7 @@ export function LevelDetails({
  * This week's XP on a bar marked at each fire tier, with how much is still
  * needed for the next one and what Monday brings.
  */
-function WeekBar({ streak }: { streak: StreakStatus }) {
+export function WeekBar({ streak }: { streak: StreakStatus }) {
   const s = useStyles(makeStyles);
   const c = useTheme();
   const top = STREAK_TIERS[STREAK_TIERS.length - 1].weekXp;

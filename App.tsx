@@ -5,7 +5,7 @@ import type { GlyphName } from './src/glyphs';
 import { brandFill, brandInk, CountBadge, Glyph, tapHaptic, VIVID_HEAVY } from './src/components/Vivid';
 import { BRAND, brandGlow, brandLine } from './src/vivid';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, AppState, BackHandler, Easing, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, AppState, BackHandler, Easing, Platform, Pressable, StyleSheet, Text, View, type HostInstance } from 'react-native';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { activitySummary } from './src/activity';
 import { BackBar, TopBar } from './src/components/TopBar';
@@ -59,6 +59,9 @@ import { Celebration, type CelebrationEvent } from './src/components/Celebration
 import { EvolveScene } from './src/components/Evolve';
 import { BizzyFormContext, BizzyOutfitContext } from './src/components/Bizzy';
 import { dayTurn } from './src/flight';
+import { TourTargetProvider, useTourTargets } from './src/components/TourTargets';
+import { AppTour } from './src/components/AppTour';
+import { tourSteps } from './src/tour';
 import { outfitById, outfitDrawing, outfitName, toggleOutfit, wornOutfits } from './src/outfits';
 import { bizzyFormOf } from './src/bizzy';
 import { LevelDetails } from './src/components/LevelDetails';
@@ -166,6 +169,16 @@ function Succedo() {
   // camera, the tab bar and toast clear of the system navigation bar.
   const insets = useSafeAreaInsets();
   const [state, setState] = useState<GameState>(emptyState);
+  // What the first-time tour points at (AppTour); parts of the app register themselves.
+  const tourTargets = useTourTargets();
+  const tourRef = useMemo(() => {
+    const cache: Record<string, (r: HostInstance | null) => void> = {};
+    return (key: string) =>
+      (cache[key] ??= (r) => {
+        if (r) tourTargets.set(key, r);
+        else tourTargets.delete(key);
+      });
+  }, []);
   /** The inventory tab to open on next (the profile's showcase card opens Outfits). */
   const [inventoryTab, setInventoryTab] = useState<'outfits' | undefined>();
   // The language for everything drawn below; switching it redraws the whole app (the key on ThemeProvider).
@@ -415,6 +428,8 @@ function Succedo() {
     setState(next);
     setRedoSetup(false);
     openTab('today');
+    // Bizzy shows them round the app once they've seen their list (AppTour).
+    setState((s) => updateSettings(s, { tour: 'pending' }));
     if (picks.length) setTimeout(() => showToast(tn(picks.length, '{n} task added. Let’s begin.', '{n} tasks added. Let’s begin.')), 300);
   }
 
@@ -671,6 +686,7 @@ function Succedo() {
           <BizzyFormContext.Provider value={bizzyFormOf(state.bizzyForm).n}>
           <BizzyOutfitContext.Provider value={outfit}>
           <AvatarPhotoContext.Provider value={photo}>
+          <TourTargetProvider targets={tourTargets}>
           <SafeAreaView edges={['top', 'left', 'right']} style={styles.safe}>
             <StatusBar style={statusBar} />
             {c.backdrop === 'dust' && (tab !== 'spin' || page) && <GoldDust />}
@@ -693,7 +709,9 @@ function Succedo() {
                   }}
                   onProfile={() => setPage('profile')}
                 />
-                <XpProgress totalXp={xp} onPress={() => setRewardsOpen(true)} />
+                <View ref={tourRef('xp')}>
+                  <XpProgress totalXp={xp} onPress={() => setRewardsOpen(true)} />
+                </View>
               </View>
             )}
 
@@ -785,6 +803,10 @@ function Succedo() {
                   today={today}
                   onSettings={(changes) => setState((s) => updateSettings(s, changes))}
                   onRedoSetup={() => setRedoSetup(true)}
+                  onReplayTour={() => {
+                    setState((s) => updateSettings(s, { tour: 'pending' }));
+                    openTab('today');
+                  }}
                   backupText={(savedAt) => makeBackup(state, photo, savedAt, today)}
                   onRestore={(backup) => {
                     setState(prepared(backup.state));
@@ -931,7 +953,7 @@ function Succedo() {
               {TABS.flatMap((tb, i) => [
                 // Today · Challenges · Add Task · Spin · Menu
                 i === 2 && (
-                  <Pressable key="add" onPress={openAdd} style={styles.tab} accessibilityRole="button" accessibilityLabel={t('Add Task')}>
+                  <Pressable key="add" ref={tourRef('add')} onPress={openAdd} style={styles.tab} accessibilityRole="button" accessibilityLabel={t('Add Task')}>
                     <View style={styles.addButton}>
                       <Plus size={24} color={brandInk(c)} strokeWidth={2.75} aria-hidden />
                     </View>
@@ -942,6 +964,7 @@ function Succedo() {
                 ),
                 <Pressable
                   key={tb.key}
+                  ref={tourRef(`tab-${tb.key}`)}
                   onPress={() => openTab(tb.key)}
                   style={styles.tab}
                   accessibilityRole="tab"
@@ -1044,7 +1067,20 @@ function Succedo() {
                 }}
               />
             )}
+            {state.settings.tour === 'pending' && !celebration && (
+              <AppTour
+                steps={tourSteps({ widget: Platform.OS !== 'ios' })}
+                targets={tourTargets}
+                streak={streakInfo}
+                onTab={openTab}
+                onDone={() => {
+                  setState((s) => updateSettings(s, { tour: 'done' }));
+                  openTab('today');
+                }}
+              />
+            )}
           </SafeAreaView>
+          </TourTargetProvider>
           </AvatarPhotoContext.Provider>
           </BizzyOutfitContext.Provider>
           </BizzyFormContext.Provider>

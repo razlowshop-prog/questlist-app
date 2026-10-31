@@ -7,6 +7,7 @@ import { STREAK_TIERS, streakTierName, type StreakStatus, type WeekDot, type xpM
 import { card, themed, useStyles, useTheme } from '../theme';
 import { brandLine, tierFlame } from '../vivid';
 import { TapBizzy } from './TapBizzy';
+import { useTourTarget } from './TourTargets';
 import { Fire } from './Fire';
 import { MultiplierPill } from './MultiplierPill';
 import { fill, GradientText, VIVID_HEAVY } from './Vivid';
@@ -59,6 +60,7 @@ export function StreakCard({
 }) {
   const s = useStyles(makeStyles);
   const c = useTheme();
+  const tourRef = useTourTarget('streak');
   const grad = tierFlame(streak.tier);
   const days = week.map((d, i) => `${t(DAY_NAMES[i])} ${t(DOT_WORDS[d])}`).join(', ');
   // What Bizzy just said, shown for a few seconds (longer lines a little longer).
@@ -83,6 +85,7 @@ export function StreakCard({
 
   return (
     <Pressable
+      ref={tourRef}
       onPress={onPress}
       style={[s.border, grad ? fill(grad, 135) : { backgroundColor: c.border }]}
       accessibilityRole="button"

@@ -1,4 +1,5 @@
 import { Backpack, ChevronLeft } from 'lucide-react-native';
+import { useTourTarget } from './TourTargets';
 import { Pressable, Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { APP_NAME } from '../brand';
@@ -48,6 +49,8 @@ export function TopBar({
 }) {
   const s = useStyles(makeStyles);
   const c = useTheme();
+  const bagRef = useTourTarget('bag');
+  const profileRef = useTourTarget('profile');
   const r = (RING - STROKE) / 2;
   const length = 2 * Math.PI * r;
   const shown = Math.min(1, Math.max(0, progress));
@@ -63,6 +66,7 @@ export function TopBar({
       </View>
       <View style={{ flex: 1 }} />
       <Pressable
+        ref={bagRef}
         onPress={onInventory}
         style={s.icon}
         accessibilityRole="button"
@@ -74,6 +78,7 @@ export function TopBar({
         <CountBadge count={bagCount} style={s.badge} />
       </Pressable>
       <Pressable
+        ref={profileRef}
         onPress={onProfile}
         style={s.avatarHit}
         accessibilityRole="button"

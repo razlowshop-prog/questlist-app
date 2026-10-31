@@ -5,6 +5,7 @@ import { ComboPill } from '../components/Moments';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View, type HostInstance } from 'react-native';
 import { TodayMoment, type TodayMomentKind } from '../components/TodayMoments';
 import { useReduceMotion } from '../components/FireAura';
+import { useTourTarget } from '../components/TourTargets';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Chip } from '../components/Chip';
 import { QuoteFlip } from '../components/QuoteFlip';
@@ -255,6 +256,7 @@ export function TodayScreen({
   };
   // Big moments over the screen (morning hello, all done); he flies about and lands back in his spot.
   const reduceMotion = useReduceMotion();
+  const tasksRef = useTourTarget('tasks');
   const spot = useRef<HostInstance>(null);
   const [moment, setMoment] = useState<TodayMomentKind | null>(null);
   const [says, setSays] = useState<{ text: string; id: number }>();
@@ -364,7 +366,7 @@ export function TodayScreen({
               {focusBar}
               {guide}
 
-              <View style={s.sectionRow}>
+              <View style={s.sectionRow} ref={tasksRef}>
                 <Text style={s.sectionTitle}>{t('Today’s tasks')}</Text>
                 {tasks.length > 0 && (
                   <Text style={s.sectionCount}>
