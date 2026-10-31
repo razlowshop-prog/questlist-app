@@ -49,32 +49,6 @@
           "cameraPermission": "Succedo uses the camera so you can take a profile picture. It stays on your phone.",
           "microphonePermission": false
         }
-      ],
-      [
-        "react-native-android-widget",
-        {
-          "fonts": [
-            "./node_modules/@expo-google-fonts/playfair-display/400Regular/PlayfairDisplay_400Regular.ttf",
-            "./node_modules/@expo-google-fonts/assistant/400Regular/Assistant_400Regular.ttf",
-            "./node_modules/@expo-google-fonts/assistant/700Bold/Assistant_700Bold.ttf"
-          ],
-          "widgets": [
-            {
-              "name": "Today",
-              "label": "Succedo",
-              "description": "Bizzy, your tasks left, streak and level",
-              "minWidth": "110dp",
-              "minHeight": "110dp",
-              "targetCellWidth": 2,
-              "targetCellHeight": 2,
-              "maxResizeWidth": "320dp",
-              "maxResizeHeight": "240dp",
-              "resizeMode": "horizontal|vertical",
-              "previewImage": "./assets/widget-preview.png",
-              "updatePeriodMillis": 1800000
-            }
-          ]
-        }
       ]
     ],
     "owner": "razlow-shop",

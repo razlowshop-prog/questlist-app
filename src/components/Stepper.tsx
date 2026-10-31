@@ -2,23 +2,9 @@ import { useEffect, useRef } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { themed, useStyles } from '../theme';
 import { t } from '../i18n';
+import { HOLD_DELAY_MS, holdPause, holdRepeats, stepped, tapCounts } from '../stepperLogic';
 
-/**
- * A tap is exactly one step, on release, so a touch that turns into a scroll
- * changes nothing. Holding keeps stepping: first after HOLD_DELAY_MS, then
- * calmly at HOLD_EVERY_MS, a little faster after HOLD_FAST_AFTER steps.
- */
-const HOLD_DELAY_MS = 550;
-const HOLD_EVERY_MS = 250;
-const HOLD_FAST_MS = 120;
-const HOLD_FAST_AFTER = 8;
-
-/** The wait before the n-th repeat (0-based) while a button is held. */
-function holdPause(n: number): number {
-  return n < HOLD_FAST_AFTER ? HOLD_EVERY_MS : HOLD_FAST_MS;
-}
-
-/** − number + control. Holding a button keeps going. */
+/** − number + control. A tap is one step; holding keeps going on long ranges (stepperLogic.ts). */
 export function Stepper({
   value,
   min,
@@ -53,14 +39,25 @@ export function Stepper({
 
   function move(dir: 1 | -1): boolean {
     const { value: v, onChange: change } = latest.current;
-    const next = Math.min(max, Math.max(min, Math.round((v + dir * step) * 100) / 100));
+    const next = stepped(v, dir, step, min, max);
     if (next === v) return false;
     change(next);
     return true;
   }
 
-  // Held down: one step now, then repeats until the finger lifts or slides off.
+  // A tap is one step on release (a touch that turns into a scroll changes nothing).
+  const lastTap = useRef<number | undefined>(undefined);
+  function tap(dir: 1 | -1) {
+    const now = Date.now();
+    if (!tapCounts(now, lastTap.current)) return;
+    lastTap.current = now;
+    move(dir);
+  }
+
+  // Held down on a long range: one step now, then repeats until the finger lifts or slides off.
+  const repeats = holdRepeats(min, max, step);
   function hold(dir: 1 | -1) {
+    lastTap.current = Date.now();
     let n = 0;
     const again = () => {
       if (move(dir)) timer.current = setTimeout(again, holdPause(n++));
@@ -70,9 +67,10 @@ export function Stepper({
 
   const button = (dir: 1 | -1, can: boolean) => (
     <Pressable
-      onPress={can ? () => move(dir) : undefined}
-      onLongPress={can ? () => hold(dir) : undefined}
+      onPress={can ? () => tap(dir) : undefined}
+      onLongPress={can && repeats ? () => hold(dir) : undefined}
       delayLongPress={HOLD_DELAY_MS}
+      hitSlop={6}
       onPressOut={stop}
       style={[s.button, !can && s.off]}
       accessibilityRole="button"
@@ -95,8 +93,8 @@ export function Stepper({
 const makeStyles = themed((c) => ({
   wrap: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   button: {
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     borderRadius: c.radius,
     borderWidth: 1,
     borderColor: c.outline,

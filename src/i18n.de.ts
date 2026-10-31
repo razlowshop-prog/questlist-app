@@ -1019,4 +1019,10 @@ export const DE: Record<string, string> = {
   "Something went wrong": "Etwas ist schiefgelaufen",
   "Your progress is saved. Please send a screenshot of this screen so it can be fixed.": "Dein Fortschritt ist gespeichert. Bitte schick einen Screenshot dieser Seite, damit der Fehler behoben werden kann.",
   "Try again": "Nochmal versuchen",
+  "Succedo closed by itself last time": "Succedo hat sich beim letzten Mal von selbst geschlossen",
+  "The app started": "Die App ist gestartet",
+  "Your saved progress was read": "Dein gespeicherter Fortschritt wurde gelesen",
+  "The look and fonts were ready": "Design und Schriften waren bereit",
+  "The first screen was drawn": "Der erste Bildschirm wurde gezeichnet",
+  "Ran for 5 seconds": "5 Sekunden lang gelaufen",
 };

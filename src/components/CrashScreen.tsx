@@ -1,6 +1,7 @@
 import { Component, useEffect, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { t } from '../i18n';
+import { launchCheck } from '../launchCheck';
 
 /**
  * When something breaks, the app shows what went wrong instead of closing,
@@ -67,6 +68,8 @@ function FatalListener({ children }: { children: ReactNode }) {
 }
 
 export function CrashScreen({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
+  // The app stayed open and showed the error: no launch report needed next time.
+  useEffect(() => launchCheck.ok(), []);
   return (
     <View style={{ flex: 1, backgroundColor: '#12151f', paddingHorizontal: 24, paddingTop: 72, paddingBottom: 32, gap: 16 }}>
       <Text style={{ color: '#eef1fa', fontSize: 22, fontWeight: '700' }} accessibilityRole="header">
