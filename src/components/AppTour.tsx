@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View, type HostInstance } from 'react-native';
+import { BackHandler, Pressable, StyleSheet, Text, View, type HostInstance } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { ArrowDown, ArrowUp } from 'lucide-react-native';
 import type { StreakStatus } from '../game';
@@ -50,6 +50,18 @@ export function AppTour({
   const bounce = useSharedValue(0);
   const step = steps[at];
   const last = at === steps.length - 1;
+
+  // Android's back button steps back, and on the first step ends the tour.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (atRef.current > 0) setAt(atRef.current - 1);
+      else onDone();
+      return true;
+    });
+    return () => sub.remove();
+  }, []);
+  const atRef = useRef(0);
+  atRef.current = at;
 
   useEffect(() => {
     fade.value = withTiming(1, { duration: 300 });

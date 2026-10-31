@@ -357,10 +357,13 @@ export function SpinScreen({
             <View style={s.panel}>
               {recent.map((sp, i) => {
                 const p = prizeById(sp.prize);
+                // An outfit slice shows the outfit won, or the XP it paid once its rarity was complete.
+                const piece = outfitById(sp.outfit);
+                const label = piece ? outfitName(piece) : p.outfit && sp.xp ? t('{n} XP', { n: sp.xp }) : prizeLabel(p);
                 return (
                   <View key={i} style={s.oddsRow}>
                     <PrizeSticker prize={p} size={26} />
-                    <Text style={s.oddsLabel}>{prizeLabel(p)}</Text>
+                    <Text style={s.oddsLabel}>{label}</Text>
                     <Text style={[s.rarity, { color: RARITY_COLORS[p.rarity].label }]}>{rarityName(p.rarity)}</Text>
                   </View>
                 );

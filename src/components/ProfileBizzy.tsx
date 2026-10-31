@@ -122,6 +122,8 @@ export function ProfileBizzy({ root, frame, pill, trophies }: { root: RefObject<
         const list = (await Promise.all((trophies.current ?? []).map((r) => where(r)))).filter((s): s is Spot => !!s && s.w > 0);
         if (list.length) await polish(list);
       }
+      // A breath between turns (and no busy loop if nothing could be measured).
+      await wait(300);
     }
   }
 
