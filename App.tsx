@@ -5,7 +5,7 @@ import type { GlyphName } from './src/glyphs';
 import { brandFill, brandInk, CountBadge, Glyph, tapHaptic, VIVID_HEAVY } from './src/components/Vivid';
 import { BRAND, brandGlow, brandLine } from './src/vivid';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, BackHandler, Easing, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, AppState, BackHandler, Easing, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { activitySummary } from './src/activity';
 import { BackBar, TopBar } from './src/components/TopBar';
@@ -112,6 +112,7 @@ import { startSounds } from './src/soundPlayer';
 import { recapToShow } from './src/recap';
 import { WeeklyRecap } from './src/components/WeeklyRecap';
 import { loadPhoto, loadState, savePhoto, saveState } from './src/storage';
+import { launchCheck } from './src/launchCheck';
 import { nativeDriver, themeById, themed, ThemeProvider, THEMES, withFonts } from './src/theme';
 import { N, quoted, setLang, systemLang, t, tn } from './src/i18n';
 
@@ -214,6 +215,7 @@ function Succedo() {
   useEffect(() => {
     loadState().then((s) => {
       const ready = prepared(s);
+      launchCheck.step('save read');
       setState(ready);
       setLoaded(true);
       startSounds(filesFor(ready.settings.soundStyle ?? DEFAULT_SOUND_STYLE));
@@ -336,11 +338,29 @@ function Succedo() {
     // A font that fails to load falls back to the system font; the theme still applies.
     loadAsync({ ...fontFilesFor(wantedTheme.palette.fonts), ...WHEEL_FONTS, ...VIVID_FONTS })
       .catch((e) => console.warn('Fonts failed to load', e))
-      .finally(() => current && setShownThemeId(wantedTheme.id));
+      .finally(() => {
+        if (!current) return;
+        launchCheck.step('look ready');
+        setShownThemeId(wantedTheme.id);
+      });
     return () => {
       current = false;
     };
   }, [loaded, wantedTheme.id]);
+
+  // Launch check: the first screen is up; a few seconds later (or once the
+  // app is left) this start counts as running fine.
+  const drawn = !!shownThemeId;
+  useEffect(() => {
+    if (!drawn) return;
+    launchCheck.step('drawn');
+    const timer = setTimeout(() => launchCheck.ok(), 5000);
+    const sub = AppState.addEventListener('change', (s) => s !== 'active' && launchCheck.ok());
+    return () => {
+      clearTimeout(timer);
+      sub.remove();
+    };
+  }, [drawn]);
   const styles = useMemo(() => StyleSheet.create(withFonts(makeStyles(c), c.fonts)), [c]);
 
   // Android's back button closes an open page before it leaves the app.

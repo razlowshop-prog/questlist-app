@@ -15,9 +15,16 @@ import { widgetData } from './widgetData';
 type WidgetLib = typeof import('react-native-android-widget');
 type Drawing = typeof import('./TodayWidget');
 
+/**
+ * Off while the app is tested without the widget's native part (see
+ * react-native.config.js): the app closed instantly on open since it was added.
+ */
+const WIDGET_ON = false;
+
 let loaded: { lib: WidgetLib; drawing: Drawing } | null | undefined;
 
 function widgetParts() {
+  if (!WIDGET_ON) return null;
   if (loaded === undefined) {
     try {
       loaded = { lib: require('react-native-android-widget') as WidgetLib, drawing: require('./TodayWidget') as Drawing };
