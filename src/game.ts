@@ -150,6 +150,8 @@ export interface GameState {
   bizzyForm?: number;
   /** How often Bizzy has been tapped on the streak card, for the secret achievement (achievements.ts). */
   bizzyTaps?: number;
+  /** What Bizzy wears, one outfit id per slot (outfits.ts). */
+  bizzyWear?: Partial<Record<'head' | 'face' | 'neck' | 'back', string>>;
   /** Test changes from the developer page; only kept in test builds (see devTools.ts). */
   dev?: DevSettings;
 }
@@ -196,8 +198,10 @@ export interface WheelSpin {
   date: string;
   /** Id of the prize won (WHEEL_PRIZES in wheel.ts). */
   prize: string;
-  /** XP won, for XP prizes. */
+  /** XP won, for XP prizes, and for an outfit slice once every outfit of its rarity is owned. */
   xp?: number;
+  /** Outfit won on an outfit slice (outfits.ts). */
+  outfit?: string;
 }
 
 /** Days the streak counts as kept without a task: rest tokens plus a taken free recovery. */

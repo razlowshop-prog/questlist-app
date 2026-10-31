@@ -57,7 +57,8 @@ import {
 import { shownTitle } from './src/library';
 import { Celebration, type CelebrationEvent } from './src/components/Celebration';
 import { EvolveScene } from './src/components/Evolve';
-import { BizzyFormContext } from './src/components/Bizzy';
+import { BizzyFormContext, BizzyOutfitContext } from './src/components/Bizzy';
+import { outfitById, outfitDrawing, outfitName, toggleOutfit, wornOutfits } from './src/outfits';
 import { bizzyFormOf } from './src/bizzy';
 import { LevelDetails } from './src/components/LevelDetails';
 import { LevelRewards } from './src/components/LevelRewards';
@@ -95,7 +96,6 @@ import { AvatarDiscContext, AvatarPhotoContext } from './src/components/ProfileF
 import { FocusBar, FocusTimer } from './src/components/FocusTimer';
 import { focusBonus, msUntilFocusDone, pauseFocus, resumeFocus, setFocusGoal, startFocus } from './src/focus';
 import { CelebrationContext } from './src/components/TaskRow';
-import { emblemStatuses } from './src/emblems';
 import { equippedLooks, isProfileLook, lookKeys, markLooksSeen, newLooks, ownedLooks, seedProfileLooks } from './src/inventory';
 import { bagChanged, bagSnapshot, newInBag, type BagItem } from './src/bag';
 import { claimSeason, seasonStatus } from './src/seasons';
@@ -165,6 +165,8 @@ function Succedo() {
   // camera, the tab bar and toast clear of the system navigation bar.
   const insets = useSafeAreaInsets();
   const [state, setState] = useState<GameState>(emptyState);
+  /** The inventory tab to open on next (the profile's showcase card opens Outfits). */
+  const [inventoryTab, setInventoryTab] = useState<'outfits' | undefined>();
   // The language for everything drawn below; switching it redraws the whole app (the key on ThemeProvider).
   const language = state.settings.lang ?? systemLang();
   setLang(language);
@@ -251,6 +253,10 @@ function Succedo() {
   const multiplier = useMemo(() => xpMultiplier(state, today), [state, today]);
   const tasks = useMemo(() => visibleTasks(state, today), [state, today]);
   const upcoming = useMemo(() => upcomingTasks(state, today), [state.tasks, today]);
+  // What Bizzy wears everywhere; the same drawing until the outfit itself changes.
+  const worn = wornOutfits(state);
+  const wornKey = JSON.stringify(worn);
+  const outfit = useMemo(() => outfitDrawing(worn), [wornKey]);
   const challenges = useMemo(() => weeklyChallenges(state, today), [state, today]);
   const hour = new Date().getHours();
   const daily = useMemo(() => dailyChallenges(state, today, hour), [state, today, hour]);
@@ -282,7 +288,6 @@ function Succedo() {
   );
   const tickets = ticketStatus(state, xp);
   const looks = equippedLooks(state.settings, owned);
-  const emblems = useMemo(() => emblemStatuses(state), [state.completions, state.tasks]);
   const recovery = loaded ? recoveryOffer(state, today) : undefined;
   // Badges show only what is new: items added since the bag was opened, looks won but not seen yet.
   const bagCounts: Record<BagItem, number> = { ticket: tickets.tickets, ...tokens };
@@ -564,8 +569,12 @@ function Succedo() {
     const { state: next, prize } = spinWheel(state, xp, today, Math.random());
     if (!prize) return undefined;
     saveState(next);
+    const spin = next.wheelSpins![next.wheelSpins!.length - 1];
     return {
       prize,
+      // An outfit slice: the outfit won, or XP once every outfit of its rarity is owned.
+      outfit: spin.outfit,
+      xp: prize.outfit && !spin.outfit ? spin.xp : undefined,
       finish: () => {
         buzz('prize');
         sound(prize.rarity === 'legendary' ? 'jackpot' : 'win');
@@ -658,6 +667,7 @@ function Succedo() {
         <CelebrationContext.Provider value={looks.celebration}>
           <AvatarDiscContext.Provider value={state.settings.avatar}>
           <BizzyFormContext.Provider value={bizzyFormOf(state.bizzyForm).n}>
+          <BizzyOutfitContext.Provider value={outfit}>
           <AvatarPhotoContext.Provider value={photo}>
           <SafeAreaView edges={['top', 'left', 'right']} style={styles.safe}>
             <StatusBar style={statusBar} />
@@ -675,7 +685,10 @@ function Succedo() {
                   toClaim={awardsToClaim}
                   newLooks={freshOnProfile}
                   onHome={() => openTab('today')}
-                  onInventory={() => setPage('inventory')}
+                  onInventory={() => {
+                    setInventoryTab(undefined);
+                    setPage('inventory');
+                  }}
                   onProfile={() => setPage('profile')}
                 />
                 <XpProgress totalXp={xp} onPress={() => setRewardsOpen(true)} />
@@ -711,6 +724,9 @@ function Succedo() {
                   freshLooks={freshLooks}
                   onSeenLook={seeLook}
                   onSettings={(changes) => setState((s) => updateSettings(s, changes))}
+                  bizzyForm={bizzyFormOf(state.bizzyForm).n}
+                  startTab={inventoryTab}
+                  onToggleOutfit={(id) => setState((now) => toggleOutfit(now, id))}
                 />
               )}
               {page === 'profile' && (
@@ -725,7 +741,14 @@ function Succedo() {
                   season={season}
                   fireTier={streakInfo.tier}
                   photo={photo}
-                  emblems={emblems}
+                  bizzy={{
+                    state,
+                    form: bizzyFormOf(state.bizzyForm).n,
+                    onOpen: () => {
+                      setInventoryTab('outfits');
+                      setPage('inventory');
+                    },
+                  }}
                   multiplier={multiplier}
                   achievements={achievements}
                   rewards={rewards}
@@ -885,6 +908,12 @@ function Succedo() {
                     setState(updateSettings(state, { theme: 'fortune' }));
                     showToast(t('Fortuna is on. Good luck!'));
                   }}
+                  onWearOutfit={(id) => {
+                    const o = outfitById(id);
+                    if (!o) return;
+                    setState((now) => (wornOutfits(now)[o.slot] === id ? now : toggleOutfit(now, id)));
+                    showToast(t('Bizzy is wearing it: {outfit}', { outfit: outfitName(o) }));
+                  }}
                 />
               )}
               {!page && tab === 'menu' && <MenuScreen onOpen={setPage} />}
@@ -1009,6 +1038,7 @@ function Succedo() {
             )}
           </SafeAreaView>
           </AvatarPhotoContext.Provider>
+          </BizzyOutfitContext.Provider>
           </BizzyFormContext.Provider>
           </AvatarDiscContext.Provider>
         </CelebrationContext.Provider>

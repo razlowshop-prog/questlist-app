@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState, type R
 import { Animated, Easing, View, type StyleProp, type ViewStyle } from 'react-native';
 import Reanimated, { useAnimatedStyle } from 'react-native-reanimated';
 import { SvgXml } from 'react-native-svg';
-import { bizzyEdge, bizzyFormOf, bizzyGripSvg, bizzySvg, bizzyWingRoot, bizzyWingsSvg, type BizzyLook, type BizzyMood } from '../bizzy';
+import { bizzyEdge, bizzyFormOf, bizzyGripSvg, bizzySvg, bizzyWingRoot, bizzyWingsSvg, type BizzyLook, type BizzyMood, type BizzyOutfit } from '../bizzy';
 import { nativeDriver } from '../theme';
 import { useReduceMotion } from './FireAura';
 import { useLoop, useLoopsOn } from './fx/hooks';
@@ -13,6 +13,8 @@ const GRIP = bizzyGripSvg();
 
 /** How far the player's Bizzy has evolved (1 to 10); every Bizzy in the app draws this form. */
 export const BizzyFormContext = createContext(1);
+/** What the player's Bizzy wears (outfits.ts outfitDrawing); every Bizzy in the app wears it. */
+export const BizzyOutfitContext = createContext<BizzyOutfit | undefined>(undefined);
 
 type Idle = 'bob' | 'sway' | 'look';
 const IDLES: Idle[] = ['bob', 'sway', 'look'];
@@ -119,13 +121,34 @@ function useBlink(on: boolean): boolean {
  * (still while he sleeps, when `flap` is off, or when the phone asks for less
  * motion). The wings are layers of their own behind him, so they can flap.
  */
-export function BizzyArt({ mood, size, form, look, blink, shadow = true, flap = true, fast = false }: BizzyLook & { mood: BizzyMood; size: number; form: number; shadow?: boolean; flap?: boolean; fast?: boolean }) {
+export function BizzyArt({
+  mood,
+  size,
+  form,
+  look,
+  blink,
+  shadow = true,
+  flap = true,
+  fast = false,
+  outfit,
+}: BizzyLook & {
+  mood: BizzyMood;
+  size: number;
+  form: number;
+  shadow?: boolean;
+  flap?: boolean;
+  fast?: boolean;
+  /** Wears this instead of the player's outfit; null draws him without one. */
+  outfit?: BizzyOutfit | null;
+}) {
+  const own = useContext(BizzyOutfitContext);
+  const wear = outfit === undefined ? own : (outfit ?? undefined);
   const on = useLoopsOn() && flap && mood !== 'sleepy';
   // `fast` beats twice as quick, for when he zooms about.
   const beat = useLoop(fast ? 110 : 220, on);
   const left = useMemo(() => bizzyWingsSvg(form, 'left'), [form]);
   const right = useMemo(() => bizzyWingsSvg(form, 'right'), [form]);
-  const body = useMemo(() => bizzySvg(mood, shadow, { look, blink, form, wings: !left }), [mood, shadow, look?.[0], look?.[1], blink, form, left]);
+  const body = useMemo(() => bizzySvg(mood, shadow, { look, blink, form, wings: !left, outfit: wear }), [mood, shadow, look?.[0], look?.[1], blink, form, left, wear]);
   // The left wings swing from -9 to 10 degrees and back, the right ones mirror them.
   const leftStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${-9 + 19 * beat.value}deg` }] }));
   const rightStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${9 - 19 * beat.value}deg` }] }));
@@ -167,6 +190,7 @@ export function Bizzy({
   fast = false,
   cheer = 0,
   form,
+  outfit,
 }: {
   mood?: BizzyMood;
   size?: number;
@@ -183,6 +207,8 @@ export function Bizzy({
   cheer?: number;
   /** Draws this form instead of the player's own. */
   form?: number;
+  /** Wears this instead of the player's outfit; null draws him without one. */
+  outfit?: BizzyOutfit | null;
 }) {
   const own = useContext(BizzyFormContext);
   const shape = form ?? own;
@@ -255,7 +281,7 @@ export function Bizzy({
   const turn = swing.interpolate({ inputRange: [-1, 1], outputRange: ['-2.5deg', '2.5deg'] });
   return (
     <Animated.View style={[{ width: size, height: size, transform: [{ translateY: lift }, { rotate: turn }] }, style]} aria-hidden importantForAccessibility="no-hide-descendants">
-      <BizzyArt mood={shown} size={size} form={shape} look={eyes} blink={shut} flap={flap && !reduce} fast={fast} />
+      <BizzyArt mood={shown} size={size} form={shape} look={eyes} blink={shut} flap={flap && !reduce} fast={fast} outfit={outfit} />
     </Animated.View>
   );
 }

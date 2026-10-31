@@ -27,6 +27,8 @@ import {
   type WheelPrize,
 } from '../wheel';
 import type { WheelSpin } from '../game';
+import { Bizzy } from '../components/Bizzy';
+import { outfitById, outfitDrawing, outfitName, OUTFIT_XP, RARITY_LABEL, type Outfit } from '../outfits';
 import { N, t, tn } from '../i18n';
 
 const TURNS = 6;
@@ -55,6 +57,9 @@ const LABELS: Record<string, string> = {
   adfree: N('Ad-free'),
   theme: 'Fortuna',
   jackpot: N('Jackpot'),
+  o1: N('Rare'),
+  o2: N('Epic'),
+  o3: N('Legendary'),
 };
 /** The two slice colours, alternating round the wheel. */
 const SLICE_FILLS = ['#1d2335', '#252c42'];
@@ -65,6 +70,8 @@ const FORTUNA_INK = '#f2c55c';
 function prizeAbout(prize: WheelPrize, ownsTheme: boolean): string {
   if (prize.theme) return ownsTheme ? t('You own Fortuna, so this slice now pays a big XP jackpot.') : t('The Fortuna theme: a gold and violet look for the whole app. The rarest slice.');
   if (prize.token) return `${t(TOKEN_INFO[prize.token].description)} ${t('It goes into your bag until you use it.')}`;
+  if (prize.outfit)
+    return t('A {rarity} outfit for Bizzy that you don’t have yet. Once you own every {rarity} one, this slice pays {n} XP instead.', { rarity: t(RARITY_LABEL[prize.outfit]), n: OUTFIT_XP[prize.outfit] });
   return t('{n} XP straight onto your level bar. Wheel XP doesn’t earn new tickets.', { n: prize.xp! });
 }
 
@@ -93,6 +100,7 @@ export function SpinScreen({
   spins,
   onSpin,
   onWearTheme,
+  onWearOutfit,
   onBusy,
 }: {
   tickets: TicketStatus;
@@ -101,8 +109,10 @@ export function SpinScreen({
   ownsTheme: boolean;
   spins: WheelSpin[];
   /** Spends a ticket (saved at once); `finish` hands the prize out once it's revealed. */
-  onSpin: () => { prize: WheelPrize; finish: () => void } | undefined;
+  onSpin: () => ({ finish: () => void } & Won) | undefined;
   onWearTheme: () => void;
+  /** Puts on an outfit just won. */
+  onWearOutfit: (id: string) => void;
   /** True while the wheel turns: the app holds the tabs, so the prize can't be left behind. */
   onBusy?: (busy: boolean) => void;
 }) {
@@ -123,7 +133,7 @@ export function SpinScreen({
     onBusy?.(spinning);
     return () => onBusy?.(false);
   }, [spinning]);
-  const [won, setWon] = useState<WheelPrize | null>(null);
+  const [won, setWon] = useState<Won | null>(null);
   const [oddsOpen, setOddsOpen] = useState(false);
   /** The slice the player tapped, explained under the wheel. */
   const [about, setAbout] = useState<WheelPrize | null>(null);
@@ -160,12 +170,12 @@ export function SpinScreen({
     },
   );
 
-  function landed(prize: WheelPrize) {
+  function landed(result: Won) {
     const finish = pending.current;
     if (!finish) return;
     pending.current = null;
     setSpinning(false);
-    setWon(prize);
+    setWon(result);
     // The prize buzz comes with the hand-out.
     finish();
   }
@@ -179,7 +189,7 @@ export function SpinScreen({
     if (spinning || !has) return;
     const result = onSpin();
     if (!result) return;
-    const { prize, finish } = result;
+    const { prize, finish, outfit, xp } = result;
     setAbout(null);
     const { at } = segmentFor(prize.id, Math.random());
     // The pointer is at the top; the wheel turns until `at` is under it.
@@ -195,7 +205,7 @@ export function SpinScreen({
       to,
       // Fast start, long slow-down: the last slices crawl past. More turns take a little longer.
       { duration: reduceMotion ? 400 : SPIN_MS + (turns - TURNS) * 300, easing: REasing.bezier(0.12, 0.75, 0.15, 1) },
-      () => scheduleOnRN(landed, prize),
+      () => scheduleOnRN(landed, { prize, outfit, xp }),
     );
   }
 
@@ -362,7 +372,9 @@ export function SpinScreen({
       {oddsOpen && <OddsSheet ownsTheme={ownsTheme} onClose={() => setOddsOpen(false)} />}
       {won && (
         <PrizeReveal
-          prize={won}
+          prize={won.prize}
+          outfit={outfitById(won.outfit)}
+          xp={won.xp}
           ticketsLeft={tickets.tickets}
           onClose={() => setWon(null)}
           onAgain={() => {
@@ -372,6 +384,10 @@ export function SpinScreen({
           onWearTheme={() => {
             setWon(null);
             onWearTheme();
+          }}
+          onWearOutfit={(id) => {
+            setWon(null);
+            onWearOutfit(id);
           }}
         />
       )}
@@ -725,19 +741,32 @@ function Pointer({ scale, dark }: { scale: number; dark: boolean }) {
 
 // ---------- the win card ----------
 
+/** What a spin gave: the prize, and on an outfit slice the outfit (or the XP paid once its rarity is complete). */
+interface Won {
+  prize: WheelPrize;
+  outfit?: string;
+  xp?: number;
+}
+
 /** The prize card: rays in the prize's colour, sparks, the sticker flipping in, and COLLECT. */
 function PrizeReveal({
   prize,
+  outfit,
+  xp,
   ticketsLeft,
   onClose,
   onAgain,
   onWearTheme,
+  onWearOutfit,
 }: {
   prize: WheelPrize;
+  outfit?: Outfit;
+  xp?: number;
   ticketsLeft: number;
   onClose: () => void;
   onAgain: () => void;
   onWearTheme: () => void;
+  onWearOutfit: (id: string) => void;
 }) {
   const s = useStyles(makeStyles);
   const reduceMotion = useReduceMotion();
@@ -756,12 +785,19 @@ function PrizeReveal({
     return () => loop.stop();
   }, []);
 
-  const title = prize.theme ? t('Fortuna is yours!') : prize.id === JACKPOT.id ? t('Jackpot!') : big ? t('Lucky!') : t('You won');
+  const title = prize.theme ? t('Fortuna is yours!') : prize.id === JACKPOT.id ? t('Jackpot!') : outfit ? t('New outfit!') : big ? t('Lucky!') : t('You won');
   const desc = prize.theme
     ? t('A theme you can only win on this wheel. Gold coins, holo cards and stardust.')
     : prize.token
       ? t('Added to your bag. Use it whenever you like.')
-      : t('Added to your XP.');
+      : outfit
+        ? t('Added to your outfits. Find them in your bag, under Outfits.')
+        : prize.outfit
+          ? t('You already own every {rarity} outfit, so this pays XP instead.', { rarity: t(RARITY_LABEL[prize.outfit]) })
+          : t('Added to your XP.');
+  const wearsNew = useMemo(() => (outfit ? outfitDrawing({ [outfit.slot]: outfit.id }) : undefined), [outfit?.id]);
+  // Wearing it now replaces the Fortuna "Wear it now" button; outfits and the theme never come together.
+  const wear = prize.theme ? onWearTheme : outfit ? () => onWearOutfit(outfit.id) : undefined;
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
@@ -845,13 +881,13 @@ function PrizeReveal({
                   transform: [{ perspective: 600 }, { rotateY: show.interpolate({ inputRange: [0, 1], outputRange: ['180deg', '0deg'] }) }],
                 }}
               >
-                <PrizeSticker prize={prize} size={big ? 108 : 90} />
+                {outfit ? <Bizzy size={120} mood="excited" motion="bob" outfit={wearsNew} /> : <PrizeSticker prize={prize} size={big ? 108 : 90} />}
               </Animated.View>
-              <Text style={s.revealPrize}>{prizeLabel(prize)}</Text>
+              <Text style={s.revealPrize}>{outfit ? outfitName(outfit) : xp ? `+${t('{n} XP', { n: xp })}` : prizeLabel(prize)}</Text>
               <Text style={s.revealDesc}>{desc}</Text>
               {prize.theme && <ThemePreview />}
-              <GoldAction label={prize.theme ? t('Wear it now') : t('Collect')} onPress={prize.theme ? onWearTheme : onClose} />
-              {prize.theme ? (
+              <GoldAction label={wear ? t('Wear it now') : t('Collect')} onPress={wear ?? onClose} />
+              {wear && !(outfit && ticketsLeft > 0) ? (
                 <Pressable onPress={onClose} style={s.revealSecondary} accessibilityRole="button">
                   <Text style={s.revealSecondaryText}>{t('Later')}</Text>
                 </Pressable>

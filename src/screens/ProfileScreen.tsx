@@ -15,13 +15,14 @@ import { equippedLooks, newOfKind, type OwnedLooks } from '../inventory';
 import { pickPhoto } from '../photo';
 import { TrophyBadge, TrophyCabinet } from '../components/TrophyCabinet';
 import { type profileStats, type Settings, type xpMultiplier } from '../game';
-import { EMBLEM_TIERS, type EmblemStatus } from '../emblems';
+import { BizzyShowcase } from '../components/Wardrobe';
+import type { GameState } from '../game';
 import { showcaseTrophies, toggleShowcase, type TrophyStatus } from '../trophies';
 import { card, eyebrow, themed, useStyles, useTheme, FONTS, headingCase } from '../theme';
 import { WeekCard } from './ActivityScreen';
-import { brandFillSmall, brandInk, brandTextShadow, CountBadge, GradientText, LevelBadge, Sticker, StickerHeading, VIVID_HEAVY } from '../components/Vivid';
-import { AVATAR_DISCS, brandLine, categoryLook, EMBLEM_METALS, RARITY } from '../vivid';
-import { locale, num, t, tn } from '../i18n';
+import { brandFillSmall, brandInk, brandTextShadow, CountBadge, GradientText, LevelBadge, StickerHeading, VIVID_HEAVY } from '../components/Vivid';
+import { AVATAR_DISCS, brandLine, RARITY } from '../vivid';
+import { locale, num, t } from '../i18n';
 
 export function ProfileScreen({
   name,
@@ -34,7 +35,7 @@ export function ProfileScreen({
   season,
   fireTier,
   photo,
-  emblems,
+  bizzy,
   multiplier,
   achievements,
   rewards,
@@ -62,7 +63,8 @@ export function ProfileScreen({
   fireTier: number;
   /** The player's own picture, a data URI, if they set one. */
   photo?: string;
-  emblems: EmblemStatus[];
+  /** The game state and Bizzy's form, for his showcase card; tap opens his outfits. */
+  bizzy: { state: GameState; form: number; onOpen: () => void };
   /** What the next task today is multiplied by. */
   multiplier: ReturnType<typeof xpMultiplier>;
   achievements: AchievementStatus[];
@@ -183,6 +185,8 @@ export function ProfileScreen({
         <Stat label={t('Trophies')} value={`${earnedTrophies}/${trophies.length}`} />
       </View>
 
+      <BizzyShowcase state={bizzy.state} form={bizzy.form} onOpen={bizzy.onOpen} />
+
       <View style={s.segment} accessibilityRole="tablist">
         {(['awards', 'stats'] as const).map((v) => (
           <Pressable
@@ -206,11 +210,6 @@ export function ProfileScreen({
           </StickerHeading>
           <TrophyCabinet trophies={trophies} pinned={settings.showcase} onPin={(id) => onSettings({ showcase: toggleShowcase(settings.showcase, id) })} />
 
-          <StickerHeading glyph="Medal" grad={EMBLEM_METALS[2]} style={s.headingRow}>
-            <Text style={s.sectionTitle}>{t('Emblems')}</Text>
-            <Text style={s.small}>{t('{tiers} tasks', { tiers: EMBLEM_TIERS.map((tier) => `${t(tier.name)} ${tier.goal}`).join(' · ') })}</Text>
-          </StickerHeading>
-          <Emblems emblems={emblems} />
 
           <View style={s.headingRow}>
             <Achievements achievements={achievements} rewards={rewards} onClaim={onClaimAchievement} />
@@ -277,40 +276,6 @@ export function ProfileScreen({
   );
 }
 
-/** Earned emblems in their metal; the rest faint, with how far along they are. */
-function Emblems({ emblems }: { emblems: EmblemStatus[] }) {
-  const s = useStyles(makeStyles);
-  const [open, setOpen] = useState<string | null>(null);
-  const picked = emblems.find((e) => e.category === open);
-  return (
-    <View style={{ gap: 10 }}>
-      <View style={s.emblems}>
-        {emblems.map((e) => {
-          const glyph = categoryLook(e.category).glyph;
-          return (
-            <Pressable
-              key={e.category}
-              onPress={() => setOpen(open === e.category ? null : e.category)}
-              style={[s.emblem, open === e.category && s.emblemOpen]}
-              accessibilityRole="button"
-              accessibilityLabel={`${tn(e.done, '{area}: {n} task', '{area}: {n} tasks', { area: t(e.label) })}${e.tier ? `, ${t(EMBLEM_TIERS[e.tier - 1].name)}` : ''}`}
-            >
-              {e.tier ? <Sticker grad={EMBLEM_METALS[e.tier - 1]} glyph={glyph} size={42} /> : <Sticker grad={categoryLook(e.category)} glyph={glyph} size={42} dim />}
-            </Pressable>
-          );
-        })}
-      </View>
-      {picked && (
-        <Text style={s.small}>
-          {tn(picked.done, '{area}: {n} task', '{area}: {n} tasks', { area: t(picked.label) })}
-          {picked.tier ? ` · ${t('{tier} emblem', { tier: t(EMBLEM_TIERS[picked.tier - 1].name) })}` : ''}
-          {picked.next ? ` · ${t('{n} more for {tier}', { n: picked.next - picked.done, tier: t(EMBLEM_TIERS[picked.tier].name) })}` : ` · ${t('all emblems earned')}`}
-        </Text>
-      )}
-    </View>
-  );
-}
-
 function Stat({
   label,
   value,
@@ -373,9 +338,6 @@ const makeStyles = themed((c) => ({
   discs: { flexDirection: 'row', gap: 10, marginTop: 6 },
   disc: { padding: 2, borderRadius: 16, borderWidth: 1.5, borderColor: 'transparent' },
   discActive: { borderColor: brandLine(c) },
-  emblems: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  emblem: { width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'transparent' },
-  emblemOpen: { borderColor: brandLine(c) },
   name: { fontFamily: FONTS.serif, color: c.text, fontSize: 28, ...headingCase(c) },
   title: { fontFamily: FONTS.serifItalic, color: c.accent, fontSize: 17, marginTop: -2 },
   edit: { color: c.muted, fontSize: 16 },

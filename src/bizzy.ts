@@ -180,14 +180,28 @@ const EXTRA: Record<NonNullable<BizzyForm['extra']>, string> = {
   goggles:
     `<path d="M50 84 Q100 70 150 84" fill="none" stroke="#7A4A2A" stroke-width="4"/><g stroke="#7A4A2A" stroke-width="3.5" fill="#BFEAFF" fill-opacity=".85"><circle cx="86" cy="76" r="9"/><circle cx="114" cy="76" r="9"/></g>` +
     `<path d="M95 76 h10" stroke="#7A4A2A" stroke-width="3"/><circle cx="83" cy="73" r="2.4" fill="#fff"/><circle cx="111" cy="73" r="2.4" fill="#fff"/>`,
-  honey:
-    `<path d="M80 72 Q100 64 120 72 Q121 79 116 80 Q115 88 111 88 Q107 88 107 81 Q100 83 93 80 Q92 86 88 86 Q84 86 85 79 Q79 78 80 72Z" fill="#E8902A" opacity=".95"/>` +
-    `<path d="M100 146 l6.5 3.75 v7.5 l-6.5 3.75 l-6.5 -3.75 v-7.5Z" fill="#FFE29A" stroke="#B8651B" stroke-width="2"/>`,
+  honey: `<path d="M80 72 Q100 64 120 72 Q121 79 116 80 Q115 88 111 88 Q107 88 107 81 Q100 83 93 80 Q92 86 88 86 Q84 86 85 79 Q79 78 80 72Z" fill="#E8902A" opacity=".95"/>`,
   tiara: `<path d="M88 72 L92 62 L96 68 L100 58 L104 68 L108 62 L112 72Z" fill="#FFE29A" stroke="#C98A1E" stroke-width="1.5"/><circle cx="100" cy="64" r="2.2" fill="#7FD6FF"/>`,
   queen:
     `<path d="M83 74 L83 54 L91.5 64 L100 50 L108.5 64 L117 54 L117 74Z" fill="#FFD95A" stroke="#C98A1E" stroke-width="1.5"/>` +
     `<circle cx="100" cy="64" r="3" fill="#FF5C8A"/><circle cx="88" cy="68" r="1.8" fill="#7FD6FF"/><circle cx="112" cy="68" r="1.8" fill="#7FD6FF"/>`,
 };
+
+/** Honeyguard's badge: on his chest, so a neck outfit takes its place. */
+const HONEY_BADGE = `<path d="M100 146 l6.5 3.75 v7.5 l-6.5 3.75 l-6.5 -3.75 v-7.5Z" fill="#FFE29A" stroke="#B8651B" stroke-width="2"/>`;
+
+/**
+ * What he wears (outfits.ts): the drawing behind him (a cape) and in front of
+ * him (hats, glasses, neckwear), in the full-grown Bizzy's units, and which of
+ * his form's own extras an outfit covers: a hat takes the place of his tuft,
+ * goggles or crown, a neck piece of the Honeyguard badge, a cape of the
+ * Queen's cape.
+ */
+export interface BizzyOutfit {
+  back?: string;
+  front?: string;
+  covers?: { head?: boolean; neck?: boolean; back?: boolean };
+}
 
 /** Bizzy's ten forms, from the tiny Larva to the Queen. The Larva can evolve at level 2 already. */
 export const BIZZY_FORMS: BizzyForm[] = [
@@ -237,7 +251,11 @@ export function bizzyMiddle(form: number): number {
  * unless said otherwise). Ids carry the form, so different forms can share a
  * page; the same form draws the same gradients, so repeats don't matter.
  */
-export function bizzySvg(mood: BizzyMood = 'happy', shadow = true, { look, blink, form = 5, wings = true }: BizzyLook & { form?: number; wings?: boolean } = {}): string {
+export function bizzySvg(
+  mood: BizzyMood = 'happy',
+  shadow = true,
+  { look, blink, form = 5, wings = true, outfit }: BizzyLook & { form?: number; wings?: boolean; outfit?: BizzyOutfit } = {},
+): string {
   const f = bizzyFormOf(form);
   const g = `bzg${f.n}`;
   const c = `bzc${f.n}`;
@@ -256,18 +274,22 @@ export function bizzySvg(mood: BizzyMood = 'happy', shadow = true, { look, blink
       : f.stripes === 1
         ? `<g clip-path="url(#${c})"><path d="M44 134 Q100 118 156 134 L156 146 Q100 132 44 146Z" fill="${NAVY}" opacity=".55"/></g>`
         : `<g clip-path="url(#${c})"><path d="M44 130 Q100 114 156 130 L156 144 Q100 128 44 144Z" fill="${NAVY}"/><path d="M44 160 Q100 148 156 160 L156 172 Q100 160 44 172Z" fill="${NAVY}"/></g>`;
-  const cape = f.extra === 'queen' ? `<path d="M58 104 Q100 92 142 104 L160 182 Q100 196 40 182Z" fill="#6A3FC8"/><path d="M58 104 Q100 92 142 104" fill="none" stroke="#FFD95A" stroke-width="4"/>` : '';
+  const covers = outfit?.covers ?? {};
+  const cape = f.extra === 'queen' && !covers.back ? `<path d="M58 104 Q100 92 142 104 L160 182 Q100 196 40 182Z" fill="#6A3FC8"/><path d="M58 104 Q100 92 142 104" fill="none" stroke="#FFD95A" stroke-width="4"/>` : '';
   const body =
     (wings ? wingsOf(f, 'left') + wingsOf(f, 'right') : '') +
     feelers +
     cape +
+    (outfit?.back ?? '') +
     `<ellipse cx="100" cy="122" rx="52" ry="54" fill="url(#${g})"/>` +
     stripes +
     `<path d="M66 96 Q74 82 90 78" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" opacity=".55"/>` +
-    (f.extra ? EXTRA[f.extra] : '') +
+    (f.extra && !covers.head ? EXTRA[f.extra] : '') +
+    (f.extra === 'honey' && !covers.neck ? HONEY_BADGE : '') +
     face(mood, look, blink) +
     `<path d="M100 176 L94 186 L106 186Z" fill="${NAVY}"/>` +
-    (mood === 'wave' ? waveArms() : '');
+    (mood === 'wave' ? waveArms() : '') +
+    (outfit?.front ?? '');
   // Honeyguard glows amber, the Queen violet.
   const glow = f.extra === 'queen' ? ['#B9A6FF', 88, 110] : f.body === 'amber' ? ['#FFB347', 78, 116] : undefined;
   return (
