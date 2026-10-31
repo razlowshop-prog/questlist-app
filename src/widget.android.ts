@@ -21,6 +21,9 @@ type Drawing = typeof import('./TodayWidget');
  */
 const WIDGET_ON = false;
 
+/** Whether this build has a home screen widget (the tour only shows how to add it then). */
+export const HAS_WIDGET = WIDGET_ON;
+
 let loaded: { lib: WidgetLib; drawing: Drawing } | null | undefined;
 
 function widgetParts() {

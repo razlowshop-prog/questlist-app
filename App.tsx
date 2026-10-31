@@ -105,7 +105,7 @@ import { bagChanged, bagSnapshot, newInBag, type BagItem } from './src/bag';
 import { claimSeason, seasonStatus } from './src/seasons';
 import { frameName } from './src/cosmetics';
 import { askReminderPermission, REMINDERS_SUPPORTED, syncReminders } from './src/reminders';
-import { updateWidget } from './src/widget';
+import { HAS_WIDGET, updateWidget } from './src/widget';
 import { CrashGuard } from './src/components/CrashScreen';
 import { widgetData } from './src/widgetData';
 import { reviewDue } from './src/review';
@@ -1070,7 +1070,7 @@ function Succedo() {
             )}
             {state.settings.tour === 'pending' && !celebration && (
               <AppTour
-                steps={tourSteps({ widget: Platform.OS !== 'ios' })}
+                steps={tourSteps({ widget: HAS_WIDGET })}
                 targets={tourTargets}
                 streak={streakInfo}
                 onTab={openTab}
