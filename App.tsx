@@ -58,6 +58,7 @@ import { shownTitle } from './src/library';
 import { Celebration, type CelebrationEvent } from './src/components/Celebration';
 import { EvolveScene } from './src/components/Evolve';
 import { BizzyFormContext, BizzyOutfitContext } from './src/components/Bizzy';
+import { dayTurn } from './src/flight';
 import { outfitById, outfitDrawing, outfitName, toggleOutfit, wornOutfits } from './src/outfits';
 import { bizzyFormOf } from './src/bizzy';
 import { LevelDetails } from './src/components/LevelDetails';
@@ -439,7 +440,8 @@ function Succedo() {
       found.push({ kind: 'perfect' });
     }
     if (milestone.days) found.push({ kind: 'streak', days: milestone.days });
-    if (found.length) setTimeout(() => setMoments((m) => [...m, ...found]), 900);
+    // A perfect day waits for Bizzy's honey check mark on Today (TodayMoments) to finish.
+    if (found.length) setTimeout(() => setMoments((m) => [...m, ...found]), perfect.earned ? 3600 : 900);
     // The perfect day bonus is celebrated on its own, so it's left out of the task's "+XP".
     const gained = totalXp(change) - xp - (perfect.earned ? PERFECT_DAY_XP : 0);
     const before = levelInfo(xp);
@@ -868,6 +870,12 @@ function Succedo() {
                   adding={adding}
                   onCloseAdd={() => setAdding(false)}
                   onQuoteSide={(side) => setState((s) => updateSettings(s, { quoteSide: { side, day: today } }))}
+                  hello={
+                    // Once a day, from the second day on (the first is the welcome); hatch and hive take turns.
+                    loaded && state.settings.helloDay !== today && state.joinedAt && state.joinedAt < today
+                      ? { kind: dayTurn(today, 2) ? 'hive' : 'hatch', onStart: () => setState((s) => updateSettings(s, { helloDay: today })) }
+                      : undefined
+                  }
                   focusBar={focusTask && state.focus && !focusOpen ? <FocusBar task={focusTask} session={state.focus} onOpen={() => setFocusOpen(true)} /> : undefined}
                 />
               )}

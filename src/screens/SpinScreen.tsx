@@ -1,9 +1,9 @@
 import { buzz } from '../haptics';
 import { sound } from '../sounds';
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Animated, Easing, Modal, PanResponder, Pressable, ScrollView, Text, useWindowDimensions, View, type StyleProp, type TextStyle } from 'react-native';
+import { Animated, Easing, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type StyleProp, type TextStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Reanimated, { cancelAnimation, Easing as REasing, useAnimatedReaction, useAnimatedStyle, useSharedValue, withRepeat, withTiming, type SharedValue } from 'react-native-reanimated';
+import Reanimated, { cancelAnimation, Easing as REasing, useAnimatedReaction, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withTiming, type SharedValue } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import Svg, { Circle, Defs, G, LinearGradient, Mask, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { CoinCheck, CoinShower, GOLD, GoldText, HOLO, HoloBorder, ShimmerBar, Star4, StarRule } from '../components/Fortuna';
@@ -28,6 +28,7 @@ import {
 } from '../wheel';
 import type { WheelSpin } from '../game';
 import { Bizzy } from '../components/Bizzy';
+import { FlyingBizzy, useFlyer } from '../components/fx/Flyer';
 import { outfitById, outfitDrawing, outfitName, OUTFIT_XP, RARITY_LABEL, type Outfit } from '../outfits';
 import { N, t, tn } from '../i18n';
 
@@ -779,7 +780,8 @@ function PrizeReveal({
 
   useEffect(() => {
     if (reduceMotion) return;
-    Animated.spring(show, { toValue: 1, friction: 6, tension: 60, useNativeDriver: false }).start();
+    // A jackpot first slams JACKPOT! onto the screen with Bizzy zooming in; then the card rises.
+    Animated.sequence([Animated.delay(mythic ? 850 : 0), Animated.spring(show, { toValue: 1, friction: 6, tension: 60, useNativeDriver: false })]).start();
     const loop = Animated.loop(Animated.timing(spinRays, { toValue: 1, duration: 9000, easing: Easing.linear, useNativeDriver: false }));
     loop.start();
     return () => loop.stop();
@@ -803,6 +805,7 @@ function PrizeReveal({
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={s.revealBackdrop} onPress={onClose} accessibilityLabel={t('Close')} />
       {mythic && <CoinShower count={30} />}
+      {mythic && !reduceMotion && <JackpotIntro />}
       <SafeAreaView style={s.revealWrap} pointerEvents="box-none">
         <Animated.View
           style={[
@@ -903,6 +906,44 @@ function PrizeReveal({
         </Animated.View>
       </SafeAreaView>
     </Modal>
+  );
+}
+
+/**
+ * Jackpot moment (design "Gold rain", picked 2026-10-29): a gold flash,
+ * JACKPOT! slams down with a shake while the coins rain (CoinShower), and
+ * Bizzy zooms in cheering above the prize card.
+ */
+function JackpotIntro() {
+  const [room, setRoom] = useState<{ w: number; h: number }>();
+  const flash = useSharedValue(0);
+  const slam = useSharedValue(0);
+  const shake = useSharedValue(0);
+  const flyer = useFlyer('excited');
+  useEffect(() => {
+    if (!room) return;
+    const { w, h } = room;
+    flash.value = withSequence(withTiming(0.85, { duration: 120 }), withTiming(0, { duration: 260 }));
+    slam.value = withTiming(1, { duration: 420, easing: REasing.in(REasing.quad) });
+    shake.value = withDelay(400, withSequence(...[8, -7, 5, -3, 0].map((x) => withTiming(x, { duration: 55 }))));
+    flyer.place(-40, h * 0.42, 0.6);
+    flyer.fly([[[-40, h * 0.42], [80, h * 0.22], [w * 0.55, h * 0.5], [w * 0.8, h * 0.2]]], 900, { scale: 1 });
+  }, [room]);
+  const flashStyle = useAnimatedStyle(() => ({ opacity: flash.value }));
+  const slamStyle = useAnimatedStyle(() => {
+    // 2.6× and tilted, down to a little under size at 70 %, then settles.
+    const v = slam.value;
+    const scale = v < 0.7 ? 2.6 - (1.68 * v) / 0.7 : 0.92 + (0.08 * (v - 0.7)) / 0.3;
+    return { opacity: Math.min(1, v / 0.7), transform: [{ translateX: shake.value }, { scale }, { rotate: `${-8 + 5 * Math.min(1, v / 0.7)}deg` }] };
+  });
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none" onLayout={(e) => setRoom({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
+      <Reanimated.View style={[StyleSheet.absoluteFill, { backgroundColor: '#FFE9A8' }, flashStyle]} />
+      <Reanimated.View style={[{ position: 'absolute', left: 0, right: 0, top: room ? room.h * 0.08 : 60, alignItems: 'center' }, slamStyle]}>
+        <GoldText style={{ fontFamily: CINZEL, fontSize: 46, lineHeight: 56, letterSpacing: 2 }}>{t('JACKPOT!')}</GoldText>
+      </Reanimated.View>
+      <FlyingBizzy flyer={flyer} size={76} />
+    </View>
   );
 }
 

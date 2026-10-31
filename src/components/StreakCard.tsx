@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { useEffect, useRef, useState, type Ref } from 'react';
+import { Pressable, Text, View, type HostInstance } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { nextBizzyForm, type BizzyMood } from '../bizzy';
 import type { Line, TalkContext } from '../bizzyTalk';
@@ -39,7 +39,22 @@ export function StreakCard({
   week: WeekDot[];
   multiplier: ReturnType<typeof xpMultiplier>;
   /** Bizzy's mood, a count that goes up each time he should jump for joy, his form, the player's level, what Evolve does, what he knows about the day, and his taps so far. */
-  bizzy?: { mood: BizzyMood; cheer: number; form: number; level: number; onEvolve: () => void; talk: () => TalkContext; taps?: number; onTap?: () => void };
+  bizzy?: {
+    mood: BizzyMood;
+    cheer: number;
+    form: number;
+    level: number;
+    onEvolve: () => void;
+    talk: () => TalkContext;
+    taps?: number;
+    onTap?: () => void;
+    /** His spot, for the moments that fly him there (TodayMoments). */
+    spotRef?: Ref<HostInstance>;
+    /** Away while a moment flies him about. */
+    away?: boolean;
+    /** Something he says on his own, e.g. "Good morning!" as he lands; a new id says it again. */
+    says?: { text: string; id: number };
+  };
   onPress: () => void;
 }) {
   const s = useStyles(makeStyles);
@@ -55,6 +70,10 @@ export function StreakCard({
     clearTimeout(hush.current);
     hush.current = setTimeout(() => setSaid(undefined), Math.min(5000, 1600 + 50 * line.text.length));
   };
+  const says = bizzy?.says;
+  useEffect(() => {
+    if (says) say({ key: 'moment', text: says.text });
+  }, [says?.id]);
   const talking = useSharedValue(0);
   useEffect(() => {
     talking.value = withTiming(said ? 1 : 0, { duration: 180 });
@@ -102,7 +121,9 @@ export function StreakCard({
           </View>
           {bizzy && (
             <View style={s.corner}>
-              <TapBizzy mood={bizzy.mood} cheer={bizzy.cheer} size={68} look={[-2, 1]} talk={bizzy.talk} onSay={say} taps={bizzy.taps} onTap={bizzy.onTap} />
+              <View ref={bizzy.spotRef} style={{ opacity: bizzy.away ? 0 : 1 }}>
+                <TapBizzy mood={bizzy.mood} cheer={bizzy.cheer} size={68} look={[-2, 1]} talk={bizzy.talk} onSay={say} taps={bizzy.taps} onTap={bizzy.onTap} />
+              </View>
               <EvolveNext form={bizzy.form} level={bizzy.level} onEvolve={bizzy.onEvolve} />
             </View>
           )}

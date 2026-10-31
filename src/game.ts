@@ -266,6 +266,8 @@ export interface Settings {
   guideHidden?: boolean;
   /** How many of each bag item the player had when they last looked in the bag (bag.ts newInBag). */
   bagSeen?: Partial<Record<string, number>>;
+  /** The day Bizzy last said good morning (the morning hello plays on the first open of a day). */
+  helloDay?: string;
   /** Won looks the player has already seen, as "kind:id" keys (inventory.ts newLooks). */
   seenLooks?: string[];
   /** Frames and titles owned before they had "new" badges were marked seen (inventory.ts seedProfileLooks). */

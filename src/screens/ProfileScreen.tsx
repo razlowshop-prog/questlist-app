@@ -1,6 +1,7 @@
 import { Cog } from 'lucide-react-native';
-import { useState } from 'react';
-import { Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { Platform, Pressable, ScrollView, Text, TextInput, View, type HostInstance } from 'react-native';
+import { ProfileBizzy } from '../components/ProfileBizzy';
 import type { activitySummary } from '../activity';
 import type { AchievementStatus, Reward } from '../achievements';
 import { Achievements } from '../components/Achievements';
@@ -84,6 +85,11 @@ export function ProfileScreen({
 }) {
   const s = useStyles(makeStyles);
   const [editing, setEditing] = useState(false);
+  // Where Bizzy flies about on the profile (ProfileBizzy).
+  const heroRef = useRef<HostInstance>(null);
+  const frameRef = useRef<HostInstance>(null);
+  const pillRef = useRef<HostInstance>(null);
+  const trophyRefs = useRef<(HostInstance | null)[]>([]);
   const [draft, setDraft] = useState(name);
   const [view, setView] = useState<'awards' | 'stats'>('awards');
   const [sheet, setSheet] = useState<'look' | null>(null);
@@ -116,10 +122,11 @@ export function ProfileScreen({
 
   return (
     <ScrollView contentContainerStyle={s.content}>
-      <View style={s.hero}>
+      <View style={s.hero} ref={heroRef}>
         <Pressable
+          ref={frameRef}
           onPress={() => setSheet('look')}
-          style={{ marginVertical: frameReach(frame, 92) }}
+          style={{ marginVertical: frameReach(frame, 92), zIndex: 2 }}
           accessibilityRole="button"
           accessibilityLabel={freshHere ? t('Change your photo, colour, frame and title, {n} new', { n: freshHere }) : t('Change your photo, colour, frame and title')}
         >
@@ -154,7 +161,7 @@ export function ProfileScreen({
         )}
         {title ? <Text style={s.title}>{t(title)}</Text> : null}
         <View style={s.levelRow}>
-          <View style={s.levelPill}>
+          <View style={s.levelPill} ref={pillRef}>
             <LevelBadge level={stats.level} size={26} />
             <Text style={s.levelPillText}>
               {t('Level {n}', { n: stats.level })} · {stats.rank}
@@ -164,8 +171,14 @@ export function ProfileScreen({
         </View>
         {showcase.length > 0 && (
           <View style={s.showcase} accessibilityLabel={t('Pinned trophies: {names}', { names: showcase.map((tr) => t(tr.def.name)).join(', ') })}>
-            {showcase.map((tr) => (
-              <View key={tr.def.id} style={s.showcaseItem}>
+            {showcase.map((tr, i) => (
+              <View
+                key={tr.def.id}
+                style={s.showcaseItem}
+                ref={(r) => {
+                  trophyRefs.current[i] = r;
+                }}
+              >
                 <TrophyBadge trophy={tr} size={44} />
                 <Text style={s.showcaseName} numberOfLines={1}>
                   {t(tr.def.name)}
@@ -175,6 +188,7 @@ export function ProfileScreen({
           </View>
         )}
         {memberSince ? <Text style={s.small}>{t('Member since {date}', { date: memberSince })}</Text> : null}
+        <ProfileBizzy root={heroRef} frame={frameRef} pill={pillRef} trophies={trophyRefs} />
       </View>
 
       <View style={s.grid}>

@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronUp, Plus, Sparkles, X } from 'lucide-react-native';
 import Animated, { LinearTransition, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { ComboPill } from '../components/Moments';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View, type HostInstance } from 'react-native';
+import { TodayMoment, type TodayMomentKind } from '../components/TodayMoments';
+import { useReduceMotion } from '../components/FireAura';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Chip } from '../components/Chip';
 import { QuoteFlip } from '../components/QuoteFlip';
@@ -79,6 +81,7 @@ export function TodayScreen({
   adding,
   onCloseAdd,
   onQuoteSide,
+  hello,
 }: {
   state: GameState;
   tasks: Task[];
@@ -116,6 +119,8 @@ export function TodayScreen({
   onCloseAdd: () => void;
   /** The quote card at the top was flipped. */
   onQuoteSide: (side: QuoteSide) => void;
+  /** The first open of the day: Bizzy's morning hello to play (it marks the day as greeted when it starts). */
+  hello?: { kind: 'hatch' | 'hive'; onStart: () => void };
 }) {
   const s = useStyles(makeStyles);
   const c = useTheme();
@@ -248,11 +253,36 @@ export function TodayScreen({
       evolveAt: nextBizzyForm(form)?.level,
     };
   };
-  // He jumps each time another task of today gets done.
+  // Big moments over the screen (morning hello, all done); he flies about and lands back in his spot.
+  const reduceMotion = useReduceMotion();
+  const spot = useRef<HostInstance>(null);
+  const [moment, setMoment] = useState<TodayMomentKind | null>(null);
+  const [says, setSays] = useState<{ text: string; id: number }>();
+  const [landed, setLanded] = useState(false);
+  const play = (kind: TodayMomentKind, line: string) => {
+    if (reduceMotion) setSays({ text: line, id: Date.now() });
+    else setMoment(kind);
+  };
+  const morning = t('Good morning!');
+  const greeting = tasks.length - doneCount > 0 ? tn(tasks.length - doneCount, 'Morning! {n} task today', 'Morning! {n} tasks today') : morning;
+  useEffect(() => {
+    if (!hello || !loaded) return;
+    hello.onStart();
+    play(hello.kind, hello.kind === 'hatch' ? morning : greeting);
+  }, [!!hello, loaded]);
+  // He jumps each time another task of today gets done, and when the last one is, he draws a big honey check (once a day).
   const [cheer, setCheer] = useState(0);
   const lastDone = useRef(doneCount);
+  const allDoneOn = useRef('');
   useEffect(() => {
-    if (doneCount > lastDone.current) setCheer((n) => n + 1);
+    if (doneCount > lastDone.current) {
+      setCheer((n) => n + 1);
+      if (doneCount === tasks.length && allDoneOn.current !== today) {
+        allDoneOn.current = today;
+        // After the ticked row's own finish animation.
+        setTimeout(() => play('check', t('All done today!')), 650);
+      }
+    }
     lastDone.current = doneCount;
   }, [doneCount]);
   // A ticked task plays its theme's finish animation, then leaves the list for "Done today".
@@ -328,7 +358,7 @@ export function TodayScreen({
               {/* Where the combo pill pops up: the header starts below the list's top padding. */}
               <View onLayout={(e) => (comboY.value = HEADER_TOP + e.nativeEvent.layout.y)} />
 
-              <StreakCard streak={streak} week={weekDots(state, today)} multiplier={multiplier} bizzy={{ mood, cheer, form: bizzyFormOf(state.bizzyForm).n, level: levelInfo(totalXp(state)).level, onEvolve, talk, taps: state.bizzyTaps ?? 0, onTap: onTapBizzy }} onPress={onOpenStreak} />
+              <StreakCard streak={streak} week={weekDots(state, today)} multiplier={multiplier} bizzy={{ mood, cheer, form: bizzyFormOf(state.bizzyForm).n, level: levelInfo(totalXp(state)).level, onEvolve, talk, taps: state.bizzyTaps ?? 0, onTap: onTapBizzy, spotRef: spot, away: !!moment && !landed, says }} onPress={onOpenStreak} />
               {tokenStrip}
               {recap}
               {focusBar}
@@ -398,6 +428,21 @@ export function TodayScreen({
           renderItem={({ item, index }) => row(item, index)}
         />
         {combo && <ComboPill count={combo.count} play={combo.play} style={comboStyle} />}
+        {moment && (
+          <TodayMoment
+            kind={moment}
+            spot={spot.current}
+            greeting={moment === 'hatch' ? morning : greeting}
+            onLand={(line) => {
+              setLanded(true);
+              setSays({ text: line, id: Date.now() });
+            }}
+            onDone={() => {
+              setMoment(null);
+              setLanded(false);
+            }}
+          />
+        )}
       </View>
 
       <ConfirmSheet
