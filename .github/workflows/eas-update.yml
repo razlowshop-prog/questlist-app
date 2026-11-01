@@ -1,0 +1,39 @@
+# Sends every change merged into main to the test builds on phones, over the air
+# (Expo Updates, set up 2026-11-01): reopen the app and the new version loads.
+# Changes to native parts (new modules, the widget) still need a new build;
+# the runtime fingerprint makes sure an update only reaches builds it fits.
+# Needs the repository secret EXPO_TOKEN; without it this does nothing.
+name: Update test builds
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - name: No Expo token yet
+        if: env.EXPO_TOKEN == ''
+        run: echo "Add the EXPO_TOKEN repository secret to send updates."
+      - uses: actions/checkout@v4
+        if: env.EXPO_TOKEN != ''
+      - uses: actions/setup-node@v4
+        if: env.EXPO_TOKEN != ''
+        with:
+          node-version: 22
+          cache: npm
+      - uses: expo/expo-github-action@v8
+        if: env.EXPO_TOKEN != ''
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: npm ci
+        if: env.EXPO_TOKEN != ''
+      - name: Publish the update
+        if: env.EXPO_TOKEN != ''
+        run: eas update --channel preview --environment preview --auto --non-interactive
+        env:
+          # Same as the preview build (eas.json), so the test tools stay.
+          EXPO_PUBLIC_DEV_TOOLS: '1'
