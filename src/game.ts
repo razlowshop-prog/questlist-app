@@ -335,6 +335,8 @@ export interface Settings {
   seenLooks?: string[];
   /** Frames and titles owned before they had "new" badges were marked seen (inventory.ts seedProfileLooks). */
   profileLooksSeeded?: boolean;
+  /** Outfits owned before they had "new" badges were marked seen (inventory.ts seedOutfitLooks). */
+  outfitLooksSeeded?: boolean;
   /** Day the last backup file was saved (backup.ts). */
   lastBackup?: string;
   /** The day the quote of the day last greeted the player on opening the app (quotes.ts quoteDue). */

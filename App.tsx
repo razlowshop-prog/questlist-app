@@ -69,7 +69,7 @@ import { quoteDue, quoteOfTheDay } from './src/quotes';
 import { QuoteSplash } from './src/components/QuoteSplash';
 import { UpdateSplash, useStartCheck } from './src/components/UpdateSplash';
 import { useAppUpdate } from './src/appUpdate';
-import { outfitById, outfitDrawing, outfitName, toggleOutfit, wornOutfits } from './src/outfits';
+import { outfitById, outfitDrawing, outfitName, ownedOutfits, toggleOutfit, wornOutfits } from './src/outfits';
 import { bizzyFormOf } from './src/bizzy';
 import { LevelDetails } from './src/components/LevelDetails';
 import { LevelRewards } from './src/components/LevelRewards';
@@ -107,7 +107,7 @@ import { AvatarDiscContext, AvatarPhotoContext } from './src/components/ProfileF
 import { FocusBar, FocusTimer } from './src/components/FocusTimer';
 import { focusBonus, msUntilFocusDone, pauseFocus, resumeFocus, setFocusGoal, startFocus } from './src/focus';
 import { CelebrationContext } from './src/components/TaskRow';
-import { equippedLooks, isProfileLook, lookKeys, markLooksSeen, newLooks, ownedLooks, seedProfileLooks } from './src/inventory';
+import { equippedLooks, isProfileLook, lookKeys, markLooksSeen, newLooks, ownedLooks, seedOutfitLooks, seedProfileLooks } from './src/inventory';
 import { bagChanged, bagSnapshot, newInBag, type BagItem } from './src/bag';
 import { claimSeason, seasonStatus } from './src/seasons';
 import { frameName } from './src/cosmetics';
@@ -361,9 +361,10 @@ function Succedo() {
   // Badges show only what is new: items added since the bag was opened, looks won but not seen yet.
   const bagCounts: Record<BagItem, number> = { ticket: tickets.tickets, ...tokens };
   const bagNew = newInBag(bagCounts, state.settings.bagSeen);
+  const outfitsOwned = useMemo(() => ownedOutfits(state), [state.completions, state.tasks, state.wheelSpins]);
   const allLookKeys = useMemo(
-    () => lookKeys(THEMES.filter((t) => t.reward && unlockedThemes.has(t.id)).map((t) => t.id), owned),
-    [unlockedThemes, owned],
+    () => lookKeys(THEMES.filter((t) => t.reward && unlockedThemes.has(t.id)).map((t) => t.id), owned, outfitsOwned),
+    [unlockedThemes, owned, outfitsOwned],
   );
   const freshLooks = useMemo(() => newLooks(allLookKeys, state.settings.seenLooks), [allLookKeys, state.settings.seenLooks]);
   // Frames and titles are worn on the Profile, every other look is picked in the bag (Theme tab).
@@ -373,15 +374,19 @@ function Succedo() {
   const bagKey = JSON.stringify(bagSnapshot(bagCounts));
   // Players from before the badges start with everything seen, so only what comes next is new.
   useEffect(() => {
-    if (!loaded || (state.settings.seenLooks && state.settings.bagSeen && state.settings.profileLooksSeeded)) return;
-    setState((s) =>
-      updateSettings(s, {
-        seenLooks: s.settings.seenLooks ? (s.settings.profileLooksSeeded ? s.settings.seenLooks : seedProfileLooks(s.settings.seenLooks, allLookKeys)) : allLookKeys,
+    if (!loaded || (state.settings.seenLooks && state.settings.bagSeen && state.settings.profileLooksSeeded && state.settings.outfitLooksSeeded)) return;
+    setState((s) => {
+      let seen = s.settings.seenLooks;
+      if (seen && !s.settings.profileLooksSeeded) seen = seedProfileLooks(seen, allLookKeys);
+      if (seen && !s.settings.outfitLooksSeeded) seen = seedOutfitLooks(seen, allLookKeys);
+      return updateSettings(s, {
+        seenLooks: seen ?? allLookKeys,
         profileLooksSeeded: true,
+        outfitLooksSeeded: true,
         bagSeen: s.settings.bagSeen ?? bagSnapshot(bagCounts),
-      }),
-    );
-  }, [loaded, state.settings.seenLooks, state.settings.bagSeen, state.settings.profileLooksSeeded]);
+      });
+    });
+  }, [loaded, state.settings.seenLooks, state.settings.bagSeen, state.settings.profileLooksSeeded, state.settings.outfitLooksSeeded]);
   // Looking in the bag clears its badge, and keeps it clear while items are used there.
   useEffect(() => {
     if (loaded && page === 'inventory' && bagChanged(bagCounts, state.settings.bagSeen)) {

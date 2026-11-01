@@ -101,8 +101,9 @@ export function InventoryScreen({
   const freshCelebrations = newOfKind(freshLooks, 'celebration');
   const freshFlames = newOfKind(freshLooks, 'flame');
   const freshLooksHere = freshThemes.size + freshCelebrations.size + freshFlames.size;
+  const freshOutfits = newOfKind(freshLooks, 'outfit');
   // New looks and nothing else new: open on Theme, where they are.
-  const [tab, setTab] = useState<'bag' | 'customize' | 'outfits'>(startTab ?? (freshLooksHere > 0 ? 'customize' : 'bag'));
+  const [tab, setTab] = useState<'bag' | 'customize' | 'outfits'>(startTab ?? (freshLooksHere > 0 ? 'customize' : freshOutfits.size > 0 ? 'outfits' : 'bag'));
   const counts: Record<BagItem, number> = { ticket: tickets, ...tokenCounts(state) };
   const capacity = bagCapacity(level);
   const { slots, waiting } = layoutBag(counts, capacity);
@@ -163,10 +164,13 @@ export function InventoryScreen({
           style={[s.segmentItem, tab === v && s.segmentActive]}
           accessibilityRole="tab"
           accessibilityState={{ selected: tab === v }}
-          accessibilityLabel={v === 'customize' && freshLooksHere ? t('Theme, {n} new', { n: freshLooksHere }) : TAB_NAMES[v]()}
+          accessibilityLabel={
+            v === 'customize' && freshLooksHere ? t('Theme, {n} new', { n: freshLooksHere }) : v === 'outfits' && freshOutfits.size ? t('Outfits, {n} new', { n: freshOutfits.size }) : TAB_NAMES[v]()
+          }
         >
           <Text style={[s.segmentText, tab === v && s.segmentTextActive]}>{TAB_NAMES[v]()}</Text>
           {v === 'customize' && <CountBadge count={freshLooksHere} style={s.segmentBadge} />}
+          {v === 'outfits' && <CountBadge count={freshOutfits.size} style={s.segmentBadge} />}
         </Pressable>
       ))}
     </View>
@@ -176,7 +180,7 @@ export function InventoryScreen({
     return (
       <ScrollView contentContainerStyle={s.content}>
         {tabs}
-        <Wardrobe state={state} form={bizzyForm} onToggle={onToggleOutfit} />
+        <Wardrobe state={state} form={bizzyForm} onToggle={onToggleOutfit} fresh={{ ids: freshOutfits, onSeen: (id) => onSeenLook(`outfit:${id}`) }} />
       </ScrollView>
     );
   }

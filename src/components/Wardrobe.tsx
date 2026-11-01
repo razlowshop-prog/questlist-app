@@ -7,6 +7,7 @@ import { card, themed, useStyles } from '../theme';
 import { N, t } from '../i18n';
 import { Bizzy } from './Bizzy';
 import { Chip } from './Chip';
+import { CountBadge } from './Vivid';
 import { RARITY_COLORS } from './PrizeSticker';
 
 /** Outfit rarity (1 Rare, 2 Epic, 3 Legendary) in the rewards layer's colours. */
@@ -36,7 +37,18 @@ function howToGet(outfit: Outfit, progress?: number): string {
  * rarest first; tap one to put it on or take it off. The rest are faded and
  * say how to get them when tapped.
  */
-export function Wardrobe({ state, form, onToggle }: { state: GameState; form: number; onToggle: (id: string) => void }) {
+export function Wardrobe({
+  state,
+  form,
+  onToggle,
+  fresh,
+}: {
+  state: GameState;
+  form: number;
+  onToggle: (id: string) => void;
+  /** Outfits won but not looked at yet: a "1" badge each until tapped (asked 2026-11-01, like the Theme tab). */
+  fresh?: { ids: Set<string>; onSeen: (id: string) => void };
+}) {
   const s = useStyles(makeStyles);
   const [slot, setSlot] = useState<OutfitSlot | 'all'>('all');
   const [hint, setHint] = useState<{ outfit: Outfit; text: string } | null>(null);
@@ -95,6 +107,8 @@ export function Wardrobe({ state, form, onToggle }: { state: GameState; form: nu
                   outfit={x.outfit}
                   owned={x.owned}
                   on={worn[x.outfit.slot] === x.outfit.id}
+                  isNew={x.owned && !!fresh?.ids.has(x.outfit.id)}
+                  onSeen={() => fresh?.onSeen(x.outfit.id)}
                   onPress={() => {
                     if (x.owned) {
                       setHint(null);
@@ -113,18 +127,36 @@ export function Wardrobe({ state, form, onToggle }: { state: GameState; form: nu
 }
 
 /** One outfit: Bizzy wearing just that piece, its name and a rarity line. */
-const Item = memo(function Item({ outfit, owned, on, onPress }: { outfit: Outfit; owned: boolean; on: boolean; onPress: () => void }) {
+const Item = memo(function Item({
+  outfit,
+  owned,
+  on,
+  isNew,
+  onSeen,
+  onPress,
+}: {
+  outfit: Outfit;
+  owned: boolean;
+  on: boolean;
+  isNew?: boolean;
+  onSeen?: () => void;
+  onPress: () => void;
+}) {
   const s = useStyles(makeStyles);
   const piece = useMemo(() => outfitDrawing({ [outfit.slot]: outfit.id }), [outfit.id]);
   const name = outfitName(outfit);
   const rarity = t(RARITY_LABEL[outfit.rarity]);
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => {
+        if (isNew) onSeen?.();
+        onPress();
+      }}
+      onHoverIn={isNew ? onSeen : undefined}
       style={[s.item, on && { borderColor: OUTFIT_COLORS[outfit.rarity], borderWidth: 2 }]}
       accessibilityRole="button"
       accessibilityState={{ selected: on, disabled: !owned }}
-      accessibilityLabel={`${name}, ${rarity}${owned ? (on ? `, ${t('wearing')}` : '') : `, ${t('not won yet')}`}`}
+      accessibilityLabel={`${name}, ${rarity}${isNew ? `, ${t('new')}` : ''}${owned ? (on ? `, ${t('wearing')}` : '') : `, ${t('not won yet')}`}`}
     >
       <View style={{ opacity: owned ? 1 : 0.28 }}>
         <Bizzy size={54} motion="none" flap={false} outfit={piece} />
@@ -134,6 +166,7 @@ const Item = memo(function Item({ outfit, owned, on, onPress }: { outfit: Outfit
         {name}
       </Text>
       <View style={[s.rarity, { backgroundColor: OUTFIT_COLORS[outfit.rarity] }]} />
+      {isNew && <CountBadge count={1} style={s.newBadge} />}
     </Pressable>
   );
 });
@@ -150,6 +183,7 @@ const makeStyles = themed((c) => ({
   lock: { position: 'absolute', top: 18, left: 0, right: 0, textAlign: 'center', color: c.text, fontSize: 20, fontWeight: '800' },
   name: { color: c.muted, fontSize: 10.5, lineHeight: 12.5, height: 25, textAlign: 'center', paddingHorizontal: 2 },
   rarity: { position: 'absolute', left: 8, right: 8, bottom: 3, height: 3, borderRadius: 3 },
+  newBadge: { position: 'absolute', top: -6, right: -6, zIndex: 2 },
   hint: { ...card(c), padding: 12, gap: 3 },
   hintTitle: { color: c.text, fontSize: 14, fontWeight: '800' },
   hintText: { color: c.muted, fontSize: 13, lineHeight: 18 },

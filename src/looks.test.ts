@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { isProfileLook, lookKeys, markLooksSeen, newLooks, newOfKind, seedProfileLooks } from './inventory.ts';
+import { isProfileLook, lookKeys, markLooksSeen, newLooks, newOfKind, seedOutfitLooks, seedProfileLooks } from './inventory.ts';
 
 test('won looks are new until seen; the free ones never are', () => {
   const keys = lookKeys(['forest'], { flames: ['classic', 'glow'], celebrations: ['classic'] });
@@ -36,4 +36,14 @@ test('players from before the profile badges start with their frames and titles 
   // The next frame won is new.
   const later = lookKeys(['forest'], { flames: ['classic', 'glow'], celebrations: ['classic'], frames: ['ring', 'laurel'], titles: ['Rising Star'] });
   assert.deepEqual([...newLooks(later, seen)].filter(isProfileLook), ['frame:laurel']);
+});
+
+test('won outfits get a new badge in the bag; ones owned before the badges count as seen', () => {
+  const keys = lookKeys(['forest'], { flames: ['classic'], celebrations: ['classic'] }, new Set(['scarf', 'beanie']));
+  assert.deepEqual(keys, ['theme:forest', 'outfit:scarf', 'outfit:beanie']);
+  assert.equal(isProfileLook('outfit:scarf'), false, 'outfits live in the bag');
+  const seen = seedOutfitLooks(['theme:forest'], keys);
+  assert.equal(newLooks(keys, seen).size, 0);
+  const later = lookKeys(['forest'], { flames: ['classic'], celebrations: ['classic'] }, new Set(['scarf', 'beanie', 'crown']));
+  assert.deepEqual([...newOfKind(newLooks(later, seen), 'outfit')], ['crown']);
 });
