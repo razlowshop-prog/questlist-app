@@ -119,7 +119,7 @@ export function StreakCard({
               <Animated.View pointerEvents="none" style={[s.speechBox, bubbleStyle]}>
                 {said && (
                   <View style={s.speech} accessibilityLiveRegion="polite">
-                    <Text style={s.speechText} numberOfLines={3}>
+                    <Text style={s.speechText} numberOfLines={2}>
                       {said.text}
                     </Text>
                     <View style={s.speechTail} />
@@ -250,7 +250,7 @@ const makeStyles = themed((c) => ({
   daysLong: { fontFamily: VIVID_HEAVY, fontSize: 56, lineHeight: 66 },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   label: { color: c.text, fontSize: 18, fontWeight: '800' },
-  speechBox: { position: 'absolute', right: 0, bottom: '100%', marginBottom: -12, width: 190, alignItems: 'flex-end', zIndex: 10 },
+  speechBox: { position: 'absolute', right: -4, bottom: '100%', marginBottom: -30, width: 270, alignItems: 'flex-end', zIndex: 10 },
   speech: { maxWidth: '100%', backgroundColor: c.surfaceAlt, borderColor: c.border, borderWidth: 1, borderRadius: 12, paddingHorizontal: 11, paddingVertical: 7, boxShadow: '0px 4px 14px rgba(0,0,0,0.3)' },
   speechText: { color: c.text, fontSize: 13, lineHeight: 17, fontWeight: '700' },
   speechTail: { position: 'absolute', right: 30, bottom: -5, width: 8, height: 8, backgroundColor: c.surfaceAlt, borderColor: c.border, borderBottomWidth: 1, borderRightWidth: 1, transform: [{ rotate: '45deg' }] },
