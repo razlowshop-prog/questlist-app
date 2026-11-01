@@ -17,6 +17,7 @@ import {
   setDevStreak,
   setUnlockAll,
 } from '../devTools';
+import { updateInfo } from '../appUpdate';
 import { currentStreak, levelInfo, MAX_LEVEL, restDaysOf, totalXp, type GameState } from '../game';
 import { num } from '../i18n';
 import { themed, useStyles } from '../theme';
@@ -48,12 +49,21 @@ export function DevScreen({ state, today, onChange }: { state: GameState; today:
   const tokens = tokenCounts(state);
   const streak = currentStreak(state.completions, today, restDaysOf(state));
   const madeUp = devDays(state);
+  const code = updateInfo();
 
   return (
     <ScrollView contentContainerStyle={s.content}>
       <Text style={s.intro}>
         Only in test builds. The store version has no Developer page and drops these changes, so they can’t be used to cheat.
       </Text>
+
+      <MenuGroup label="App version">
+        <MenuRow
+          first
+          label={code.builtIn ? 'Code from the build' : `Update from ${code.when ? code.when.toLocaleString() : 'unknown time'}`}
+          sub={`Update ${code.id.slice(0, 8)} · channel ${code.channel} · runtime ${code.runtime.slice(0, 8)}`}
+        />
+      </MenuGroup>
 
       <MenuGroup label="Level">
         <MenuRow first label={`Level ${level}`} sub={`${num(xp)} XP in total${state.dev?.xp ? `, ${state.dev.xp > 0 ? '+' : ''}${num(state.dev.xp)} from this page` : ''}`} />

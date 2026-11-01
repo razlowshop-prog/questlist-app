@@ -3,6 +3,7 @@ import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LogoMark } from '../components/LogoMark';
 import { PeekOver } from '../components/Bizzy';
+import { BirthdayField } from '../components/BirthdayField';
 import { newPick, pickMinutes, pickName, PickSheet, pickTitle, pickToTask, pickXp, type LibraryPick } from '../components/PickSheet';
 import { scheduleProblem, scheduleSummary } from '../components/SchedulePicker';
 import { sizeLabel } from '../components/LibraryRow';
@@ -47,13 +48,14 @@ export function SetupScreen({
   /** Asked first, starting from the phone's language; the screen redraws in it straight away. */
   language: Lang;
   onLanguage: (lang: Lang) => void;
-  onFinish: (name: string, goals: string[], picks: LibraryPick[]) => void;
+  onFinish: (name: string, goals: string[], picks: LibraryPick[], birthday?: string) => void;
   onSkip: () => void;
 }) {
   const styles = useStyles(makeStyles);
   const C = useTheme();
   const [step, setStep] = useState(0);
   const [name, setName] = useState(initialName === DEFAULT_NAME ? '' : initialName);
+  const [birthday, setBirthday] = useState<string | undefined>();
   const [goals, setGoals] = useState<string[]>(initialGoals);
   // library id -> pick; only picked tasks are in here
   const [picks, setPicks] = useState<Record<string, LibraryPick>>({});
@@ -106,7 +108,7 @@ export function SetupScreen({
   const chosen = suggestions.filter((t) => t.id in picks).map((t) => picks[t.id]);
 
   function finish() {
-    onFinish(name, goals, chosen);
+    onFinish(name, goals, chosen, birthday);
   }
 
   const pickedCount = chosen.length;
@@ -166,6 +168,9 @@ export function SetupScreen({
                 onSubmitEditing={() => setStep(1)}
               />
             </PeekOver>
+            <View style={{ marginTop: 14 }}>
+              <BirthdayField value={birthday} onSave={setBirthday} />
+            </View>
           </>
         )}
 

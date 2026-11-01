@@ -24,6 +24,8 @@ import {
   emptyState,
   resetProgress,
   finishSetup,
+  setBirthday,
+  birthdayLockedUntil,
   isDoneToday,
   levelInfo,
   limitMessage,
@@ -65,6 +67,8 @@ import { AppTour } from './src/components/AppTour';
 import { TOUR_SWIPE_TASK, TOUR_SWIPE_TITLE, TOUR_TASK, TOUR_TASK_MINUTES, TOUR_TASK_TITLE, tourSteps } from './src/tour';
 import { quoteDue, quoteOfTheDay } from './src/quotes';
 import { QuoteSplash } from './src/components/QuoteSplash';
+import { UpdateSplash } from './src/components/UpdateSplash';
+import { useAppUpdate } from './src/appUpdate';
 import { outfitById, outfitDrawing, outfitName, toggleOutfit, wornOutfits } from './src/outfits';
 import { bizzyFormOf } from './src/bizzy';
 import { LevelDetails } from './src/components/LevelDetails';
@@ -188,6 +192,8 @@ function Succedo() {
   const language = state.settings.lang ?? systemLang();
   setLang(language);
   const [loaded, setLoaded] = useState(false);
+  // The start-up update check, for the loading bar and the update screen (asked 2026-11-01).
+  const update = useAppUpdate();
   const [tab, setTab] = useState<Tab>('today');
   const [page, setPage] = useState<Page | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
@@ -468,8 +474,9 @@ function Succedo() {
     });
   }
 
-  function onSetupDone(name: string, goals: string[], picks: LibraryPick[]) {
-    const next = addPicks(finishSetup(state, name, goals), picks.filter((p) => !ownedTasks.has(p.task.id)));
+  function onSetupDone(name: string, goals: string[], picks: LibraryPick[], birthday?: string) {
+    let next = addPicks(finishSetup(state, name, goals), picks.filter((p) => !ownedTasks.has(p.task.id)));
+    if (birthday) next = setBirthday(next, birthday, today);
     askForReminders(picks);
     setState(next);
     setRedoSetup(false);
@@ -834,6 +841,9 @@ function Succedo() {
                   today={today}
                   onClaimAchievement={onClaimAchievement}
                   onRename={(name) => setState(setName(state, name))}
+                  birthday={state.profile.birthday}
+                  birthdayLockedUntil={birthdayLockedUntil(state, today)}
+                  onBirthday={(b) => setState((s) => setBirthday(s, b, today))}
                   onSettings={(changes) => setState((s) => updateSettings(s, changes))}
                   onPhoto={(next) => {
                     setPhoto(next);
@@ -1173,7 +1183,8 @@ function Succedo() {
                 }}
               />
             )}
-            {quoteShown && <QuoteSplash quote={quoteOfTheDay(today)} onDone={() => setState((s) => updateSettings(s, { quoteDay: today }))} />}
+            {quoteShown && <QuoteSplash quote={quoteOfTheDay(today)} update={update} onDone={() => setState((s) => updateSettings(s, { quoteDay: today }))} />}
+            {!quoteShown && (update.phase === 'downloading' || update.phase === 'ready') && <UpdateSplash update={update} />}
           </SafeAreaView>
           </TourTargetProvider>
           </AvatarPhotoContext.Provider>

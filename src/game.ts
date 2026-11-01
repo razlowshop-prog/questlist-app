@@ -101,6 +101,10 @@ export interface ChallengeClaim {
 
 export interface Profile {
   name: string;
+  /** Birthday as MM-DD, no year (optional, asked 2026-11-01). Bizzy celebrates and the day is a free rest day. */
+  birthday?: string;
+  /** The day the birthday was last set: it can be changed once a year, so nobody can game the free rest day. */
+  birthdaySetOn?: string;
 }
 
 export interface GameState {
@@ -205,9 +209,66 @@ export interface WheelSpin {
 }
 
 /** Days the streak counts as kept without a task: rest tokens plus a taken free recovery. */
-export function restDaysOf(state: Pick<GameState, 'restDays' | 'recovery'>): string[] {
-  const days = state.restDays ?? [];
+export function restDaysOf(state: Pick<GameState, 'restDays' | 'recovery'> & { profile?: Profile }): string[] {
+  const days = [...(state.restDays ?? []), ...birthdayRestDays(state.profile)];
   return state.recovery?.used ? [...days, state.recovery.day] : days;
+}
+
+// ---- Birthday (picked 2026-11-01: R6 profile field and setup question, R7a) ----
+
+/** The birthday in a given year, YYYY-MM-DD; 29 February falls on the 28th in other years. */
+export function birthdayIn(year: number, birthday: string): string {
+  const [m, d] = birthday.split('-').map(Number);
+  const leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+  const day = m === 2 && d === 29 && !leap ? 28 : d;
+  return `${year}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+export function isBirthday(state: { profile?: Profile }, day: string): boolean {
+  const b = state.profile?.birthday;
+  return !!b && birthdayIn(Number(day.slice(0, 4)), b) === day;
+}
+
+/**
+ * Birthdays are free rest days, but only from the day the birthday was set:
+ * setting it to a missed day afterwards doesn't bring a lost streak back.
+ */
+function birthdayRestDays(profile?: Profile): string[] {
+  if (!profile?.birthday || !profile.birthdaySetOn) return [];
+  const from = Number(profile.birthdaySetOn.slice(0, 4));
+  const out: string[] = [];
+  for (let y = from; y < from + 80; y++) {
+    const day = birthdayIn(y, profile.birthday);
+    if (day >= profile.birthdaySetOn) out.push(day);
+  }
+  return out;
+}
+
+/** A valid MM-DD (any year's calendar, so 02-29 is fine). */
+export function validBirthday(mmdd: string): boolean {
+  const m = /^(\d{2})-(\d{2})$/.exec(mmdd);
+  if (!m) return false;
+  const [mo, d] = [Number(m[1]), Number(m[2])];
+  return mo >= 1 && mo <= 12 && d >= 1 && d <= [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][mo - 1];
+}
+
+/** The first day the birthday can be changed again (once a year), or undefined when it can be set now. */
+export function birthdayLockedUntil(state: { profile?: Profile }, today: string): string | undefined {
+  const set = state.profile?.birthdaySetOn;
+  if (!set || !state.profile?.birthday) return undefined;
+  const next = addDays(set, 365);
+  return next > today ? next : undefined;
+}
+
+/** Sets (or clears, with undefined) the birthday, if it may be changed today. */
+export function setBirthday(state: GameState, birthday: string | undefined, today: string): GameState {
+  if (birthday !== undefined && !validBirthday(birthday)) return state;
+  if (birthday === state.profile.birthday) return state;
+  if (birthdayLockedUntil(state, today)) return state;
+  const profile = { ...state.profile };
+  if (birthday) Object.assign(profile, { birthday, birthdaySetOn: today });
+  else delete profile.birthday;
+  return { ...state, profile };
 }
 
 export interface ChallengeSwap {
