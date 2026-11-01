@@ -1169,4 +1169,10 @@ export const DE: Record<string, string> = {
   "Your phone can’t add it from here. Hold an empty spot on your home screen, tap Widgets and pick Succedo.": "Dein Handy kann es nicht von hier hinzufügen. Halte eine freie Stelle auf dem Startbildschirm gedrückt, tippe auf Widgets und wähle Succedo.",
   "Home screen widget": "Widget",
   "Bizzy, your tasks left and your streak, right on your home screen.": "Bizzy, deine offenen Aufgaben und deine Serie direkt auf dem Startbildschirm.",
+  "Notepad A · School book": "Notizblock A · Schulheft",
+  "Notepad B · Bullet journal": "Notizblock B · Bullet Journal",
+  "Notepad C · Sticky notes": "Notizblock C · Haftnotizen",
+  "Gym A · Iron": "Gym A · Eisen",
+  "Gym B · Club": "Gym B · Club",
+  "Gym C · Stadium": "Gym C · Stadion",
 };

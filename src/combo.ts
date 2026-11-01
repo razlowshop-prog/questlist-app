@@ -205,7 +205,8 @@ export const COMBO_LOOKS: Record<string, ComboLook> = {
 };
 
 export function comboLook(themeId: string): ComboLook {
-  return COMBO_LOOKS[themeId] ?? DEFAULT_COMBO;
+  // Preview redesigns ('gym-b') use their theme's look.
+  return COMBO_LOOKS[themeId] ?? COMBO_LOOKS[themeId.split('-')[0]] ?? DEFAULT_COMBO;
 }
 
 /** How the badge comes in: scale, rise and opacity at `e` (0 → 1 over the entrance). Worklet, so it runs on the animation thread. */

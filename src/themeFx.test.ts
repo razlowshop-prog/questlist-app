@@ -14,7 +14,7 @@ test('the mascot centres on the tip but never leaves the bar', () => {
 
 test('every theme effect belongs to a real theme, and mascots have a size', () => {
   // Theme ids from theme.tsx (tests can't load .tsx files).
-  const ids = new Set(['classic', 'dusk', 'honey', 'hive', 'forest', 'ocean', 'sunset', 'thunder', 'summit', 'ember', 'gold', 'midnight', 'fortune', 'neon', 'notepad', 'gym']);
+  const ids = new Set(['classic', 'dusk', 'honey', 'hive', 'forest', 'ocean', 'sunset', 'thunder', 'summit', 'ember', 'gold', 'midnight', 'fortune', 'neon', 'notepad', 'gym', 'notepad-a', 'notepad-b', 'notepad-c', 'gym-a', 'gym-b', 'gym-c']);
   for (const [id, fx] of Object.entries(THEME_FX)) {
     assert.ok(ids.has(id), `${id} is a theme`);
     if (fx.mascot) assert.ok(MASCOT_SIZE[fx.mascot], `${fx.mascot} has a size`);
