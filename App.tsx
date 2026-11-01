@@ -196,7 +196,6 @@ function Succedo() {
   const update = useAppUpdate();
   const [tab, setTab] = useState<Tab>('today');
   /** Test builds: plays the all-done moment again on Today (Developer page). */
-  const [replayDone, setReplayDone] = useState(0);
   const [page, setPage] = useState<Page | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
   /** The add-task sheet on Today. */
@@ -517,8 +516,8 @@ function Succedo() {
       found.push({ kind: 'perfect' });
     }
     if (milestone.days) found.push({ kind: 'streak', days: milestone.days });
-    // A perfect day waits for Bizzy's honey check mark on Today (TodayMoments) to finish.
-    if (found.length) setTimeout(() => setMoments((m) => [...m, ...found]), perfect.earned ? 3600 : 900);
+    // A perfect day waits for the last row's finish and Bizzy's cheer on the streak card (TodayScreen).
+    if (found.length) setTimeout(() => setMoments((m) => [...m, ...found]), perfect.earned ? 1400 : 900);
     // The perfect day bonus is celebrated on its own, so it's left out of the task's "+XP".
     const gained = totalXp(change) - xp - (perfect.earned ? PERFECT_DAY_XP : 0);
     const before = levelInfo(xp);
@@ -895,11 +894,6 @@ function Succedo() {
                 <DevScreen
                   state={state}
                   today={today}
-                  onReplayDone={() => {
-                    setPage(null);
-                    setTab('today');
-                    setReplayDone((n) => n + 1);
-                  }}
                   onChange={(next) => {
                     // A picked level celebrates again, even one reached before.
                     bestLevel.current = null;
@@ -912,7 +906,6 @@ function Succedo() {
               {page === 'legal' && <LegalScreen />}
               {!page && tab === 'today' && (
                 <TodayScreen
-                  replayDone={replayDone}
                   state={state}
                   tasks={tasks}
                   upcoming={upcoming}

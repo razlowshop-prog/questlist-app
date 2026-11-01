@@ -1,6 +1,7 @@
 import { bizzyFormOf, type BizzyMood } from './bizzy.ts';
 import { DRAMA_ROUTES, widgetLooks, type DramaRoute, type WidgetMood } from './widgetLooks.ts';
-import { dayKey, isBirthday, isDoneToday, levelInfo, restDaysOf, streakStatus, totalXp, visibleTasks, STREAK_REMINDER_HOUR, type GameState } from './game.ts';
+import { dayKey, isBirthday, isDoneToday, levelInfo, restDaysOf, streakStatus, streakTierName, tierForDays, totalXp, visibleTasks, STREAK_REMINDER_HOUR, type GameState } from './game.ts';
+import { tierFlame } from './vivid.ts';
 import { t, tn } from './i18n.ts';
 
 // What the home screen widget shows, worked out from the saved game. Pure, so
@@ -25,6 +26,11 @@ export interface WidgetData {
   sub: string;
   /** "12 days" while a streak runs, otherwise empty. */
   streak: string;
+  /**
+   * While a streak runs, the widget leads with it (picked 2026-11-01, D): a border in the
+   * fire tier's colours, the days big, and headline and sub as one small line under them.
+   */
+  fire?: { days: number; label: string; short: string; c1: Hex; c2: Hex; mid: Hex };
   level: number;
   /** 0 to 1, how full the XP bar is. */
   progress: number;
@@ -42,7 +48,34 @@ export function pickOfDay<T>(options: readonly T[], day: string, salt: string): 
   return options[h % options.length];
 }
 
+type Hex = `#${string}`;
+
+/** The colour halfway between two #rrggbb colours. */
+function midColour(a: string, b: string): Hex {
+  const ch = (h: string, i: number) => parseInt(h.slice(1 + 2 * i, 3 + 2 * i), 16);
+  return ('#' + [0, 1, 2].map((i) => Math.round((ch(a, i) + ch(b, i)) / 2).toString(16).padStart(2, '0')).join('').toUpperCase()) as Hex;
+}
+
+/** Headline and sub as one line, for the streak layout: "3" + "tasks left today" reads "3 tasks left today". */
+export function widgetLine(d: Pick<WidgetData, 'headline' | 'sub'>): string {
+  if (!/^\d+$/.test(d.headline)) return `${d.headline} ${d.sub}`;
+  // The late lines already say how many ("Please? Just 2 tasks left.").
+  return /\d/.test(d.sub) ? d.sub : `${d.headline} ${d.sub}`;
+}
+
 export function widgetData(state: GameState, now: Date): WidgetData {
+  const data = widgetMood(state, now);
+  const days = streakStatus(state.completions, dayKey(now), restDaysOf(state)).days;
+  if (days <= 0) return data;
+  const tier = tierForDays(days);
+  // Spark (no fire yet) takes the Flame tier's colours, so the border is there from day one.
+  const grad = tierFlame(Math.max(1, tier))!;
+  const label = tn(days, 'day streak · {tier}#one', 'days streak · {tier}', { tier: streakTierName(tier) });
+  const short = tn(days, 'day#one', 'days');
+  return { ...data, fire: { days, label, short, c1: grad.c1 as Hex, c2: grad.c2 as Hex, mid: midColour(grad.c1, grad.c2) } };
+}
+
+function widgetMood(state: GameState, now: Date): WidgetData {
   const today = dayKey(now);
   const hour = now.getHours() + now.getMinutes() / 60;
   const tasks = visibleTasks(state, today);

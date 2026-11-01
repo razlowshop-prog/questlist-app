@@ -26,11 +26,7 @@ import { InstrumentSerif_400Regular_Italic } from '@expo-google-fonts/instrument
 import { Cinzel_700Bold } from '@expo-google-fonts/cinzel/700Bold';
 import { Cinzel_800ExtraBold } from '@expo-google-fonts/cinzel/800ExtraBold';
 import { Orbitron_700Bold } from '@expo-google-fonts/orbitron/700Bold';
-import { Caveat_400Regular } from '@expo-google-fonts/caveat/400Regular';
-import { Caveat_500Medium } from '@expo-google-fonts/caveat/500Medium';
-import { Caveat_600SemiBold } from '@expo-google-fonts/caveat/600SemiBold';
 import { Caveat_700Bold } from '@expo-google-fonts/caveat/700Bold';
-import { Anton_400Regular } from '@expo-google-fonts/anton/400Regular';
 
 export const FONT_FILES: Record<string, number> = {
   Assistant_400Regular,
@@ -59,11 +55,7 @@ export const FONT_FILES: Record<string, number> = {
   Cinzel_700Bold,
   Cinzel_800ExtraBold,
   Orbitron_700Bold,
-  Caveat_400Regular,
-  Caveat_500Medium,
-  Caveat_600SemiBold,
   Caveat_700Bold,
-  Anton_400Regular,
 };
 
 /** The font files a theme needs, ready for expo-font's loadAsync. */

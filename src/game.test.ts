@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   addDays,
   addTask,
+  mergeSaved,
   bizzyNudge,
   maxPerWeek,
   reminderPlan,
@@ -593,4 +594,12 @@ test('Bizzy evolves one form per tap, only when the level allows it', () => {
   for (let i = 0; i < 20; i++) s = evolveBizzy(s);
   assert.equal(s.bizzyForm, 10);
   assert.equal(resetProgress(s).bizzyForm, undefined, 'starting over brings back the Larva');
+});
+
+test('a saved Gym theme comes back as Club, and its seen badge goes with it', () => {
+  const saved = mergeSaved({ settings: { ...emptyState.settings, theme: 'gym', seenLooks: ['theme:gym', 'frame:gold'] } });
+  assert.equal(saved.settings.theme, 'club');
+  assert.deepEqual(saved.settings.seenLooks, ['theme:club', 'frame:gold']);
+  assert.equal(mergeSaved({ settings: { ...emptyState.settings, theme: 'ocean' } }).settings.theme, 'ocean');
+  assert.equal(mergeSaved({}).settings.theme, 'classic');
 });

@@ -177,15 +177,27 @@ export const COMBO_LOOKS: Record<string, ComboLook> = {
     entrance: 'flick',
   },
   notepad: { radius: 0, font: 'serifItalic', size: 24, color: '#c0392b', rotate: -4, circle: '#c0392b', entrance: 'grow', suffix: N(' combo!') },
-  gym: {
+  club: {
     radius: 3,
-    fill: '#ff5a1f',
-    shadow: '0px 3px 0px #b33a0d',
+    fill: '#c6ff3d',
+    shadow: '0px 3px 0px #6f9e12',
     font: 'serif',
     size: 17,
     upper: true,
     letterSpacing: 1,
-    color: '#141518',
+    color: '#0b0d0c',
+    skew: -10,
+    entrance: 'slam',
+  },
+  stadium: {
+    radius: 3,
+    fill: '#ff3b3b',
+    shadow: '0px 3px 0px #a51d24',
+    font: 'serif',
+    size: 17,
+    upper: true,
+    letterSpacing: 1,
+    color: '#ffffff',
     skew: -10,
     entrance: 'slam',
   },
@@ -205,8 +217,7 @@ export const COMBO_LOOKS: Record<string, ComboLook> = {
 };
 
 export function comboLook(themeId: string): ComboLook {
-  // Preview redesigns ('gym-b') use their theme's look.
-  return COMBO_LOOKS[themeId] ?? COMBO_LOOKS[themeId.split('-')[0]] ?? DEFAULT_COMBO;
+  return COMBO_LOOKS[themeId] ?? DEFAULT_COMBO;
 }
 
 /** How the badge comes in: scale, rise and opacity at `e` (0 → 1 over the entrance). Worklet, so it runs on the animation thread. */

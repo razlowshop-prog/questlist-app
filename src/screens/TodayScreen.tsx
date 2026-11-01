@@ -3,7 +3,7 @@ import { ChevronDown, ChevronUp, Plus, Sparkles, X } from 'lucide-react-native';
 import Animated, { LinearTransition, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { ComboPill } from '../components/Moments';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View, type FlatList, type HostInstance } from 'react-native';
-import { DONE_KINDS, TodayMoment, type DoneKind, type TodayMomentKind } from '../components/TodayMoments';
+import { TodayMoment, type TodayMomentKind } from '../components/TodayMoments';
 import { useReduceMotion } from '../components/FireAura';
 import { useTourScroller, useTourTarget } from '../components/TourTargets';
 import { TOUR_SWIPE_TASK, TOUR_TASK } from '../tour';
@@ -53,9 +53,6 @@ import { buzz } from '../haptics';
 import { card, eyebrow, FONTS, themed, useStyles, useTheme, headingCase } from '../theme';
 import { N, t, tn } from '../i18n';
 
-/** The Developer page's last replay that has played. */
-let lastReplay = 0;
-
 export function TodayScreen({
   state,
   tasks,
@@ -84,7 +81,6 @@ export function TodayScreen({
   adding,
   onCloseAdd,
   hello,
-  replayDone,
 }: {
   state: GameState;
   tasks: Task[];
@@ -92,7 +88,7 @@ export function TodayScreen({
   streak: StreakStatus;
   multiplier: ReturnType<typeof xpMultiplier>;
   onOpenStreak: () => void;
-  /** A big moment (morning hello, all done) starts or ends; a level-up waits for it (picked 2026-11-01, 1A). */
+  /** The morning hello starts or ends; a level-up waits for it (picked 2026-11-01, 1A). */
   onMoment?: (busy: boolean) => void;
   /** Bizzy evolves into his next form (only offered once the level allows it). */
   onEvolve: () => void;
@@ -124,8 +120,6 @@ export function TodayScreen({
   onCloseAdd: () => void;
   /** The first open of the day: Bizzy's morning hello to play (it marks the day as greeted when it starts). */
   hello?: { kind: 'hatch' | 'hive'; onStart: () => void };
-  /** Test builds: a new number plays the all-done moment again (Developer page). */
-  replayDone?: number;
 }) {
   const s = useStyles(makeStyles);
   const c = useTheme();
@@ -257,7 +251,7 @@ export function TodayScreen({
       evolveAt: nextBizzyForm(form)?.level,
     };
   };
-  // Big moments over the screen (morning hello, all done); he flies about and lands back in his spot.
+  // The morning hello over the screen; he flies about and lands back in his spot.
   const reduceMotion = useReduceMotion();
   const tasksRef = useTourTarget('tasks');
   const tourTaskRef = useTourTarget('tour-task');
@@ -283,26 +277,21 @@ export function TodayScreen({
     hello.onStart();
     play(hello.kind, hello.kind === 'hatch' ? morning : greeting);
   }, [!!hello, loaded]);
-  // He jumps each time another task of today gets done, and when the last one is, he draws a big honey check (once a day).
+  // He jumps each time another task of today gets done, and when the last one is, he cheers and says so
+  // (once a day). No big moment over the screen: the perfect day pop-up follows (asked 2026-11-01).
   const [cheer, setCheer] = useState(0);
   const lastDone = useRef(doneCount);
   const allDoneOn = useRef('');
-  // Which all-done moment plays: the picked honey check, or an alternative tried on the Developer page.
-  const doneKind: DoneKind = state.dev?.doneMoment ?? 'check';
-  useEffect(() => {
-    // Once per press, even when Today opens again later.
-    if (!replayDone || replayDone === lastReplay) return;
-    lastReplay = replayDone;
-    setCheer((n) => n + 1);
-    play(doneKind, t('All done today!'));
-  }, [replayDone]);
   useEffect(() => {
     if (doneCount > lastDone.current) {
       setCheer((n) => n + 1);
       if (doneCount === tasks.length && allDoneOn.current !== today) {
         allDoneOn.current = today;
-        // After the ticked row's own finish animation.
-        setTimeout(() => play(doneKind, t('All done today!')), 650);
+        // After the ticked row's own finish animation, a second jump with his words.
+        setTimeout(() => {
+          setCheer((n) => n + 1);
+          setSays({ text: t('All done today!'), id: Date.now() });
+        }, 650);
       }
     }
     lastDone.current = doneCount;
@@ -376,7 +365,7 @@ export function TodayScreen({
               {/* Where the combo pill pops up: the header starts below the list's top padding. */}
               <View onLayout={(e) => (comboY.value = HEADER_TOP + e.nativeEvent.layout.y)} />
 
-              <StreakCard streak={streak} week={weekDots(state, today)} multiplier={multiplier} bizzy={{ mood, cheer, form: bizzyFormOf(state.bizzyForm).n, level: levelInfo(totalXp(state)).level, onEvolve, talk, taps: state.bizzyTaps ?? 0, onTap: onTapBizzy, spotRef: spot, away: !!moment && !(DONE_KINDS as string[]).includes(moment) && !landed, says, bubble: state.dev?.bubbleSpot }} onPress={onOpenStreak} />
+              <StreakCard streak={streak} week={weekDots(state, today)} multiplier={multiplier} bizzy={{ mood, cheer, form: bizzyFormOf(state.bizzyForm).n, level: levelInfo(totalXp(state)).level, onEvolve, talk, taps: state.bizzyTaps ?? 0, onTap: onTapBizzy, spotRef: spot, away: !!moment && !landed, says }} onPress={onOpenStreak} />
               {tokenStrip}
               {recap}
               {focusBar}

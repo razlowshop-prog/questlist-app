@@ -67,7 +67,7 @@ export function XpProgress({ totalXp, onPress }: { totalXp: number; onPress: () 
     const motion = fx.bar?.motion;
     pos.value =
       motion && before !== null
-        ? // The theme's own pace (Gym: after the lifter has picked the barbell up).
+        ? // The theme's own pace, when it has one.
           withDelay(motion.delay, withTiming(to, { duration: motion.duration + Math.min(levels, 3) * 300, easing: Easing.inOut(Easing.cubic) }))
         : withDelay(
             before === null ? 350 : 200,

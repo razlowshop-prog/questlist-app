@@ -44,8 +44,6 @@ function Layer({ kind, w, h }: { kind: AmbientKind; w: number; h: number }) {
       return <Circuit w={w} h={h} />;
     case 'noir':
       return <Noir w={w} h={h} />;
-    case 'floor':
-      return <Floor />;
     case 'dusk':
       return <Dusk w={w} />;
     case 'storm':
@@ -292,18 +290,6 @@ function Pulse({ trace, delay }: { trace: Trace; delay: number }) {
     <Animated.View
       style={[{ position: 'absolute', left: 0, top: 0, width: len, height: 2, borderRadius: 1, backgroundColor: color, boxShadow: `0px 0px 4px ${color}` } as ViewStyle, style]}
     />
-  );
-}
-
-/** Gym: dark rubber floor tiles along the bottom of the screen. */
-function Floor() {
-  return (
-    <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 120, flexDirection: 'row', overflow: 'hidden' }}>
-      {Array.from({ length: 24 }, (_, i) => (
-        <View key={i} style={{ width: 60, backgroundColor: i % 2 ? '#18191c' : '#1c1d21' }} />
-      ))}
-      <View style={[StyleSheet.absoluteFill, { backgroundImage: 'linear-gradient(180deg, #141518 0%, rgba(20,21,24,0) 60%)' } as ViewStyle]} />
-    </View>
   );
 }
 

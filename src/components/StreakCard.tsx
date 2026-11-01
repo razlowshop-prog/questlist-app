@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode, type Ref } from 'react';
 import { Pressable, Text, useWindowDimensions, View, type HostInstance } from 'react-native';
 import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
-import Animated, { Easing, FadeIn, FadeOut, LinearTransition, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, FadeIn, FadeOut, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { nextBizzyForm, type BizzyMood } from '../bizzy';
 import type { Line, TalkContext } from '../bizzyTalk';
 import { STREAK_TIERS, streakTierName, type StreakStatus, type WeekDot, type xpMultiplier } from '../game';
@@ -25,8 +25,8 @@ const DOT_WORDS: Record<WeekDot, string> = { done: N('done'), rest: N('rest day'
  * corner on the right, in the mood of the day, with his next evolution under
  * him: an Evolve button once the level allows it, otherwise the level it
  * needs. Tapping him plays a little reaction and he says something about the
- * day in a small bubble, shown for a moment above him so
- * it covers nothing. Tapping the rest of the card opens the level sheet with the streak
+ * day, shown for a moment in place of the week's dots so
+ * nothing moves. Tapping the rest of the card opens the level sheet with the streak
  * bonus and the fire tiers.
  */
 export function StreakCard({
@@ -56,8 +56,6 @@ export function StreakCard({
     away?: boolean;
     /** Something he says on his own, e.g. "Good morning!" as he lands; a new id says it again. */
     says?: { text: string; id: number };
-    /** Where his bubble shows (alternatives asked 2026-11-01; only 'row' moves the card). */
-    bubble?: BubbleSpot;
   };
   onPress: () => void;
 }) {
@@ -78,7 +76,6 @@ export function StreakCard({
     hush.current = setTimeout(() => setSaid(undefined), Math.min(5000, 1600 + 50 * line.text.length));
   };
   const says = bizzy?.says;
-  const spot: BubbleSpot = bizzy?.bubble ?? 'row';
   useEffect(() => {
     if (says) say({ key: 'moment', text: says.text });
   }, [says?.id]);
@@ -122,45 +119,19 @@ export function StreakCard({
             </View>
           )}
         </View>
-        {/* Where his bubble opens (alternatives asked 2026-11-01): 'row' is a line of its own under
-            him, which moves the card down; the others float over the card and move nothing. */}
-        {said && spot === 'row' && (
-          <Animated.View key={said.id} entering={FadeIn.duration(180)} exiting={FadeOut.duration(150)} style={s.speechRow} pointerEvents="none">
-            <View style={s.speech} accessibilityLiveRegion="polite">
-              <View style={s.speechTail} />
-              <Text style={s.speechText} numberOfLines={2}>
+        {/* This week's days spread over the whole card, each with its letter. When Bizzy talks, his words
+            fade in over the same strip and the days fade out under them, so nothing on the card moves
+            (picked 2026-11-01, bubble C). */}
+        <View style={s.weekStrip}>
+          <WeekRow week={week} grad={grad} hidden={!!said} />
+          {said && (
+            <Animated.View key={said.id} entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)} style={s.weekSay} pointerEvents="none">
+              <Text style={s.speechText} numberOfLines={2} accessibilityLiveRegion="polite">
                 {said.text}
               </Text>
-            </View>
-          </Animated.View>
-        )}
-        {said && (spot === 'above' || spot === 'left' || spot === 'float') && (
-          <Animated.View key={said.id} entering={FadeIn.duration(180)} exiting={FadeOut.duration(150)} style={[s.floating, spot === 'above' ? s.floatAbove : spot === 'left' ? s.floatLeft : s.floatBelow]} pointerEvents="none">
-            <View style={s.speech} accessibilityLiveRegion="polite">
-              <View style={spot === 'above' ? s.tailDown : spot === 'left' ? s.tailRight : s.speechTail} />
-              <Text style={s.speechText} numberOfLines={spot === 'left' ? 3 : 2}>
-                {said.text}
-              </Text>
-            </View>
-          </Animated.View>
-        )}
-        {/* This week's days spread over the whole card, each with its letter. */}
-        {said && spot === 'week' ? (
-          <Animated.View key={said.id} entering={FadeIn.duration(180)} exiting={FadeOut.duration(150)} style={s.weekSay} pointerEvents="none">
-            <Text style={s.speechText} numberOfLines={2} accessibilityLiveRegion="polite">
-              {said.text}
-            </Text>
-          </Animated.View>
-        ) : (
-        <Animated.View layout={LinearTransition.duration(200)} style={s.week}>
-          {week.map((d, i) => (
-            <View key={i} style={s.day}>
-              <Dot state={d} grad={grad} />
-              <Text style={[s.dayLetter, d === 'today' && s.dayToday]}>{t(DAY_NAMES[i])[0]}</Text>
-            </View>
-          ))}
-        </Animated.View>
-        )}
+            </Animated.View>
+          )}
+        </View>
         {streak.atRisk && <Text style={s.risk}>{t('Nothing done yet today. One task keeps your streak going.')}</Text>}
         {streak.days === 0 && <Text style={s.note}>{t('Finish a task today to light your streak.')}</Text>}
         {/* Flame lights at 5 days. */}
@@ -174,7 +145,25 @@ export function StreakCard({
   );
 }
 
-export type BubbleSpot = 'row' | 'above' | 'left' | 'week' | 'float';
+/** The week's dots and letters; they fade out (and back in) while Bizzy's words are shown over them. */
+function WeekRow({ week, grad, hidden }: { week: WeekDot[]; grad?: { c1: string; c2: string }; hidden: boolean }) {
+  const s = useStyles(makeStyles);
+  const shown = useSharedValue(hidden ? 0 : 1);
+  useEffect(() => {
+    shown.value = withTiming(hidden ? 0 : 1, { duration: 200 });
+  }, [hidden]);
+  const style = useAnimatedStyle(() => ({ opacity: shown.value }));
+  return (
+    <Animated.View style={[s.week, style]}>
+      {week.map((d, i) => (
+        <View key={i} style={s.day}>
+          <Dot state={d} grad={grad} />
+          <Text style={[s.dayLetter, d === 'today' && s.dayToday]}>{t(DAY_NAMES[i])[0]}</Text>
+        </View>
+      ))}
+    </Animated.View>
+  );
+}
 
 function canEvolve(form: number, level: number): boolean {
   const next = nextBizzyForm(form);
@@ -331,21 +320,13 @@ const makeStyles = themed((c) => ({
   // The card's words use the app's own font in every theme, like the number, so it is built the same everywhere.
   labelRow: { alignItems: 'flex-start', gap: 6 },
   label: { fontFamily: VIVID_HEAVY, color: c.text, fontSize: 18, lineHeight: 22 },
-  speechRow: { alignItems: 'flex-end', marginTop: 2 },
-  speech: { maxWidth: '100%', backgroundColor: c.surfaceAlt, borderColor: c.border, borderWidth: 1, borderRadius: 12, paddingHorizontal: 11, paddingVertical: 7, boxShadow: '0px 4px 14px rgba(0,0,0,0.3)' },
   speechText: { fontFamily: VIVID_BOLD, color: c.text, fontSize: 13, lineHeight: 17 },
-  // Points up at Bizzy, in the middle of his corner.
-  speechTail: { position: 'absolute', right: 42, top: -5, width: 8, height: 8, backgroundColor: c.surfaceAlt, borderColor: c.border, borderTopWidth: 1, borderLeftWidth: 1, transform: [{ rotate: '45deg' }] },
-  floating: { position: 'absolute', zIndex: 5, maxWidth: 220 },
-  floatAbove: { right: 6, top: -34 },
-  floatLeft: { right: 118, top: 18, maxWidth: 150 },
-  floatBelow: { right: 8, top: 118 },
-  tailDown: { position: 'absolute', right: 42, bottom: -5, width: 8, height: 8, backgroundColor: c.surfaceAlt, borderColor: c.border, borderBottomWidth: 1, borderRightWidth: 1, transform: [{ rotate: '45deg' }] },
-  tailRight: { position: 'absolute', right: -5, top: 18, width: 8, height: 8, backgroundColor: c.surfaceAlt, borderColor: c.border, borderTopWidth: 1, borderRightWidth: 1, transform: [{ rotate: '45deg' }] },
-  // Same height as the week's dots and letters, so nothing moves while he talks.
-  weekSay: { height: 36, marginTop: 2, borderRadius: 12, backgroundColor: c.surfaceAlt, borderColor: c.border, borderWidth: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
+  // The week's place on the card, a fixed height, so nothing moves while he talks.
+  weekStrip: { height: 38, justifyContent: 'flex-end' },
+  // Over the week's dots and letters, the same size.
+  weekSay: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, borderRadius: 12, backgroundColor: c.surfaceAlt, borderColor: c.border, borderWidth: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
   tier: { fontFamily: VIVID_BOLD, color: c.muted, fontSize: 13, lineHeight: 17 },
-  week: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 4, paddingTop: 2 },
+  week: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 4 },
   day: { alignItems: 'center', gap: 4 },
   dayLetter: { fontFamily: VIVID_BOLD, color: c.faint, fontSize: 11, lineHeight: 14 },
   dayToday: { color: c.text },

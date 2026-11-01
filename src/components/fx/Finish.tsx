@@ -491,7 +491,7 @@ function StrikeThrough({ t }: { t: SharedValue<number> }) {
   );
 }
 
-/** Gym: a little figure popping up behind the task to hoist it overhead. */
+/** Stadium: a little figure popping up behind the task to hoist it overhead. */
 function Hands({ t }: { t: SharedValue<number> }) {
   const style = useAnimatedStyle(() => {
     const v = t.value;
