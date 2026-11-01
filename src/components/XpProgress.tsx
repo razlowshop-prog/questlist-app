@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
+import { ChevronRight } from 'lucide-react-native';
 import Animated, { cancelAnimation, Easing, useAnimatedReaction, useAnimatedStyle, useDerivedValue, useSharedValue, withDelay, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import { LEVEL_MILESTONES, milestoneLabel, nextLevelReward, type LevelMilestone } from '../achievements';
@@ -146,7 +147,11 @@ export function XpProgress({ totalXp, onPress }: { totalXp: number; onPress: () 
             <GradientText style={s.gain}>+{gain} XP</GradientText>
           </Animated.View>
         )}
-        <GradientText style={s.xpNumbers}>{maxed ? t('Max level') : `${shown.xp} / ${forLevel} XP`}</GradientText>
+        <View style={s.xpRow}>
+          <GradientText style={s.xpNumbers}>{maxed ? t('Max level') : `${shown.xp} / ${forLevel} XP`}</GradientText>
+          {/* Says the strip opens something: the upcoming rewards (asked 2026-10-31, nobody found it). */}
+          <ChevronRight size={14} color={brandLine(c)} strokeWidth={2.5} aria-hidden />
+        </View>
       </View>
     </Pressable>
   );
@@ -222,6 +227,7 @@ const makeStyles = themed((c) => ({
   noLane: { paddingTop: 18 },
   side: { justifyContent: 'center' },
   xpSide: { alignItems: 'flex-end', minWidth: 74 },
+  xpRow: { flexDirection: 'row', alignItems: 'center', gap: 1 },
   bar: { flex: 1 },
   pill: {
     flexDirection: 'row',
