@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronUp, Plus, Sparkles, X } from 'lucide-react-native';
 import Animated, { LinearTransition, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { ComboPill } from '../components/Moments';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View, type HostInstance } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View, type FlatList, type HostInstance } from 'react-native';
 import { TodayMoment, type TodayMomentKind } from '../components/TodayMoments';
 import { useReduceMotion } from '../components/FireAura';
-import { useTourTarget } from '../components/TourTargets';
+import { useTourScroller, useTourTarget } from '../components/TourTargets';
+import { TOUR_SWIPE_TASK, TOUR_TASK } from '../tour';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Chip } from '../components/Chip';
 import { Greeting } from '../components/Greeting';
@@ -209,7 +210,8 @@ export function TodayScreen({
   // Today's tasks in one list, sorted by category in the library's order ("Other" last), so related tasks sit together.
   const sorted = useMemo(() => {
     const order = [...CATEGORIES.map((cat) => cat.id), OTHER_CATEGORY];
-    return tasks.map((t, i) => ({ t, i, rank: order.indexOf(taskCategory(t)) })).sort((x, y) => x.rank - y.rank || x.i - y.i).map((x) => x.t);
+    // The tour's test task comes first, where the tour shows it.
+    return tasks.map((t, i) => ({ t, i, rank: t.id === TOUR_TASK || t.id === TOUR_SWIPE_TASK ? -1 : order.indexOf(taskCategory(t)) })).sort((x, y) => x.rank - y.rank || x.i - y.i).map((x) => x.t);
   }, [tasks]);
   const doneCount = tasks.filter((t) => isDoneToday(state, t, today)).length;
   // Bizzy's mood on the streak card follows the time of day, so it is worked out again on every full hour too.
@@ -249,6 +251,13 @@ export function TodayScreen({
   // Big moments over the screen (morning hello, all done); he flies about and lands back in his spot.
   const reduceMotion = useReduceMotion();
   const tasksRef = useTourTarget('tasks');
+  const tourTaskRef = useTourTarget('tour-task');
+  const tourSwipeRef = useTourTarget('tour-swipe');
+  const listTopRef = useTourTarget('today-top');
+  // The tour scrolls the list to what it shows.
+  const listRef = useRef<FlatList<Task>>(null);
+  const scrollTo = useCallback((y: number) => listRef.current?.scrollToOffset({ offset: y, animated: true }), []);
+  useTourScroller(scrollTo);
   const spot = useRef<HostInstance>(null);
   const [moment, setMoment] = useState<TodayMomentKind | null>(null);
   const [says, setSays] = useState<{ text: string; id: number }>();
@@ -333,6 +342,7 @@ export function TodayScreen({
     <>
       <View style={{ flex: 1 }}>
         <Animated.FlatList
+          ref={listRef}
           data={openTasks}
           onScroll={onScroll}
           scrollEventThrottle={16}
@@ -342,6 +352,7 @@ export function TodayScreen({
           keyboardShouldPersistTaps="handled"
           ListHeaderComponent={
             <>
+              <View ref={listTopRef} />
               <Greeting name={shownName(state.profile.name)} />
               {/* Where the combo pill pops up: the header starts below the list's top padding. */}
               <View onLayout={(e) => (comboY.value = HEADER_TOP + e.nativeEvent.layout.y)} />
@@ -413,7 +424,9 @@ export function TodayScreen({
               )}
             </>
           }
-          renderItem={({ item, index }) => row(item, index)}
+          renderItem={({ item, index }) =>
+            item.id === TOUR_TASK ? <View ref={tourTaskRef}>{row(item, index)}</View> : item.id === TOUR_SWIPE_TASK ? <View ref={tourSwipeRef}>{row(item, index)}</View> : row(item, index)
+          }
         />
         {combo && <ComboPill count={combo.count} play={combo.play} style={comboStyle} />}
         {moment && (

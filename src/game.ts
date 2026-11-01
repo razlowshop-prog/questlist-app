@@ -481,54 +481,50 @@ export function wheelXp(state: Pick<GameState, 'wheelSpins'>): number {
 // ---------- streaks ----------
 
 /**
- * Weekly task XP needed for each fire tier, reached at the end of a week.
- * Flame also lights right away, the day a streak has earned its weekXp.
+ * The fire tiers (rework picked 2026-11-01, option 1): one ladder that grows
+ * with the streak's days, each step adding its XP bonus to every task.
+ * Spark (tier 0) is a streak under 5 days.
  */
 export const STREAK_TIERS = [
-  { tier: 1, name: N('Flame'), weekXp: 100 },
-  { tier: 2, name: N('Blaze'), weekXp: 200 },
-  { tier: 3, name: N('Inferno'), weekXp: 300 },
+  { tier: 1, name: N('Flame'), days: 5, bonus: 0.1 },
+  { tier: 2, name: N('Blaze'), days: 10, bonus: 0.2 },
+  { tier: 3, name: N('Inferno'), days: 30, bonus: 0.3 },
+  { tier: 4, name: N('Legend'), days: 150, bonus: 0.5 },
 ] as const;
 
-/**
- * This week's XP against the fire tiers, for the weekly bar in the level
- * sheet: the tier it reaches so far, the next one and the XP still needed,
- * and whether Monday will raise the fire (it only ever goes up then).
- */
-export function weekTierProgress(streak: Pick<StreakStatus, 'tier' | 'weekXp' | 'weekTier' | 'days'>): { reached: number; next?: (typeof STREAK_TIERS)[number]; toGo: number; mondayUp: boolean } {
-  const next = STREAK_TIERS.find((t) => streak.weekXp < t.weekXp);
-  return { reached: streak.weekTier, next, toGo: next ? next.weekXp - streak.weekXp : 0, mondayUp: streak.days > 0 && streak.weekTier > streak.tier };
+/** The fire tier a streak of this many days has reached (0 = Spark). */
+export function tierForDays(days: number): number {
+  return STREAK_TIERS.filter((t) => days >= t.days).length;
+}
+
+/** The next fire tier and the days still needed, or undefined on Legend. */
+export function nextTier(days: number): { tier: (typeof STREAK_TIERS)[number]; daysLeft: number } | undefined {
+  const tier = STREAK_TIERS.find((t) => days < t.days);
+  return tier && { tier, daysLeft: tier.days - days };
 }
 
 export function streakTierName(tier: number): string {
-  return t(tier === 0 ? N('Spark') : STREAK_TIERS[tier - 1].name);
+  return t(tier === 0 ? N('Spark') : STREAK_TIERS[Math.min(tier, STREAK_TIERS.length) - 1].name);
 }
 
 export interface StreakStatus {
   /** Active days in the current streak. */
   days: number;
-  /** 0 = Spark (no tier yet), 1 Flame, 2 Blaze, 3 Inferno. */
+  /** The fire: 0 Spark, 1 Flame, 2 Blaze, 3 Inferno, 4 Legend (tierForDays). */
   tier: number;
   /** Longest streak ever, in days. */
   best: number;
-  /** Task XP earned this week, counting towards next Monday's tier. */
-  weekXp: number;
-  /** Task XP earned since the current streak started (0 without a streak). */
-  streakXp: number;
-  /** The tier this week's XP reaches so far (0 = none). */
-  weekTier: number;
   /** Nothing done yet today while a streak is running. */
   atRisk: boolean;
-  /** Most weeks in a row that started on Inferno. */
-  bestInfernoWeeks: number;
   /** Every fire change, oldest first, for the activity timeline. */
   history: StreakChange[];
 }
 
 /**
- * A change to the streak fire: up = a Monday raised the tier, down = a missed
- * day cost a tier, lost = a missed day ended the streak. date is the Monday or
- * the missed day; days is the streak length right before the change.
+ * A change to the streak fire: up = the streak reached a new tier, lost = a
+ * missed day ended the streak. date is the day it happened; days is the streak
+ * length then (for lost: right before it ended). 'down' is no longer made
+ * (the old weekly tiers could drop one).
  */
 export interface StreakChange {
   date: string;
@@ -539,68 +535,35 @@ export interface StreakChange {
 
 /**
  * Replays every day since the first completion. A day with at least one task
- * done keeps the streak going. A missed day costs a tier (Blaze -> Flame,
- * Inferno -> Blaze) and the days counted so far survive; on Flame or Spark a
- * missed day ends the streak. Flame lights the moment a streak has earned
- * 100 XP, today included. Each Monday, last week's task XP raises the
- * tier to whatever threshold it reached (never lowers it). Today only counts
- * against the streak once it is over.
+ * done adds a day to the streak, and the fire grows with the days (tierForDays).
+ * A rest day keeps everything as it is; any other missed day ends the streak.
+ * Today only counts against the streak once it is over.
  */
 export function streakStatus(completions: Completion[], today: string, restDays: string[] = []): StreakStatus {
-  const xpByDay = new Map<string, number>();
-  for (const c of completions) if (c.date <= today) xpByDay.set(c.date, (xpByDay.get(c.date) ?? 0) + c.xp);
-  const weekXpOf = (monday: string) => {
-    let sum = 0;
-    for (let i = 0; i < 7; i++) sum += xpByDay.get(addDays(monday, i)) ?? 0;
-    return sum;
-  };
-  const tierFor = (xp: number) => STREAK_TIERS.filter((t) => xp >= t.weekXp).length;
-  const thisWeek = weekStart(today);
-  const weekXp = weekXpOf(thisWeek);
+  const done = new Set<string>();
+  for (const c of completions) if (c.date <= today) done.add(c.date);
   const rest = new Set(restDays);
-  const first = [...xpByDay.keys()].sort()[0];
+  const first = [...done].sort()[0];
   let days = 0;
-  let streakXp = 0;
-  let tier = 0;
   let best = 0;
-  let infernoRun = 0;
-  let bestInfernoWeeks = 0;
   const history: StreakChange[] = [];
   if (first) {
     for (let d = first; d <= today; d = addDays(d, 1)) {
-      if (d !== first && weekdayOf(d) === 0) {
-        const reached = days > 0 ? tierFor(weekXpOf(addDays(d, -7))) : 0;
-        if (reached > tier) {
-          tier = reached;
-          history.push({ date: d, change: 'up', tier, days });
-        }
-        infernoRun = tier === 3 ? infernoRun + 1 : 0;
-        bestInfernoWeeks = Math.max(bestInfernoWeeks, infernoRun);
-      }
-      if (xpByDay.has(d)) {
+      if (done.has(d)) {
+        const before = tierForDays(days);
         days++;
         best = Math.max(best, days);
-        streakXp += xpByDay.get(d) ?? 0;
-        if (tier === 0 && streakXp >= STREAK_TIERS[0].weekXp) {
-          tier = 1;
-          history.push({ date: d, change: 'up', tier, days });
-        }
+        const tier = tierForDays(days);
+        if (tier > before) history.push({ date: d, change: 'up', tier, days });
       } else if (rest.has(d)) {
         // A rest day keeps everything as it is.
-      } else if (d !== today) {
-        if (tier >= 2) {
-          tier--;
-          history.push({ date: d, change: 'down', tier, days });
-        } else {
-          if (days > 0) history.push({ date: d, change: 'lost', tier: 0, days });
-          days = 0;
-          streakXp = 0;
-          tier = 0;
-        }
+      } else if (d !== today && days > 0) {
+        history.push({ date: d, change: 'lost', tier: 0, days });
+        days = 0;
       }
     }
   }
-  return { days, tier, best, weekXp, streakXp, weekTier: tierFor(weekXp), atRisk: days > 0 && !xpByDay.has(today) && !rest.has(today), bestInfernoWeeks, history };
+  return { days, tier: tierForDays(days), best, atRisk: days > 0 && !done.has(today) && !rest.has(today), history };
 }
 
 /**
@@ -641,13 +604,8 @@ export function xpMultiplier(state: GameState, today: string): { total: number; 
   return { total: parts.reduce((t, p) => t * p.x, 1), parts, streak };
 }
 
-/** Daily-streak XP multiplier steps: from 5 days 1.1x, 10 days 1.2x, 30 days 1.3x, 150 days 1.5x. */
-export const STREAK_BONUSES = [
-  { days: 5, bonus: 0.1 },
-  { days: 10, bonus: 0.2 },
-  { days: 30, bonus: 0.3 },
-  { days: 150, bonus: 0.5 },
-] as const;
+/** The XP bonus steps: the fire tiers' days and bonuses (1.1x from 5 days up to 1.5x from 150). */
+export const STREAK_BONUSES = STREAK_TIERS.map(({ days, bonus }) => ({ days, bonus }));
 
 /** Streak bonus as a fraction of base XP, e.g. 0.2 = 1.2x. */
 export function streakBonus(streak: number): number {

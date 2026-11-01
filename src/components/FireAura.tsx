@@ -15,7 +15,7 @@ export function FireAura({ tier, id }: { tier: number; /** Unique per screen, fo
   const reduceMotion = useReduceMotion();
   const breath = useRef(new Animated.Value(0)).current;
   const color = fireColor(tier, c);
-  const strength = AURA[tier];
+  const strength = AURA[Math.min(tier, AURA.length - 1)];
 
   useEffect(() => {
     if (tier < 3 || reduceMotion) return;
@@ -83,6 +83,19 @@ const AURA: ({ glow: number; embers: EmberSpec[] } | undefined)[] = [
       { left: 38, size: 2, delay: 600, duration: 5600 },
       { left: 50, size: 3, delay: 3000, duration: 5000 },
       { left: 64, size: 2, delay: 1700, duration: 6000 },
+    ],
+  },
+  // Legend: the brightest glow and the most embers.
+  {
+    glow: 0.42,
+    embers: [
+      { left: 4, size: 3, delay: 0, duration: 4200 },
+      { left: 13, size: 2, delay: 900, duration: 4800 },
+      { left: 22, size: 4, delay: 2000, duration: 4400 },
+      { left: 32, size: 3, delay: 400, duration: 5200 },
+      { left: 43, size: 2, delay: 2700, duration: 4600 },
+      { left: 54, size: 4, delay: 1400, duration: 5000 },
+      { left: 66, size: 2, delay: 3300, duration: 5600 },
     ],
   },
 ];

@@ -118,16 +118,17 @@ test('the free recovery is offered once, for a streak worth saving', () => {
   assert.equal(recoveryOffer(player(1, { completions: run(5, addDays(TODAY, -1)) }), TODAY), undefined);
 });
 
-test('the free recovery also saves a fire tier', () => {
-  // Two full weeks at 50 XP a day reach Blaze; then yesterday is missed.
+test('the free recovery also saves the fire tier', () => {
+  // Fifteen days reach Blaze; then yesterday is missed and the streak is gone.
   const monday = '2026-10-05';
   const completions = Array.from({ length: 15 }, (_, i) => done(addDays(monday, i), 'Go for a run', 50));
   const s = player(1, { completions });
   const day = addDays(monday, 16);
   const before = streakStatus(s.completions, day, restDaysOf(s));
+  assert.deepEqual([before.days, before.tier], [0, 0]);
   const offer = recoveryOffer(s, day)!;
-  assert.ok(offer.tier > before.tier, `${offer.tier} > ${before.tier}`);
-  assert.equal(offer.streakLost, false); // the days survive a lost tier
+  assert.deepEqual([offer.keeps, offer.tier], [15, 2]);
+  assert.equal(offer.streakLost, true);
   const kept = answerRecovery(s, day, true);
   assert.equal(streakStatus(kept.completions, day, restDaysOf(kept)).tier, offer.tier);
 });

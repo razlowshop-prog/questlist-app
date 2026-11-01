@@ -125,8 +125,9 @@ test('a made-up streak counts the days before today and replaces the last one', 
   const shorter = setDevStreak(week, 3, TODAY);
   assert.equal(currentStreak(shorter.completions, TODAY), 4);
   assert.equal(currentStreak(setDevStreak(shorter, 0, TODAY).completions, TODAY), 1);
-  // A full made-up week reaches Inferno once a Monday has passed.
-  assert.equal(streakStatus(setDevStreak(s, 14, TODAY).completions, TODAY).tier, 3);
+  // The fire follows the days: 15 reach Blaze, 30 Inferno.
+  assert.equal(streakStatus(setDevStreak(s, 14, TODAY).completions, TODAY).tier, 2);
+  assert.equal(streakStatus(setDevStreak(s, 29, TODAY).completions, TODAY).tier, 3);
 });
 
 test('made-up days skip days that already have a real task', () => {

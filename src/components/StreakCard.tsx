@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type Ref } from 'react';
 import { Pressable, Text, View, type HostInstance } from 'react-native';
-import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, FadeIn, FadeOut, LinearTransition, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { nextBizzyForm, type BizzyMood } from '../bizzy';
 import type { Line, TalkContext } from '../bizzyTalk';
 import { STREAK_TIERS, streakTierName, type StreakStatus, type WeekDot, type xpMultiplier } from '../game';
@@ -76,11 +76,6 @@ export function StreakCard({
   useEffect(() => {
     if (says) say({ key: 'moment', text: says.text });
   }, [says?.id]);
-  const talking = useSharedValue(0);
-  useEffect(() => {
-    talking.value = withTiming(said ? 1 : 0, { duration: 180 });
-  }, [!!said]);
-  const bubbleStyle = useAnimatedStyle(() => ({ opacity: talking.value, transform: [{ scale: 0.9 + 0.1 * talking.value }] }));
 
   return (
     <Pressable
@@ -98,7 +93,7 @@ export function StreakCard({
               <StreakNumber days={streak.days} tier={streak.tier} />
               <View style={{ flex: 1, gap: 4 }}>
                 <Text style={s.label} numberOfLines={2}>
-                  {tn(streak.days, 'day streak#one', 'day streak')}
+                  {t('Streak')}
                 </Text>
                 {/* The multiplier shares the tier's line, so a long streak still fits on small phones. */}
                 <View style={s.labelRow}>
@@ -115,36 +110,37 @@ export function StreakCard({
               <View ref={bizzy.spotRef} style={{ opacity: bizzy.away ? 0 : 1 }}>
                 <TapBizzy mood={bizzy.mood} cheer={bizzy.cheer} size={68} look={[-2, 1]} talk={bizzy.talk} onSay={say} taps={bizzy.taps} onTap={bizzy.onTap} />
               </View>
-              {/* His bubble floats above him, so the flame and count stay in view (asked 2026-10-31). */}
-              <Animated.View pointerEvents="none" style={[s.speechBox, bubbleStyle]}>
-                {said && (
-                  <View style={s.speech} accessibilityLiveRegion="polite">
-                    <Text style={s.speechText} numberOfLines={2}>
-                      {said.text}
-                    </Text>
-                    <View style={s.speechTail} />
-                  </View>
-                )}
-              </Animated.View>
               <EvolveNext form={bizzy.form} level={bizzy.level} onEvolve={bizzy.onEvolve} />
             </View>
           )}
         </View>
+        {/* His bubble opens a line of its own under him, inside the card, so it never covers the
+            flame, the count or the label (asked 2026-11-01). */}
+        {said && (
+          <Animated.View key={said.id} entering={FadeIn.duration(180)} exiting={FadeOut.duration(150)} style={s.speechRow} pointerEvents="none">
+            <View style={s.speech} accessibilityLiveRegion="polite">
+              <View style={s.speechTail} />
+              <Text style={s.speechText} numberOfLines={2}>
+                {said.text}
+              </Text>
+            </View>
+          </Animated.View>
+        )}
         {/* This week's days spread over the whole card, each with its letter. */}
-        <View style={s.week}>
+        <Animated.View layout={LinearTransition.duration(200)} style={s.week}>
           {week.map((d, i) => (
             <View key={i} style={s.day}>
               <Dot state={d} grad={grad} />
               <Text style={[s.dayLetter, d === 'today' && s.dayToday]}>{t(DAY_NAMES[i])[0]}</Text>
             </View>
           ))}
-        </View>
+        </Animated.View>
         {streak.atRisk && <Text style={s.risk}>{t('Nothing done yet today. One task keeps your streak going.')}</Text>}
         {streak.days === 0 && <Text style={s.note}>{t('Finish a task today to light your streak.')}</Text>}
-        {/* Flame lights the moment the streak has earned its XP. */}
+        {/* Flame lights at 5 days. */}
         {streak.days > 0 && streak.tier === 0 && (
           <Text style={s.note}>
-            {t('{n} XP more to light {tier}', { n: STREAK_TIERS[0].weekXp - streak.streakXp, tier: t(STREAK_TIERS[0].name) })}
+            {tn(STREAK_TIERS[0].days - streak.days, '{n} more day to light {tier}', '{n} more days to light {tier}', { tier: t(STREAK_TIERS[0].name) })}
           </Text>
         )}
       </View>
@@ -174,12 +170,13 @@ function EvolveNext({ form, level, onEvolve }: { form: number; level: number; on
   );
 }
 
-/** How the day count burns per fire tier (Spark, Flame, Blaze, Inferno): glow size and flicker strength. */
+/** How the day count burns per fire tier (Spark, Flame, Blaze, Inferno, Legend): glow size and flicker strength. */
 const NUMBER_FIRE = [
   { glow: 0, flicker: 0 },
   { glow: 10, flicker: 0.04 },
   { glow: 16, flicker: 0.07 },
   { glow: 24, flicker: 0.1 },
+  { glow: 30, flicker: 0.12 },
 ];
 
 /**
@@ -189,7 +186,7 @@ const NUMBER_FIRE = [
 function StreakNumber({ days, tier }: { days: number; tier: number }) {
   const s = useStyles(makeStyles);
   const grad = tierFlame(tier);
-  const fire = NUMBER_FIRE[Math.max(0, Math.min(3, tier))];
+  const fire = NUMBER_FIRE[Math.max(0, Math.min(NUMBER_FIRE.length - 1, tier))];
   const reduce = useReducedMotion();
   const flicker = useSharedValue(0);
   const lit = days > 0 && fire.flicker > 0 && !reduce;
@@ -250,10 +247,11 @@ const makeStyles = themed((c) => ({
   daysLong: { fontFamily: VIVID_HEAVY, fontSize: 56, lineHeight: 66 },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   label: { color: c.text, fontSize: 18, fontWeight: '800' },
-  speechBox: { position: 'absolute', right: -4, bottom: '100%', marginBottom: -30, width: 270, alignItems: 'flex-end', zIndex: 10 },
+  speechRow: { alignItems: 'flex-end', marginTop: 2 },
   speech: { maxWidth: '100%', backgroundColor: c.surfaceAlt, borderColor: c.border, borderWidth: 1, borderRadius: 12, paddingHorizontal: 11, paddingVertical: 7, boxShadow: '0px 4px 14px rgba(0,0,0,0.3)' },
   speechText: { color: c.text, fontSize: 13, lineHeight: 17, fontWeight: '700' },
-  speechTail: { position: 'absolute', right: 30, bottom: -5, width: 8, height: 8, backgroundColor: c.surfaceAlt, borderColor: c.border, borderBottomWidth: 1, borderRightWidth: 1, transform: [{ rotate: '45deg' }] },
+  // Points up at Bizzy, in the middle of his corner.
+  speechTail: { position: 'absolute', right: 42, top: -5, width: 8, height: 8, backgroundColor: c.surfaceAlt, borderColor: c.border, borderTopWidth: 1, borderLeftWidth: 1, transform: [{ rotate: '45deg' }] },
   tier: { flexShrink: 1, color: c.muted, fontSize: 13, fontWeight: '700' },
   week: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 4, paddingTop: 2 },
   day: { alignItems: 'center', gap: 4 },

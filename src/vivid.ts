@@ -212,6 +212,7 @@ export const FLAMES = {
   ember: { ...g('#FFE29A', '#FF4A1C'), name: N('Ember') },
   blaze: { ...g('#C6F4FF', '#2F7BFF'), name: N('Blaze') },
   inferno: { ...g('#FFB3EF', '#9B30FF'), name: N('Inferno') },
+  legend: { ...g('#FFF6C8', '#F5A300'), name: N('Legend') },
   toxic: { ...g('#EEFF8A', '#22C55E'), name: N('Toxic') },
   solar: { ...g('#FFFBE0', '#FFB000'), name: N('Solar') },
   phantom: { ...g('#E0FFFB', '#7C5CFF'), name: N('Phantom') },
@@ -219,7 +220,7 @@ export const FLAMES = {
 
 /** The flame's colours for a fire tier (0 = no fire yet: undefined, drawn as an outline). */
 export function tierFlame(tier: number): Grad | undefined {
-  return [undefined, FLAMES.ember, FLAMES.blaze, FLAMES.inferno][Math.max(0, Math.min(3, tier))];
+  return [undefined, FLAMES.ember, FLAMES.blaze, FLAMES.inferno, FLAMES.legend][Math.max(0, Math.min(4, tier))];
 }
 
 /** Won flame styles that bring their own colours; the rest take the fire tier's. */

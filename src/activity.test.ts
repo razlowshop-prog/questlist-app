@@ -58,17 +58,15 @@ test('claimed challenges and achievements appear on their day, older claims get 
   assert.equal(joined.taskCount, 0);
 });
 
-test('fire changes show: Flame at 100 XP, a Monday tier up, then a missed day costs a tier, then the streak is lost', () => {
+test('fire changes show: Flame on the fifth day, then a missed day ends the streak', () => {
   const lastWeek = ['2026-10-12', '2026-10-13', '2026-10-14', '2026-10-15', '2026-10-16', '2026-10-17', '2026-10-18'];
   const t = activityTimeline(state({ completions: lastWeek.map((d) => done(d, 30)) }), TODAY);
   const fire = t.flatMap((d) => d.events.filter((e) => e.kind === 'fire').map((e) => ({ date: d.date, ...e })));
   assert.deepEqual(
     fire.sort((a, b) => (a.date < b.date ? -1 : 1)),
     [
-      { date: '2026-10-15', kind: 'fire', change: 'up', tier: 1, days: 4 },
-      { date: '2026-10-19', kind: 'fire', change: 'up', tier: 2, days: 7 },
-      { date: '2026-10-19', kind: 'fire', change: 'down', tier: 1, days: 7 },
-      { date: '2026-10-20', kind: 'fire', change: 'lost', tier: 0, days: 7 },
+      { date: '2026-10-16', kind: 'fire', change: 'up', tier: 1, days: 5 },
+      { date: '2026-10-19', kind: 'fire', change: 'lost', tier: 0, days: 7 },
     ],
   );
 });

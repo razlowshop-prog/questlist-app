@@ -62,7 +62,7 @@ import { BizzyFormContext, BizzyOutfitContext } from './src/components/Bizzy';
 import { dayTurn } from './src/flight';
 import { TourTargetProvider, useTourTargets } from './src/components/TourTargets';
 import { AppTour } from './src/components/AppTour';
-import { tourSteps } from './src/tour';
+import { TOUR_SWIPE_TASK, TOUR_SWIPE_TITLE, TOUR_TASK, TOUR_TASK_MINUTES, TOUR_TASK_TITLE, tourSteps } from './src/tour';
 import { quoteDue, quoteOfTheDay } from './src/quotes';
 import { QuoteSplash } from './src/components/QuoteSplash';
 import { outfitById, outfitDrawing, outfitName, toggleOutfit, wornOutfits } from './src/outfits';
@@ -288,6 +288,29 @@ function Succedo() {
   /** Library tasks already on the list, left out of the library and suggestions. */
   const ownedTasks = useMemo(() => ownedLibraryIds(state, today), [state.tasks, state.completions, today]);
   const week = useMemo(() => activitySummary(state, today), [state, today]);
+  // The tour's test task (asked 2026-11-01): the first tick happens with Bizzy watching. Only on
+  // the first tour; a replay skips that step. Put back if removed before it was ticked.
+  const touring = loaded && state.settings.tour === 'pending';
+  // Worked out as the tour starts (state is loaded by then), and kept while it runs.
+  const tourTried = useMemo(() => state.completions.some((x) => x.taskId === TOUR_TASK), [touring]);
+  const tourTicked = state.completions.some((x) => x.taskId === TOUR_TASK);
+  // The swipe task counts as removed once it was added and is gone again.
+  const swipeAdded = useRef(false);
+  const swipeThere = state.tasks.some((x) => x.id === TOUR_SWIPE_TASK);
+  if (swipeThere) swipeAdded.current = true;
+  const tourRemoved = swipeAdded.current && !swipeThere;
+  useEffect(() => {
+    if (!touring || tourTried) return;
+    setState((s) => {
+      let next = s;
+      if (!tourTicked && !next.tasks.some((x) => x.id === TOUR_TASK)) next = addTask(next, t(TOUR_TASK_TITLE), false, TOUR_TASK, TOUR_TASK_MINUTES);
+      if (!swipeAdded.current && !next.tasks.some((x) => x.id === TOUR_SWIPE_TASK)) next = addTask(next, t(TOUR_SWIPE_TITLE), false, TOUR_SWIPE_TASK, TOUR_TASK_MINUTES);
+      // Ready to tick at once: the few seconds' wait for new tasks doesn't apply to these.
+      const ready = new Date(Date.now() - 60_000).toISOString();
+      return next === s ? s : { ...next, tasks: next.tasks.map((x) => (x.id === TOUR_TASK || x.id === TOUR_SWIPE_TASK ? { ...x, createdAt: ready } : x)) };
+    });
+  }, [touring, tourTried, tourTicked, state.tasks]);
+
   // The quote of the day greets the player on the first open of each day, once setup and the tour are behind them.
   const quoteShown = loaded && state.onboarded && state.settings.tour !== 'pending' && quoteDue(state.settings, today);
   const rewards = useMemo(() => unlockedRewards(state), [state.achievementClaims, state.levelRewards, state.wheelSpins]);
@@ -974,7 +997,7 @@ function Succedo() {
                 // Today · Challenges · Add Task · Spin · Menu
                 i === 2 && (
                   <Pressable key="add" ref={tourRef('add')} onPress={openAdd} style={styles.tab} accessibilityRole="button" accessibilityLabel={t('Add Task')}>
-                    <View style={styles.addButton}>
+                    <View ref={tourRef('add-fab')} style={styles.addButton}>
                       <Plus size={24} color={brandInk(c)} strokeWidth={2.75} aria-hidden />
                     </View>
                     <Text style={[styles.tabLabel, styles.addLabel]} numberOfLines={1}>
@@ -1102,12 +1125,14 @@ function Succedo() {
                 }}
               />
             )}
-            {state.settings.tour === 'pending' && !celebration && (
+            {touring && !celebration && (
               <AppTour
-                steps={tourSteps({ widget: HAS_WIDGET })}
+                steps={tourSteps({ widget: HAS_WIDGET, tried: tourTried })}
                 targets={tourTargets}
                 streak={streakInfo}
                 onTab={openTab}
+                onPage={setPage}
+                tried={{ tick: tourTicked, remove: tourRemoved }}
                 onTry={(target) => {
                   if (target === 'xp') setRewardsOpen(true);
                   else if (target === 'streak') setLevelOpen(true);
@@ -1115,7 +1140,12 @@ function Succedo() {
                   return true;
                 }}
                 onDone={() => {
-                  setState((s) => updateSettings(s, { tour: 'done' }));
+                  // Test tasks left over go with the tour; a ticked one stays in "Done today".
+                  setState((s) => {
+                    let next = deleteTask(s, TOUR_SWIPE_TASK);
+                    if (!next.completions.some((x) => x.taskId === TOUR_TASK)) next = deleteTask(next, TOUR_TASK);
+                    return updateSettings(next, { tour: 'done' });
+                  });
                   openTab('today');
                 }}
               />
