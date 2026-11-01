@@ -34,13 +34,13 @@ export interface WheelPrize {
 }
 
 export const WHEEL_PRIZES: WheelPrize[] = [
-  { id: 'xp20', label: '20 XP', short: '20', odds: 33, rarity: 'common', xp: 20 },
-  { id: 'xp50', label: '50 XP', short: '50', odds: 18, rarity: 'common', xp: 50 },
-  { id: 'xp100', label: '100 XP', short: '100', odds: 8, rarity: 'common', xp: 100 },
-  { id: 'double', label: N('Double XP token'), short: '2X', odds: 9, rarity: 'uncommon', token: 'double' },
-  { id: 'rest', label: N('Rest day token'), short: 'REST', odds: 9, rarity: 'uncommon', token: 'rest' },
-  { id: 'reroll', label: N('Challenge swap'), short: 'SWAP', odds: 8, rarity: 'uncommon', token: 'reroll' },
-  { id: 'adfree', label: N('Ad-free day'), short: 'AD-FREE', odds: 5, rarity: 'rare', token: 'adfree' },
+  { id: 'xp20', label: '20 XP', short: '20', odds: 40, rarity: 'common', xp: 20 },
+  { id: 'xp50', label: '50 XP', short: '50', odds: 22, rarity: 'common', xp: 50 },
+  { id: 'xp100', label: '100 XP', short: '100', odds: 10, rarity: 'common', xp: 100 },
+  { id: 'double', label: N('Double XP token'), short: '2X', odds: 5, rarity: 'uncommon', token: 'double' },
+  { id: 'rest', label: N('Rest day token'), short: 'REST', odds: 5, rarity: 'uncommon', token: 'rest' },
+  { id: 'reroll', label: N('Challenge swap'), short: 'SWAP', odds: 5, rarity: 'uncommon', token: 'reroll' },
+  { id: 'adfree', label: N('Ad-free day'), short: 'AD-FREE', odds: 3, rarity: 'rare', token: 'adfree' },
   // Outfit slices (picked 2026-10-29, option B): a slice per rarity, never a duplicate.
   { id: 'o1', label: N('Rare outfit'), short: 'RARE', odds: 6, rarity: 'uncommon', outfit: 1 },
   { id: 'o2', label: N('Epic outfit'), short: 'EPIC', odds: 2.5, rarity: 'rare', outfit: 2 },

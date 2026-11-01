@@ -20,6 +20,7 @@ import {
   restDaysOf,
   dayKey,
   deleteTask,
+  restoreTask,
   emptyState,
   resetProgress,
   finishSetup,
@@ -192,6 +193,7 @@ function Succedo() {
   const [adding, setAdding] = useState(false);
   const [redoSetup, setRedoSetup] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [toastAction, setToastAction] = useState<{ label: string; onPress: () => void } | null>(null);
   const toastAnim = useRef(new Animated.Value(0)).current;
   const [levelOpen, setLevelOpen] = useState(false);
   const [rewardsOpen, setRewardsOpen] = useState(false);
@@ -433,14 +435,21 @@ function Succedo() {
     if (picks.length) setTimeout(() => showToast(tn(picks.length, '{n} task added. Let’s begin.', '{n} tasks added. Let’s begin.')), 300);
   }
 
-  function showToast(message: string) {
+  /** A short note above the tab bar; with an action (Undo) it stays a little longer and can be tapped. */
+  function showToast(message: string, action?: { label: string; onPress: () => void }) {
     setToast(message);
+    setToastAction(action ?? null);
+    toastAnim.stopAnimation();
     toastAnim.setValue(0);
     Animated.sequence([
       Animated.timing(toastAnim, { toValue: 1, duration: 350, easing: Easing.out(Easing.cubic), useNativeDriver: nativeDriver }),
-      Animated.delay(2000),
+      Animated.delay(action ? 5000 : 2000),
       Animated.timing(toastAnim, { toValue: 0, duration: 300, useNativeDriver: nativeDriver }),
-    ]).start(() => setToast(null));
+    ]).start(({ finished }) => {
+      if (!finished) return;
+      setToast(null);
+      setToastAction(null);
+    });
   }
 
   /** Applies a change and celebrates a level-up. Returns the XP gained. */
@@ -885,7 +894,15 @@ function Succedo() {
                   onOpenLibrary={() => setLibraryOpen(true)}
                   onToggle={onToggle}
                   onStep={onStep}
-                  onDelete={(task) => setState(deleteTask(state, task.id))}
+                  onDelete={(task) => {
+                    const at = state.tasks.findIndex((x) => x.id === task.id);
+                    setState((s) => deleteTask(s, task.id));
+                    // Removing takes a swipe and a tap; Undo puts it back where it was.
+                    showToast(t('{task} removed', { task: quoted(shownTitle(task.title)) }), {
+                      label: t('Undo'),
+                      onPress: () => setState((s) => restoreTask(s, task, at)),
+                    });
+                  }}
                   recap={recap && <WeeklyRecap recap={recap} onSeen={() => setState(updateSettings(state, { recapSeen: recap.week }))} />}
                   focusingId={focusTask?.id}
                   onFocus={onFocus}
@@ -1003,8 +1020,23 @@ function Succedo() {
             />
 
             {toast && (
-              <Animated.View style={[styles.toast, { bottom: 96 + insets.bottom }, toastStyle]} pointerEvents="none">
+              <Animated.View style={[styles.toast, toastAction && styles.toastRow, { bottom: 96 + insets.bottom }, toastStyle]} pointerEvents={toastAction ? 'box-none' : 'none'}>
                 <Text style={styles.toastText}>{toast}</Text>
+                {toastAction && (
+                  <Pressable
+                    onPress={() => {
+                      toastAction.onPress();
+                      toastAnim.stopAnimation();
+                      toastAnim.setValue(0);
+                      setToast(null);
+                      setToastAction(null);
+                    }}
+                    hitSlop={10}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.toastAction}>{toastAction.label}</Text>
+                  </Pressable>
+                )}
               </Animated.View>
             )}
 
@@ -1144,5 +1176,7 @@ const makeStyles = themed((c) => ({
     borderRadius: c.radius,
     maxWidth: '90%',
   },
-  toastText: { color: c.text, fontWeight: '600', fontSize: 15, textAlign: 'center' },
+  toastText: { color: c.text, fontWeight: '600', fontSize: 15, textAlign: 'center', flexShrink: 1 },
+  toastRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  toastAction: { color: brandLine(c), fontWeight: '800', fontSize: 15 },
 }));

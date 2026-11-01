@@ -33,9 +33,9 @@ test('the odds add up to 100 and every prize has one equal slice', () => {
   assert.ok(Math.abs(WHEEL_SEGMENTS.reduce((n, s) => n + s.share, 0) - 100) < 1e-9);
   for (const seg of WHEEL_SEGMENTS) assert.equal(seg.share, 100 / WHEEL_SEGMENTS.length);
   assert.deepEqual(new Set(WHEEL_SEGMENTS.map((s) => s.prize)), new Set(WHEEL_PRIZES.map((p) => p.id)));
-  // The approved odds.
+  // The approved odds (changed 2026-10-31: tokens 5 %, ad-free 3 %, the rest to the XP slices).
   const odds = Object.fromEntries(WHEEL_PRIZES.map((p) => [p.id, p.odds]));
-  assert.deepEqual(odds, { xp20: 33, xp50: 18, xp100: 8, double: 9, rest: 9, reroll: 8, adfree: 5, o1: 6, o2: 2.5, o3: 0.5, theme: 1 });
+  assert.deepEqual(odds, { xp20: 40, xp50: 22, xp100: 10, double: 5, rest: 5, reroll: 5, adfree: 3, o1: 6, o2: 2.5, o3: 0.5, theme: 1 });
 });
 
 test('rolls land on each prize exactly as often as its odds say', () => {
@@ -46,8 +46,8 @@ test('rolls land on each prize exactly as often as its odds say', () => {
   }
   for (const p of WHEEL_PRIZES) assert.equal(counts[p.id], p.odds * 10, p.id);
   assert.equal(prizeForRoll(0).id, 'xp20');
-  assert.equal(prizeForRoll(0.329).id, 'xp20');
-  assert.equal(prizeForRoll(0.33).id, 'xp50');
+  assert.equal(prizeForRoll(0.399).id, 'xp20');
+  assert.equal(prizeForRoll(0.4).id, 'xp50');
   assert.equal(prizeForRoll(0.985).id, 'o3');
   assert.equal(prizeForRoll(0.99).id, 'theme');
   assert.equal(prizeForRoll(0.999999).id, 'theme');

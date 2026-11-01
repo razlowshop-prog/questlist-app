@@ -9,7 +9,6 @@ import { useTourTarget } from '../components/TourTargets';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Chip } from '../components/Chip';
 import { QuoteFlip } from '../components/QuoteFlip';
-import { ConfirmSheet } from '../components/Sheet';
 import { brandFill, brandFillSmall, brandInk, brandTextShadow, EmptyState, GradientText, VIVID_HEAVY, VividButton } from '../components/Vivid';
 import { RARITY } from '../vivid';
 import { LibraryRow } from '../components/LibraryRow';
@@ -53,7 +52,7 @@ import { nonsenseReason } from '../sense';
 import { buzz } from '../haptics';
 import { quoteOfTheDay, quoteSideFor } from '../quotes';
 import { card, eyebrow, FONTS, themed, useStyles, useTheme, headingCase } from '../theme';
-import { N, quoted, t, tn } from '../i18n';
+import { N, t, tn } from '../i18n';
 
 export function TodayScreen({
   state,
@@ -132,7 +131,6 @@ export function TodayScreen({
     scrollY.value = e.contentOffset.y;
   });
   const comboStyle = useAnimatedStyle(() => ({ top: Math.max(6, comboY.value - scrollY.value) }));
-  const [removing, setRemoving] = useState<Task | null>(null);
   const [title, setTitle] = useState('');
   const [schedule, setSchedule] = useState<Schedule>(() => defaultSchedule(today));
   /** Chosen by the user; otherwise guessed from the title. */
@@ -328,7 +326,7 @@ export function TodayScreen({
           if (result.finished) leave(item.id);
           return result;
         }}
-        onDelete={() => setRemoving(item)}
+        onDelete={() => onDelete(item)}
         coveredBy={coveredBy(state, item, today)?.title}
         focusing={focusingId === item.id}
         // Only where a timer fits; a timer already running stays reachable.
@@ -447,17 +445,6 @@ export function TodayScreen({
         )}
       </View>
 
-      <ConfirmSheet
-        visible={!!removing}
-        title={t('Remove this task?')}
-        body={removing ? t('{task} leaves your list. The XP you already earned with it stays.', { task: quoted(shownTitle(removing.title)) }) : undefined}
-        confirmLabel={t('Remove')}
-        onCancel={() => setRemoving(null)}
-        onConfirm={() => {
-          if (removing) onDelete(removing);
-          setRemoving(null);
-        }}
-      />
 
       <Modal visible={adding} transparent animationType="slide" onRequestClose={closeSheet}>
         <Pressable style={s.backdrop} onPress={closeSheet} accessibilityLabel={t('Close')} />

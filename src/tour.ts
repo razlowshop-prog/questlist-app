@@ -21,7 +21,7 @@ export interface TourStep {
 export function tourSteps({ widget }: { widget: boolean }): TourStep[] {
   const steps: TourStep[] = [
     { id: 'hello', tab: 'today', title: N('Hi, I’m Bizzy!'), body: N('I’ll show you around. It takes a minute, and you can skip any time.') },
-    { id: 'tasks', target: 'tasks', tab: 'today', title: N('Your tasks for today'), body: N('Tap the circle on a task when it’s done. Every task earns XP.') },
+    { id: 'tasks', target: 'tasks', tab: 'today', title: N('Your tasks for today'), body: N('Tap the circle on a task when it’s done. Every task earns XP. Swipe a task to the left to remove it.') },
     { id: 'xp', target: 'xp', tab: 'today', title: N('Your level'), body: N('XP fills this bar. Each new level brings a reward: tokens, looks, themes. Tap it to see what’s next.') },
     { id: 'streak', target: 'streak', tab: 'today', title: N('Your streak'), body: N('Do one task a day to keep it going; longer streaks give more XP on every task. I live here: tap me any time.') },
     {
@@ -39,7 +39,8 @@ export function tourSteps({ widget }: { widget: boolean }): TourStep[] {
     { id: 'profile', target: 'profile', tab: 'today', title: N('Your profile'), body: N('Trophies, achievements, your frame and title, and me. The ring shows how close the next level is.') },
     { id: 'menu', target: 'tab-menu', tab: 'menu', title: N('Menu'), body: N('Settings, friends, your activity and help. You can replay this tour from Settings.') },
   ];
-  if (widget) steps.push({ id: 'widget', title: N('Put me on your home screen'), body: N('Press and hold an empty spot on your home screen, tap Widgets, find Succedo and drag me onto it.'), extra: 'widget' });
+  // Early on (asked 2026-10-31), right after hello: the widget keeps the app in sight every day.
+  if (widget) steps.splice(1, 0, { id: 'widget', title: N('Put me on your home screen'), body: N('Press and hold an empty spot on your home screen, tap Widgets, find Succedo and drag me onto it.'), extra: 'widget' });
   steps.push({ id: 'done', tab: 'today', title: N('You’re all set!'), body: N('Tick off your first task and let’s fill that XP bar.') });
   return steps;
 }
