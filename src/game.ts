@@ -172,6 +172,10 @@ export interface DevSettings {
   tokens?: Partial<Record<'rest' | 'double' | 'reroll' | 'adfree', number>>;
   /** Extra wheel tickets. */
   tickets?: number;
+  /** Which all-done moment plays (trying the alternatives, 2026-11-01). */
+  doneMoment?: 'check' | 'rain' | 'stamp' | 'rays';
+  /** Where Bizzy's bubble shows on the streak card (trying the alternatives, 2026-11-01). */
+  bubbleSpot?: 'row' | 'above' | 'left' | 'week' | 'float';
 }
 
 export interface DailyClaim {
