@@ -62,8 +62,9 @@ export function StreakCard({
   const s = useStyles(makeStyles);
   const c = useTheme();
   const tourRef = useTourTarget('streak');
-  // On narrow phones the still flame makes room, so the words and the pill keep a full line (the number burns in its colours anyway).
-  const roomy = useWindowDimensions().width >= 380;
+  // The still flame icon only fits next to a one- or two-digit streak on a wide phone; from 100 days the
+  // number (in the fire's colours) stands alone, so the bonus pill beside it is never cut (asked 2026-11-01).
+  const roomy = useWindowDimensions().width >= 380 && streak.days < 100;
   const grad = tierFlame(streak.tier);
   const days = week.map((d, i) => `${t(DAY_NAMES[i])} ${t(DOT_WORDS[d])}`).join(', ');
   // What Bizzy just said, shown for a few seconds (longer lines a little longer).
@@ -282,7 +283,7 @@ function StreakNumber({ days, tier }: { days: number; tier: number }) {
 
   return (
     <Animated.View style={style}>
-      <GradientText style={[s.days, days >= 100 && s.daysLong]} colors={grad} glow={grad && days > 0 ? grad.c2 : undefined} glowRadius={fire.glow}>
+      <GradientText style={[s.days, days >= 100 && s.daysLong, days >= 1000 && s.daysHuge]} colors={grad} glow={grad && days > 0 ? grad.c2 : undefined} glowRadius={fire.glow}>
         {days}
       </GradientText>
     </Animated.View>
@@ -316,6 +317,8 @@ const makeStyles = themed((c) => ({
   evolveWait: { maxWidth: 96, fontFamily: VIVID_BOLD, color: c.muted, fontSize: 11, lineHeight: 14, textAlign: 'center' },
   days: { fontFamily: VIVID_HEAVY, fontSize: 72, lineHeight: 80, fontVariant: ['lining-nums'], minWidth: 44, textAlign: 'center' },
   daysLong: { fontFamily: VIVID_HEAVY, fontSize: 56, lineHeight: 66 },
+  // Four digits, after almost three years: smaller, so the words and the pill keep their room.
+  daysHuge: { fontSize: 42, lineHeight: 52 },
   // The pill moves under the tier name when both don't fit, so the name is never cut to "B…".
   // The card's words use the app's own font in every theme, like the number, so it is built the same everywhere.
   labelRow: { alignItems: 'flex-start', gap: 6 },
