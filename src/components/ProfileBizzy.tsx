@@ -23,7 +23,7 @@ const SIZE = 52;
 /**
  * Bizzy on the profile (picked 2026-10-29: ideas A, C and E, taking turns):
  * A flies round the picture, passing behind and in front, and waves from on
- * top; C sits on the level pill, swings, dozes off and jolts awake; E polishes
+ * top; C leans on the level pill, swings, dozes off and jolts awake; E polishes
  * the pinned trophies one by one. Between them he flies over to the next spot
  * instead of jumping. With less motion he just sits on top of the picture.
  * Rendered inside `root`, next to the picture (which has zIndex 2).
@@ -70,7 +70,8 @@ export function ProfileBizzy({ root, frame, pill, trophies }: { root: RefObject<
   }
 
   async function onPill(p: Spot) {
-    const seat: Pt = [p.x + p.w - 14, p.y - 14];
+    // Leaning on the pill's left end, at its height: on top of it he covered the title (2026-10-31).
+    const seat: Pt = [p.x - SIZE / 2 + 6, p.y + p.h / 2 - 2];
     await goTo(seat);
     if (!alive.current) return;
     flyer.setFast(false);

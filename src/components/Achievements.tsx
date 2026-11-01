@@ -1,5 +1,5 @@
 import { Pressable, Text, View } from 'react-native';
-import { rewardLabel, TIER_NAMES, type AchievementStatus, type Reward } from '../achievements';
+import { rewardLabel, TIER_NAMES, type AchievementStatus } from '../achievements';
 import { card, themed, useStyles, FONTS, headingCase } from '../theme';
 import { brandFillSmall, brandInk, brandTextShadow, fill, GradientText, Sticker, StickerHeading, VIVID_HEAVY } from './Vivid';
 import { achievementTierLook, brandGlow, brandLine, ICON_GLYPHS, RARITY } from '../vivid';
@@ -11,16 +11,12 @@ import { t } from '../i18n';
  */
 export function Achievements({
   achievements,
-  rewards,
   onClaim,
 }: {
   achievements: AchievementStatus[];
-  rewards: Reward[];
   onClaim: (id: string) => void;
 }) {
   const s = useStyles(makeStyles);
-  // Tokens are counted in the inventory; here only what stays: themes, titles, looks, ad-free and Premium time.
-  const shown = rewards.filter((r) => r.kind !== 'token');
   const earned = achievements.reduce((n, a) => n + Math.min(a.claimed, a.def.tiers.length), 0);
   const total = achievements.reduce((n, a) => n + a.def.tiers.length, 0);
   // Claimable ones first.
@@ -112,23 +108,6 @@ export function Achievements({
         );
       })}
 
-      <StickerHeading glyph="Gift" grad={RARITY.epic} style={{ marginTop: 22 }}>
-        <Text style={[s.heading, s.subHeading, { marginTop: 0 }]}>{t('Your rewards')}</Text>
-      </StickerHeading>
-      {shown.length === 0 ? (
-        <Text style={s.sub}>{t('Claim achievement tiers and reach new levels to unlock themes, titles, frames and more.')}</Text>
-      ) : (
-        <View style={s.rewards}>
-          {shown.map((r, i) => (
-            <View key={i} style={s.rewardChip}>
-              <Text style={s.rewardChipText}>
-                {rewardLabel(r)}
-              </Text>
-            </View>
-          ))}
-        </View>
-      )}
-      <Text style={[s.sub, { marginTop: 10 }]}>{t('Tokens, themes, flames and tick celebrations are in your inventory at the top right. Frames and titles are on your profile.')}</Text>
     </View>
   );
 }
@@ -161,7 +140,4 @@ const makeStyles = themed((c) => ({
   fill: { height: '100%' },
   progress: { color: c.muted, fontSize: 12, marginTop: -4 },
   unlock: { color: c.gold, fontSize: 12, fontWeight: '700' },
-  rewards: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
-  rewardChip: { ...card(c), borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, borderColor: brandLine(c), borderWidth: 1.5 },
-  rewardChipText: { color: c.text, fontSize: 13, fontWeight: '600' },
 }));

@@ -3,7 +3,7 @@ import { useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, Text, TextInput, View, type HostInstance } from 'react-native';
 import { ProfileBizzy } from '../components/ProfileBizzy';
 import type { activitySummary } from '../activity';
-import type { AchievementStatus, Reward } from '../achievements';
+import type { AchievementStatus } from '../achievements';
 import { Achievements } from '../components/Achievements';
 import { MultiplierPill } from '../components/MultiplierPill';
 import { Fire } from '../components/Fire';
@@ -39,7 +39,6 @@ export function ProfileScreen({
   bizzy,
   multiplier,
   achievements,
-  rewards,
   toClaim,
   freshLooks,
   onSeenLook,
@@ -69,7 +68,6 @@ export function ProfileScreen({
   /** What the next task today is multiplied by. */
   multiplier: ReturnType<typeof xpMultiplier>;
   achievements: AchievementStatus[];
-  rewards: Reward[];
   /** Achievement tiers ready to claim, shown on the Awards switch. */
   toClaim: number;
   /** Won looks not seen yet, as "kind:id" keys; frames and titles get a badge here. */
@@ -226,7 +224,7 @@ export function ProfileScreen({
 
 
           <View style={s.headingRow}>
-            <Achievements achievements={achievements} rewards={rewards} onClaim={onClaimAchievement} />
+            <Achievements achievements={achievements} onClaim={onClaimAchievement} />
           </View>
         </>
       ) : (

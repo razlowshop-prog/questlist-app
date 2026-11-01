@@ -781,7 +781,6 @@ function Succedo() {
                   }}
                   multiplier={multiplier}
                   achievements={achievements}
-                  rewards={rewards}
                   toClaim={awardsToClaim}
                   freshLooks={freshLooks}
                   onSeenLook={seeLook}
