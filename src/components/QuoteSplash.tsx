@@ -18,12 +18,12 @@ export function QuoteSplash({ quote, onDone }: { quote: { text: string; author: 
   const s = useStyles(makeStyles);
   const reduce = useReducedMotion();
   const form = Math.max(useContext(BizzyFormContext), SPLASH_FORM);
-  const shown = useSharedValue(0);
+  // Fully covering from the first frame: fading in let Today show through for a moment (2026-11-01).
+  const shown = useSharedValue(1);
   const rise = useSharedValue(0);
   const hint = useSharedValue(0);
 
   useEffect(() => {
-    shown.value = withTiming(1, { duration: reduce ? 150 : 450 });
     rise.value = withDelay(reduce ? 0 : 250, withTiming(1, { duration: reduce ? 150 : 700, easing: Easing.out(Easing.cubic) }));
     // "Tap to start" fades in after a moment and breathes gently.
     hint.value = withDelay(1600, reduce ? withTiming(1) : withRepeat(withSequence(withTiming(1, { duration: 900 }), withTiming(0.45, { duration: 900 })), -1, true));

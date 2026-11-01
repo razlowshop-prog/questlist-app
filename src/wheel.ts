@@ -183,11 +183,11 @@ export function segmentFor(prizeId: string, roll: number): { index: number; at: 
 
 /**
  * The wheel's size for the space between the header and the tab bar: as big
- * as fits with the title above and the hint below, never wider than the page
- * minus the corner chips' margins.
+ * as fits with the title above, the chips row and the hint below, never wider
+ * than the page minus the corner chips' margins.
  */
 export function wheelSize(width: number, height: number): number {
   const across = Math.min(width, 640) - 56;
-  const down = height - 176;
+  const down = height - 200;
   return Math.round(Math.max(200, Math.min(360, across, down)));
 }

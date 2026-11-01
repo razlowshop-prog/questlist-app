@@ -152,13 +152,13 @@ test('the XP multiplier lists what it is made of, counting today in the streak',
 test('wheel: sizes itself so the whole wheel fits between header and tab bar', () => {
   // Regular phone (360 wide, ~600 between the bars): limited by the width.
   assert.equal(wheelSize(360, 600), 304);
-  assert.equal(wheelSize(360, 470), 294);
+  assert.equal(wheelSize(360, 470), 270);
   // Small phone (~420 between the bars): limited by the height, so nothing is cut off.
-  assert.equal(wheelSize(360, 420), 244);
+  assert.equal(wheelSize(360, 420), 220);
   // Big phone or tablet: capped.
   assert.equal(wheelSize(412, 780), 356);
   assert.equal(wheelSize(1024, 1200), 360);
   // Never smaller than 200.
   assert.equal(wheelSize(300, 200), 200);
-  for (const [w, h] of [[320, 480], [360, 560], [390, 700], [412, 760]]) assert.ok(wheelSize(w, h) + 176 <= h && wheelSize(w, h) + 56 <= w, `${w}x${h}`);
+  for (const [w, h] of [[320, 480], [360, 560], [390, 700], [412, 760]]) assert.ok(wheelSize(w, h) + 200 <= h && wheelSize(w, h) + 56 <= w, `${w}x${h}`);
 });
