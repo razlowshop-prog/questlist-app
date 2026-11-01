@@ -1,9 +1,9 @@
 import { buzz } from '../haptics';
 import { sound } from '../sounds';
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Animated, Easing, Modal, PanResponder, Pressable, ScrollView, Text, useWindowDimensions, View, type StyleProp, type TextStyle } from 'react-native';
+import { Animated, Easing, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type StyleProp, type TextStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Reanimated, { cancelAnimation, Easing as REasing, useAnimatedReaction, useAnimatedStyle, useSharedValue, withRepeat, withTiming, type SharedValue } from 'react-native-reanimated';
+import Reanimated, { cancelAnimation, Easing as REasing, useAnimatedReaction, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withTiming, type SharedValue } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import Svg, { Circle, Defs, G, LinearGradient, Mask, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { CoinCheck, CoinShower, GOLD, GoldText, HOLO, HoloBorder, ShimmerBar, Star4, StarRule } from '../components/Fortuna';
@@ -27,13 +27,14 @@ import {
   type WheelPrize,
 } from '../wheel';
 import type { WheelSpin } from '../game';
+import { Bizzy } from '../components/Bizzy';
+import { FlyingBizzy, useFlyer } from '../components/fx/Flyer';
+import { outfitById, outfitDrawing, outfitName, OUTFIT_XP, RARITY_LABEL, type Outfit } from '../outfits';
 import { N, t, tn } from '../i18n';
 
 const TURNS = 6;
-/** A swipe spins between these many turns, more for a faster flick. */
+/** Letting go of the wheel spins it between these many turns, more for a faster swing. */
 const SWIPE_TURNS = [3, 9];
-/** Slowest flick that still spins the wheel, in radians per millisecond. */
-const MIN_FLICK = 0.003;
 const SPIN_MS = 3200;
 /** At most one haptic tick per this many ms. */
 const TICK_MS = 40;
@@ -55,6 +56,9 @@ const LABELS: Record<string, string> = {
   adfree: N('Ad-free'),
   theme: 'Fortuna',
   jackpot: N('Jackpot'),
+  o1: N('Rare'),
+  o2: N('Epic'),
+  o3: N('Legendary'),
 };
 /** The two slice colours, alternating round the wheel. */
 const SLICE_FILLS = ['#1d2335', '#252c42'];
@@ -65,6 +69,8 @@ const FORTUNA_INK = '#f2c55c';
 function prizeAbout(prize: WheelPrize, ownsTheme: boolean): string {
   if (prize.theme) return ownsTheme ? t('You own Fortuna, so this slice now pays a big XP jackpot.') : t('The Fortuna theme: a gold and violet look for the whole app. The rarest slice.');
   if (prize.token) return `${t(TOKEN_INFO[prize.token].description)} ${t('It goes into your bag until you use it.')}`;
+  if (prize.outfit)
+    return t('A {rarity} outfit for Bizzy that you don’t have yet. Once you own every {rarity} one, this slice pays {n} XP instead.', { rarity: t(RARITY_LABEL[prize.outfit]), n: OUTFIT_XP[prize.outfit] });
   return t('{n} XP straight onto your level bar. Wheel XP doesn’t earn new tickets.', { n: prize.xp! });
 }
 
@@ -93,6 +99,7 @@ export function SpinScreen({
   spins,
   onSpin,
   onWearTheme,
+  onWearOutfit,
   onBusy,
 }: {
   tickets: TicketStatus;
@@ -101,8 +108,10 @@ export function SpinScreen({
   ownsTheme: boolean;
   spins: WheelSpin[];
   /** Spends a ticket (saved at once); `finish` hands the prize out once it's revealed. */
-  onSpin: () => { prize: WheelPrize; finish: () => void } | undefined;
+  onSpin: () => ({ finish: () => void } & Won) | undefined;
   onWearTheme: () => void;
+  /** Puts on an outfit just won. */
+  onWearOutfit: (id: string) => void;
   /** True while the wheel turns: the app holds the tabs, so the prize can't be left behind. */
   onBusy?: (busy: boolean) => void;
 }) {
@@ -123,9 +132,10 @@ export function SpinScreen({
     onBusy?.(spinning);
     return () => onBusy?.(false);
   }, [spinning]);
-  const [won, setWon] = useState<WheelPrize | null>(null);
+  const [won, setWon] = useState<Won | null>(null);
   const [oddsOpen, setOddsOpen] = useState(false);
   /** The slice the player tapped, explained under the wheel. */
+  const [luckyTip, setLuckyTip] = useState(false);
   const [about, setAbout] = useState<WheelPrize | null>(null);
   const lastTick = useRef(0);
   // The prize hand-out of a spin still turning. Run when it lands, or at once if the screen closes first.
@@ -160,12 +170,12 @@ export function SpinScreen({
     },
   );
 
-  function landed(prize: WheelPrize) {
+  function landed(result: Won) {
     const finish = pending.current;
     if (!finish) return;
     pending.current = null;
     setSpinning(false);
-    setWon(prize);
+    setWon(result);
     // The prize buzz comes with the hand-out.
     finish();
   }
@@ -179,7 +189,7 @@ export function SpinScreen({
     if (spinning || !has) return;
     const result = onSpin();
     if (!result) return;
-    const { prize, finish } = result;
+    const { prize, finish, outfit, xp } = result;
     setAbout(null);
     const { at } = segmentFor(prize.id, Math.random());
     // The pointer is at the top; the wheel turns until `at` is under it.
@@ -195,7 +205,7 @@ export function SpinScreen({
       to,
       // Fast start, long slow-down: the last slices crawl past. More turns take a little longer.
       { duration: reduceMotion ? 400 : SPIN_MS + (turns - TURNS) * 300, easing: REasing.bezier(0.12, 0.75, 0.15, 1) },
-      () => scheduleOnRN(landed, prize),
+      () => scheduleOnRN(landed, { prize, outfit, xp }),
     );
   }
 
@@ -203,29 +213,59 @@ export function SpinScreen({
   const live = useRef({ spin, spinning, has, size, ownsTheme });
   live.current = { spin, spinning, has, size, ownsTheme };
 
+  /** The drag in progress: where it started (from the centre), the wheel's angle then, and recent samples for the speed. */
+  const drag = useRef<{ x: number; y: number; from: number; last: number; total: number; samples: { t: number; a: number }[] } | null>(null);
+  const [dragging, setDragging] = useState(false);
+
   /**
-   * Touches on the wheel face: a flick around the centre spins it that way,
-   * a faster flick for longer; a tap explains the slice under the finger.
+   * Touches on the wheel face (picked 2026-10-31, option A): the wheel sticks
+   * to the finger and turns with it; let go and it carries on with that swing,
+   * at least SWIPE_TURNS[0] turns, to the prize drawn by chance like the
+   * button. A tap explains the slice under the finger.
    */
   const touch = useMemo(
     () =>
       PanResponder.create({
-        // Not while it turns, so a drag that starts on the wheel still scrolls the page.
         onStartShouldSetPanResponder: () => !live.current.spinning,
-        // The page may still take the touch over: an up or down drag on the wheel
-        // scrolls, a sideways flick spins and a tap explains the slice.
-        onShouldBlockNativeResponder: () => false,
-        onPanResponderTerminationRequest: () => true,
-        onPanResponderRelease: (e, g) => {
+        // Once on the wheel, the page doesn't scroll until the finger lifts.
+        onPanResponderTerminationRequest: () => false,
+        onShouldBlockNativeResponder: () => true,
+        onPanResponderGrant: (e) => {
+          const { size } = live.current;
+          const x = e.nativeEvent.locationX - size / 2;
+          const y = e.nativeEvent.locationY - size / 2;
+          const a = (Math.atan2(x, -y) * 180) / Math.PI;
+          drag.current = { x, y, from: angle.current, last: a, total: 0, samples: [{ t: Date.now(), a: 0 }] };
+        },
+        onPanResponderMove: (_e, g) => {
+          const d = drag.current;
+          if (!d || live.current.spinning) return;
+          if (Math.hypot(g.dx, g.dy) < 4 && d.total === 0) return;
+          const x = d.x + g.dx;
+          const y = d.y + g.dy;
+          // Too close to the middle the angle jumps about, so it waits there.
+          if (Math.hypot(x, y) < live.current.size * 0.08) return;
+          const a = (Math.atan2(x, -y) * 180) / Math.PI;
+          let step = a - d.last;
+          if (step > 180) step -= 360;
+          if (step < -180) step += 360;
+          d.last = a;
+          d.total += step;
+          d.samples.push({ t: Date.now(), a: d.total });
+          if (d.samples.length > 8) d.samples.shift();
+          setDragging(true);
+          angle.current = d.from + d.total;
+          rotation.value = angle.current;
+        },
+        onPanResponderRelease: (_e, g) => {
+          const d = drag.current;
+          drag.current = null;
+          setDragging(false);
           const { spin, spinning, has, size, ownsTheme } = live.current;
-          if (spinning) return;
-          // Where the touch started, relative to the centre.
-          const rx = e.nativeEvent.locationX - g.dx - size / 2;
-          const ry = e.nativeEvent.locationY - g.dy - size / 2;
-          const moved = Math.hypot(g.dx, g.dy);
-          if (moved < 8) {
-            const tx = rx + g.dx;
-            const ty = ry + g.dy;
+          if (!d || spinning) return;
+          if (Math.hypot(g.dx, g.dy) < 8 && Math.abs(d.total) < 4) {
+            const tx = d.x + g.dx;
+            const ty = d.y + g.dy;
             if (Math.hypot(tx, ty) < size * HUB_SHARE * 0.5) return;
             // The tapped spot's angle, clockwise from the top, then back onto the unturned face.
             const tapped = (Math.atan2(tx, -ty) * 180) / Math.PI;
@@ -234,13 +274,21 @@ export function SpinScreen({
             setAbout((a) => (a?.id === prize.id ? null : ownsTheme && prize.theme ? JACKPOT : prize));
             return;
           }
-          // Spin speed around the centre: the sideways part of the flick over the distance from the centre.
-          const r2 = Math.max(rx * rx + ry * ry, (size * 0.15) ** 2);
-          const omega = (rx * g.vy - ry * g.vx) / r2;
-          if (!has || Math.abs(omega) < MIN_FLICK) return;
+          if (!has) return;
+          // The swing in the last moment before letting go, in degrees per ms.
+          const now = Date.now();
+          const recent = d.samples.filter((p) => now - p.t < 120);
+          const first = recent[0] ?? d.samples[d.samples.length - 1];
+          const last = d.samples[d.samples.length - 1];
+          const speed = (last.a - first.a) / Math.max(16, last.t - first.t);
+          // Even a gentle push spins it: the direction then comes from the whole drag.
+          const dir = (Math.abs(speed) > 0.02 ? speed : d.total) >= 0 ? 1 : -1;
           const [least, most] = SWIPE_TURNS;
-          const turns = Math.round(Math.min(most, Math.max(least, least + (Math.abs(omega) - MIN_FLICK) * 600)));
-          spin(omega > 0 ? 1 : -1, turns);
+          spin(dir, Math.round(Math.min(most, least + Math.abs(speed) * 8)));
+        },
+        onPanResponderTerminate: () => {
+          drag.current = null;
+          setDragging(false);
         },
       }),
     [],
@@ -254,7 +302,7 @@ export function SpinScreen({
   const hub = size * HUB_SHARE;
   return (
     <View style={s.screen} onLayout={(e) => setRoom({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
-      <ScrollView contentContainerStyle={s.content}>
+      <ScrollView contentContainerStyle={s.content} scrollEnabled={!dragging}>
         {/* The first screen: title, the wheel with its corner chips, and the hint. */}
         <View style={s.eyebrowRow}>
           <StarRule end="left" style={{ width: 40 }} />
@@ -277,7 +325,7 @@ export function SpinScreen({
             <View
               {...touch.panHandlers}
               style={{ position: 'absolute', width: size, height: size, borderRadius: size / 2 }}
-              accessibilityHint={t('Swipe around the wheel to spin it, or tap a slice to see what it gives')}
+              accessibilityHint={t('Turn the wheel with your finger and let go to spin it, or tap a slice to see what it gives')}
             />
             <Pressable
               onPress={() => spin()}
@@ -311,10 +359,26 @@ export function SpinScreen({
             </View>
           </View>
           {pity !== undefined && (
-            <View style={[s.chip, s.chipBottomRight]} accessibilityLabel={pity <= 1 ? t('Lucky meter: your next spin wins Fortuna for sure.') : t('Lucky meter: {n} spins left until Fortuna is guaranteed.', { n: pity })}>
-              <Star4 size={11} color={GOLD.mid} />
-              <Text style={s.chipText}>{pity}</Text>
-            </View>
+            <>
+              {/* The lucky meter: the count on the chip, its meaning on hover or tap (asked 2026-10-31). */}
+              {luckyTip && (
+                <View style={s.luckyTip} pointerEvents="none">
+                  <Text style={s.luckyTipText}>{pity <= 1 ? t('Lucky meter: your next spin wins Fortuna for sure.') : t('Lucky meter: {n} spins left until Fortuna is guaranteed.', { n: pity })}</Text>
+                </View>
+              )}
+              <Pressable
+                onPress={() => setLuckyTip((v) => !v)}
+                onHoverIn={() => setLuckyTip(true)}
+                onHoverOut={() => setLuckyTip(false)}
+                hitSlop={8}
+                style={[s.chip, s.chipBottomRight, s.luckyChip]}
+                accessibilityRole="button"
+                accessibilityLabel={pity <= 1 ? t('Lucky meter: your next spin wins Fortuna for sure.') : t('Lucky meter: {n} spins left until Fortuna is guaranteed.', { n: pity })}
+              >
+                <LuckyRing left={pity} />
+                <Text style={s.luckyLabel}>{pity <= 1 ? t('next spin!') : t('to jackpot')}</Text>
+              </Pressable>
+            </>
           )}
         </View>
 
@@ -327,11 +391,6 @@ export function SpinScreen({
           <Text style={s.hint}>{spinning ? t('Good luck…') : has ? t('Tap the gold middle or swipe the wheel · tap a slice to see what it gives') : t('Tap a slice to see what it gives')}</Text>
         )}
 
-        {pity !== undefined && (
-          <Text style={s.small}>
-            {pity <= 1 ? t('Lucky meter: your next spin wins Fortuna for sure.') : t('Lucky meter: {n} spins left until Fortuna is guaranteed.', { n: pity })}
-          </Text>
-        )}
         <Text style={s.section}>{t('How tickets work')}</Text>
         <View style={s.panel}>
           <Info text={t('Every {n} XP from tasks, weekly challenges and achievements gives one ticket.', { n: XP_PER_TICKET })} />
@@ -346,10 +405,13 @@ export function SpinScreen({
             <View style={s.panel}>
               {recent.map((sp, i) => {
                 const p = prizeById(sp.prize);
+                // An outfit slice shows the outfit won, or the XP it paid once its rarity was complete.
+                const piece = outfitById(sp.outfit);
+                const label = piece ? outfitName(piece) : p.outfit && sp.xp ? t('{n} XP', { n: sp.xp }) : prizeLabel(p);
                 return (
                   <View key={i} style={s.oddsRow}>
                     <PrizeSticker prize={p} size={26} />
-                    <Text style={s.oddsLabel}>{prizeLabel(p)}</Text>
+                    <Text style={s.oddsLabel}>{label}</Text>
                     <Text style={[s.rarity, { color: RARITY_COLORS[p.rarity].label }]}>{rarityName(p.rarity)}</Text>
                   </View>
                 );
@@ -362,7 +424,9 @@ export function SpinScreen({
       {oddsOpen && <OddsSheet ownsTheme={ownsTheme} onClose={() => setOddsOpen(false)} />}
       {won && (
         <PrizeReveal
-          prize={won}
+          prize={won.prize}
+          outfit={outfitById(won.outfit)}
+          xp={won.xp}
           ticketsLeft={tickets.tickets}
           onClose={() => setWon(null)}
           onAgain={() => {
@@ -372,6 +436,10 @@ export function SpinScreen({
           onWearTheme={() => {
             setWon(null);
             onWearTheme();
+          }}
+          onWearOutfit={(id) => {
+            setWon(null);
+            onWearOutfit(id);
           }}
         />
       )}
@@ -725,19 +793,32 @@ function Pointer({ scale, dark }: { scale: number; dark: boolean }) {
 
 // ---------- the win card ----------
 
+/** What a spin gave: the prize, and on an outfit slice the outfit (or the XP paid once its rarity is complete). */
+interface Won {
+  prize: WheelPrize;
+  outfit?: string;
+  xp?: number;
+}
+
 /** The prize card: rays in the prize's colour, sparks, the sticker flipping in, and COLLECT. */
 function PrizeReveal({
   prize,
+  outfit,
+  xp,
   ticketsLeft,
   onClose,
   onAgain,
   onWearTheme,
+  onWearOutfit,
 }: {
   prize: WheelPrize;
+  outfit?: Outfit;
+  xp?: number;
   ticketsLeft: number;
   onClose: () => void;
   onAgain: () => void;
   onWearTheme: () => void;
+  onWearOutfit: (id: string) => void;
 }) {
   const s = useStyles(makeStyles);
   const reduceMotion = useReduceMotion();
@@ -750,23 +831,32 @@ function PrizeReveal({
 
   useEffect(() => {
     if (reduceMotion) return;
-    Animated.spring(show, { toValue: 1, friction: 6, tension: 60, useNativeDriver: false }).start();
+    // A jackpot first slams JACKPOT! onto the screen with Bizzy zooming in; then the card rises.
+    Animated.sequence([Animated.delay(mythic ? 850 : 0), Animated.spring(show, { toValue: 1, friction: 6, tension: 60, useNativeDriver: false })]).start();
     const loop = Animated.loop(Animated.timing(spinRays, { toValue: 1, duration: 9000, easing: Easing.linear, useNativeDriver: false }));
     loop.start();
     return () => loop.stop();
   }, []);
 
-  const title = prize.theme ? t('Fortuna is yours!') : prize.id === JACKPOT.id ? t('Jackpot!') : big ? t('Lucky!') : t('You won');
+  const title = prize.theme ? t('Fortuna is yours!') : prize.id === JACKPOT.id ? t('Jackpot!') : outfit ? t('New outfit!') : big ? t('Lucky!') : t('You won');
   const desc = prize.theme
     ? t('A theme you can only win on this wheel. Gold coins, holo cards and stardust.')
     : prize.token
       ? t('Added to your bag. Use it whenever you like.')
-      : t('Added to your XP.');
+      : outfit
+        ? t('Added to your outfits. Find them in your bag, under Outfits.')
+        : prize.outfit
+          ? t('You already own every {rarity} outfit, so this pays XP instead.', { rarity: t(RARITY_LABEL[prize.outfit]) })
+          : t('Added to your XP.');
+  const wearsNew = useMemo(() => (outfit ? outfitDrawing({ [outfit.slot]: outfit.id }) : undefined), [outfit?.id]);
+  // Wearing it now replaces the Fortuna "Wear it now" button; outfits and the theme never come together.
+  const wear = prize.theme ? onWearTheme : outfit ? () => onWearOutfit(outfit.id) : undefined;
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={s.revealBackdrop} onPress={onClose} accessibilityLabel={t('Close')} />
       {mythic && <CoinShower count={30} />}
+      {mythic && !reduceMotion && <JackpotIntro />}
       <SafeAreaView style={s.revealWrap} pointerEvents="box-none">
         <Animated.View
           style={[
@@ -845,13 +935,13 @@ function PrizeReveal({
                   transform: [{ perspective: 600 }, { rotateY: show.interpolate({ inputRange: [0, 1], outputRange: ['180deg', '0deg'] }) }],
                 }}
               >
-                <PrizeSticker prize={prize} size={big ? 108 : 90} />
+                {outfit ? <Bizzy size={120} mood="excited" motion="bob" outfit={wearsNew} /> : <PrizeSticker prize={prize} size={big ? 108 : 90} />}
               </Animated.View>
-              <Text style={s.revealPrize}>{prizeLabel(prize)}</Text>
+              <Text style={s.revealPrize}>{outfit ? outfitName(outfit) : xp ? `+${t('{n} XP', { n: xp })}` : prizeLabel(prize)}</Text>
               <Text style={s.revealDesc}>{desc}</Text>
               {prize.theme && <ThemePreview />}
-              <GoldAction label={prize.theme ? t('Wear it now') : t('Collect')} onPress={prize.theme ? onWearTheme : onClose} />
-              {prize.theme ? (
+              <GoldAction label={wear ? t('Wear it now') : t('Collect')} onPress={wear ?? onClose} />
+              {wear && !(outfit && ticketsLeft > 0) ? (
                 <Pressable onPress={onClose} style={s.revealSecondary} accessibilityRole="button">
                   <Text style={s.revealSecondaryText}>{t('Later')}</Text>
                 </Pressable>
@@ -867,6 +957,44 @@ function PrizeReveal({
         </Animated.View>
       </SafeAreaView>
     </Modal>
+  );
+}
+
+/**
+ * Jackpot moment (design "Gold rain", picked 2026-10-29): a gold flash,
+ * JACKPOT! slams down with a shake while the coins rain (CoinShower), and
+ * Bizzy zooms in cheering above the prize card.
+ */
+function JackpotIntro() {
+  const [room, setRoom] = useState<{ w: number; h: number }>();
+  const flash = useSharedValue(0);
+  const slam = useSharedValue(0);
+  const shake = useSharedValue(0);
+  const flyer = useFlyer('excited');
+  useEffect(() => {
+    if (!room) return;
+    const { w, h } = room;
+    flash.value = withSequence(withTiming(0.85, { duration: 120 }), withTiming(0, { duration: 260 }));
+    slam.value = withTiming(1, { duration: 420, easing: REasing.in(REasing.quad) });
+    shake.value = withDelay(400, withSequence(...[8, -7, 5, -3, 0].map((x) => withTiming(x, { duration: 55 }))));
+    flyer.place(-40, h * 0.42, 0.6);
+    flyer.fly([[[-40, h * 0.42], [80, h * 0.22], [w * 0.55, h * 0.5], [w * 0.8, h * 0.2]]], 900, { scale: 1 });
+  }, [room]);
+  const flashStyle = useAnimatedStyle(() => ({ opacity: flash.value }));
+  const slamStyle = useAnimatedStyle(() => {
+    // 2.6× and tilted, down to a little under size at 70 %, then settles.
+    const v = slam.value;
+    const scale = v < 0.7 ? 2.6 - (1.68 * v) / 0.7 : 0.92 + (0.08 * (v - 0.7)) / 0.3;
+    return { opacity: Math.min(1, v / 0.7), transform: [{ translateX: shake.value }, { scale }, { rotate: `${-8 + 5 * Math.min(1, v / 0.7)}deg` }] };
+  });
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none" onLayout={(e) => setRoom({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
+      <Reanimated.View style={[StyleSheet.absoluteFill, { backgroundColor: '#FFE9A8' }, flashStyle]} />
+      <Reanimated.View style={[{ position: 'absolute', left: 0, right: 0, top: room ? room.h * 0.08 : 60, alignItems: 'center' }, slamStyle]}>
+        <GoldText style={{ fontFamily: CINZEL, fontSize: 46, lineHeight: 56, letterSpacing: 2 }}>{t('JACKPOT!')}</GoldText>
+      </Reanimated.View>
+      <FlyingBizzy flyer={flyer} size={76} />
+    </View>
   );
 }
 
@@ -901,6 +1029,31 @@ function ThemePreview() {
   );
 }
 
+/**
+ * The lucky meter as a gold ring that fills with every spin, the spins left in
+ * the middle (picked 2026-11-01, 3A); a star once the next spin is the jackpot.
+ */
+function LuckyRing({ left }: { left: number }) {
+  const r = 14;
+  const round = 2 * Math.PI * r;
+  const filled = Math.min(1, Math.max(0, (PITY_SPINS - left) / PITY_SPINS));
+  return (
+    <View style={{ width: 34, height: 34, alignItems: 'center', justifyContent: 'center' }}>
+      <Svg width={34} height={34} viewBox="0 0 34 34" style={StyleSheet.absoluteFill}>
+        <Defs>
+          <LinearGradient id="luckyRing" x1="0" y1="0" x2="1" y2="1">
+            <Stop offset="0" stopColor={GOLD.bright} />
+            <Stop offset="1" stopColor={GOLD.mid} />
+          </LinearGradient>
+        </Defs>
+        <Circle cx={17} cy={17} r={r} stroke="rgba(255,255,255,0.12)" strokeWidth={3.5} fill="none" />
+        <Circle cx={17} cy={17} r={r} stroke="url(#luckyRing)" strokeWidth={3.5} fill="none" strokeLinecap="round" strokeDasharray={`${round * (left <= 1 ? 1 : filled)} ${round}`} transform="rotate(-90 17 17)" />
+      </Svg>
+      {left <= 1 ? <Star4 size={13} color={GOLD.bright} /> : <Text style={{ color: GOLD.bright, fontFamily: VIVID_HEAVY, fontSize: left >= 100 ? 10 : 12, fontVariant: ['tabular-nums'] }}>{left}</Text>}
+    </View>
+  );
+}
+
 const makeStyles = themed((c) => ({
   screen: { flex: 1, backgroundColor: c.bg },
   content: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 48, maxWidth: 640, width: '100%', alignSelf: 'center', alignItems: 'stretch' },
@@ -914,6 +1067,10 @@ const makeStyles = themed((c) => ({
   chipTopRight: { right: 0, top: 0 },
   chipBottomLeft: { left: 0, bottom: 0 },
   chipBottomRight: { right: 0, bottom: 0 },
+  luckyChip: { height: 44, paddingLeft: 5, paddingRight: 11, borderRadius: 22, gap: 7 },
+  luckyLabel: { ...eyebrow(c, 10), color: c.muted, fontWeight: '800' },
+  luckyTip: { position: 'absolute', right: 0, bottom: 38, maxWidth: 220, padding: 10, borderRadius: 10, backgroundColor: c.surface, borderWidth: 1, borderColor: c.dark ? 'rgba(242,197,92,0.45)' : c.border, zIndex: 5, boxShadow: '0px 6px 18px rgba(0,0,0,0.35)' },
+  luckyTipText: { color: c.text, fontSize: 12, lineHeight: 16 },
   chipText: { color: c.text, fontSize: 12, fontWeight: '800', fontVariant: ['tabular-nums'] },
   mini: { width: 40, height: 5, borderRadius: 3, backgroundColor: c.dark ? 'rgba(255,255,255,0.14)' : c.border, overflow: 'hidden' },
   miniFill: { height: '100%', borderRadius: 3, backgroundColor: GOLD.mid, backgroundImage: `linear-gradient(90deg, ${GOLD.deep}, ${GOLD.mid})` },
@@ -938,7 +1095,6 @@ const makeStyles = themed((c) => ({
   spinButtonOff: { backgroundColor: '#2a1d40', borderColor: '#3d2d5c' },
   spinText: { fontFamily: CINZEL, color: GOLD.ink, fontSize: 16, letterSpacing: 1.5 },
   spinTextOff: { color: '#a596bf' },
-  small: { color: c.muted, fontSize: 12, textAlign: 'center', marginTop: 12 },
   hint: { color: c.muted, fontSize: 12, lineHeight: 16, textAlign: 'center', marginTop: 8, minHeight: 32 },
   note: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 14, padding: 12, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,224,102,0.25)' },
   noteTitle: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },

@@ -1,5 +1,5 @@
 import { monthsSince } from './achievements.ts';
-import { DEFAULT_MINUTES, levelInfo, restDaysOf, streakStatus, totalXp, type GameState } from './game.ts';
+import { DEFAULT_MINUTES, levelInfo, restDaysOf, STREAK_TIERS, streakStatus, totalXp, type GameState } from './game.ts';
 import type { IconName } from './icons.ts';
 import { guessCategory } from './library.ts';
 import { N } from './i18n.ts';
@@ -48,12 +48,13 @@ export const TROPHIES: TrophyDef[] = [
   {
     id: 'infernoKeeper',
     name: N('Inferno Keeper'),
-    description: N('Start 8 weeks in a row on the Inferno fire (300 XP a week, no missed days).'),
+    description: N('Keep your fire on Inferno for 8 weeks: a streak of 30 days, then 8 more weeks.'),
     icon: 'FlameKindling',
     rarity: 'epic',
     target: 8,
     unit: N('weeks'),
-    value: (s, today) => streakStatus(s.completions, today, restDaysOf(s)).bestInfernoWeeks,
+    // Whole weeks the best streak spent on Inferno or higher (from day 30 on).
+    value: (s, today) => Math.floor(Math.max(0, streakStatus(s.completions, today, restDaysOf(s)).best - (STREAK_TIERS[2].days - 1)) / 7),
   },
   {
     id: 'marathonMind',

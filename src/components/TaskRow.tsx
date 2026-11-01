@@ -1,6 +1,6 @@
-import { Bell, ChevronDown, ChevronUp, Timer } from 'lucide-react-native';
+import { Bell, ChevronDown, ChevronUp, Timer, Trash2 } from 'lucide-react-native';
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Pressable, Text, View } from 'react-native';
+import { Animated, Easing, PanResponder, Pressable, Text, View } from 'react-native';
 import {
   doneThisWeek,
   durationLabel,
@@ -25,6 +25,11 @@ import { brandLine, categoryLook, midColor, MYTHIC } from '../vivid';
 import { FinishFx, RowPulse, RowSheen, useThemeFx } from './ThemeFx';
 import { fill, GradientText, Sticker } from './Vivid';
 import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
+
+/** How far a row slides to show Remove. */
+const REMOVE_W = 96;
+/** Closes the row whose Remove is showing, so only one is open at a time. */
+let openRow: (() => void) | null = null;
 
 /** The tick celebration the player has equipped. */
 export const CelebrationContext = createContext<CelebrationId>('classic');
@@ -93,6 +98,39 @@ export function TaskRow({
   const hasSteps = steps.titles.length > 0;
   const [waitLeft, setWaitLeft] = useState(() => secondsUntilTickable(task, Date.now()));
   const waitSeconds = QUICK_TICK_MS / 1000;
+
+  // Remove sits behind the row: swipe the row left (or hold it) to show it.
+  const swipe = useRef(new Animated.Value(0)).current;
+  const opened = useRef(false);
+  function slide(open: boolean) {
+    opened.current = open;
+    if (open) {
+      if (openRow && openRow !== close) openRow();
+      openRow = close;
+    } else if (openRow === close) openRow = null;
+    Animated.spring(swipe, { toValue: open ? -REMOVE_W : 0, useNativeDriver: nativeDriver, bounciness: 4 }).start();
+  }
+  const close = useRef(() => slide(false)).current;
+  useEffect(() => () => {
+    if (openRow === close) openRow = null;
+  }, []);
+  const pan = useMemo(
+    () =>
+      PanResponder.create({
+        // Only a clearly sideways drag; up and down still scrolls the list.
+        onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dx) > 10 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
+        onPanResponderMove: (_e, g) => {
+          const base = opened.current ? -REMOVE_W : 0;
+          swipe.setValue(Math.max(-REMOVE_W - 30, Math.min(0, base + g.dx)));
+        },
+        onPanResponderRelease: (_e, g) => {
+          const base = opened.current ? -REMOVE_W : 0;
+          slide(base + g.dx < -REMOVE_W / 2 || g.vx < -0.5);
+        },
+        onPanResponderTerminate: () => slide(opened.current),
+      }),
+    [],
+  );
 
   useEffect(() => {
     if (secondsUntilTickable(task, Date.now()) === 0) return;
@@ -223,7 +261,12 @@ export function TaskRow({
       <View style={[s.edge, fill(cat, 180)]} pointerEvents="none" />
       <View style={s.top}>
       <Pressable
-        onPress={press}
+        onPress={() => (opened.current ? slide(false) : press())}
+        onLongPress={() => {
+          buzz('tap');
+          slide(true);
+        }}
+        delayLongPress={450}
         style={s.main}
         accessibilityRole="checkbox"
         accessibilityState={{ checked: done, disabled: covered }}
@@ -320,11 +363,11 @@ export function TaskRow({
                 },
               ]}
             >
-              <CoinCheck done={done} size={30} />
+              <CoinCheck done={done} size={38} />
             </Animated.View>
           ) : c.check === 'hex' ? (
             <Animated.View style={[s.hexBox, (locked || covered || early) && { opacity: 0.6 }, { transform: [{ scale: pop }] }]}>
-              <HexCheck size={26} line={catLine} grad={cat} done={done} dashed={locked || covered || early} />
+              <HexCheck size={38} line={catLine} grad={cat} done={done} dashed={locked || covered || early} />
               {done && <Text style={[s.checkmark, { color: cat.ink }]}>✓</Text>}
             </Animated.View>
           ) : (
@@ -335,9 +378,6 @@ export function TaskRow({
             </Animated.View>
           )}
         </View>
-      </Pressable>
-      <Pressable onPress={onDelete} hitSlop={10} style={s.deleteWrap} accessibilityLabel={t('Delete {task}', { task: name })}>
-        <Text style={s.delete}>✕</Text>
       </Pressable>
       </View>
       {hasSteps && stepsOpen && !done && !locked && (
@@ -387,13 +427,36 @@ export function TaskRow({
   // Fortuna draws a drifting holo border around each card.
   return (
     <FinishFx kind={fx.finish} ms={fx.finishMs} leaving={leaving} onDone={() => onLeft?.()}>
-      {c.holo ? (
-        <HoloBorder radius={c.radius} style={[{ marginBottom: 10 }, label && { zIndex: 2 }]}>
-          {row}
-        </HoloBorder>
-      ) : (
-        row
-      )}
+      <View style={label && { zIndex: 2 }}>
+        <Animated.View style={[s.removeWrap, { opacity: swipe.interpolate({ inputRange: [-REMOVE_W, -16, 0], outputRange: [1, 0, 0] }) }]}>
+          <Pressable
+            onPress={() => {
+              slide(false);
+              onDelete();
+            }}
+            style={s.remove}
+            accessibilityRole="button"
+            accessibilityLabel={t('Delete {task}', { task: name })}
+          >
+            <Trash2 size={18} color="#2A0A12" strokeWidth={2} aria-hidden />
+            <Text style={s.removeText}>{t('Remove')}</Text>
+          </Pressable>
+        </Animated.View>
+        <Animated.View
+          {...pan.panHandlers}
+          style={{ transform: [{ translateX: swipe }] }}
+          accessibilityActions={[{ name: 'delete', label: t('Remove') }]}
+          onAccessibilityAction={(e) => e.nativeEvent.actionName === 'delete' && onDelete()}
+        >
+          {c.holo ? (
+            <HoloBorder radius={c.radius} style={[{ marginBottom: 10 }, label && { zIndex: 2 }]}>
+              {row}
+            </HoloBorder>
+          ) : (
+            row
+          )}
+        </Animated.View>
+      </View>
     </FinishFx>
   );
 }
@@ -544,32 +607,33 @@ const makeStyles = themed((c) => ({
   focusText: { color: c.muted, fontSize: 11, fontWeight: '700' },
   wait: { color: c.flame, fontWeight: '600' },
   xp: { color: brandLine(c), fontFamily: 'Vivid_800ExtraBold', fontSize: 14, fontVariant: ['tabular-nums'] },
-  checkWrap: { width: c.check === 'coin' ? 30 : 24, height: c.check === 'coin' ? 30 : 24, alignItems: 'center', justifyContent: 'center' },
+  checkWrap: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   ring: {
     position: 'absolute',
-    width: 48,
-    height: 48,
-    borderRadius: c.check === 'circle' || c.check === 'coin' ? 24 : c.check === 'square' ? Math.min(c.radius * 2, 12) : 4,
+    width: 60,
+    height: 60,
+    borderRadius: c.check === 'circle' || c.check === 'coin' ? 30 : c.check === 'square' ? Math.min(c.radius * 2, 12) : 4,
     borderWidth: 2,
     borderColor: brandLine(c),
   },
   checkbox: {
-    width: c.check === 'diamond' ? 20 : 24,
-    height: c.check === 'diamond' ? 20 : 24,
-    borderRadius: c.check === 'circle' ? 12 : c.check === 'square' ? Math.min(c.radius, 6) : 2,
-    borderWidth: 1.5,
+    width: c.check === 'diamond' ? 28 : 36,
+    height: c.check === 'diamond' ? 28 : 36,
+    borderRadius: c.check === 'circle' ? 18 : c.check === 'square' ? Math.min(c.radius, 6) : 2,
+    borderWidth: 2,
     borderColor: c.outline,
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkboxLocked: { borderStyle: 'dashed', opacity: 0.6 },
-  hexBox: { width: 26, height: 26, alignItems: 'center', justifyContent: 'center' },
+  hexBox: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },
   hexStep: { width: 20, height: 20, alignItems: 'center', justifyContent: 'center' },
-  checkmark: { color: '#FFFFFF', fontWeight: '800', fontSize: 13 },
+  checkmark: { color: '#FFFFFF', fontWeight: '800', fontSize: 19 },
   /** Turns the tick upright again inside the rotated diamond. */
   checkmarkDiamond: { transform: [{ rotate: '-45deg' }] },
-  deleteWrap: { paddingLeft: 14, paddingVertical: 10 },
-  delete: { color: c.faint, fontSize: 13 },
+  removeWrap: { position: 'absolute', right: 0, top: 0, bottom: c.listStyle === 'cards' || c.holo ? 10 : 0, width: REMOVE_W + 24, borderRadius: c.listStyle === 'cards' ? c.radius : 0, overflow: 'hidden' },
+  remove: { flex: 1, marginLeft: 24, backgroundColor: '#FF6B81', alignItems: 'center', justifyContent: 'center', gap: 2 },
+  removeText: { color: '#2A0A12', fontWeight: '800', fontSize: 14 },
   flash: {
     position: 'absolute',
     left: 0,

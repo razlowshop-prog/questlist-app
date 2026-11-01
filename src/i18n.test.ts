@@ -95,3 +95,11 @@ test('the placeholder name follows the language, a typed name never changes', ()
   setLang('en');
   assert.equal(shownName(emptyState.profile.name), 'Player');
 });
+
+test('a "#one" key is never shown, and German gets its own singular', () => {
+  setLang('en');
+  assert.equal(tn(1, '{n}-day streak#one', '{n}-day streak'), '1-day streak');
+  setLang('de');
+  assert.equal(tn(1, '{n}-day streak#one', '{n}-day streak'), '1-Tages-Serie');
+  setLang('en');
+});

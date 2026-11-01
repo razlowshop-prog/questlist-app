@@ -18,8 +18,10 @@ import { brandFillSmall, brandInk, brandTextShadow, CountBadge, Sticker, VIVID_H
 import type { GlyphName } from '../glyphs';
 import { brandLine, RARITY, TOKEN_LOOKS, type Grad } from '../vivid';
 import { N, t } from '../i18n';
+import { Wardrobe } from '../components/Wardrobe';
 
 const PER_ROW = 5;
+const TAB_NAMES = { bag: () => t('Bag'), customize: () => t('Theme'), outfits: () => t('Outfits') };
 
 const ITEM_INFO: Record<BagItem, { name: string; description: string }> = {
   ticket: { name: N('Wheel ticket'), description: N('One spin of the lucky wheel. You get a ticket for every {n} XP.') },
@@ -37,7 +39,7 @@ function itemLook(item: BagItem): { grad: Grad; glyph: GlyphName } {
 }
 
 /**
- * The inventory, opened from the header, in two tabs. Bag: wheel tickets and
+ * The inventory, opened from the header, in three tabs (Outfits: see Wardrobe). Bag: wheel tickets and
  * tokens in slots, five of a kind to a slot, each named underneath. When the
  * slots are full the rest waits in a tray below and can still be used. Tap a
  * slot to see what it does and use it. Theme: the theme, the
@@ -62,6 +64,9 @@ export function InventoryScreen({
   freshLooks,
   onSeenLook,
   onSettings,
+  bizzyForm,
+  onToggleOutfit,
+  startTab,
 }: {
   state: GameState;
   today: string;
@@ -84,6 +89,11 @@ export function InventoryScreen({
   freshLooks: Set<string>;
   onSeenLook: (key: string) => void;
   onSettings: (s: Partial<Settings>) => void;
+  /** Bizzy's form, for the Outfits tab's stage. */
+  bizzyForm: number;
+  onToggleOutfit: (id: string) => void;
+  /** Opens on this tab instead of Bag (or Theme when new looks wait there). */
+  startTab?: 'outfits';
 }) {
   const s = useStyles(makeStyles);
   const [open, setOpen] = useState<BagItem | null>(null);
@@ -92,7 +102,7 @@ export function InventoryScreen({
   const freshFlames = newOfKind(freshLooks, 'flame');
   const freshLooksHere = freshThemes.size + freshCelebrations.size + freshFlames.size;
   // New looks and nothing else new: open on Theme, where they are.
-  const [tab, setTab] = useState<'bag' | 'customize'>(freshLooksHere > 0 ? 'customize' : 'bag');
+  const [tab, setTab] = useState<'bag' | 'customize' | 'outfits'>(startTab ?? (freshLooksHere > 0 ? 'customize' : 'bag'));
   const counts: Record<BagItem, number> = { ticket: tickets, ...tokenCounts(state) };
   const capacity = bagCapacity(level);
   const { slots, waiting } = layoutBag(counts, capacity);
@@ -146,21 +156,30 @@ export function InventoryScreen({
 
   const tabs = (
     <View style={s.segment} accessibilityRole="tablist">
-      {(['bag', 'customize'] as const).map((v) => (
+      {(['bag', 'customize', 'outfits'] as const).map((v) => (
         <Pressable
           key={v}
           onPress={() => setTab(v)}
           style={[s.segmentItem, tab === v && s.segmentActive]}
           accessibilityRole="tab"
           accessibilityState={{ selected: tab === v }}
-          accessibilityLabel={v === 'bag' ? t('Bag') : freshLooksHere ? t('Theme, {n} new', { n: freshLooksHere }) : t('Theme')}
+          accessibilityLabel={v === 'customize' && freshLooksHere ? t('Theme, {n} new', { n: freshLooksHere }) : TAB_NAMES[v]()}
         >
-          <Text style={[s.segmentText, tab === v && s.segmentTextActive]}>{v === 'bag' ? t('Bag') : t('Theme')}</Text>
+          <Text style={[s.segmentText, tab === v && s.segmentTextActive]}>{TAB_NAMES[v]()}</Text>
           {v === 'customize' && <CountBadge count={freshLooksHere} style={s.segmentBadge} />}
         </Pressable>
       ))}
     </View>
   );
+
+  if (tab === 'outfits') {
+    return (
+      <ScrollView contentContainerStyle={s.content}>
+        {tabs}
+        <Wardrobe state={state} form={bizzyForm} onToggle={onToggleOutfit} />
+      </ScrollView>
+    );
+  }
 
   if (tab === 'customize') {
     return (

@@ -1,4 +1,4 @@
-import { Ban, Coffee, Gem, RefreshCw, Sparkles, Star, Ticket, Zap, type LucideIcon } from 'lucide-react-native';
+import { Ban, Coffee, Gem, Gift, RefreshCw, Sparkles, Star, Ticket, Zap, type LucideIcon } from 'lucide-react-native';
 import { View } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import type { Rarity, WheelPrize } from '../wheel';
@@ -24,6 +24,7 @@ export const TICKET_COLORS = { c1: '#FFE066', c2: '#FF7A00', ink: '#4A2600' };
 export function prizeIcon(prize: WheelPrize): LucideIcon {
   if (prize.theme) return Gem;
   if (prize.id === 'jackpot') return Star;
+  if (prize.outfit) return Gift;
   switch (prize.token) {
     case 'double':
       return Zap;

@@ -20,7 +20,7 @@ const targets = {
     const size = Number(/width="(\d+)"/.exec(markup)[1]);
     const page = await browser.newPage({ viewport: { width: size, height: size } });
     await page.setContent(`<html><body style="margin:0;background:transparent">${markup}</body></html>`);
-    await page.locator('svg').screenshot({ path: path.join(root, png), omitBackground: true });
+    await page.locator('body > svg').screenshot({ path: path.join(root, png), omitBackground: true });
     await page.close();
     console.log(png);
   }

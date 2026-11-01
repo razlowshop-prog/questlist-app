@@ -2,15 +2,7 @@ import { Check } from 'lucide-react-native';
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { milestoneLabel, nextLevelReward } from '../achievements';
-import {
-  levelInfo,
-  nextStreakBonus,
-  STREAK_BONUSES,
-  STREAK_TIERS,
-  streakBonus,
-  streakTierName,
-  type StreakStatus,
-} from '../game';
+import { levelInfo, nextTier, STREAK_TIERS, streakBonus, streakTierName, type StreakStatus } from '../game';
 import { card, eyebrow, FONTS, headingCase, themed, useStyles, useTheme } from '../theme';
 import { Fire, fireColor } from './Fire';
 import { FireAura } from './FireAura';
@@ -31,10 +23,8 @@ export function LevelDetails({
   onClose: () => void;
 }) {
   const s = useStyles(makeStyles);
-  const c = useTheme();
   const info = levelInfo(totalXp);
   const bonus = streakBonus(streak.days);
-  const next = nextStreakBonus(streak.days);
   const reward = nextLevelReward(totalXp);
 
   return (
@@ -58,42 +48,16 @@ export function LevelDetails({
                 <Fire tier={streak.tier} size={30} />
                 <View style={{ flex: 1 }}>
                   <Text style={s.sectionTitle}>
-                    {t('{n}-day streak', { n: streak.days })} · {streakTierName(streak.tier)}
+                    {tn(streak.days, '{n}-day streak#one', '{n}-day streak')} · {streakTierName(streak.tier)}
                   </Text>
                   <Text style={s.muted}>
                     {bonus > 0 ? t('{x}x XP on every task', { x: decimal(1 + bonus) }) : t('No XP bonus yet')}
-                    {next ? ` · ${tn(next.daysLeft, '{n} more day to {x}x', '{n} more days to {x}x', { x: decimal(1 + next.bonus) })}` : ''}
                   </Text>
                 </View>
               </View>
-              <Text style={s.small}>{t('Streak bonus')}</Text>
-              <View style={s.steps}>
-                {STREAK_BONUSES.map((b) => {
-                  const on = streak.days >= b.days;
-                  return (
-                    <View key={b.days} style={[s.step, on && s.stepOn]}>
-                      <Text style={[s.stepValue, on && s.stepValueOn]}>{decimal(1 + b.bonus)}x</Text>
-                      <Text style={s.stepDays}>{tn(b.days, '{n} day', '{n} days')}</Text>
-                      {on && <Check size={12} color={c.accent} strokeWidth={2} aria-hidden />}
-                    </View>
-                  );
-                })}
-              </View>
-              <Text style={s.small}>{t('Fire tiers')}</Text>
-              {STREAK_TIERS.map((tier) => (
-                <View key={tier.tier} style={s.tierRow}>
-                  <FireAura tier={tier.tier} id={`tier-${tier.tier}`} />
-                  <Fire tier={tier.tier} size={18} />
-                  <Text style={[s.tierName, { color: fireColor(tier.tier, c) }]}>{t(tier.name)}</Text>
-                  <Text style={s.muted}>{tier.tier === 1 ? t('{n} XP, instantly', { n: tier.weekXp }) : t('{n} XP a week', { n: tier.weekXp })}</Text>
-                  {streak.tier >= tier.tier && <Check size={14} color={c.accent} strokeWidth={2} aria-hidden />}
-                </View>
-              ))}
+              <TierLadder streak={streak} />
               <Text style={s.note}>
-                {t(
-                  'This week: {week} XP. Flame lights the moment your streak earns {n} XP. For Blaze and Inferno, reach the threshold in a week and your fire moves up on Monday. Keep it going with one task a day: a missed day costs a tier, and on Flame or below it ends the streak.',
-                  { week: streak.weekXp, n: STREAK_TIERS[0].weekXp },
-                )}
+                {t('Do at least one task a day. Your fire grows with your streak, and every tier adds XP to each task. A missed day ends the streak, unless you use a rest day.')}
               </Text>
             </View>
 
@@ -120,6 +84,37 @@ export function LevelDetails({
   );
 }
 
+/**
+ * The fire tiers as one ladder (rework 2026-11-01): each tier's fire, the
+ * streak days it takes and the XP bonus it gives, ticked once reached, and
+ * how many days are left to the next. Also shown in the first-time tour.
+ */
+export function TierLadder({ streak }: { streak: Pick<StreakStatus, 'days' | 'tier'> }) {
+  const s = useStyles(makeStyles);
+  const c = useTheme();
+  const next = nextTier(streak.days);
+  return (
+    <View style={{ gap: 8 }}>
+      {STREAK_TIERS.map((tier) => {
+        const on = streak.tier >= tier.tier;
+        return (
+          <View key={tier.tier} style={[s.tierRow, on && s.tierRowOn]}>
+            <FireAura tier={tier.tier} id={`ladder-${tier.tier}`} />
+            <Fire tier={tier.tier} size={18} />
+            <Text style={[s.tierName, { color: fireColor(tier.tier, c) }]}>{t(tier.name)}</Text>
+            <Text style={[s.muted, { flex: 1 }]}>{tn(tier.days, '{n} day', '{n} days')}</Text>
+            <Text style={[s.tierBonus, on && { color: c.text }]}>{t('{x}x XP', { x: decimal(1 + tier.bonus) })}</Text>
+            {on && <Check size={14} color={c.accent} strokeWidth={2} aria-hidden />}
+          </View>
+        );
+      })}
+      <Text style={s.muted}>
+        {next ? tn(next.daysLeft, '{n} more day to {tier}', '{n} more days to {tier}', { tier: t(next.tier.name) }) : t('Legend reached. The top tier!')}
+      </Text>
+    </View>
+  );
+}
+
 const makeStyles = themed((c) => ({
   backdrop: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: '#000', opacity: 0.55 },
   sheetWrap: { flex: 1, justifyContent: 'center', padding: 20 },
@@ -131,10 +126,6 @@ const makeStyles = themed((c) => ({
   sectionTitle: { color: c.text, fontSize: 15, fontWeight: '700' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   small: { ...eyebrow(c, 11), color: c.muted },
-  steps: { flexDirection: 'row', gap: 8 },
-  step: { flex: 1, alignItems: 'center', gap: 2, paddingVertical: 8, borderRadius: c.radius, borderWidth: 1, borderColor: c.border },
-  stepOn: { borderColor: brandLine(c), backgroundColor: c.surface, boxShadow: `0px 0px 10px ${brandGlow(0.3)}` },
-  stepValue: { fontFamily: FONTS.serif, color: c.muted, fontSize: 18, fontVariant: ['lining-nums'] },
   tierRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -146,9 +137,9 @@ const makeStyles = themed((c) => ({
     borderColor: c.border,
     overflow: 'hidden',
   },
-  stepValueOn: { color: c.accent },
-  stepDays: { color: c.faint, fontSize: 11 },
   tierName: { fontWeight: '700', fontSize: 14, width: 64 },
+  tierRowOn: { borderColor: brandLine(c), backgroundColor: c.surface, boxShadow: `0px 0px 10px ${brandGlow(0.3)}` },
+  tierBonus: { color: c.muted, fontSize: 13, fontWeight: '700', fontVariant: ['tabular-nums'] },
   note: { color: c.faint, fontSize: 12, lineHeight: 17 },
   rewardIcon: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   close: { minHeight: 46, borderRadius: c.radius, borderWidth: 1, borderColor: c.outline, alignItems: 'center', justifyContent: 'center' },

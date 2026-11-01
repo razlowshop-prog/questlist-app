@@ -5,6 +5,7 @@ import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { nextStreakBonus, type xpMultiplier } from '../game';
 import { card, eyebrow, FONTS, themed, useStyles, useTheme } from '../theme';
 import { GOLD } from './Fortuna';
+import { TOKEN_ICONS } from './RewardPicture';
 import { BRAND } from '../vivid';
 import { BRAND_TEXT_SHADOW, brandFill, brandInk, brandTextShadow, VIVID_HEAVY } from './Vivid';
 import { lang, t, tn } from '../i18n';
@@ -30,6 +31,8 @@ export function MultiplierPill({ multiplier, size = 'normal' }: { multiplier: Mu
   const colors = fortuna ? [GOLD.light, GOLD.mid, GOLD.deep] : [BRAND.c1, BRAND.c2];
   const ink = fortuna ? GOLD.ink : BRAND.ink;
   const boosted = multiplier.total > 1;
+  // A 2x XP token is on today: the lightning shows it here, the one place the boost is shown.
+  const doubled = multiplier.parts.some((p) => p.label === 'Double XP');
   const next = nextStreakBonus(multiplier.streak);
   const small = size === 'small';
   const id = `pill-${fortuna ? 'gold' : 'brand'}`;
@@ -53,6 +56,7 @@ export function MultiplierPill({ multiplier, size = 'normal' }: { multiplier: Mu
           </Defs>
           <Rect width={100} height={20} fill={`url(#${id})`} />
         </Svg>
+        {doubled && <TOKEN_ICONS.double size={small ? 11 : 13} color={ink} strokeWidth={2.25} aria-hidden />}
         <Text style={[s.pillText, small && s.pillTextSmall, { color: ink }, !fortuna && BRAND_TEXT_SHADOW]}>× {fmtX(multiplier.total)} XP</Text>
       </Pressable>
 
@@ -90,7 +94,7 @@ export function MultiplierPill({ multiplier, size = 'normal' }: { multiplier: Mu
 }
 
 const makeStyles = themed((c) => ({
-  pill: { borderRadius: 999, overflow: 'hidden', paddingHorizontal: 10, paddingVertical: 3, boxShadow: '0px 0px 0px 1.5px #0e0b12' },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 3, borderRadius: 999, overflow: 'hidden', paddingHorizontal: 10, paddingVertical: 3, boxShadow: '0px 0px 0px 1.5px #0e0b12' },
   pillSmall: { paddingHorizontal: 8, paddingVertical: 2 },
   pillText: { fontFamily: FONTS.bodyExtraBold, fontSize: 13, fontVariant: ['tabular-nums'] },
   pillTextSmall: { fontSize: 11 },

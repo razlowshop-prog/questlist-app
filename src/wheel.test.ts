@@ -28,27 +28,27 @@ const player = (xp: number, spins: WheelSpin[] = []): GameState => ({ ...emptySt
 const spin = (prize: string, xp?: number): WheelSpin => ({ date: TODAY, prize, ...(xp && { xp }) });
 
 test('the odds add up to 100 and every prize has one equal slice', () => {
-  assert.equal(WHEEL_PRIZES.reduce((n, p) => n + p.odds, 0), 100);
+  assert.equal(WHEEL_PRIZES.reduce((n, p) => n + p.odds * 10, 0), 1000);
   assert.equal(WHEEL_SEGMENTS.length, WHEEL_PRIZES.length);
-  assert.equal(WHEEL_SEGMENTS.reduce((n, s) => n + s.share, 0), 100);
+  assert.ok(Math.abs(WHEEL_SEGMENTS.reduce((n, s) => n + s.share, 0) - 100) < 1e-9);
   for (const seg of WHEEL_SEGMENTS) assert.equal(seg.share, 100 / WHEEL_SEGMENTS.length);
   assert.deepEqual(new Set(WHEEL_SEGMENTS.map((s) => s.prize)), new Set(WHEEL_PRIZES.map((p) => p.id)));
-  // The approved odds.
+  // The approved odds (changed 2026-10-31: tokens 5 %, ad-free 3 %, the rest to the XP slices).
   const odds = Object.fromEntries(WHEEL_PRIZES.map((p) => [p.id, p.odds]));
-  assert.deepEqual(odds, { xp20: 40, xp50: 20, xp100: 8, double: 9, rest: 9, reroll: 8, adfree: 5, theme: 1 });
+  assert.deepEqual(odds, { xp20: 40, xp50: 22, xp100: 10, double: 5, rest: 5, reroll: 5, adfree: 3, o1: 6, o2: 2.5, o3: 0.5, theme: 1 });
 });
 
 test('rolls land on each prize exactly as often as its odds say', () => {
   const counts: Record<string, number> = {};
-  for (let i = 0; i < 100; i++) {
-    const id = prizeForRoll(i / 100).id;
+  for (let i = 0; i < 1000; i++) {
+    const id = prizeForRoll(i / 1000).id;
     counts[id] = (counts[id] ?? 0) + 1;
   }
-  for (const p of WHEEL_PRIZES) assert.equal(counts[p.id], p.odds, p.id);
+  for (const p of WHEEL_PRIZES) assert.equal(counts[p.id], p.odds * 10, p.id);
   assert.equal(prizeForRoll(0).id, 'xp20');
   assert.equal(prizeForRoll(0.399).id, 'xp20');
   assert.equal(prizeForRoll(0.4).id, 'xp50');
-  assert.equal(prizeForRoll(0.98).id, 'adfree');
+  assert.equal(prizeForRoll(0.985).id, 'o3');
   assert.equal(prizeForRoll(0.99).id, 'theme');
   assert.equal(prizeForRoll(0.999999).id, 'theme');
 });

@@ -3,7 +3,7 @@ import { Avatar } from '../components/ProfileFrame';
 import { GradientText, Sticker, VIVID_HEAVY, VividSwitch } from '../components/Vivid';
 import { card, FONTS, themed, useStyles } from '../theme';
 import { brandLine, RARITY } from '../vivid';
-import { num, t } from '../i18n';
+import { num, t, tn } from '../i18n';
 
 /**
  * The Friends and Leaderboard pages from the Menu. Both need accounts, so
@@ -57,7 +57,7 @@ export function FriendsScreen({
                 {name || t('You')}
               </Text>
               <Text style={s.small}>
-                {t('Level {n}', { n: level })} · {t('{n}-day streak', { n: streak })}
+                {t('Level {n}', { n: level })} · {tn(streak, '{n}-day streak#one', '{n}-day streak')}
               </Text>
             </View>
             <GradientText style={s.xp}>{num(totalXp)} XP</GradientText>

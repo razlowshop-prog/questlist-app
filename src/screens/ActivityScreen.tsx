@@ -190,7 +190,7 @@ function EventRow({ event }: { event: ActivityEvent }) {
       icon = <Fire tier={event.tier} size={18} />;
       if (event.change === 'up') {
         title = t('Your fire rose to {tier}', { tier: streakTierName(event.tier) });
-        sub = t('{n}-day streak', { n: event.days });
+        sub = tn(event.days, '{n}-day streak#one', '{n}-day streak');
         color = fireColor(event.tier, c, c.text);
       } else if (event.change === 'down') {
         title = t('Missed a day: fire dropped to {tier}', { tier: streakTierName(event.tier) });

@@ -15,13 +15,13 @@ import { ART_FLAMES, FlameArt } from './FlameArt';
  * end on light ones, so labels stay readable.
  */
 export const FIRE_COLORS = {
-  dark: ['', midColor(FLAMES.ember), midColor(FLAMES.blaze), midColor(FLAMES.inferno)],
-  light: ['', FLAMES.ember.c2, FLAMES.blaze.c2, FLAMES.inferno.c2],
+  dark: ['', midColor(FLAMES.ember), midColor(FLAMES.blaze), midColor(FLAMES.inferno), midColor(FLAMES.legend)],
+  light: ['', FLAMES.ember.c2, FLAMES.blaze.c2, FLAMES.inferno.c2, FLAMES.legend.c2],
 };
 
 /** The tier's colour on this theme; Spark (tier 0) uses `none`, the muted text colour unless given. */
 export function fireColor(tier: number, c: Palette, none: string = c.muted): string {
-  return tier === 0 ? none : FIRE_COLORS[c.dark ? 'dark' : 'light'][tier];
+  return tier === 0 ? none : FIRE_COLORS[c.dark ? 'dark' : 'light'][Math.min(tier, 4)];
 }
 
 /** The flame style the player has equipped, for every flame in the app. */
@@ -36,7 +36,7 @@ export function flameGrad(tier: number, style: FlameStyleId): Grad | undefined {
 /**
  * The streak flame (rewards spec): a filled flame in a top-to-bottom gradient
  * with a white core, a soft glow and a gentle flicker, in the fire tier's
- * colours (Ember, Blaze or Inferno). The won styles are drawn by FlameArt.
+ * colours (Ember, Blaze, Inferno or Legend). The won styles are drawn by FlameArt.
  * No fire yet (tier 0) = a faint, unlit flame, whatever the style.
  */
 export function Fire({

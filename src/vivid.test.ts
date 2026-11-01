@@ -62,12 +62,13 @@ test('every frame, flame style and celebration has a vivid look', () => {
   assert.deepEqual(ranks, [...ranks].sort((a, b) => a - b));
 });
 
-test('fire tiers map to Ember, Blaze and Inferno, no fire to none', () => {
+test('fire tiers map to Flame, Blaze, Inferno and a gold Legend, no fire to none', () => {
   assert.equal(tierFlame(0), undefined);
   assert.equal(tierFlame(1)?.c2, '#FF4A1C');
   assert.equal(tierFlame(2)?.c2, '#2F7BFF');
   assert.equal(tierFlame(3)?.c2, '#9B30FF');
-  assert.equal(tierFlame(9)?.c2, '#9B30FF');
+  assert.equal(tierFlame(4)?.c2, '#F5A300');
+  assert.equal(tierFlame(9)?.c2, '#F5A300');
 });
 
 test('every line icon used in the data has a filled glyph', () => {

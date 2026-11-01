@@ -5,7 +5,7 @@ import type { GlyphName } from './src/glyphs';
 import { brandFill, brandInk, CountBadge, Glyph, tapHaptic, VIVID_HEAVY } from './src/components/Vivid';
 import { BRAND, brandGlow, brandLine } from './src/vivid';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, AppState, BackHandler, Easing, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, AppState, BackHandler, Easing, Platform, Pressable, StyleSheet, Text, View, type HostInstance } from 'react-native';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { activitySummary } from './src/activity';
 import { BackBar, TopBar } from './src/components/TopBar';
@@ -20,6 +20,7 @@ import {
   restDaysOf,
   dayKey,
   deleteTask,
+  restoreTask,
   emptyState,
   resetProgress,
   finishSetup,
@@ -57,7 +58,14 @@ import {
 import { shownTitle } from './src/library';
 import { Celebration, type CelebrationEvent } from './src/components/Celebration';
 import { EvolveScene } from './src/components/Evolve';
-import { BizzyFormContext } from './src/components/Bizzy';
+import { BizzyFormContext, BizzyOutfitContext } from './src/components/Bizzy';
+import { dayTurn } from './src/flight';
+import { TourTargetProvider, useTourTargets } from './src/components/TourTargets';
+import { AppTour } from './src/components/AppTour';
+import { TOUR_SWIPE_TASK, TOUR_SWIPE_TITLE, TOUR_TASK, TOUR_TASK_MINUTES, TOUR_TASK_TITLE, tourSteps } from './src/tour';
+import { quoteDue, quoteOfTheDay } from './src/quotes';
+import { QuoteSplash } from './src/components/QuoteSplash';
+import { outfitById, outfitDrawing, outfitName, toggleOutfit, wornOutfits } from './src/outfits';
 import { bizzyFormOf } from './src/bizzy';
 import { LevelDetails } from './src/components/LevelDetails';
 import { LevelRewards } from './src/components/LevelRewards';
@@ -95,13 +103,12 @@ import { AvatarDiscContext, AvatarPhotoContext } from './src/components/ProfileF
 import { FocusBar, FocusTimer } from './src/components/FocusTimer';
 import { focusBonus, msUntilFocusDone, pauseFocus, resumeFocus, setFocusGoal, startFocus } from './src/focus';
 import { CelebrationContext } from './src/components/TaskRow';
-import { emblemStatuses } from './src/emblems';
 import { equippedLooks, isProfileLook, lookKeys, markLooksSeen, newLooks, ownedLooks, seedProfileLooks } from './src/inventory';
 import { bagChanged, bagSnapshot, newInBag, type BagItem } from './src/bag';
 import { claimSeason, seasonStatus } from './src/seasons';
 import { frameName } from './src/cosmetics';
 import { askReminderPermission, REMINDERS_SUPPORTED, syncReminders } from './src/reminders';
-import { updateWidget } from './src/widget';
+import { HAS_WIDGET, updateWidget } from './src/widget';
 import { CrashGuard } from './src/components/CrashScreen';
 import { widgetData } from './src/widgetData';
 import { reviewDue } from './src/review';
@@ -165,6 +172,18 @@ function Succedo() {
   // camera, the tab bar and toast clear of the system navigation bar.
   const insets = useSafeAreaInsets();
   const [state, setState] = useState<GameState>(emptyState);
+  // What the first-time tour points at (AppTour); parts of the app register themselves.
+  const tourTargets = useTourTargets();
+  const tourRef = useMemo(() => {
+    const cache: Record<string, (r: HostInstance | null) => void> = {};
+    return (key: string) =>
+      (cache[key] ??= (r) => {
+        if (r) tourTargets.set(key, r);
+        else tourTargets.delete(key);
+      });
+  }, []);
+  /** The inventory tab to open on next (the profile's showcase card opens Outfits). */
+  const [inventoryTab, setInventoryTab] = useState<'outfits' | undefined>();
   // The language for everything drawn below; switching it redraws the whole app (the key on ThemeProvider).
   const language = state.settings.lang ?? systemLang();
   setLang(language);
@@ -176,6 +195,7 @@ function Succedo() {
   const [adding, setAdding] = useState(false);
   const [redoSetup, setRedoSetup] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [toastAction, setToastAction] = useState<{ label: string; onPress: () => void } | null>(null);
   const toastAnim = useRef(new Animated.Value(0)).current;
   const [levelOpen, setLevelOpen] = useState(false);
   const [rewardsOpen, setRewardsOpen] = useState(false);
@@ -191,6 +211,23 @@ function Succedo() {
   const [comboShown, setComboShown] = useState({ count: 0, play: 0 });
   /** A level-up or moment pop-up is open or waiting; the review pop-up never shows on top of one. */
   const celebrationOpen = useRef(false);
+  /** Today plays a big moment (all done, morning hello); a level-up waits for it to end. */
+  const todayBusy = useRef(false);
+  const heldLevelUp = useRef<(() => void) | null>(null);
+  /** The level-up that waited comes in once Today's moment and any pop-ups before it (a perfect day) are done. */
+  const momentsOpen = useRef(false);
+  momentsOpen.current = moments.length > 0;
+  function releaseLevelUp() {
+    setTimeout(() => {
+      const show = heldLevelUp.current;
+      if (!show || todayBusy.current || momentsOpen.current) return;
+      heldLevelUp.current = null;
+      show();
+    }, 350);
+  }
+  useEffect(() => {
+    if (!moments.length) releaseLevelUp();
+  }, [moments.length]);
   celebrationOpen.current = !!celebration || moments.length > 0;
   const bestLevel = useRef<number | null>(null);
   // Theme whose fonts are loaded and which is on screen; a newly picked theme
@@ -251,6 +288,10 @@ function Succedo() {
   const multiplier = useMemo(() => xpMultiplier(state, today), [state, today]);
   const tasks = useMemo(() => visibleTasks(state, today), [state, today]);
   const upcoming = useMemo(() => upcomingTasks(state, today), [state.tasks, today]);
+  // What Bizzy wears everywhere; the same drawing until the outfit itself changes.
+  const worn = wornOutfits(state);
+  const wornKey = JSON.stringify(worn);
+  const outfit = useMemo(() => outfitDrawing(worn), [wornKey]);
   const challenges = useMemo(() => weeklyChallenges(state, today), [state, today]);
   const hour = new Date().getHours();
   const daily = useMemo(() => dailyChallenges(state, today, hour), [state, today, hour]);
@@ -264,6 +305,31 @@ function Succedo() {
   /** Library tasks already on the list, left out of the library and suggestions. */
   const ownedTasks = useMemo(() => ownedLibraryIds(state, today), [state.tasks, state.completions, today]);
   const week = useMemo(() => activitySummary(state, today), [state, today]);
+  // The tour's test task (asked 2026-11-01): the first tick happens with Bizzy watching. Only on
+  // the first tour; a replay skips that step. Put back if removed before it was ticked.
+  const touring = loaded && state.settings.tour === 'pending';
+  // Worked out as the tour starts (state is loaded by then), and kept while it runs.
+  const tourTried = useMemo(() => state.completions.some((x) => x.taskId === TOUR_TASK), [touring]);
+  const tourTicked = state.completions.some((x) => x.taskId === TOUR_TASK);
+  // The swipe task counts as removed once it was added and is gone again.
+  const swipeAdded = useRef(false);
+  const swipeThere = state.tasks.some((x) => x.id === TOUR_SWIPE_TASK);
+  if (swipeThere) swipeAdded.current = true;
+  const tourRemoved = swipeAdded.current && !swipeThere;
+  useEffect(() => {
+    if (!touring || tourTried) return;
+    setState((s) => {
+      let next = s;
+      if (!tourTicked && !next.tasks.some((x) => x.id === TOUR_TASK)) next = addTask(next, t(TOUR_TASK_TITLE), false, TOUR_TASK, TOUR_TASK_MINUTES);
+      if (!swipeAdded.current && !next.tasks.some((x) => x.id === TOUR_SWIPE_TASK)) next = addTask(next, t(TOUR_SWIPE_TITLE), false, TOUR_SWIPE_TASK, TOUR_TASK_MINUTES);
+      // Ready to tick at once: the few seconds' wait for new tasks doesn't apply to these.
+      const ready = new Date(Date.now() - 60_000).toISOString();
+      return next === s ? s : { ...next, tasks: next.tasks.map((x) => (x.id === TOUR_TASK || x.id === TOUR_SWIPE_TASK ? { ...x, createdAt: ready } : x)) };
+    });
+  }, [touring, tourTried, tourTicked, state.tasks]);
+
+  // The quote of the day greets the player on the first open of each day, once setup and the tour are behind them.
+  const quoteShown = loaded && state.onboarded && state.settings.tour !== 'pending' && quoteDue(state.settings, today);
   const rewards = useMemo(() => unlockedRewards(state), [state.achievementClaims, state.levelRewards, state.wheelSpins]);
   // Everything owned: browser previews, or "Unlock everything" on the developer page.
   const allUnlocked = PREVIEW_ALL_THEMES || !!state.dev?.unlockAll;
@@ -282,7 +348,6 @@ function Succedo() {
   );
   const tickets = ticketStatus(state, xp);
   const looks = equippedLooks(state.settings, owned);
-  const emblems = useMemo(() => emblemStatuses(state), [state.completions, state.tasks]);
   const recovery = loaded ? recoveryOffer(state, today) : undefined;
   // Badges show only what is new: items added since the bag was opened, looks won but not seen yet.
   const bagCounts: Record<BagItem, number> = { ticket: tickets.tickets, ...tokens };
@@ -409,17 +474,26 @@ function Succedo() {
     setState(next);
     setRedoSetup(false);
     openTab('today');
+    // Bizzy shows them round the app once they've seen their list (AppTour).
+    setState((s) => updateSettings(s, { tour: 'pending' }));
     if (picks.length) setTimeout(() => showToast(tn(picks.length, '{n} task added. Let’s begin.', '{n} tasks added. Let’s begin.')), 300);
   }
 
-  function showToast(message: string) {
+  /** A short note above the tab bar; with an action (Undo) it stays a little longer and can be tapped. */
+  function showToast(message: string, action?: { label: string; onPress: () => void }) {
     setToast(message);
+    setToastAction(action ?? null);
+    toastAnim.stopAnimation();
     toastAnim.setValue(0);
     Animated.sequence([
       Animated.timing(toastAnim, { toValue: 1, duration: 350, easing: Easing.out(Easing.cubic), useNativeDriver: nativeDriver }),
-      Animated.delay(2000),
+      Animated.delay(action ? 5000 : 2000),
       Animated.timing(toastAnim, { toValue: 0, duration: 300, useNativeDriver: nativeDriver }),
-    ]).start(() => setToast(null));
+    ]).start(({ finished }) => {
+      if (!finished) return;
+      setToast(null);
+      setToastAction(null);
+    });
   }
 
   /** Applies a change and celebrates a level-up. Returns the XP gained. */
@@ -434,7 +508,8 @@ function Succedo() {
       found.push({ kind: 'perfect' });
     }
     if (milestone.days) found.push({ kind: 'streak', days: milestone.days });
-    if (found.length) setTimeout(() => setMoments((m) => [...m, ...found]), 900);
+    // A perfect day waits for Bizzy's honey check mark on Today (TodayMoments) to finish.
+    if (found.length) setTimeout(() => setMoments((m) => [...m, ...found]), perfect.earned ? 3600 : 900);
     // The perfect day bonus is celebrated on its own, so it's left out of the task's "+XP".
     const gained = totalXp(change) - xp - (perfect.earned ? PERFECT_DAY_XP : 0);
     const before = levelInfo(xp);
@@ -448,15 +523,17 @@ function Succedo() {
       const from = bestLevel.current;
       bestLevel.current = after.level;
       const milestone = LEVEL_MILESTONES.filter((m) => m.level > from && m.level <= after.level).at(-1);
-      // After the XP bar has run to the end.
-      setTimeout(
-        () => {
-          setCelebration({ level: after.level, rank: after.rank, newRank: after.rank !== before.rank, milestone });
-          buzz('levelUp');
-          sound('levelUp');
-        },
-        900,
-      );
+      const show = () => {
+        setCelebration({ level: after.level, rank: after.rank, newRank: after.rank !== before.rank, milestone });
+        buzz('levelUp');
+        sound('levelUp');
+      };
+      // After the XP bar has run to the end. If that tick also finished the day, Bizzy's
+      // all-done moment plays first and the level-up follows it (picked 2026-11-01, 1A).
+      setTimeout(() => {
+        if (todayBusy.current || momentsOpen.current) heldLevelUp.current = show;
+        else show();
+      }, 900);
     }
     return gained;
   }
@@ -564,8 +641,12 @@ function Succedo() {
     const { state: next, prize } = spinWheel(state, xp, today, Math.random());
     if (!prize) return undefined;
     saveState(next);
+    const spin = next.wheelSpins![next.wheelSpins!.length - 1];
     return {
       prize,
+      // An outfit slice: the outfit won, or XP once every outfit of its rarity is owned.
+      outfit: spin.outfit,
+      xp: prize.outfit && !spin.outfit ? spin.xp : undefined,
       finish: () => {
         buzz('prize');
         sound(prize.rarity === 'legendary' ? 'jackpot' : 'win');
@@ -643,7 +724,8 @@ function Succedo() {
           onLanguage={(l) => setState((s) => updateSettings(s, { lang: l }))}
           onFinish={onSetupDone}
           onSkip={() => {
-            setState({ ...state, onboarded: true });
+            // Skipping the questions still gets the tour, the first time.
+            setState({ ...state, onboarded: true, ...(!state.onboarded && { settings: { ...state.settings, tour: 'pending' as const } }) });
             setRedoSetup(false);
           }}
         />
@@ -658,7 +740,9 @@ function Succedo() {
         <CelebrationContext.Provider value={looks.celebration}>
           <AvatarDiscContext.Provider value={state.settings.avatar}>
           <BizzyFormContext.Provider value={bizzyFormOf(state.bizzyForm).n}>
+          <BizzyOutfitContext.Provider value={outfit}>
           <AvatarPhotoContext.Provider value={photo}>
+          <TourTargetProvider targets={tourTargets}>
           <SafeAreaView edges={['top', 'left', 'right']} style={styles.safe}>
             <StatusBar style={statusBar} />
             {c.backdrop === 'dust' && (tab !== 'spin' || page) && <GoldDust />}
@@ -675,10 +759,15 @@ function Succedo() {
                   toClaim={awardsToClaim}
                   newLooks={freshOnProfile}
                   onHome={() => openTab('today')}
-                  onInventory={() => setPage('inventory')}
+                  onInventory={() => {
+                    setInventoryTab(undefined);
+                    setPage('inventory');
+                  }}
                   onProfile={() => setPage('profile')}
                 />
-                <XpProgress totalXp={xp} onPress={() => setRewardsOpen(true)} />
+                <View ref={tourRef('xp')}>
+                  <XpProgress totalXp={xp} onPress={() => setRewardsOpen(true)} />
+                </View>
               </View>
             )}
 
@@ -711,6 +800,9 @@ function Succedo() {
                   freshLooks={freshLooks}
                   onSeenLook={seeLook}
                   onSettings={(changes) => setState((s) => updateSettings(s, changes))}
+                  bizzyForm={bizzyFormOf(state.bizzyForm).n}
+                  startTab={inventoryTab}
+                  onToggleOutfit={(id) => setState((now) => toggleOutfit(now, id))}
                 />
               )}
               {page === 'profile' && (
@@ -725,10 +817,16 @@ function Succedo() {
                   season={season}
                   fireTier={streakInfo.tier}
                   photo={photo}
-                  emblems={emblems}
+                  bizzy={{
+                    state,
+                    form: bizzyFormOf(state.bizzyForm).n,
+                    onOpen: () => {
+                      setInventoryTab('outfits');
+                      setPage('inventory');
+                    },
+                  }}
                   multiplier={multiplier}
                   achievements={achievements}
-                  rewards={rewards}
                   toClaim={awardsToClaim}
                   freshLooks={freshLooks}
                   onSeenLook={seeLook}
@@ -760,6 +858,10 @@ function Succedo() {
                   today={today}
                   onSettings={(changes) => setState((s) => updateSettings(s, changes))}
                   onRedoSetup={() => setRedoSetup(true)}
+                  onReplayTour={() => {
+                    setState((s) => updateSettings(s, { tour: 'pending' }));
+                    openTab('today');
+                  }}
                   backupText={(savedAt) => makeBackup(state, photo, savedAt, today)}
                   onRestore={(backup) => {
                     setState(prepared(backup.state));
@@ -799,6 +901,10 @@ function Succedo() {
                   streak={streakInfo}
                   multiplier={multiplier}
                   onOpenStreak={() => setLevelOpen(true)}
+                  onMoment={(busy) => {
+                    todayBusy.current = busy;
+                    if (!busy) releaseLevelUp();
+                  }}
                   onEvolve={() => {
                     const next = evolveBizzy(state);
                     if (next === state) return;
@@ -837,14 +943,27 @@ function Succedo() {
                   onOpenLibrary={() => setLibraryOpen(true)}
                   onToggle={onToggle}
                   onStep={onStep}
-                  onDelete={(task) => setState(deleteTask(state, task.id))}
+                  onDelete={(task) => {
+                    const at = state.tasks.findIndex((x) => x.id === task.id);
+                    setState((s) => deleteTask(s, task.id));
+                    // Removing takes a swipe and a tap; Undo puts it back where it was.
+                    showToast(t('{task} removed', { task: quoted(shownTitle(task.title)) }), {
+                      label: t('Undo'),
+                      onPress: () => setState((s) => restoreTask(s, task, at)),
+                    });
+                  }}
                   recap={recap && <WeeklyRecap recap={recap} onSeen={() => setState(updateSettings(state, { recapSeen: recap.week }))} />}
                   focusingId={focusTask?.id}
                   onFocus={onFocus}
                   combo={comboShown}
                   adding={adding}
                   onCloseAdd={() => setAdding(false)}
-                  onQuoteSide={(side) => setState((s) => updateSettings(s, { quoteSide: { side, day: today } }))}
+                  hello={
+                    // Once a day, from the second day on (the first is the welcome); hatch and hive take turns.
+                    loaded && !quoteShown && state.settings.helloDay !== today && state.joinedAt && state.joinedAt < today
+                      ? { kind: dayTurn(today, 2) ? 'hive' : 'hatch', onStart: () => setState((s) => updateSettings(s, { helloDay: today })) }
+                      : undefined
+                  }
                   focusBar={focusTask && state.focus && !focusOpen ? <FocusBar task={focusTask} session={state.focus} onOpen={() => setFocusOpen(true)} /> : undefined}
                 />
               )}
@@ -885,6 +1004,12 @@ function Succedo() {
                     setState(updateSettings(state, { theme: 'fortune' }));
                     showToast(t('Fortuna is on. Good luck!'));
                   }}
+                  onWearOutfit={(id) => {
+                    const o = outfitById(id);
+                    if (!o) return;
+                    setState((now) => (wornOutfits(now)[o.slot] === id ? now : toggleOutfit(now, id)));
+                    showToast(t('Bizzy is wearing it: {outfit}', { outfit: outfitName(o) }));
+                  }}
                 />
               )}
               {!page && tab === 'menu' && <MenuScreen onOpen={setPage} />}
@@ -894,8 +1019,8 @@ function Succedo() {
               {TABS.flatMap((tb, i) => [
                 // Today · Challenges · Add Task · Spin · Menu
                 i === 2 && (
-                  <Pressable key="add" onPress={openAdd} style={styles.tab} accessibilityRole="button" accessibilityLabel={t('Add Task')}>
-                    <View style={styles.addButton}>
+                  <Pressable key="add" ref={tourRef('add')} onPress={openAdd} style={styles.tab} accessibilityRole="button" accessibilityLabel={t('Add Task')}>
+                    <View ref={tourRef('add-fab')} style={styles.addButton}>
                       <Plus size={24} color={brandInk(c)} strokeWidth={2.75} aria-hidden />
                     </View>
                     <Text style={[styles.tabLabel, styles.addLabel]} numberOfLines={1}>
@@ -905,6 +1030,7 @@ function Succedo() {
                 ),
                 <Pressable
                   key={tb.key}
+                  ref={tourRef(`tab-${tb.key}`)}
                   onPress={() => openTab(tb.key)}
                   style={styles.tab}
                   accessibilityRole="tab"
@@ -942,8 +1068,23 @@ function Succedo() {
             />
 
             {toast && (
-              <Animated.View style={[styles.toast, { bottom: 96 + insets.bottom }, toastStyle]} pointerEvents="none">
+              <Animated.View style={[styles.toast, toastAction && styles.toastRow, { bottom: 96 + insets.bottom }, toastStyle]} pointerEvents={toastAction ? 'box-none' : 'none'}>
                 <Text style={styles.toastText}>{toast}</Text>
+                {toastAction && (
+                  <Pressable
+                    onPress={() => {
+                      toastAction.onPress();
+                      toastAnim.stopAnimation();
+                      toastAnim.setValue(0);
+                      setToast(null);
+                      setToastAction(null);
+                    }}
+                    hitSlop={10}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.toastAction}>{toastAction.label}</Text>
+                  </Pressable>
+                )}
               </Animated.View>
             )}
 
@@ -1007,8 +1148,36 @@ function Succedo() {
                 }}
               />
             )}
+            {touring && !celebration && (
+              <AppTour
+                steps={tourSteps({ widget: HAS_WIDGET, tried: tourTried })}
+                targets={tourTargets}
+                streak={streakInfo}
+                onTab={openTab}
+                onPage={setPage}
+                tried={{ tick: tourTicked, remove: tourRemoved }}
+                onTry={(target) => {
+                  if (target === 'xp') setRewardsOpen(true);
+                  else if (target === 'streak') setLevelOpen(true);
+                  else return false;
+                  return true;
+                }}
+                onDone={() => {
+                  // Test tasks left over go with the tour; a ticked one stays in "Done today".
+                  setState((s) => {
+                    let next = deleteTask(s, TOUR_SWIPE_TASK);
+                    if (!next.completions.some((x) => x.taskId === TOUR_TASK)) next = deleteTask(next, TOUR_TASK);
+                    return updateSettings(next, { tour: 'done' });
+                  });
+                  openTab('today');
+                }}
+              />
+            )}
+            {quoteShown && <QuoteSplash quote={quoteOfTheDay(today)} onDone={() => setState((s) => updateSettings(s, { quoteDay: today }))} />}
           </SafeAreaView>
+          </TourTargetProvider>
           </AvatarPhotoContext.Provider>
+          </BizzyOutfitContext.Provider>
           </BizzyFormContext.Provider>
           </AvatarDiscContext.Provider>
         </CelebrationContext.Provider>
@@ -1063,5 +1232,7 @@ const makeStyles = themed((c) => ({
     borderRadius: c.radius,
     maxWidth: '90%',
   },
-  toastText: { color: c.text, fontWeight: '600', fontSize: 15, textAlign: 'center' },
+  toastText: { color: c.text, fontWeight: '600', fontSize: 15, textAlign: 'center', flexShrink: 1 },
+  toastRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  toastAction: { color: brandLine(c), fontWeight: '800', fontSize: 15 },
 }));
