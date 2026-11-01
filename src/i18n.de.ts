@@ -1108,4 +1108,7 @@ export const DE: Record<string, string> = {
   "3. Find Succedo": "3. Succedo suchen",
   "4. Drag me onto your screen": "4. Mich auf den Bildschirm ziehen",
   "Next": "Weiter",
+  "Jackpot next spin": "Jackpot beim nächsten Dreh",
+  "{n} spin to jackpot": "{n} Dreh bis zum Jackpot",
+  "{n} spins to jackpot": "{n} Drehs bis zum Jackpot",
 };

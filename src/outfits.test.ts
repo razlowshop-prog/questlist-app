@@ -102,15 +102,15 @@ test('outfits go on and off one per slot, and only owned ones', () => {
   assert.deepEqual(wornOutfits({ ...state, bizzyWear: { head: 'wizard', neck: 'specs', face: 'specs' } }), { face: 'specs' });
 });
 
-test('the wardrobe lists owned outfits first, rarest first', () => {
+test('the wardrobe lists rarest first, owned first within a rarity', () => {
   const state = player([], [{ date: TODAY, prize: 'o3', outfit: 'wizard' }, { date: TODAY, prize: 'o2', outfit: 'viking' }]);
   const list = outfitList(state);
-  assert.deepEqual(
-    list.filter((x) => x.owned).map((x) => x.outfit.id),
-    ['wizard', 'viking', 'beanie', 'specs', 'bowtie'],
-  );
-  assert.ok(list.slice(5).every((x) => !x.owned));
-  for (let i = 6; i < list.length; i++) assert.ok(list[i - 1].outfit.rarity >= list[i].outfit.rarity);
+  // Legendary, then Epic, then Rare, whether owned or not.
+  for (let i = 1; i < list.length; i++) assert.ok(list[i - 1].outfit.rarity >= list[i].outfit.rarity);
+  // Within each rarity, the owned ones come first.
+  for (let i = 1; i < list.length; i++) if (list[i - 1].outfit.rarity === list[i].outfit.rarity) assert.ok(Number(list[i - 1].owned) >= Number(list[i].owned));
+  assert.equal(list[0].outfit.id, 'wizard');
+  assert.deepEqual(list.filter((x) => x.owned).map((x) => x.outfit.id), ['wizard', 'viking', 'beanie', 'specs', 'bowtie']);
   assert.deepEqual(outfitCounts(state), { 1: [3, 6], 2: [1, 10], 3: [1, 5] });
 });
 

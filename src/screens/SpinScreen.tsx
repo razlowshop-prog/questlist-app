@@ -135,6 +135,7 @@ export function SpinScreen({
   const [won, setWon] = useState<Won | null>(null);
   const [oddsOpen, setOddsOpen] = useState(false);
   /** The slice the player tapped, explained under the wheel. */
+  const [luckyTip, setLuckyTip] = useState(false);
   const [about, setAbout] = useState<WheelPrize | null>(null);
   const lastTick = useRef(0);
   // The prize hand-out of a spin still turning. Run when it lands, or at once if the screen closes first.
@@ -358,10 +359,26 @@ export function SpinScreen({
             </View>
           </View>
           {pity !== undefined && (
-            <View style={[s.chip, s.chipBottomRight]} accessibilityLabel={pity <= 1 ? t('Lucky meter: your next spin wins Fortuna for sure.') : t('Lucky meter: {n} spins left until Fortuna is guaranteed.', { n: pity })}>
-              <Star4 size={11} color={GOLD.mid} />
-              <Text style={s.chipText}>{pity}</Text>
-            </View>
+            <>
+              {/* The lucky meter: the count on the chip, its meaning on hover or tap (asked 2026-10-31). */}
+              {luckyTip && (
+                <View style={s.luckyTip} pointerEvents="none">
+                  <Text style={s.luckyTipText}>{pity <= 1 ? t('Lucky meter: your next spin wins Fortuna for sure.') : t('Lucky meter: {n} spins left until Fortuna is guaranteed.', { n: pity })}</Text>
+                </View>
+              )}
+              <Pressable
+                onPress={() => setLuckyTip((v) => !v)}
+                onHoverIn={() => setLuckyTip(true)}
+                onHoverOut={() => setLuckyTip(false)}
+                hitSlop={8}
+                style={[s.chip, s.chipBottomRight]}
+                accessibilityRole="button"
+                accessibilityLabel={pity <= 1 ? t('Lucky meter: your next spin wins Fortuna for sure.') : t('Lucky meter: {n} spins left until Fortuna is guaranteed.', { n: pity })}
+              >
+                <Star4 size={11} color={GOLD.mid} />
+                <Text style={s.chipText}>{pity <= 1 ? t('Jackpot next spin') : tn(pity, '{n} spin to jackpot', '{n} spins to jackpot')}</Text>
+              </Pressable>
+            </>
           )}
         </View>
 
@@ -374,11 +391,6 @@ export function SpinScreen({
           <Text style={s.hint}>{spinning ? t('Good luck…') : has ? t('Tap the gold middle or swipe the wheel · tap a slice to see what it gives') : t('Tap a slice to see what it gives')}</Text>
         )}
 
-        {pity !== undefined && (
-          <Text style={s.small}>
-            {pity <= 1 ? t('Lucky meter: your next spin wins Fortuna for sure.') : t('Lucky meter: {n} spins left until Fortuna is guaranteed.', { n: pity })}
-          </Text>
-        )}
         <Text style={s.section}>{t('How tickets work')}</Text>
         <View style={s.panel}>
           <Info text={t('Every {n} XP from tasks, weekly challenges and achievements gives one ticket.', { n: XP_PER_TICKET })} />
@@ -1030,6 +1042,8 @@ const makeStyles = themed((c) => ({
   chipTopRight: { right: 0, top: 0 },
   chipBottomLeft: { left: 0, bottom: 0 },
   chipBottomRight: { right: 0, bottom: 0 },
+  luckyTip: { position: 'absolute', right: 0, bottom: 38, maxWidth: 220, padding: 10, borderRadius: 10, backgroundColor: c.surface, borderWidth: 1, borderColor: c.dark ? 'rgba(242,197,92,0.45)' : c.border, zIndex: 5, boxShadow: '0px 6px 18px rgba(0,0,0,0.35)' },
+  luckyTipText: { color: c.text, fontSize: 12, lineHeight: 16 },
   chipText: { color: c.text, fontSize: 12, fontWeight: '800', fontVariant: ['tabular-nums'] },
   mini: { width: 40, height: 5, borderRadius: 3, backgroundColor: c.dark ? 'rgba(255,255,255,0.14)' : c.border, overflow: 'hidden' },
   miniFill: { height: '100%', borderRadius: 3, backgroundColor: GOLD.mid, backgroundImage: `linear-gradient(90deg, ${GOLD.deep}, ${GOLD.mid})` },
@@ -1054,7 +1068,6 @@ const makeStyles = themed((c) => ({
   spinButtonOff: { backgroundColor: '#2a1d40', borderColor: '#3d2d5c' },
   spinText: { fontFamily: CINZEL, color: GOLD.ink, fontSize: 16, letterSpacing: 1.5 },
   spinTextOff: { color: '#a596bf' },
-  small: { color: c.muted, fontSize: 12, textAlign: 'center', marginTop: 12 },
   hint: { color: c.muted, fontSize: 12, lineHeight: 16, textAlign: 'center', marginTop: 8, minHeight: 32 },
   note: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 14, padding: 12, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,224,102,0.25)' },
   noteTitle: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
