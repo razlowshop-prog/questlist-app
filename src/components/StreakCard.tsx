@@ -245,14 +245,15 @@ const makeStyles = themed((c) => ({
   evolveWait: { maxWidth: 84, color: c.muted, fontSize: 11, lineHeight: 14, fontWeight: '600', textAlign: 'center' },
   days: { fontFamily: VIVID_HEAVY, fontSize: 72, lineHeight: 80, fontVariant: ['lining-nums'], minWidth: 44, textAlign: 'center' },
   daysLong: { fontFamily: VIVID_HEAVY, fontSize: 56, lineHeight: 66 },
-  labelRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  // The pill moves under the tier name when both don't fit, so the name is never cut to "B…".
+  labelRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 },
   label: { color: c.text, fontSize: 18, fontWeight: '800' },
   speechRow: { alignItems: 'flex-end', marginTop: 2 },
   speech: { maxWidth: '100%', backgroundColor: c.surfaceAlt, borderColor: c.border, borderWidth: 1, borderRadius: 12, paddingHorizontal: 11, paddingVertical: 7, boxShadow: '0px 4px 14px rgba(0,0,0,0.3)' },
   speechText: { color: c.text, fontSize: 13, lineHeight: 17, fontWeight: '700' },
   // Points up at Bizzy, in the middle of his corner.
   speechTail: { position: 'absolute', right: 42, top: -5, width: 8, height: 8, backgroundColor: c.surfaceAlt, borderColor: c.border, borderTopWidth: 1, borderLeftWidth: 1, transform: [{ rotate: '45deg' }] },
-  tier: { flexShrink: 1, color: c.muted, fontSize: 13, fontWeight: '700' },
+  tier: { color: c.muted, fontSize: 13, fontWeight: '700' },
   week: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 4, paddingTop: 2 },
   day: { alignItems: 'center', gap: 4 },
   dayLetter: { color: c.faint, fontSize: 11, fontWeight: '700' },

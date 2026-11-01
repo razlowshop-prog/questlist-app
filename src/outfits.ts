@@ -134,13 +134,13 @@ export function outfitDrawing(wear: Partial<Record<OutfitSlot, string>>): BizzyO
   };
 }
 
-/** The outfits for the Outfits tab, rarest first (Legendary, Epic, Rare); within a rarity the owned ones come first. */
+/** The outfits for the Outfits tab: the owned ones on top, then the locked ones; each group rarest first (Legendary, Epic, Rare) (asked 2026-11-01). */
 export function outfitList(state: Pick<GameState, 'completions' | 'tasks' | 'wheelSpins'>): { outfit: Outfit; owned: boolean; progress?: number }[] {
   const owned = ownedOutfits(state);
   const areas = areaProgress(state);
   const order = new Map(OUTFITS.map((o, i) => [o.id, i]));
   return OUTFITS.map((outfit) => ({ outfit, owned: owned.has(outfit.id), ...(outfit.area && { progress: areas.get(outfit.id) ?? 0 }) })).sort(
-    (a, b) => b.outfit.rarity - a.outfit.rarity || Number(b.owned) - Number(a.owned) || order.get(a.outfit.id)! - order.get(b.outfit.id)!,
+    (a, b) => Number(b.owned) - Number(a.owned) || b.outfit.rarity - a.outfit.rarity || order.get(a.outfit.id)! - order.get(b.outfit.id)!,
   );
 }
 
