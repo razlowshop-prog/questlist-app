@@ -21,11 +21,19 @@ type Spot = { x: number; y: number; w: number; h: number };
 const SIZE = 52;
 
 /**
+ * Where he waves from: beside the picture on the left, level with its upper part, away
+ * from the badge on the top right (picked 2026-11-01, 5B; on top he was small and half hidden).
+ */
+function waveSpot(f: Spot): Pt {
+  return [f.x - SIZE / 2 + 2, f.y + f.h * 0.28];
+}
+
+/**
  * Bizzy on the profile (picked 2026-10-29: ideas A, C and E, taking turns):
- * A flies round the picture, passing behind and in front, and waves from on
- * top; C leans on the level pill, swings, dozes off and jolts awake; E polishes
+ * A flies round the picture, passing behind and in front, and waves from the
+ * left of the picture; C leans on the level pill, swings, dozes off and jolts awake; E polishes
  * the pinned trophies one by one. Between them he flies over to the next spot
- * instead of jumping. With less motion he just sits on top of the picture.
+ * instead of jumping. With less motion he just sits beside the picture.
  * Rendered inside `root`, next to the picture (which has zIndex 2).
  */
 export function ProfileBizzy({ root, frame, pill, trophies }: { root: RefObject<HostInstance | null>; frame: RefObject<HostInstance | null>; pill: RefObject<HostInstance | null>; trophies: RefObject<(HostInstance | null)[]> }) {
@@ -60,10 +68,13 @@ export function ProfileBizzy({ root, frame, pill, trophies }: { root: RefObject<
     const start: Pt = [c[0] + rx, c[1]];
     await goTo(start);
     if (!alive.current) return;
-    // Two slow loops (passing behind on the far side), then up on top to wave.
+    // Two slow loops (passing behind on the far side), then over to his spot beside the picture to wave.
     await flyer.fly([...ellipse(c, rx, ry), ...ellipse(c, rx, ry)], 8400, { easing: Easing.linear });
     if (!alive.current) return;
-    await flyer.fly([[start, [start[0] + 2, c[1] - 54], [c[0] + 20, f.y - 30], [c[0], f.y - 14]]], 600);
+    // Across in front of the picture (dipping below it), then up to his spot.
+    const spot = waveSpot(f);
+    await flyer.fly([[start, [start[0], f.y + f.h + 30], [spot[0], f.y + f.h + 30], spot]], 900);
+    if (!alive.current) return;
     flyer.setMood('wave');
     flyer.setFast(false);
     await wait(1800);
@@ -106,8 +117,8 @@ export function ProfileBizzy({ root, frame, pill, trophies }: { root: RefObject<
   async function run() {
     const f = await where(frame.current);
     if (!f || !alive.current) return;
-    const top: Pt = [f.x + f.w / 2, f.y - 14];
-    flyer.place(top[0], top[1]);
+    const home = waveSpot(f);
+    flyer.place(home[0], home[1]);
     if (reduce) return;
     flyer.setMood('wave');
     await wait(1500);

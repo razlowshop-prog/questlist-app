@@ -7,8 +7,8 @@ import { bizzySvg } from '../src/bizzy.ts';
 
 const OUT = new URL('../assets/brand/', import.meta.url).pathname;
 
-/** Bizzy's drawing (200 × 200) cropped close round him: feelers to sting. */
-const CROP = '20 30 160 160';
+/** Bizzy's drawing (200 × 200) cropped close round him: feelers to the tip of his sting. */
+const CROP = '17 30 166 166';
 
 function bee(x: number, y: number, size: number, silhouette = false): string {
   const inner = bizzySvg('excited', false, { form: 5 })

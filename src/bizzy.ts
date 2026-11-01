@@ -281,13 +281,15 @@ export function bizzySvg(
     feelers +
     cape +
     (outfit?.back ?? '') +
+    // The stinger (picked 2026-11-01, 4A): a clear cone pointing down from behind the body,
+    // with a thin light rim so it doesn't melt into the shadow.
+    `<path d="M90 168 Q100 177 110 168 L100 194Z" fill="${NAVY}" stroke="#FFE7A3" stroke-width="1.5" stroke-linejoin="round"/>` +
     `<ellipse cx="100" cy="122" rx="52" ry="54" fill="url(#${g})"/>` +
     stripes +
     `<path d="M66 96 Q74 82 90 78" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" opacity=".55"/>` +
     (f.extra && !covers.head ? EXTRA[f.extra] : '') +
     (f.extra === 'honey' && !covers.neck ? HONEY_BADGE : '') +
     face(mood, look, blink) +
-    `<path d="M100 176 L94 186 L106 186Z" fill="${NAVY}"/>` +
     (mood === 'wave' ? waveArms() : '') +
     (outfit?.front ?? '');
   // Honeyguard glows amber, the Queen violet.
@@ -298,7 +300,7 @@ export function bizzySvg(
     (glow ? `<radialGradient id="bza${f.n}"><stop offset="0" stop-color="${glow[0]}" stop-opacity=".45"/><stop offset="1" stop-color="${glow[0]}" stop-opacity="0"/></radialGradient>` : '') +
     `<clipPath id="${c}"><ellipse cx="100" cy="122" rx="52" ry="54"/></clipPath></defs>` +
     (glow ? `<circle cx="100" cy="${glow[2]}" r="${glow[1]}" fill="url(#bza${f.n})"/>` : '') +
-    (shadow ? `<ellipse cx="100" cy="186" rx="${r1(42 * Math.max(f.k, 0.7))}" ry="7" fill="#000" opacity=".3"/>` : '') +
+    (shadow ? `<ellipse cx="100" cy="192" rx="${r1(42 * Math.max(f.k, 0.7))}" ry="7" fill="#000" opacity=".3"/>` : '') +
     (at ? `<g transform="${at}">${body}</g>` : body) +
     (f.n >= 9 ? sparkle(30, 140, 6) + sparkle(172, 128, 5) + sparkle(160, 40, 4, SOFT) : '') +
     `</svg>`

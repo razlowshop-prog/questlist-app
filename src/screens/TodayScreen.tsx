@@ -60,6 +60,7 @@ export function TodayScreen({
   streak,
   multiplier,
   onOpenStreak,
+  onMoment,
   onEvolve,
   onTapBizzy,
   tokenStrip,
@@ -87,6 +88,8 @@ export function TodayScreen({
   streak: StreakStatus;
   multiplier: ReturnType<typeof xpMultiplier>;
   onOpenStreak: () => void;
+  /** A big moment (morning hello, all done) starts or ends; a level-up waits for it (picked 2026-11-01, 1A). */
+  onMoment?: (busy: boolean) => void;
   /** Bizzy evolves into his next form (only offered once the level allows it). */
   onEvolve: () => void;
   onTapBizzy: () => void;
@@ -260,6 +263,7 @@ export function TodayScreen({
   useTourScroller(scrollTo);
   const spot = useRef<HostInstance>(null);
   const [moment, setMoment] = useState<TodayMomentKind | null>(null);
+  useEffect(() => onMoment?.(!!moment), [!!moment]);
   const [says, setSays] = useState<{ text: string; id: number }>();
   const [landed, setLanded] = useState(false);
   const play = (kind: TodayMomentKind, line: string) => {

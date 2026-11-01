@@ -211,6 +211,23 @@ function Succedo() {
   const [comboShown, setComboShown] = useState({ count: 0, play: 0 });
   /** A level-up or moment pop-up is open or waiting; the review pop-up never shows on top of one. */
   const celebrationOpen = useRef(false);
+  /** Today plays a big moment (all done, morning hello); a level-up waits for it to end. */
+  const todayBusy = useRef(false);
+  const heldLevelUp = useRef<(() => void) | null>(null);
+  /** The level-up that waited comes in once Today's moment and any pop-ups before it (a perfect day) are done. */
+  const momentsOpen = useRef(false);
+  momentsOpen.current = moments.length > 0;
+  function releaseLevelUp() {
+    setTimeout(() => {
+      const show = heldLevelUp.current;
+      if (!show || todayBusy.current || momentsOpen.current) return;
+      heldLevelUp.current = null;
+      show();
+    }, 350);
+  }
+  useEffect(() => {
+    if (!moments.length) releaseLevelUp();
+  }, [moments.length]);
   celebrationOpen.current = !!celebration || moments.length > 0;
   const bestLevel = useRef<number | null>(null);
   // Theme whose fonts are loaded and which is on screen; a newly picked theme
@@ -506,15 +523,17 @@ function Succedo() {
       const from = bestLevel.current;
       bestLevel.current = after.level;
       const milestone = LEVEL_MILESTONES.filter((m) => m.level > from && m.level <= after.level).at(-1);
-      // After the XP bar has run to the end.
-      setTimeout(
-        () => {
-          setCelebration({ level: after.level, rank: after.rank, newRank: after.rank !== before.rank, milestone });
-          buzz('levelUp');
-          sound('levelUp');
-        },
-        900,
-      );
+      const show = () => {
+        setCelebration({ level: after.level, rank: after.rank, newRank: after.rank !== before.rank, milestone });
+        buzz('levelUp');
+        sound('levelUp');
+      };
+      // After the XP bar has run to the end. If that tick also finished the day, Bizzy's
+      // all-done moment plays first and the level-up follows it (picked 2026-11-01, 1A).
+      setTimeout(() => {
+        if (todayBusy.current || momentsOpen.current) heldLevelUp.current = show;
+        else show();
+      }, 900);
     }
     return gained;
   }
@@ -882,6 +901,10 @@ function Succedo() {
                   streak={streakInfo}
                   multiplier={multiplier}
                   onOpenStreak={() => setLevelOpen(true)}
+                  onMoment={(busy) => {
+                    todayBusy.current = busy;
+                    if (!busy) releaseLevelUp();
+                  }}
                   onEvolve={() => {
                     const next = evolveBizzy(state);
                     if (next === state) return;

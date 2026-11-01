@@ -371,12 +371,12 @@ export function SpinScreen({
                 onHoverIn={() => setLuckyTip(true)}
                 onHoverOut={() => setLuckyTip(false)}
                 hitSlop={8}
-                style={[s.chip, s.chipBottomRight]}
+                style={[s.chip, s.chipBottomRight, s.luckyChip]}
                 accessibilityRole="button"
                 accessibilityLabel={pity <= 1 ? t('Lucky meter: your next spin wins Fortuna for sure.') : t('Lucky meter: {n} spins left until Fortuna is guaranteed.', { n: pity })}
               >
-                <Star4 size={11} color={GOLD.mid} />
-                <Text style={s.chipText}>{pity <= 1 ? t('Jackpot next spin') : tn(pity, '{n} spin to jackpot', '{n} spins to jackpot')}</Text>
+                <LuckyRing left={pity} />
+                <Text style={s.luckyLabel}>{pity <= 1 ? t('next spin!') : t('to jackpot')}</Text>
               </Pressable>
             </>
           )}
@@ -1029,6 +1029,31 @@ function ThemePreview() {
   );
 }
 
+/**
+ * The lucky meter as a gold ring that fills with every spin, the spins left in
+ * the middle (picked 2026-11-01, 3A); a star once the next spin is the jackpot.
+ */
+function LuckyRing({ left }: { left: number }) {
+  const r = 14;
+  const round = 2 * Math.PI * r;
+  const filled = Math.min(1, Math.max(0, (PITY_SPINS - left) / PITY_SPINS));
+  return (
+    <View style={{ width: 34, height: 34, alignItems: 'center', justifyContent: 'center' }}>
+      <Svg width={34} height={34} viewBox="0 0 34 34" style={StyleSheet.absoluteFill}>
+        <Defs>
+          <LinearGradient id="luckyRing" x1="0" y1="0" x2="1" y2="1">
+            <Stop offset="0" stopColor={GOLD.bright} />
+            <Stop offset="1" stopColor={GOLD.mid} />
+          </LinearGradient>
+        </Defs>
+        <Circle cx={17} cy={17} r={r} stroke="rgba(255,255,255,0.12)" strokeWidth={3.5} fill="none" />
+        <Circle cx={17} cy={17} r={r} stroke="url(#luckyRing)" strokeWidth={3.5} fill="none" strokeLinecap="round" strokeDasharray={`${round * (left <= 1 ? 1 : filled)} ${round}`} transform="rotate(-90 17 17)" />
+      </Svg>
+      {left <= 1 ? <Star4 size={13} color={GOLD.bright} /> : <Text style={{ color: GOLD.bright, fontFamily: VIVID_HEAVY, fontSize: left >= 100 ? 10 : 12, fontVariant: ['tabular-nums'] }}>{left}</Text>}
+    </View>
+  );
+}
+
 const makeStyles = themed((c) => ({
   screen: { flex: 1, backgroundColor: c.bg },
   content: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 48, maxWidth: 640, width: '100%', alignSelf: 'center', alignItems: 'stretch' },
@@ -1042,6 +1067,8 @@ const makeStyles = themed((c) => ({
   chipTopRight: { right: 0, top: 0 },
   chipBottomLeft: { left: 0, bottom: 0 },
   chipBottomRight: { right: 0, bottom: 0 },
+  luckyChip: { height: 44, paddingLeft: 5, paddingRight: 11, borderRadius: 22, gap: 7 },
+  luckyLabel: { ...eyebrow(c, 10), color: c.muted, fontWeight: '800' },
   luckyTip: { position: 'absolute', right: 0, bottom: 38, maxWidth: 220, padding: 10, borderRadius: 10, backgroundColor: c.surface, borderWidth: 1, borderColor: c.dark ? 'rgba(242,197,92,0.45)' : c.border, zIndex: 5, boxShadow: '0px 6px 18px rgba(0,0,0,0.35)' },
   luckyTipText: { color: c.text, fontSize: 12, lineHeight: 16 },
   chipText: { color: c.text, fontSize: 12, fontWeight: '800', fontVariant: ['tabular-nums'] },

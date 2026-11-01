@@ -1087,9 +1087,6 @@ export const DE: Record<string, string> = {
   "3. Find Succedo": "3. Succedo suchen",
   "4. Drag me onto your screen": "4. Mich auf den Bildschirm ziehen",
   "Next": "Weiter",
-  "Jackpot next spin": "Jackpot beim nächsten Dreh",
-  "{n} spin to jackpot": "{n} Dreh bis zum Jackpot",
-  "{n} spins to jackpot": "{n} Drehs bis zum Jackpot",
   "Quote of the day on opening": "Zitat des Tages beim Öffnen",
   "Bizzy shows a quote on your first open of the day. Tap it to start.": "Bizzy zeigt beim ersten Öffnen am Tag ein Zitat. Tippe darauf, um zu starten.",
   "Tap to start": "Tippen zum Starten",
@@ -1109,4 +1106,6 @@ export const DE: Record<string, string> = {
   "Changed your mind?": "Doch nicht?",
   "Swipe this one to the left and tap Remove. On a computer, press and hold it.": "Wisch diese nach links und tippe auf Entfernen. Am Computer: gedrückt halten.",
   "Remove it first": "Erst entfernen",
+  "to jackpot": "bis Jackpot",
+  "next spin!": "nächster Dreh!",
 };

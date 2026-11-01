@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, type Ref } from 'react';
+import { useEffect, useRef, useState, type ReactNode, type Ref } from 'react';
 import { Pressable, Text, View, type HostInstance } from 'react-native';
+import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 import Animated, { Easing, FadeIn, FadeOut, LinearTransition, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { nextBizzyForm, type BizzyMood } from '../bizzy';
 import type { Line, TalkContext } from '../bizzyTalk';
@@ -108,7 +109,9 @@ export function StreakCard({
           {bizzy && (
             <View style={s.corner}>
               <View ref={bizzy.spotRef} style={{ opacity: bizzy.away ? 0 : 1 }}>
-                <TapBizzy mood={bizzy.mood} cheer={bizzy.cheer} size={68} look={[-2, 1]} talk={bizzy.talk} onSay={say} taps={bizzy.taps} onTap={bizzy.onTap} />
+                <Eager on={canEvolve(bizzy.form, bizzy.level)}>
+                  <TapBizzy mood={bizzy.mood} cheer={bizzy.cheer} size={68} look={[-2, 1]} talk={bizzy.talk} onSay={say} taps={bizzy.taps} onTap={bizzy.onTap} />
+                </Eager>
               </View>
               <EvolveNext form={bizzy.form} level={bizzy.level} onEvolve={bizzy.onEvolve} />
             </View>
@@ -148,7 +151,57 @@ export function StreakCard({
   );
 }
 
-/** Under Bizzy: Evolve (gently pulsing) when his next form's level is reached, else the level it needs; nothing once he is the Queen. */
+function canEvolve(form: number, level: number): boolean {
+  const next = nextBizzyForm(form);
+  return !!next && level >= next.level;
+}
+
+/**
+ * Bizzy can't wait to evolve (picked 2026-11-01, 2C): he glows gold and hops now and
+ * then, with a "!" badge, while the Evolve button under him pulses.
+ */
+function Eager({ on, children }: { on: boolean; children: ReactNode }) {
+  const s = useStyles(makeStyles);
+  const reduce = useReducedMotion();
+  const hop = useSharedValue(0);
+  const beat = useSharedValue(0);
+  useEffect(() => {
+    if (!on || reduce) {
+      hop.value = withTiming(0, { duration: 200 });
+      beat.value = 0;
+      return;
+    }
+    hop.value = withRepeat(withSequence(withTiming(1, { duration: 260, easing: Easing.out(Easing.quad) }), withTiming(0, { duration: 260, easing: Easing.in(Easing.quad) }), withTiming(0, { duration: 900 })), -1);
+    beat.value = withRepeat(withSequence(withTiming(1, { duration: 700, easing: Easing.inOut(Easing.sin) }), withTiming(0, { duration: 700, easing: Easing.inOut(Easing.sin) })), -1);
+  }, [on, reduce]);
+  const hopStyle = useAnimatedStyle(() => ({ transform: [{ translateY: -10 * hop.value }, { rotate: `${-6 * hop.value}deg` }] }));
+  const glowStyle = useAnimatedStyle(() => ({ opacity: 0.55 + 0.45 * beat.value, transform: [{ scale: 0.9 + 0.15 * beat.value }] }));
+  const badgeStyle = useAnimatedStyle(() => ({ transform: [{ scale: 1 + 0.25 * beat.value }] }));
+  if (!on) return <>{children}</>;
+  return (
+    <View>
+      <Animated.View pointerEvents="none" style={[s.eagerGlow, glowStyle]}>
+        {/* A soft gold light behind him, fading out to nothing. */}
+        <Svg width="100%" height="100%" viewBox="0 0 100 100">
+          <Defs>
+            <RadialGradient id="eagerGlow" cx="50" cy="62" r="40" gradientUnits="userSpaceOnUse">
+              <Stop offset="0" stopColor="#FFE48A" stopOpacity={0.85} />
+              <Stop offset="0.45" stopColor="#FFC94D" stopOpacity={0.35} />
+              <Stop offset="1" stopColor="#FFC94D" stopOpacity={0} />
+            </RadialGradient>
+          </Defs>
+          <Circle cx={50} cy={62} r={40} fill="url(#eagerGlow)" />
+        </Svg>
+      </Animated.View>
+      <Animated.View style={hopStyle}>{children}</Animated.View>
+      <Animated.View pointerEvents="none" style={[s.eagerBadge, badgeStyle]}>
+        <Text style={s.eagerBang}>!</Text>
+      </Animated.View>
+    </View>
+  );
+}
+
+/** Under Bizzy: Evolve (pulsing, with a gold ring on each beat) when his next form's level is reached, else the level it needs; nothing once he is the Queen. */
 function EvolveNext({ form, level, onEvolve }: { form: number; level: number; onEvolve: () => void }) {
   const s = useStyles(makeStyles);
   const next = nextBizzyForm(form);
@@ -158,7 +211,7 @@ function EvolveNext({ form, level, onEvolve }: { form: number; level: number; on
   useEffect(() => {
     pulse.value = ready && !reduce ? withRepeat(withSequence(withTiming(1, { duration: 700, easing: Easing.inOut(Easing.sin) }), withTiming(0, { duration: 700, easing: Easing.inOut(Easing.sin) })), -1) : 0;
   }, [ready, reduce]);
-  const style = useAnimatedStyle(() => ({ transform: [{ scale: 1 + 0.06 * pulse.value }], boxShadow: `0px 0px ${4 + 8 * pulse.value}px rgba(255,201,77,${0.35 + 0.35 * pulse.value})` }));
+  const style = useAnimatedStyle(() => ({ transform: [{ scale: 1 + 0.1 * pulse.value }], boxShadow: `0px 0px ${6 + 12 * pulse.value}px rgba(255,201,77,${0.45 + 0.45 * pulse.value})` }));
   if (!next) return <Text style={s.evolveWait}>{t('Fully grown')}</Text>;
   if (!ready) return <Text style={s.evolveWait}>{t('Reach level {n} to evolve', { n: next.level })}</Text>;
   return (
@@ -238,6 +291,9 @@ const makeStyles = themed((c) => ({
   card: { ...card(c), borderWidth: 0, borderRadius: c.radius, paddingVertical: 14, paddingHorizontal: 16, gap: 10 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   corner: { minWidth: 84, maxWidth: 104, alignItems: 'center', gap: 2 },
+  eagerGlow: { position: 'absolute', left: -6, right: -6, top: -6, bottom: -6 },
+  eagerBadge: { position: 'absolute', top: -2, right: -4, width: 20, height: 20, borderRadius: 10, backgroundColor: '#FFC94D', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: c.surface },
+  eagerBang: { fontFamily: VIVID_HEAVY, fontSize: 12, lineHeight: 14, color: '#2A1A05' },
   // Honey gold, the same in every theme: evolving belongs to the rewards layer.
   evolve: { borderRadius: 999, backgroundColor: '#FFC94D', backgroundImage: 'linear-gradient(90deg, #FFE48A, #FFB347)' },
   evolveTap: { paddingHorizontal: 12, paddingVertical: 5 },
