@@ -7,9 +7,9 @@ import { N } from './i18n.ts';
 // Pure, so it can be tested; LoadingBar.tsx draws it.
 
 /** The shortest the bar takes, even when everything is ready at once. */
-export const LOADING_MIN_MS = 2500;
+export const LOADING_MIN_MS = 4000;
 /** How long the bar waits at most for the update check before it lets you in anyway. */
-export const CHECK_WAIT_MS = 6000;
+export const CHECK_WAIT_MS = 8000;
 /** Each silly line stays this long. */
 export const LINE_MS = 1000;
 

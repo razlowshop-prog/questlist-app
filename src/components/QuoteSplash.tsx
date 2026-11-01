@@ -15,7 +15,7 @@ const SPLASH_FORM = 5;
  * The quote of the day as the app opens (picked 2026-10-31, design A): Bizzy
  * floats above the quote. It waits for a tap, so there is time to read it
  * (asked 2026-10-31), then fades into the app. Once a day, on the first open.
- * The honey loading bar runs under it first (asked 2026-11-01): taps wait until
+ * The honeycomb loading bar runs under it first (asked 2026-11-01): taps wait until
  * it's full, and a found update downloads there and restarts the app.
  */
 export function QuoteSplash({ quote, update, onDone }: { quote: { text: string; author: string }; update: { phase: UpdatePhase; progress?: number }; onDone: () => void }) {
