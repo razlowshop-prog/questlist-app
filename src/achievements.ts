@@ -210,7 +210,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     tiers: [
       { goal: 20, xp: 15 },
       { goal: 40, xp: 30 },
-      { goal: 60, xp: 60 },
+      { goal: 60, xp: 60, reward: theme(N('Stadium')) },
       { goal: 90, xp: 120, reward: title(N('Marathoner')) },
       { goal: 120, xp: 200, reward: theme(N('Summit')) },
     ],
@@ -239,7 +239,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     tiers: [
       { goal: 3, xp: 20 },
       { goal: 7, xp: 50 },
-      { goal: 14, xp: 100, reward: theme(N('Gym')) },
+      { goal: 14, xp: 100, reward: theme(N('Club')) },
       { goal: 30, xp: 250, reward: theme(N('Ember')) },
       { goal: 100, xp: 750, reward: title(N('Eternal Flame')) },
     ],

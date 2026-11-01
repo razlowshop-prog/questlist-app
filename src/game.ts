@@ -172,10 +172,6 @@ export interface DevSettings {
   tokens?: Partial<Record<'rest' | 'double' | 'reroll' | 'adfree', number>>;
   /** Extra wheel tickets. */
   tickets?: number;
-  /** Which all-done moment plays (trying the alternatives, 2026-11-01). */
-  doneMoment?: 'check' | 'rain' | 'stamp' | 'rays';
-  /** Where Bizzy's bubble shows on the streak card (trying the alternatives, 2026-11-01). */
-  bubbleSpot?: 'row' | 'above' | 'left' | 'week' | 'float';
 }
 
 export interface DailyClaim {
@@ -367,13 +363,23 @@ export const emptyState: GameState = {
 
 /** Saved data on top of the empty state, so fields added in newer versions get their defaults. */
 export function mergeSaved(saved: Partial<GameState>): GameState {
+  const settings = { ...emptyState.settings, ...saved.settings };
+  // Gym became Club (2026-11-01): the same award, a new look and name.
+  const renamed = (id: string) => RENAMED_THEMES[id] ?? id;
   return {
     ...emptyState,
     ...saved,
     profile: { ...emptyState.profile, ...saved.profile },
-    settings: { ...emptyState.settings, ...saved.settings },
+    settings: {
+      ...settings,
+      theme: renamed(settings.theme),
+      ...(settings.seenLooks && { seenLooks: settings.seenLooks.map((k) => (k.startsWith('theme:') ? `theme:${renamed(k.slice(6))}` : k)) }),
+    },
   };
 }
+
+/** Themes that changed id: old id → new id. */
+const RENAMED_THEMES: Record<string, string> = { gym: 'club' };
 
 /**
  * Settings → Reset all progress: back to a brand-new player (setup questions

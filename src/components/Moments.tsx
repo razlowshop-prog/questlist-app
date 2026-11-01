@@ -119,7 +119,7 @@ export function ComboPill({ count, play, style: place }: { count: number; play: 
     ...(look.upper && { textTransform: 'uppercase' }),
     ...(look.letterSpacing && { letterSpacing: look.letterSpacing }),
     ...(look.textGlow && { textShadowColor: look.textGlow, textShadowRadius: 8, textShadowOffset: { width: 0, height: 0 } }),
-    // Gym leans the badge; its letters stand up straight.
+    // Club and Stadium lean the badge; its letters stand up straight.
     ...(look.skew && { transform: [{ skewX: `${-look.skew}deg` }] }),
   };
   // Many display fonts draw a tiny ×, so it always comes from the app's own face. It is

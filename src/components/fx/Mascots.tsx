@@ -1,7 +1,7 @@
 import { useContext, useEffect, useRef } from 'react';
 import { View, type ViewStyle } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withSequence, withTiming, type SharedValue } from 'react-native-reanimated';
-import Svg, { Circle, Defs, Ellipse, G, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, Ellipse, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 import type { MascotKind } from '../../themeFx';
 import { BizzyArt, BizzyFormContext } from '../Bizzy';
 import { useLoop, useLoopsOn } from './hooks';
@@ -22,10 +22,6 @@ export function Mascot({ kind, scale, live, gainKey }: { kind: MascotKind; scale
       return <Boat scale={scale} />;
     case 'car':
       return <Car scale={scale} />;
-    case 'pencil':
-      return <Pencil scale={scale} gainKey={gainKey} />;
-    case 'lifter':
-      return <Lifter scale={scale} gainKey={gainKey} />;
     case 'sun':
       return <Sun scale={scale} />;
     case 'bolt':
@@ -38,8 +34,6 @@ export function Mascot({ kind, scale, live, gainKey }: { kind: MascotKind; scale
       return <Moon scale={scale} />;
     case 'crown':
       return <Crown scale={scale} />;
-    case 'highlighter':
-      return <Highlighter scale={scale} gainKey={gainKey} />;
     case 'plane':
       return <Plane scale={scale} gainKey={gainKey} />;
     case 'sneaker':
@@ -60,32 +54,7 @@ function useGain(gainKey: number, run: () => void) {
   }, [gainKey]);
 }
 
-/** Notepad B (Bullet journal): a yellow highlighter leaning on the bar, colouring as it goes; it swipes twice when XP comes in. */
-function Highlighter({ scale, gainKey }: { scale: number; gainKey: number }) {
-  const on = useLoopsOn();
-  const wig = useLoop(700, on);
-  const swipe = useSharedValue(0);
-  useGain(gainKey, () => {
-    swipe.value = withSequence(withTiming(1, { duration: 120 }), withTiming(-1, { duration: 160 }), withTiming(1, { duration: 160 }), withTiming(0, { duration: 140 }));
-  });
-  const style = useAnimatedStyle(() => ({ transform: [{ translateX: 5 * swipe.value * scale }, { rotate: `${-4 * wig.value + 8 * swipe.value}deg` }] }));
-  const size = 40 * scale;
-  return (
-    <Animated.View style={[{ width: size, height: size, transformOrigin: '22% 92%' } as ViewStyle, style]}>
-      <Svg width={size} height={size} viewBox="0 0 40 40">
-        <G transform="rotate(-40 20 20)">
-          <Rect x={15} y={0} width={10} height={9} rx={2} fill="#2b2b2b" />
-          <Rect x={14} y={8} width={12} height={20} rx={2} fill="#ffd84d" stroke="#2b2b2b" strokeWidth={1.2} />
-          <Rect x={16} y={11} width={3} height={14} rx={1.5} fill="#fff6c2" />
-          <Path d="M15 28h10l-2 6h-6z" fill="#3a3a3a" />
-          <Path d="M17 34h6l-1 4h-4z" fill="#ffd84d" />
-        </G>
-      </Svg>
-    </Animated.View>
-  );
-}
-
-/** Notepad C (Sticky notes): a folded paper plane gliding over the bar; it loops once when XP comes in. */
+/** Notepad: a folded paper plane gliding over the bar; it loops once when XP comes in. */
 function Plane({ scale, gainKey }: { scale: number; gainKey: number }) {
   const on = useLoopsOn();
   const glide = useLoop(2400, on);
@@ -117,7 +86,7 @@ function Plane({ scale, gainKey }: { scale: number; gainKey: number }) {
   );
 }
 
-/** Gym B (Club): a lime running shoe tapping along the bar; it sprints in place, leaving speed lines, when XP comes in. */
+/** Club: a lime running shoe tapping along the bar; it sprints in place, leaving speed lines, when XP comes in. */
 function Sneaker({ scale, gainKey }: { scale: number; gainKey: number }) {
   const on = useLoopsOn();
   const tap = useLoop(600, on);
@@ -147,7 +116,7 @@ function Sneaker({ scale, gainKey }: { scale: number; gainKey: number }) {
   );
 }
 
-/** Gym C (Stadium): a red kettlebell swinging gently on the bar; it swings up overhead and lands with a thud when XP comes in. */
+/** Stadium: a red kettlebell swinging gently on the bar; it swings up overhead and lands with a thud when XP comes in. */
 function Kettlebell({ scale, gainKey }: { scale: number; gainKey: number }) {
   const on = useLoopsOn();
   const sway = useLoop(1800, on);
@@ -290,92 +259,6 @@ function Car({ scale }: { scale: number }) {
         <Circle cx={43} cy={14.5} r={1.8} fill="#fff" />
       </Svg>
     </Animated.View>
-  );
-}
-
-/** Notepad: a pencil drawing the bar, wiggling as it writes; it scribbles fast when XP comes in. */
-function Pencil({ scale, gainKey }: { scale: number; gainKey: number }) {
-  const on = useLoopsOn();
-  const wig = useLoop(500, on);
-  const scribble = useSharedValue(0);
-  useGain(gainKey, () => {
-    scribble.value = withSequence(...[1, -1, 1, -1, 1, 0].map((v) => withTiming(v, { duration: 70 })));
-  });
-  const style = useAnimatedStyle(() => ({ transform: [{ rotate: `${-6 * wig.value + 10 * scribble.value}deg` }, { translateY: -wig.value * scale - 2 * Math.abs(scribble.value) * scale }] }));
-  const size = 40 * scale;
-  return (
-    <Animated.View style={[{ width: size, height: size, transformOrigin: '20% 95%' } as ViewStyle, style]}>
-      <Svg width={size} height={size} viewBox="0 0 40 40">
-        <G transform="rotate(-38 20 20)">
-          <Rect x={17} y={2} width={7} height={26} fill="#f6c343" stroke="#7a5a10" strokeWidth={1} />
-          <Rect x={17} y={2} width={7} height={5} fill="#e48aa0" />
-          <Rect x={17} y={7} width={7} height={2} fill="#bfc6cf" />
-          <Path d="M17 28h7l-3.5 9z" fill="#f2d7a8" stroke="#7a5a10" strokeWidth={1} />
-          <Path d="M19.5 34.5h2l-1 2.5z" fill="#26324a" />
-        </G>
-      </Svg>
-    </Animated.View>
-  );
-}
-
-/** How long the lifter's pick-up, carry and set-down takes; the bar moves during it (themeFx gym `motion`). */
-const LIFT_MS = 1700;
-
-/**
- * Gym: a figure standing behind a barbell that lies on the bar. No idle
- * movement: each time XP is added it squats, lifts the barbell overhead,
- * carries it while the bar moves on, sets it down and stands up. More XP
- * mid-lift starts the lift again from where it is.
- */
-function Lifter({ scale, gainKey }: { scale: number; gainKey: number }) {
-  const reduce = useReducedMotion();
-  const t = useSharedValue(1);
-  // Only XP added while it's on screen makes it lift, not switching to the theme.
-  const seen = useRef(gainKey);
-  useEffect(() => {
-    if (gainKey === seen.current || reduce) return;
-    seen.current = gainKey;
-    t.value = 0;
-    t.value = withTiming(1, { duration: LIFT_MS, easing: Easing.linear });
-  }, [gainKey]);
-  // The board's keyframes, each step eased in and out.
-  const ease = (v: number) => {
-    'worklet';
-    return v < 0.5 ? 2 * v * v : 1 - 2 * (1 - v) * (1 - v);
-  };
-  const frame = (v: number, at: number[], values: number[]) => {
-    'worklet';
-    for (let i = 1; i < at.length; i++) {
-      if (v <= at[i]) return values[i - 1] + (values[i] - values[i - 1]) * ease((v - at[i - 1]) / (at[i] - at[i - 1]));
-    }
-    return values[values.length - 1];
-  };
-  const body = useAnimatedStyle(() => ({ transform: [{ translateY: frame(t.value, [0, 0.12, 0.2, 0.3, 0.78, 0.88, 0.94, 1], [0, 4, 4, 0, 0, 4, 4, 0]) * scale }] }));
-  // Arms hang from the shoulders (y 15 of 44) and swing up overhead when flipped.
-  const arms = useAnimatedStyle(() => ({ transform: [{ scaleY: frame(t.value, [0, 0.12, 0.2, 0.3, 0.78, 0.9, 1], [1, 1.05, 1.05, -0.3, -0.3, 1.05, 1]) }] }));
-  const bar = useAnimatedStyle(() => ({ transform: [{ translateY: frame(t.value, [0, 0.12, 0.2, 0.3, 0.78, 0.9, 1], [0, 0, -2, -34, -34, 0, 0]) * scale }] }));
-  const k = scale;
-  const limb = { position: 'absolute', width: 3 * k, height: 26 * k, top: 15 * k, borderRadius: 1.5 * k, backgroundColor: '#f4f4f2' } as const;
-  return (
-    <View style={{ width: 40 * k, height: 44 * k }}>
-      <Animated.View style={[{ position: 'absolute', left: 0, top: 0, width: 40 * k, height: 44 * k }, body]}>
-        <Svg width={40 * k} height={44 * k} viewBox="0 0 40 44">
-          <Circle cx={20} cy={8} r={4.5} fill="#f4f4f2" />
-          <Path d="M20 13v14M20 27l-6 13M20 27l6 13" stroke="#f4f4f2" strokeWidth={3} strokeLinecap="round" />
-        </Svg>
-        <Animated.View style={[{ position: 'absolute', left: 0, top: 0, width: 40 * k, height: 44 * k, transformOrigin: `${20 * k}px ${15 * k}px` } as ViewStyle, arms]}>
-          <View style={[limb, { left: 11.5 * k }]} />
-          <View style={[limb, { left: 25.5 * k }]} />
-        </Animated.View>
-      </Animated.View>
-      <Animated.View style={[{ position: 'absolute', left: 0, top: 0, width: 40 * k, height: 44 * k }, bar]}>
-        <Svg width={40 * k} height={46 * k} viewBox="0 0 40 46" style={{ overflow: 'visible' }}>
-          <Rect x={3} y={39.6} width={34} height={2.4} rx={1.2} fill="#c9ccd2" />
-          <Rect x={0} y={35.5} width={5} height={10.5} rx={1.2} fill="#FF5A1F" />
-          <Rect x={35} y={35.5} width={5} height={10.5} rx={1.2} fill="#FF5A1F" />
-        </Svg>
-      </Animated.View>
-    </View>
   );
 }
 

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { addDays, addTask, birthdayIn, birthdayLockedUntil, emptyState, isBirthday, restDaysOf, setBirthday, validBirthday, type GameState } from './game.ts';
 import { BIZZY_FORMS, bizzyEdge, bizzyFormOf, bizzyGripSvg, bizzyMiddle, bizzySvg, bizzyWingRoot, bizzyWingsSvg, canEvolve, cocoonSvg, nextBizzyForm, type BizzyMood } from './bizzy.ts';
 import { setLang } from './i18n.ts';
-import { bizzyMood, pickOfDay, widgetData, type WidgetData } from './widgetData.ts';
+import { bizzyMood, pickOfDay, widgetData, widgetLine, type WidgetData } from './widgetData.ts';
 import { DRAMA_ROUTES, dramaBizzySvg, widgetBizzySvg, widgetLooks } from './widgetLooks.ts';
 
 const TODAY = '2026-10-27';
@@ -56,6 +56,11 @@ test('widget: the moods through a normal day (picked 2026-11-01)', () => {
   assert.equal(widgetData(busy(2), at2(11)).headline, '4');
   assert.equal(widgetData(busy(2), at2(11)).sub, 'tasks left today');
   assert.equal(widgetData(busy(2), at2(11)).streak, '4 days');
+  // A running streak leads the widget (picked 2026-11-01, D): Spark still gets the Flame colours.
+  const fire = widgetData(busy(2), at2(11)).fire!;
+  assert.deepEqual([fire.days, fire.label, fire.short, fire.c1, fire.c2, fire.mid], [4, 'days streak · Spark', 'days', '#FFE29A', '#FF4A1C', '#FF965B']);
+  assert.equal(widgetData(busy(0), at2(7)).fire?.days, 3, 'today not done yet');
+  assert.equal(widgetData(emptyState, at2(11)).fire, undefined);
   // Judgy from 13:00 with 4+ left and under a third done.
   assert.equal(moodOf(widgetData(busy(1), at2(12, 30))), 'todo');
   assert.equal(moodOf(widgetData(busy(1), at2(13))), 'judgy');
@@ -316,4 +321,10 @@ test('bizzy: the wings come apart to flap, and together they draw the same Bizzy
     assert.ok(lx < 0.5 && rx > 0.5 && Math.abs(lx + rx - 1) < 1e-9 && ly === ry && ly > 0.3 && ly < 0.75);
   }
   assert.deepEqual(bizzyWingRoot(5, 'left'), [0.46, 0.45]);
+});
+
+test('the streak widget says headline and sub as one line', () => {
+  assert.equal(widgetLine({ headline: '4', sub: 'tasks left today' }), '4 tasks left today');
+  assert.equal(widgetLine({ headline: '2', sub: 'Please? Just 2 tasks left.' }), 'Please? Just 2 tasks left.');
+  assert.equal(widgetLine({ headline: 'Good morning!', sub: '6 tasks today.' }), 'Good morning! 6 tasks today.');
 });
