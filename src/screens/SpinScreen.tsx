@@ -43,6 +43,8 @@ const CINZEL = 'Cinzel_800ExtraBold';
 const HUB_SHARE = 0.3;
 /** Room above the wheel for the pointer, and the same below, so the corner chips stay clear of the rim. */
 const SLOT_PAD = 26;
+/** Below the wheel: just a little room, the bottom chips sit in their own row under it (2026-11-01). */
+const SLOT_BOTTOM = 4;
 
 
 /** Each slice's short label on the wheel (design "Calm"); rarity shows as the rim arc and icon colour. */
@@ -313,7 +315,7 @@ export function SpinScreen({
           {t('Spin the wheel')}
         </Gold>
 
-        <View style={[s.slot, { height: size + 2 * SLOT_PAD }]}>
+        <View style={[s.slot, { height: size + SLOT_PAD + SLOT_BOTTOM }]}>
           <Halo size={size} light={!c.dark} />
           <View style={[s.wheelBox, { width: size, height: size, borderRadius: size / 2 }]}>
             <Rim size={size} />
@@ -352,7 +354,10 @@ export function SpinScreen({
           <Pressable onPress={() => setOddsOpen(true)} hitSlop={10} style={[s.chip, s.chipRound, s.chipTopRight]} accessibilityRole="button" accessibilityLabel={t('Show the odds')}>
             <Text style={s.oddsButtonText}>?</Text>
           </Pressable>
-          <View style={[s.chip, s.chipBottomLeft]} accessibilityLabel={t('Next ticket · {n} XP to go', { n: toGo })}>
+        </View>
+        {/* Under the wheel, never touching it (asked 2026-11-01): the next ticket and the lucky meter. */}
+        <View style={s.chipRow}>
+          <View style={[s.chip, s.chipInRow]} accessibilityLabel={t('Next ticket · {n} XP to go', { n: toGo })}>
             <Text style={s.chipText}>{t('{n} XP', { n: toGo })}</Text>
             <View style={s.mini}>
               <View style={[s.miniFill, { width: `${(tickets.progress / XP_PER_TICKET) * 100}%` }]} />
@@ -371,7 +376,7 @@ export function SpinScreen({
                 onHoverIn={() => setLuckyTip(true)}
                 onHoverOut={() => setLuckyTip(false)}
                 hitSlop={8}
-                style={[s.chip, s.chipBottomRight, s.luckyChip]}
+                style={[s.chip, s.chipInRow, s.luckyChip]}
                 accessibilityRole="button"
                 accessibilityLabel={pity <= 1 ? t('Lucky meter: your next spin wins Fortuna for sure.') : t('Lucky meter: {n} spins left until Fortuna is guaranteed.', { n: pity })}
               >
@@ -625,8 +630,8 @@ const SliceLabels = memo(function SliceLabels({ size, ownsTheme, rotation, still
     <View style={{ position: 'absolute', width: size, height: size }} pointerEvents="none">
       {SLICE_LIST.map((sl) => {
         const prize = sl.prize.theme && ownsTheme ? JACKPOT : sl.prize;
-        const [ix, iy] = point(sl.mid, FACE - 32);
-        const [lx, ly] = point(sl.mid, FACE - 66);
+        const [ix, iy] = point(sl.mid, FACE - 25);
+        const [lx, ly] = point(sl.mid, LABEL_MID);
         const label = t(LABELS[prize.id]);
         const Icon = prizeIcon(prize);
         const fortuna = !!sl.prize.theme && !ownsTheme;
@@ -635,17 +640,41 @@ const SliceLabels = memo(function SliceLabels({ size, ownsTheme, rotation, still
             <Upright x={ix * k} y={iy * k} box={24 * k} rotation={rotation}>
               {fortuna ? <Twinkle size={18 * k} still={still} /> : <Icon size={18 * k} color={RARITY_COLORS[prize.rarity].c1} strokeWidth={2.4} />}
             </Upright>
-            <Upright x={lx * k} y={ly * k} box={72 * k} rotation={rotation}>
-              <Text style={{ fontFamily: VIVID_HEAVY, fontSize: (label.length > 6 ? 12 : 13.5) * k, color: fortuna ? FORTUNA_INK : LABEL_INK, textAlign: 'center' }} numberOfLines={1}>
+            <Radial x={lx * k} y={ly * k} mid={sl.mid} length={LABEL_LENGTH * k} rotation={rotation}>
+              <Text style={{ fontFamily: VIVID_HEAVY, fontSize: labelFont(label) * k, color: fortuna ? FORTUNA_INK : LABEL_INK, textAlign: 'center' }} numberOfLines={1}>
                 {label}
               </Text>
-            </Upright>
+            </Radial>
           </View>
         );
       })}
     </View>
   );
 });
+
+/**
+ * Slice labels run along the slice's middle line, from the gold centre out
+ * towards the icon, so even a long word stays inside its slice (asked
+ * 2026-11-01). They turn over when they'd read upside down.
+ */
+const LABEL_INNER = 52;
+const LABEL_OUTER = FACE - 37;
+const LABEL_MID = (LABEL_INNER + LABEL_OUTER) / 2;
+const LABEL_LENGTH = LABEL_OUTER - LABEL_INNER;
+/** As big as fits along the slice: heavy letters are about 0.64 of the font size wide. */
+function labelFont(label: string): number {
+  return Math.min(13.5, LABEL_LENGTH / (Math.max(label.length, 1) * 0.64));
+}
+
+function Radial({ x, y, mid, length, rotation, children }: { x: number; y: number; mid: number; length: number; rotation: SharedValue<number>; children: ReactNode }) {
+  const along = mid - 90;
+  const style = useAnimatedStyle(() => {
+    const world = (((along + rotation.value) % 360) + 360) % 360;
+    return { transform: [{ rotate: `${world > 90 && world < 270 ? along + 180 : along}deg` }] };
+  });
+  const tall = length * 0.4;
+  return <Reanimated.View style={[{ position: 'absolute', left: x - length / 2, top: y - tall / 2, width: length, height: tall, alignItems: 'center', justifyContent: 'center' }, style]}>{children}</Reanimated.View>;
+}
 
 /** A box centred on x, y that turns back by the wheel's angle, so what's in it stays upright. */
 function Upright({ x, y, box, rotation, children }: { x: number; y: number; box: number; rotation: SharedValue<number>; children: ReactNode }) {
@@ -1065,11 +1094,11 @@ const makeStyles = themed((c) => ({
   chipRound: { width: 30, paddingHorizontal: 0, justifyContent: 'center' },
   chipTopLeft: { left: 0, top: 0 },
   chipTopRight: { right: 0, top: 0 },
-  chipBottomLeft: { left: 0, bottom: 0 },
-  chipBottomRight: { right: 0, bottom: 0 },
+  chipRow: { zIndex: 5, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2, minHeight: 44 },
+  chipInRow: { position: 'relative' },
   luckyChip: { height: 44, paddingLeft: 5, paddingRight: 11, borderRadius: 22, gap: 7 },
   luckyLabel: { ...eyebrow(c, 10), color: c.muted, fontWeight: '800' },
-  luckyTip: { position: 'absolute', right: 0, bottom: 38, maxWidth: 220, padding: 10, borderRadius: 10, backgroundColor: c.surface, borderWidth: 1, borderColor: c.dark ? 'rgba(242,197,92,0.45)' : c.border, zIndex: 5, boxShadow: '0px 6px 18px rgba(0,0,0,0.35)' },
+  luckyTip: { position: 'absolute', right: 0, bottom: 50, maxWidth: 220, padding: 10, borderRadius: 10, backgroundColor: c.surface, borderWidth: 1, borderColor: c.dark ? 'rgba(242,197,92,0.45)' : c.border, zIndex: 5, boxShadow: '0px 6px 18px rgba(0,0,0,0.35)' },
   luckyTipText: { color: c.text, fontSize: 12, lineHeight: 16 },
   chipText: { color: c.text, fontSize: 12, fontWeight: '800', fontVariant: ['tabular-nums'] },
   mini: { width: 40, height: 5, borderRadius: 3, backgroundColor: c.dark ? 'rgba(255,255,255,0.14)' : c.border, overflow: 'hidden' },
