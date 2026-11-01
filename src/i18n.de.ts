@@ -547,7 +547,7 @@ export const DE: Record<string, string> = {
   "{n} XP straight onto your level bar. Wheel XP doesn’t earn new tickets.": "{n} XP direkt auf deine Level-Leiste. XP vom Glücksrad bringen keine neuen Tickets.",
   "Show the odds": "Gewinnchancen zeigen",
   "Next ticket · {n} XP to go": "Nächstes Ticket · noch {n} XP",
-  "Swipe around the wheel to spin it, or tap a slice to see what it gives": "Wisch über das Rad, um es zu drehen, oder tipp ein Feld an, um zu sehen, was es bringt",
+  "Turn the wheel with your finger and let go to spin it, or tap a slice to see what it gives": "Dreh das Rad mit dem Finger und lass los, damit es sich dreht, oder tipp ein Feld an, um zu sehen, was es bringt",
   "Spin the wheel, {n} ticket": "Glücksrad drehen, {n} Ticket",
   "Spin the wheel, {n} tickets": "Glücksrad drehen, {n} Tickets",
   "No tickets yet": "Noch keine Tickets",

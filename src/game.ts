@@ -770,6 +770,14 @@ export function deleteTask(state: GameState, taskId: string): GameState {
   return next;
 }
 
+/** Puts a removed task back where it was (Undo after removing). Does nothing if it is still there. */
+export function restoreTask(state: GameState, task: Task, index: number): GameState {
+  if (state.tasks.some((t) => t.id === task.id)) return state;
+  const tasks = [...state.tasks];
+  tasks.splice(Math.max(0, Math.min(index, tasks.length)), 0, task);
+  return { ...state, tasks };
+}
+
 /**
  * Whole seconds left before a freshly added task may be ticked (0 when it already can).
  * A creation time in the future (the phone clock was turned back) doesn't lock the task.

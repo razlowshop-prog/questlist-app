@@ -33,10 +33,8 @@ import { outfitById, outfitDrawing, outfitName, OUTFIT_XP, RARITY_LABEL, type Ou
 import { N, t, tn } from '../i18n';
 
 const TURNS = 6;
-/** A swipe spins between these many turns, more for a faster flick. */
+/** Letting go of the wheel spins it between these many turns, more for a faster swing. */
 const SWIPE_TURNS = [3, 9];
-/** Slowest flick that still spins the wheel, in radians per millisecond. */
-const MIN_FLICK = 0.003;
 const SPIN_MS = 3200;
 /** At most one haptic tick per this many ms. */
 const TICK_MS = 40;
@@ -214,29 +212,59 @@ export function SpinScreen({
   const live = useRef({ spin, spinning, has, size, ownsTheme });
   live.current = { spin, spinning, has, size, ownsTheme };
 
+  /** The drag in progress: where it started (from the centre), the wheel's angle then, and recent samples for the speed. */
+  const drag = useRef<{ x: number; y: number; from: number; last: number; total: number; samples: { t: number; a: number }[] } | null>(null);
+  const [dragging, setDragging] = useState(false);
+
   /**
-   * Touches on the wheel face: a flick around the centre spins it that way,
-   * a faster flick for longer; a tap explains the slice under the finger.
+   * Touches on the wheel face (picked 2026-10-31, option A): the wheel sticks
+   * to the finger and turns with it; let go and it carries on with that swing,
+   * at least SWIPE_TURNS[0] turns, to the prize drawn by chance like the
+   * button. A tap explains the slice under the finger.
    */
   const touch = useMemo(
     () =>
       PanResponder.create({
-        // Not while it turns, so a drag that starts on the wheel still scrolls the page.
         onStartShouldSetPanResponder: () => !live.current.spinning,
-        // The page may still take the touch over: an up or down drag on the wheel
-        // scrolls, a sideways flick spins and a tap explains the slice.
-        onShouldBlockNativeResponder: () => false,
-        onPanResponderTerminationRequest: () => true,
-        onPanResponderRelease: (e, g) => {
+        // Once on the wheel, the page doesn't scroll until the finger lifts.
+        onPanResponderTerminationRequest: () => false,
+        onShouldBlockNativeResponder: () => true,
+        onPanResponderGrant: (e) => {
+          const { size } = live.current;
+          const x = e.nativeEvent.locationX - size / 2;
+          const y = e.nativeEvent.locationY - size / 2;
+          const a = (Math.atan2(x, -y) * 180) / Math.PI;
+          drag.current = { x, y, from: angle.current, last: a, total: 0, samples: [{ t: Date.now(), a: 0 }] };
+        },
+        onPanResponderMove: (_e, g) => {
+          const d = drag.current;
+          if (!d || live.current.spinning) return;
+          if (Math.hypot(g.dx, g.dy) < 4 && d.total === 0) return;
+          const x = d.x + g.dx;
+          const y = d.y + g.dy;
+          // Too close to the middle the angle jumps about, so it waits there.
+          if (Math.hypot(x, y) < live.current.size * 0.08) return;
+          const a = (Math.atan2(x, -y) * 180) / Math.PI;
+          let step = a - d.last;
+          if (step > 180) step -= 360;
+          if (step < -180) step += 360;
+          d.last = a;
+          d.total += step;
+          d.samples.push({ t: Date.now(), a: d.total });
+          if (d.samples.length > 8) d.samples.shift();
+          setDragging(true);
+          angle.current = d.from + d.total;
+          rotation.value = angle.current;
+        },
+        onPanResponderRelease: (_e, g) => {
+          const d = drag.current;
+          drag.current = null;
+          setDragging(false);
           const { spin, spinning, has, size, ownsTheme } = live.current;
-          if (spinning) return;
-          // Where the touch started, relative to the centre.
-          const rx = e.nativeEvent.locationX - g.dx - size / 2;
-          const ry = e.nativeEvent.locationY - g.dy - size / 2;
-          const moved = Math.hypot(g.dx, g.dy);
-          if (moved < 8) {
-            const tx = rx + g.dx;
-            const ty = ry + g.dy;
+          if (!d || spinning) return;
+          if (Math.hypot(g.dx, g.dy) < 8 && Math.abs(d.total) < 4) {
+            const tx = d.x + g.dx;
+            const ty = d.y + g.dy;
             if (Math.hypot(tx, ty) < size * HUB_SHARE * 0.5) return;
             // The tapped spot's angle, clockwise from the top, then back onto the unturned face.
             const tapped = (Math.atan2(tx, -ty) * 180) / Math.PI;
@@ -245,13 +273,21 @@ export function SpinScreen({
             setAbout((a) => (a?.id === prize.id ? null : ownsTheme && prize.theme ? JACKPOT : prize));
             return;
           }
-          // Spin speed around the centre: the sideways part of the flick over the distance from the centre.
-          const r2 = Math.max(rx * rx + ry * ry, (size * 0.15) ** 2);
-          const omega = (rx * g.vy - ry * g.vx) / r2;
-          if (!has || Math.abs(omega) < MIN_FLICK) return;
+          if (!has) return;
+          // The swing in the last moment before letting go, in degrees per ms.
+          const now = Date.now();
+          const recent = d.samples.filter((p) => now - p.t < 120);
+          const first = recent[0] ?? d.samples[d.samples.length - 1];
+          const last = d.samples[d.samples.length - 1];
+          const speed = (last.a - first.a) / Math.max(16, last.t - first.t);
+          // Even a gentle push spins it: the direction then comes from the whole drag.
+          const dir = (Math.abs(speed) > 0.02 ? speed : d.total) >= 0 ? 1 : -1;
           const [least, most] = SWIPE_TURNS;
-          const turns = Math.round(Math.min(most, Math.max(least, least + (Math.abs(omega) - MIN_FLICK) * 600)));
-          spin(omega > 0 ? 1 : -1, turns);
+          spin(dir, Math.round(Math.min(most, least + Math.abs(speed) * 8)));
+        },
+        onPanResponderTerminate: () => {
+          drag.current = null;
+          setDragging(false);
         },
       }),
     [],
@@ -265,7 +301,7 @@ export function SpinScreen({
   const hub = size * HUB_SHARE;
   return (
     <View style={s.screen} onLayout={(e) => setRoom({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
-      <ScrollView contentContainerStyle={s.content}>
+      <ScrollView contentContainerStyle={s.content} scrollEnabled={!dragging}>
         {/* The first screen: title, the wheel with its corner chips, and the hint. */}
         <View style={s.eyebrowRow}>
           <StarRule end="left" style={{ width: 40 }} />
@@ -288,7 +324,7 @@ export function SpinScreen({
             <View
               {...touch.panHandlers}
               style={{ position: 'absolute', width: size, height: size, borderRadius: size / 2 }}
-              accessibilityHint={t('Swipe around the wheel to spin it, or tap a slice to see what it gives')}
+              accessibilityHint={t('Turn the wheel with your finger and let go to spin it, or tap a slice to see what it gives')}
             />
             <Pressable
               onPress={() => spin()}

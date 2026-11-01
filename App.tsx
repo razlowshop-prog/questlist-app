@@ -1074,6 +1074,12 @@ function Succedo() {
                 targets={tourTargets}
                 streak={streakInfo}
                 onTab={openTab}
+                onTry={(target) => {
+                  if (target === 'xp') setRewardsOpen(true);
+                  else if (target === 'streak') setLevelOpen(true);
+                  else return false;
+                  return true;
+                }}
                 onDone={() => {
                   setState((s) => updateSettings(s, { tour: 'done' }));
                   openTab('today');

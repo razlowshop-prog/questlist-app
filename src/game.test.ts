@@ -14,6 +14,7 @@ import {
   currentStreak,
   DEFAULT_MINUTES,
   deleteTask,
+  restoreTask,
   emptyState,
   evolveBizzy,
   resetProgress,
@@ -148,6 +149,22 @@ test('empty titles are ignored and deleting keeps earned XP', () => {
   s = deleteTask(s, 'a');
   assert.equal(s.tasks.length, 0);
   assert.equal(totalXp(s), xpFor(DEFAULT_MINUTES));
+});
+
+test('undo puts a removed task back in its place, once', () => {
+  let s = addTask(emptyState, 'A', false, 'a');
+  s = addTask(s, 'B', false, 'b');
+  s = addTask(s, 'C', false, 'c');
+  const order = s.tasks.map((t) => t.id);
+  const i = order.indexOf('b');
+  const task = s.tasks[i];
+  const gone = deleteTask(s, 'b');
+  const back = restoreTask(gone, task, i);
+  assert.deepEqual(back.tasks.map((t) => t.id), order);
+  // A second Undo changes nothing.
+  assert.equal(restoreTask(back, task, i), back);
+  // An index past the end (other tasks removed meanwhile) puts it last.
+  assert.deepEqual(restoreTask(deleteTask(deleteTask(gone, 'a'), 'c'), task, 5).tasks.map((t) => t.id), ['b']);
 });
 
 test('weekStart returns the Monday', () => {
