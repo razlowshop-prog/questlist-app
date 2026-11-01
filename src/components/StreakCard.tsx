@@ -24,7 +24,7 @@ const DOT_WORDS: Record<WeekDot, string> = { done: N('done'), rest: N('rest day'
  * corner on the right, in the mood of the day, with his next evolution under
  * him: an Evolve button once the level allows it, otherwise the level it
  * needs. Tapping him plays a little reaction and he says something about the
- * day in a small bubble, shown for a moment in place of the flame and count so
+ * day in a small bubble, shown for a moment above him so
  * it covers nothing. Tapping the rest of the card opens the level sheet with the streak
  * bonus and the fire tiers.
  */
@@ -80,7 +80,6 @@ export function StreakCard({
   useEffect(() => {
     talking.value = withTiming(said ? 1 : 0, { duration: 180 });
   }, [!!said]);
-  const labelStyle = useAnimatedStyle(() => ({ opacity: 1 - talking.value }));
   const bubbleStyle = useAnimatedStyle(() => ({ opacity: talking.value, transform: [{ scale: 0.9 + 0.1 * talking.value }] }));
 
   return (
@@ -94,7 +93,7 @@ export function StreakCard({
       <View style={s.card}>
         <View style={s.row}>
           <View style={{ flex: 1 }}>
-            <Animated.View style={[s.row, labelStyle]}>
+            <View style={s.row}>
               <Fire tier={streak.tier} size={48} still />
               <StreakNumber days={streak.days} tier={streak.tier} />
               <View style={{ flex: 1, gap: 4 }}>
@@ -109,24 +108,24 @@ export function StreakCard({
                   {multiplier.total > 1 && <MultiplierPill multiplier={multiplier} size="small" />}
                 </View>
               </View>
-            </Animated.View>
-            {/* While Bizzy talks, his bubble takes the place of the flame, count and label for a moment, pointing at him. */}
-            <Animated.View pointerEvents="none" style={[s.speechBox, bubbleStyle]}>
-              {said && (
-                <View style={s.speech} accessibilityLiveRegion="polite">
-                  <Text style={s.speechText} numberOfLines={3}>
-                    {said.text}
-                  </Text>
-                  <View style={s.speechTail} />
-                </View>
-              )}
-            </Animated.View>
+            </View>
           </View>
           {bizzy && (
             <View style={s.corner}>
               <View ref={bizzy.spotRef} style={{ opacity: bizzy.away ? 0 : 1 }}>
                 <TapBizzy mood={bizzy.mood} cheer={bizzy.cheer} size={68} look={[-2, 1]} talk={bizzy.talk} onSay={say} taps={bizzy.taps} onTap={bizzy.onTap} />
               </View>
+              {/* His bubble floats above him, so the flame and count stay in view (asked 2026-10-31). */}
+              <Animated.View pointerEvents="none" style={[s.speechBox, bubbleStyle]}>
+                {said && (
+                  <View style={s.speech} accessibilityLiveRegion="polite">
+                    <Text style={s.speechText} numberOfLines={3}>
+                      {said.text}
+                    </Text>
+                    <View style={s.speechTail} />
+                  </View>
+                )}
+              </Animated.View>
               <EvolveNext form={bizzy.form} level={bizzy.level} onEvolve={bizzy.onEvolve} />
             </View>
           )}
@@ -251,10 +250,10 @@ const makeStyles = themed((c) => ({
   daysLong: { fontFamily: VIVID_HEAVY, fontSize: 56, lineHeight: 66 },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   label: { color: c.text, fontSize: 18, fontWeight: '800' },
-  speechBox: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'center' },
-  speech: { alignSelf: 'flex-end', maxWidth: '100%', backgroundColor: c.surfaceAlt, borderColor: c.border, borderWidth: 1, borderRadius: 12, paddingHorizontal: 11, paddingVertical: 7 },
+  speechBox: { position: 'absolute', right: 0, bottom: '100%', marginBottom: -12, width: 190, alignItems: 'flex-end', zIndex: 10 },
+  speech: { maxWidth: '100%', backgroundColor: c.surfaceAlt, borderColor: c.border, borderWidth: 1, borderRadius: 12, paddingHorizontal: 11, paddingVertical: 7, boxShadow: '0px 4px 14px rgba(0,0,0,0.3)' },
   speechText: { color: c.text, fontSize: 13, lineHeight: 17, fontWeight: '700' },
-  speechTail: { position: 'absolute', right: -5, top: '50%', marginTop: -4, width: 8, height: 8, backgroundColor: c.surfaceAlt, borderColor: c.border, borderTopWidth: 1, borderRightWidth: 1, transform: [{ rotate: '45deg' }] },
+  speechTail: { position: 'absolute', right: 30, bottom: -5, width: 8, height: 8, backgroundColor: c.surfaceAlt, borderColor: c.border, borderBottomWidth: 1, borderRightWidth: 1, transform: [{ rotate: '45deg' }] },
   tier: { flexShrink: 1, color: c.muted, fontSize: 13, fontWeight: '700' },
   week: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 4, paddingTop: 2 },
   day: { alignItems: 'center', gap: 4 },
