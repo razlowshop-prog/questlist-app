@@ -1,9 +1,10 @@
 import * as Updates from 'expo-updates';
 
 // Over-the-air updates (expo-updates, PR #66) as the app sees them. The phone
-// checks for a new version by itself each time the app starts and downloads it
-// in the background; this tells the loading bar what is going on, so you can
-// see when an update arrives (asked 2026-11-01), and restarts into it.
+// checks for a new version by itself each time the app starts; the loading
+// screen waits for that check, shows the download, and then reloads the app's
+// code behind a screen in the theme's colour, so it looks like one loading
+// screen and not a restart (asked 2026-11-01).
 
 export type UpdatePhase = 'checking' | 'downloading' | 'ready' | 'none';
 
@@ -19,10 +20,14 @@ export function useAppUpdate(): { phase: UpdatePhase; progress?: number } {
   return { phase: 'none' };
 }
 
-/** Starts the app again on the downloaded update. */
-export async function restartIntoUpdate(): Promise<void> {
+/**
+ * Runs the downloaded update. The code can only be swapped by reloading it; the
+ * phone covers that moment in `background` (the loading screen's colour), with
+ * no spinner, and fades into the new version.
+ */
+export async function restartIntoUpdate(background?: string): Promise<void> {
   try {
-    await Updates.reloadAsync();
+    await Updates.reloadAsync({ reloadScreenOptions: { backgroundColor: background, spinner: { enabled: false }, fade: true } });
   } catch (e) {
     console.warn('Could not restart into the update', e);
   }

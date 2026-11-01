@@ -67,7 +67,7 @@ import { AppTour } from './src/components/AppTour';
 import { TOUR_SWIPE_TASK, TOUR_SWIPE_TITLE, TOUR_TASK, TOUR_TASK_MINUTES, TOUR_TASK_TITLE, tourSteps } from './src/tour';
 import { quoteDue, quoteOfTheDay } from './src/quotes';
 import { QuoteSplash } from './src/components/QuoteSplash';
-import { UpdateSplash } from './src/components/UpdateSplash';
+import { UpdateSplash, useStartCheck } from './src/components/UpdateSplash';
 import { useAppUpdate } from './src/appUpdate';
 import { outfitById, outfitDrawing, outfitName, toggleOutfit, wornOutfits } from './src/outfits';
 import { bizzyFormOf } from './src/bizzy';
@@ -194,8 +194,10 @@ function Succedo() {
   const [loaded, setLoaded] = useState(false);
   // The start-up update check, for the loading bar and the update screen (asked 2026-11-01).
   const update = useAppUpdate();
+  // Every start waits for that check (or a short time), and for a found update to download.
+  const startCheck = useStartCheck(update);
+  const updating = startCheck || update.phase === 'downloading' || update.phase === 'ready';
   const [tab, setTab] = useState<Tab>('today');
-  /** Test builds: plays the all-done moment again on Today (Developer page). */
   const [page, setPage] = useState<Page | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
   /** The add-task sheet on Today. */
@@ -971,7 +973,7 @@ function Succedo() {
                   onCloseAdd={() => setAdding(false)}
                   hello={
                     // Once a day, from the second day on (the first is the welcome); hatch and hive take turns.
-                    loaded && !quoteShown && state.settings.helloDay !== today && state.joinedAt && state.joinedAt < today
+                    loaded && !quoteShown && !updating && state.settings.helloDay !== today && state.joinedAt && state.joinedAt < today
                       ? { kind: dayTurn(today, 2) ? 'hive' : 'hatch', onStart: () => setState((s) => updateSettings(s, { helloDay: today })) }
                       : undefined
                   }
@@ -1185,7 +1187,7 @@ function Succedo() {
               />
             )}
             {quoteShown && <QuoteSplash quote={quoteOfTheDay(today)} update={update} onDone={() => setState((s) => updateSettings(s, { quoteDay: today }))} />}
-            {!quoteShown && (update.phase === 'downloading' || update.phase === 'ready') && <UpdateSplash update={update} />}
+            {!quoteShown && updating && <UpdateSplash update={update} />}
           </SafeAreaView>
           </TourTargetProvider>
           </AvatarPhotoContext.Provider>

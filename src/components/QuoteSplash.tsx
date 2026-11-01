@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import { quoted, t } from '../i18n';
-import { eyebrow, FONTS, themed, useStyles } from '../theme';
+import { eyebrow, FONTS, themed, useStyles, useTheme } from '../theme';
 import { restartIntoUpdate, type UpdatePhase } from '../appUpdate';
 import { Bizzy, BizzyFormContext } from './Bizzy';
 import { LoadingBar } from './LoadingBar';
@@ -20,6 +20,7 @@ const SPLASH_FORM = 5;
  */
 export function QuoteSplash({ quote, update, onDone }: { quote: { text: string; author: string }; update: { phase: UpdatePhase; progress?: number }; onDone: () => void }) {
   const s = useStyles(makeStyles);
+  const c = useTheme();
   const reduce = useReducedMotion();
   const form = Math.max(useContext(BizzyFormContext), SPLASH_FORM);
   // Fully covering from the first frame: fading in let Today show through for a moment (2026-11-01).
@@ -40,7 +41,7 @@ export function QuoteSplash({ quote, update, onDone }: { quote: { text: string; 
 
   useEffect(() => {
     if (update.phase !== 'ready') return;
-    const id = setTimeout(restartIntoUpdate, 900);
+    const id = setTimeout(() => restartIntoUpdate(c.bg), 900);
     return () => clearTimeout(id);
   }, [update.phase]);
 
