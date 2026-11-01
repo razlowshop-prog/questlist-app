@@ -424,6 +424,94 @@ export const THEMES: ThemeDef[] = [
   },
 ];
 
+/**
+ * Redesign ideas for Notepad and Gym (asked 2026-11-01), three each, only in
+ * preview builds (EXPO_PUBLIC_THEME_PREVIEWS=1) so they can be tried on every
+ * page. The picked one replaces the theme of the same name; the rest go.
+ */
+const CAVEAT_HEADINGS = heading('Caveat_700Bold', 'Caveat_700Bold');
+export const PREVIEW_THEMES: ThemeDef[] = [
+  {
+    id: 'notepad-a',
+    name: N('Notepad A · School book'),
+    palette: palette({
+      light: true,
+      colors: ['fbf8ef', 'fffdf6', 'f1ecdd', 'c9dcef', '1f2b44', '46526a', '667189', 'aab6cc', '2b59c3', 'ffffff'],
+      bgImage: 'linear-gradient(90deg, transparent 46px, #f0a3a3 46px, #f0a3a3 48px, transparent 48px), repeating-linear-gradient(180deg, #fbf8ef 0px, #fbf8ef 31px, #d6e4f2 31px, #d6e4f2 32px)',
+      fonts: CAVEAT_HEADINGS,
+      radius: 0, listStyle: 'lines', check: 'square', lineWeight: 2, tip: false,
+      eyebrowCaps: false, logoRule: false, ornament: 'none', italicAccent: false, headingUpper: false,
+    }),
+  },
+  {
+    id: 'notepad-b',
+    name: N('Notepad B · Bullet journal'),
+    palette: palette({
+      light: true,
+      colors: ['fbfaf6', 'fffefa', 'f3f1ea', 'e2ded4', '1f1f1f', '55534d', '6f6c64', 'b3afa4', '1f1f1f', 'ffffff'],
+      bgImage: 'repeating-linear-gradient(0deg, transparent 0px, transparent 21px, #e0dbcd 21px, #e0dbcd 22px), repeating-linear-gradient(90deg, #fbfaf6 0px, #fbfaf6 21px, #e0dbcd 21px, #e0dbcd 22px)',
+      fonts: CAVEAT_HEADINGS,
+      radius: 10, listStyle: 'lines', check: 'circle', lineWeight: 2, tip: false,
+      eyebrowCaps: false, logoRule: false, ornament: 'none', italicAccent: false, headingUpper: false,
+      brand: { fill: 'linear-gradient(135deg, #fff3a0, #ffd84d 60%, #ffc61a)', color: '#ffd84d', ink: '#1f1f1f', line: '#1f1f1f', text: { c1: '#1f1f1f', c2: '#5a4a00' } },
+    }),
+  },
+  {
+    id: 'notepad-c',
+    name: N('Notepad C · Sticky notes'),
+    palette: palette({
+      light: true,
+      colors: ['e8d2aa', 'fff2a6', 'fbe98a', 'e3cf6e', '3a2f1e', '62523a', '7a6a4c', 'b9a46a', 'd9483c', 'ffffff'],
+      bgImage: 'repeating-linear-gradient(45deg, #e8d2aa 0px, #e8d2aa 6px, #e1c99e 6px, #e1c99e 7px)',
+      tabBar: '#dcc398',
+      fonts: CAVEAT_HEADINGS,
+      radius: 2, listStyle: 'cards', check: 'square', lineWeight: 2, tip: false,
+      eyebrowCaps: false, logoRule: false, ornament: 'none', italicAccent: false, headingUpper: false,
+    }),
+  },
+  {
+    id: 'gym-a',
+    name: N('Gym A · Iron'),
+    palette: palette({
+      colors: ['111214', '1b1d21', '25282e', '30333a', 'f4f4f2', 'c4c6cb', '9a9da4', '5e6168', 'ff5a1f', '111214'],
+      bgImage: 'radial-gradient(90% 45% at 50% 0%, #2a2d33 0%, #111214 70%)',
+      tabBar: 'rgba(17,18,20,0.94)',
+      fonts: heading('Anton_400Regular', 'Anton_400Regular'),
+      radius: 4, listStyle: 'cards', check: 'square', lineWeight: 2, tip: false,
+      eyebrowCaps: true, logoRule: false, ornament: 'none', italicAccent: false, headingUpper: true,
+      brand: { fill: 'linear-gradient(135deg, #ffb36b, #ff7a2a 50%, #ff5a1f)', color: '#ff5a1f', ink: '#111214', line: '#ff5a1f', text: { c1: '#ffc08a', c2: '#ff5a1f' } },
+    }),
+  },
+  {
+    id: 'gym-b',
+    name: N('Gym B · Club'),
+    palette: palette({
+      colors: ['0b0d0c', '151a16', '1d241e', '2a3329', 'f2f7ee', 'b3bfae', '86917f', '4c5749', 'c6ff3d', '0b0d0c'],
+      bgImage: 'radial-gradient(100% 50% at 50% 0%, #1c2a12 0%, #0b0d0c 65%)',
+      tabBar: 'rgba(11,13,12,0.94)',
+      fonts: heading('Archivo_800ExtraBold_Italic', 'Archivo_800ExtraBold_Italic'),
+      radius: 14, listStyle: 'cards', check: 'circle', lineWeight: 3, tip: false,
+      eyebrowCaps: true, logoRule: false, ornament: 'none', italicAccent: false, headingUpper: true,
+      brand: { fill: 'linear-gradient(135deg, #e6ff9a, #c6ff3d 50%, #8fdc1a)', color: '#c6ff3d', ink: '#0b0d0c', line: '#c6ff3d', text: { c1: '#eaffb0', c2: '#a8f02a' } },
+    }),
+  },
+  {
+    id: 'gym-c',
+    name: N('Gym C · Stadium'),
+    palette: palette({
+      colors: ['0a1630', '102246', '16305e', '24407a', 'f3f6fc', 'b9c5de', '8d9bbb', '4d6496', 'ff3b3b', 'ffffff'],
+      bgImage: 'radial-gradient(120% 60% at 50% 0%, #1b2f5a 0%, #0a1630 65%)',
+      tabBar: 'rgba(10,22,48,0.94)',
+      fonts: heading('Orbitron_700Bold', 'Orbitron_700Bold'),
+      radius: 4, listStyle: 'cards', check: 'square', lineWeight: 6, tip: false,
+      eyebrowCaps: true, logoRule: false, ornament: 'none', italicAccent: false, headingUpper: true,
+      bar: { kind: 'segments', count: 10, radius: 1, gap: 3 },
+      brand: { fill: 'linear-gradient(135deg, #ff8a7a, #ff3b3b 55%, #d81f2a)', color: '#ff3b3b', ink: '#ffffff', line: '#ff3b3b', text: { c1: '#ffb0a8', c2: '#ff3b3b' } },
+    }),
+  },
+];
+if (process.env.EXPO_PUBLIC_THEME_PREVIEWS === '1') THEMES.push(...PREVIEW_THEMES);
+
 const DEFAULT = THEMES[0].palette;
 
 function bodyFont(f: ThemeFonts, weight: unknown): string {

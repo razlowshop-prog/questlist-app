@@ -57,7 +57,7 @@ export function MultiplierPill({ multiplier, size = 'normal' }: { multiplier: Mu
           <Rect width={100} height={20} fill={`url(#${id})`} />
         </Svg>
         {doubled && <TOKEN_ICONS.double size={small ? 11 : 13} color={ink} strokeWidth={2.25} aria-hidden />}
-        <Text style={[s.pillText, small && s.pillTextSmall, { color: ink }, !fortuna && BRAND_TEXT_SHADOW]}>× {fmtX(multiplier.total)} XP</Text>
+        <Text numberOfLines={1} style={[s.pillText, small && s.pillTextSmall, { color: ink }, !fortuna && BRAND_TEXT_SHADOW]}>× {fmtX(multiplier.total)} XP</Text>
       </Pressable>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
@@ -95,9 +95,10 @@ export function MultiplierPill({ multiplier, size = 'normal' }: { multiplier: Mu
 
 const makeStyles = themed((c) => ({
   pill: { flexDirection: 'row', alignItems: 'center', gap: 3, borderRadius: 999, overflow: 'hidden', paddingHorizontal: 10, paddingVertical: 3, boxShadow: '0px 0px 0px 1.5px #0e0b12' },
-  pillSmall: { paddingHorizontal: 8, paddingVertical: 2 },
+  // On the streak card: the same height, font and soft shadow in every theme (asked 2026-11-01).
+  pillSmall: { height: 22, flexShrink: 0, paddingHorizontal: 8, paddingVertical: 0, gap: 4, boxShadow: '0px 1px 4px rgba(0,0,0,0.28)' },
   pillText: { fontFamily: FONTS.bodyExtraBold, fontSize: 13, fontVariant: ['tabular-nums'] },
-  pillTextSmall: { fontSize: 11 },
+  pillTextSmall: { fontFamily: VIVID_HEAVY, fontSize: 12, lineHeight: 15 },
   backdrop: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: '#000', opacity: 0.55 },
   center: { flex: 1, justifyContent: 'center', padding: 24 },
   sheet: { ...card(c), backgroundColor: c.bg, maxWidth: 380, width: '100%', alignSelf: 'center', padding: 22, gap: 10 },

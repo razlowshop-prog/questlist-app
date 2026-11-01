@@ -62,3 +62,20 @@ export async function updateWidget(state: GameState): Promise<void> {
   if (!parts) return;
   await parts.lib.requestWidgetUpdate({ widgetName: parts.drawing.WIDGET_NAME, renderWidget: ({ width, height }) => draw(parts.drawing, state, width, height) });
 }
+
+/**
+ * Asks the phone to put the widget on the home screen: Android shows its own
+ * box with the widget's picture and an Add button (the person's tap is
+ * required). False when the launcher can't do that; then the steps by hand
+ * are shown instead.
+ */
+export async function pinWidget(): Promise<boolean> {
+  const parts = widgetParts();
+  if (!parts) return false;
+  try {
+    return await parts.lib.requestPinWidget({ widgetName: parts.drawing.WIDGET_NAME });
+  } catch (e) {
+    console.warn('Widget could not be pinned', e);
+    return false;
+  }
+}

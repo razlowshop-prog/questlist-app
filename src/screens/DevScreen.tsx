@@ -16,6 +16,8 @@ import {
   setDevMultiplier,
   setDevStreak,
   setUnlockAll,
+  setBubbleSpot,
+  setDoneMoment,
 } from '../devTools';
 import { updateInfo } from '../appUpdate';
 import { currentStreak, levelInfo, MAX_LEVEL, restDaysOf, totalXp, type GameState } from '../game';
@@ -38,7 +40,22 @@ const XP_STEPS = [100, 1000, 10000];
 const STREAK_DAYS = [0, 3, 7, 30, 100];
 
 /** Menu → Developer: jump to a level, multiply XP, own every look, fill the bag and fake a streak. */
-export function DevScreen({ state, today, onChange }: { state: GameState; today: string; onChange: (next: GameState) => void }) {
+const DONE_MOMENTS = [
+  ['check', 'A Honey check'],
+  ['rain', 'B Honey rain'],
+  ['stamp', 'C Trophy stamp'],
+  ['rays', 'D Sun rays'],
+] as const;
+
+const BUBBLE_SPOTS = [
+  ['row', 'Now'],
+  ['above', 'A Above'],
+  ['left', 'B Left'],
+  ['week', 'C Week row'],
+  ['float', 'D Floating'],
+] as const;
+
+export function DevScreen({ state, today, onChange, onReplayDone }: { state: GameState; today: string; onChange: (next: GameState) => void; onReplayDone: () => void }) {
   const s = useStyles(makeStyles);
   const xp = totalXp(state);
   const level = levelInfo(xp).level;
@@ -63,6 +80,27 @@ export function DevScreen({ state, today, onChange }: { state: GameState; today:
           label={code.builtIn ? 'Code from the build' : `Update from ${code.when ? code.when.toLocaleString() : 'unknown time'}`}
           sub={`Update ${code.id.slice(0, 8)} · channel ${code.channel} · runtime ${code.runtime.slice(0, 8)}`}
         />
+      </MenuGroup>
+
+      <MenuGroup label="All-done animation">
+        <MenuRow first label="Pick one, then play it on Today" sub="A honey check (now) · B honey rain · C trophy stamp · D sun rays. Ticking your last task of the day plays the picked one too." />
+        <View style={s.chips}>
+          {DONE_MOMENTS.map(([kind, label]) => (
+            <Chip key={kind} label={label} active={(state.dev?.doneMoment ?? 'check') === kind} onPress={() => onChange(setDoneMoment(state, kind))} />
+          ))}
+        </View>
+        <View style={s.block}>
+          <VividButton compact label="Play on Today" onPress={onReplayDone} />
+        </View>
+      </MenuGroup>
+
+      <MenuGroup label="Bizzy's bubble on the streak card">
+        <MenuRow first label="Pick where it shows, then tap Bizzy on Today" sub="Now: a line under him (moves the card) · A above him · B left of him · C instead of the week · D floating under him" />
+        <View style={s.chips}>
+          {BUBBLE_SPOTS.map(([spot, label]) => (
+            <Chip key={spot} label={label} active={(state.dev?.bubbleSpot ?? 'row') === spot} onPress={() => onChange(setBubbleSpot(state, spot))} />
+          ))}
+        </View>
       </MenuGroup>
 
       <MenuGroup label="Level">

@@ -195,6 +195,8 @@ function Succedo() {
   // The start-up update check, for the loading bar and the update screen (asked 2026-11-01).
   const update = useAppUpdate();
   const [tab, setTab] = useState<Tab>('today');
+  /** Test builds: plays the all-done moment again on Today (Developer page). */
+  const [replayDone, setReplayDone] = useState(0);
   const [page, setPage] = useState<Page | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
   /** The add-task sheet on Today. */
@@ -893,6 +895,11 @@ function Succedo() {
                 <DevScreen
                   state={state}
                   today={today}
+                  onReplayDone={() => {
+                    setPage(null);
+                    setTab('today');
+                    setReplayDone((n) => n + 1);
+                  }}
                   onChange={(next) => {
                     // A picked level celebrates again, even one reached before.
                     bestLevel.current = null;
@@ -905,6 +912,7 @@ function Succedo() {
               {page === 'legal' && <LegalScreen />}
               {!page && tab === 'today' && (
                 <TodayScreen
+                  replayDone={replayDone}
                   state={state}
                   tasks={tasks}
                   upcoming={upcoming}

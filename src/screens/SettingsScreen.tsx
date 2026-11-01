@@ -8,6 +8,7 @@ import { Sheet } from '../components/Sheet';
 import { brandFillSmall, brandInk, brandTextShadow, VIVID_HEAVY, VividButton, VividSwitch } from '../components/Vivid';
 import { themed, useStyles, useTheme } from '../theme';
 import { MenuGroup, MenuRow } from './MenuScreen';
+import { HAS_WIDGET, pinWidget } from '../widget';
 import { LANGS, locale, N, systemLang, t, tn } from '../i18n';
 import { DEFAULT_SOUND_STYLE, sound, SOUND_STYLES, type SoundStyle } from '../sounds';
 
@@ -41,6 +42,7 @@ export function SettingsScreen({
   const c = useTheme();
   const [restore, setRestore] = useState<Backup>();
   const [note, setNote] = useState<{ text: string; error?: boolean }>();
+  const [widgetNote, setWidgetNote] = useState<string>();
   /** Reset all progress: asked twice, 1 = first question, 2 = "are you sure". */
   const [resetStep, setResetStep] = useState<0 | 1 | 2>(0);
 
@@ -194,6 +196,20 @@ export function SettingsScreen({
           right={<VividSwitch value={settings.shareActivity === true} onValueChange={(v) => onSettings({ shareActivity: v })} accessibilityLabel={t('Share my activity with friends')} />}
         />
       </MenuGroup>
+
+      {HAS_WIDGET && (
+        <MenuGroup label={t('Home screen widget')}>
+          <MenuRow
+            first
+            label={t('Add to home screen')}
+            sub={widgetNote ?? t('Bizzy, your tasks left and your streak, right on your home screen.')}
+            onPress={async () => {
+              const ok = await pinWidget();
+              setWidgetNote(ok ? t('Tap Add in the box your phone shows.') : t('Your phone can’t add it from here. Hold an empty spot on your home screen, tap Widgets and pick Succedo.'));
+            }}
+          />
+        </MenuGroup>
+      )}
 
       <MenuGroup label={t('Backup')}>
         <MenuRow

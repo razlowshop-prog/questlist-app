@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode, type Ref } from 'react';
-import { Pressable, Text, View, type HostInstance } from 'react-native';
+import { Pressable, Text, useWindowDimensions, View, type HostInstance } from 'react-native';
 import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 import Animated, { Easing, FadeIn, FadeOut, LinearTransition, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { nextBizzyForm, type BizzyMood } from '../bizzy';
@@ -11,7 +11,7 @@ import { TapBizzy } from './TapBizzy';
 import { useTourTarget } from './TourTargets';
 import { Fire } from './Fire';
 import { MultiplierPill } from './MultiplierPill';
-import { fill, GradientText, VIVID_HEAVY } from './Vivid';
+import { fill, GradientText, VIVID_BOLD, VIVID_HEAVY } from './Vivid';
 import { N, t, tn } from '../i18n';
 
 const DAY_NAMES = [N('Monday'), N('Tuesday'), N('Wednesday'), N('Thursday'), N('Friday'), N('Saturday'), N('Sunday')];
@@ -56,12 +56,16 @@ export function StreakCard({
     away?: boolean;
     /** Something he says on his own, e.g. "Good morning!" as he lands; a new id says it again. */
     says?: { text: string; id: number };
+    /** Where his bubble shows (alternatives asked 2026-11-01; only 'row' moves the card). */
+    bubble?: BubbleSpot;
   };
   onPress: () => void;
 }) {
   const s = useStyles(makeStyles);
   const c = useTheme();
   const tourRef = useTourTarget('streak');
+  // On narrow phones the still flame makes room, so the words and the pill keep a full line (the number burns in its colours anyway).
+  const roomy = useWindowDimensions().width >= 380;
   const grad = tierFlame(streak.tier);
   const days = week.map((d, i) => `${t(DAY_NAMES[i])} ${t(DOT_WORDS[d])}`).join(', ');
   // What Bizzy just said, shown for a few seconds (longer lines a little longer).
@@ -74,6 +78,7 @@ export function StreakCard({
     hush.current = setTimeout(() => setSaid(undefined), Math.min(5000, 1600 + 50 * line.text.length));
   };
   const says = bizzy?.says;
+  const spot: BubbleSpot = bizzy?.bubble ?? 'row';
   useEffect(() => {
     if (says) say({ key: 'moment', text: says.text });
   }, [says?.id]);
@@ -90,13 +95,13 @@ export function StreakCard({
         <View style={s.row}>
           <View style={{ flex: 1 }}>
             <View style={s.row}>
-              <Fire tier={streak.tier} size={48} still />
+              {roomy && <Fire tier={streak.tier} size={48} still />}
               <StreakNumber days={streak.days} tier={streak.tier} />
               <View style={{ flex: 1, gap: 4 }}>
                 <Text style={s.label} numberOfLines={2}>
                   {t('Streak')}
                 </Text>
-                {/* The multiplier shares the tier's line, so a long streak still fits on small phones. */}
+                {/* The tier name, with the multiplier on its own line under it in every theme. */}
                 <View style={s.labelRow}>
                   <Text style={s.tier} numberOfLines={1}>
                     {streakTierName(streak.tier)}
@@ -117,9 +122,9 @@ export function StreakCard({
             </View>
           )}
         </View>
-        {/* His bubble opens a line of its own under him, inside the card, so it never covers the
-            flame, the count or the label (asked 2026-11-01). */}
-        {said && (
+        {/* Where his bubble opens (alternatives asked 2026-11-01): 'row' is a line of its own under
+            him, which moves the card down; the others float over the card and move nothing. */}
+        {said && spot === 'row' && (
           <Animated.View key={said.id} entering={FadeIn.duration(180)} exiting={FadeOut.duration(150)} style={s.speechRow} pointerEvents="none">
             <View style={s.speech} accessibilityLiveRegion="polite">
               <View style={s.speechTail} />
@@ -129,7 +134,24 @@ export function StreakCard({
             </View>
           </Animated.View>
         )}
+        {said && (spot === 'above' || spot === 'left' || spot === 'float') && (
+          <Animated.View key={said.id} entering={FadeIn.duration(180)} exiting={FadeOut.duration(150)} style={[s.floating, spot === 'above' ? s.floatAbove : spot === 'left' ? s.floatLeft : s.floatBelow]} pointerEvents="none">
+            <View style={s.speech} accessibilityLiveRegion="polite">
+              <View style={spot === 'above' ? s.tailDown : spot === 'left' ? s.tailRight : s.speechTail} />
+              <Text style={s.speechText} numberOfLines={spot === 'left' ? 3 : 2}>
+                {said.text}
+              </Text>
+            </View>
+          </Animated.View>
+        )}
         {/* This week's days spread over the whole card, each with its letter. */}
+        {said && spot === 'week' ? (
+          <Animated.View key={said.id} entering={FadeIn.duration(180)} exiting={FadeOut.duration(150)} style={s.weekSay} pointerEvents="none">
+            <Text style={s.speechText} numberOfLines={2} accessibilityLiveRegion="polite">
+              {said.text}
+            </Text>
+          </Animated.View>
+        ) : (
         <Animated.View layout={LinearTransition.duration(200)} style={s.week}>
           {week.map((d, i) => (
             <View key={i} style={s.day}>
@@ -138,6 +160,7 @@ export function StreakCard({
             </View>
           ))}
         </Animated.View>
+        )}
         {streak.atRisk && <Text style={s.risk}>{t('Nothing done yet today. One task keeps your streak going.')}</Text>}
         {streak.days === 0 && <Text style={s.note}>{t('Finish a task today to light your streak.')}</Text>}
         {/* Flame lights at 5 days. */}
@@ -150,6 +173,8 @@ export function StreakCard({
     </Pressable>
   );
 }
+
+export type BubbleSpot = 'row' | 'above' | 'left' | 'week' | 'float';
 
 function canEvolve(form: number, level: number): boolean {
   const next = nextBizzyForm(form);
@@ -217,7 +242,7 @@ function EvolveNext({ form, level, onEvolve }: { form: number; level: number; on
   return (
     <Animated.View style={[s.evolve, style]}>
       <Pressable onPress={onEvolve} hitSlop={8} style={s.evolveTap} accessibilityRole="button" accessibilityLabel={t('Evolve Bizzy into {name}', { name: t(next.name) })}>
-        <Text style={s.evolveText}>{t('Evolve')} ✦</Text>
+        <Text style={s.evolveText} numberOfLines={1}>{t('Evolve')} ✦</Text>
       </Pressable>
     </Animated.View>
   );
@@ -290,29 +315,39 @@ const makeStyles = themed((c) => ({
   border: { borderRadius: c.radius + 1.5, padding: 1.5, marginTop: 16 },
   card: { ...card(c), borderWidth: 0, borderRadius: c.radius, paddingVertical: 14, paddingHorizontal: 16, gap: 10 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  corner: { minWidth: 84, maxWidth: 104, alignItems: 'center', gap: 2 },
+  // A fixed box: Bizzy on top, Evolve (or the level it needs) at the bottom, in the same place in every theme.
+  corner: { width: 104, height: 108, alignItems: 'center', justifyContent: 'space-between' },
   eagerGlow: { position: 'absolute', left: -6, right: -6, top: -6, bottom: -6 },
   eagerBadge: { position: 'absolute', top: -2, right: -4, width: 20, height: 20, borderRadius: 10, backgroundColor: '#FFC94D', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: c.surface },
   eagerBang: { fontFamily: VIVID_HEAVY, fontSize: 12, lineHeight: 14, color: '#2A1A05' },
   // Honey gold, the same in every theme: evolving belongs to the rewards layer.
   evolve: { borderRadius: 999, backgroundColor: '#FFC94D', backgroundImage: 'linear-gradient(90deg, #FFE48A, #FFB347)' },
-  evolveTap: { paddingHorizontal: 12, paddingVertical: 5 },
+  evolveTap: { paddingHorizontal: 11, paddingVertical: 5 },
   evolveText: { fontFamily: VIVID_HEAVY, fontSize: 13, color: '#2A1A05' },
-  evolveWait: { maxWidth: 84, color: c.muted, fontSize: 11, lineHeight: 14, fontWeight: '600', textAlign: 'center' },
+  evolveWait: { maxWidth: 96, fontFamily: VIVID_BOLD, color: c.muted, fontSize: 11, lineHeight: 14, textAlign: 'center' },
   days: { fontFamily: VIVID_HEAVY, fontSize: 72, lineHeight: 80, fontVariant: ['lining-nums'], minWidth: 44, textAlign: 'center' },
   daysLong: { fontFamily: VIVID_HEAVY, fontSize: 56, lineHeight: 66 },
   // The pill moves under the tier name when both don't fit, so the name is never cut to "B…".
-  labelRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 },
-  label: { color: c.text, fontSize: 18, fontWeight: '800' },
+  // The card's words use the app's own font in every theme, like the number, so it is built the same everywhere.
+  labelRow: { alignItems: 'flex-start', gap: 6 },
+  label: { fontFamily: VIVID_HEAVY, color: c.text, fontSize: 18, lineHeight: 22 },
   speechRow: { alignItems: 'flex-end', marginTop: 2 },
   speech: { maxWidth: '100%', backgroundColor: c.surfaceAlt, borderColor: c.border, borderWidth: 1, borderRadius: 12, paddingHorizontal: 11, paddingVertical: 7, boxShadow: '0px 4px 14px rgba(0,0,0,0.3)' },
-  speechText: { color: c.text, fontSize: 13, lineHeight: 17, fontWeight: '700' },
+  speechText: { fontFamily: VIVID_BOLD, color: c.text, fontSize: 13, lineHeight: 17 },
   // Points up at Bizzy, in the middle of his corner.
   speechTail: { position: 'absolute', right: 42, top: -5, width: 8, height: 8, backgroundColor: c.surfaceAlt, borderColor: c.border, borderTopWidth: 1, borderLeftWidth: 1, transform: [{ rotate: '45deg' }] },
-  tier: { color: c.muted, fontSize: 13, fontWeight: '700' },
+  floating: { position: 'absolute', zIndex: 5, maxWidth: 220 },
+  floatAbove: { right: 6, top: -34 },
+  floatLeft: { right: 118, top: 18, maxWidth: 150 },
+  floatBelow: { right: 8, top: 118 },
+  tailDown: { position: 'absolute', right: 42, bottom: -5, width: 8, height: 8, backgroundColor: c.surfaceAlt, borderColor: c.border, borderBottomWidth: 1, borderRightWidth: 1, transform: [{ rotate: '45deg' }] },
+  tailRight: { position: 'absolute', right: -5, top: 18, width: 8, height: 8, backgroundColor: c.surfaceAlt, borderColor: c.border, borderTopWidth: 1, borderRightWidth: 1, transform: [{ rotate: '45deg' }] },
+  // Same height as the week's dots and letters, so nothing moves while he talks.
+  weekSay: { height: 36, marginTop: 2, borderRadius: 12, backgroundColor: c.surfaceAlt, borderColor: c.border, borderWidth: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
+  tier: { fontFamily: VIVID_BOLD, color: c.muted, fontSize: 13, lineHeight: 17 },
   week: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 4, paddingTop: 2 },
   day: { alignItems: 'center', gap: 4 },
-  dayLetter: { color: c.faint, fontSize: 11, fontWeight: '700' },
+  dayLetter: { fontFamily: VIVID_BOLD, color: c.faint, fontSize: 11, lineHeight: 14 },
   dayToday: { color: c.text },
   dot: { width: 18, height: 18, borderRadius: 9, borderWidth: 1.5, borderColor: c.outline },
   note: { color: c.muted, fontSize: 12 },

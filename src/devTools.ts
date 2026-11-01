@@ -115,3 +115,13 @@ export function clearDev(state: GameState): GameState {
 export function devAllowed(state: GameState, allowed = DEV_TOOLS): GameState {
   return allowed || !hasDevChanges(state) ? state : clearDev(state);
 }
+
+/** Which all-done moment plays; the picked honey check is the normal one. */
+export function setDoneMoment(state: GameState, kind: NonNullable<DevSettings['doneMoment']>): GameState {
+  return withDev(state, { doneMoment: kind === 'check' ? undefined : kind });
+}
+
+/** Where Bizzy's bubble shows on the streak card; 'row' is today's. */
+export function setBubbleSpot(state: GameState, spot: NonNullable<DevSettings['bubbleSpot']>): GameState {
+  return withDev(state, { bubbleSpot: spot === 'row' ? undefined : spot });
+}

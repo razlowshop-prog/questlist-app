@@ -5,7 +5,7 @@ import { comboLook, type ComboLook } from './combo.ts';
 // ticked task leaves the list. Themes without an entry keep the brand bar
 // and a plain fade.
 
-export type MascotKind = 'bee' | 'rocket' | 'sprout' | 'boat' | 'car' | 'pencil' | 'lifter' | 'sun' | 'bolt' | 'climber' | 'flame' | 'moon' | 'crown';
+export type MascotKind = 'bee' | 'rocket' | 'sprout' | 'boat' | 'car' | 'pencil' | 'lifter' | 'sun' | 'bolt' | 'climber' | 'flame' | 'moon' | 'crown' | 'highlighter' | 'plane' | 'sneaker' | 'kettlebell';
 export type FinishKind = 'rocket' | 'blow' | 'wash' | 'glitch' | 'cross' | 'throw' | 'sink' | 'zap' | 'up' | 'burn' | 'dust' | 'gild' | 'fade';
 export type AmbientKind = 'comb' | 'stars' | 'leaves' | 'sea' | 'circuit' | 'floor' | 'dusk' | 'storm' | 'peaks' | 'embers' | 'night' | 'noir';
 /** Drawn on the fill and revealed as it grows. */
@@ -205,6 +205,53 @@ export const THEME_FX: Record<string, ThemeFx> = {
   },
 };
 
+// The Notepad and Gym redesign ideas (preview builds only, theme.tsx PREVIEW_THEMES).
+Object.assign(THEME_FX, {
+  'notepad-a': {
+    bar: { height: 12, track: 'transparent', fill: 'repeating-linear-gradient(-55deg, #2b59c3 0 2px, transparent 2px 5px)', fillColor: '#5b7fd0', glow: '#2b59c3', radius: 3, dashedBase: '#aab6cc', fillOpacity: 0.9 },
+    mascot: 'pencil',
+    mascotScale: 1.1,
+    finish: 'cross',
+    finishMs: 1000,
+  },
+  'notepad-b': {
+    bar: { height: 14, track: 'transparent', fill: 'linear-gradient(180deg, rgba(255,216,77,0.45) 0%, #ffd84d 25%, #ffd84d 75%, rgba(255,216,77,0.45) 100%)', fillColor: '#ffd84d', glow: '#ffe98a', radius: 2, dashedBase: '#cfcabd' },
+    mascot: 'highlighter',
+    mascotScale: 1.1,
+    finish: 'cross',
+    finishMs: 1000,
+  },
+  'notepad-c': {
+    bar: { height: 14, track: 'rgba(58,47,30,0.15)', fill: 'repeating-linear-gradient(90deg, #f3ead0 0 8px, #e6dab8 8px 9px)', fillColor: '#efe4c4', glow: '#fff6d8', radius: 1, fillShadow: '0 1px 2px rgba(0,0,0,0.25)' },
+    mascot: 'plane',
+    mascotScale: 1.15,
+    finish: 'blow',
+    finishMs: 1000,
+  },
+  'gym-a': {
+    bar: { height: 12, track: '#25282e', fill: linear(90, '#ff5a1f', '#ff8a2a'), fillColor: '#FF6A24', glow: '#FFB000', radius: 2, cells: { count: 10, color: '#141518' }, motion: { delay: 500, duration: 650 } },
+    mascot: 'lifter',
+    mascotScale: 1.4,
+    finish: 'throw',
+    finishMs: 1000,
+    ambient: 'floor',
+  },
+  'gym-b': {
+    bar: { height: 10, track: '#1d241e', fill: linear(90, '#8fdc1a', '#c6ff3d', '#eaffb0'), fillColor: '#c6ff3d', glow: '#eaffb0', fillShadow: '0 0 10px rgba(198,255,61,0.6)' },
+    mascot: 'sneaker',
+    mascotScale: 1.1,
+    finish: 'zap',
+    finishMs: 850,
+  },
+  'gym-c': {
+    bar: { height: 10, track: '#16305e', fill: linear(90, '#d81f2a', '#ff3b3b'), fillColor: '#ff3b3b', glow: '#ffb0a8', radius: 1 },
+    mascot: 'kettlebell',
+    mascotScale: 1.15,
+    finish: 'throw',
+    finishMs: 1000,
+  },
+} satisfies Record<string, ThemeFx>);
+
 const withCombo = new Map<string, ThemeFx>();
 
 /** The theme's motion, with its combo pop-up look; the same object each time, so it can sit in a context. */
@@ -235,6 +282,10 @@ export const MASCOT_SIZE: Record<MascotKind, { width: number; height: number; si
   flame: { width: 20, height: 28 },
   moon: { width: 24, height: 24 },
   crown: { width: 30, height: 24 },
+  highlighter: { width: 40, height: 40, sink: 9 },
+  plane: { width: 40, height: 26 },
+  sneaker: { width: 42, height: 26 },
+  kettlebell: { width: 30, height: 32 },
 };
 
 /**

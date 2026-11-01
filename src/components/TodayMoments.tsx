@@ -9,7 +9,7 @@ import { seeded } from './fx/hooks';
 
 // The two Today moments picked on 2026-10-29: the morning hello (A "honeycomb
 // hatch" and B "out of the hive", taking turns day by day) and all done (A
-// "honey check mark"). Both play over the Today screen, end with Bizzy back in
+// "honey check mark", drawn while Bizzy stays on the streak card). They play over the Today screen, end with Bizzy back in
 // his spot on the streak card, and a tap skips them.
 
 function hexPath(r: number): string {
@@ -91,7 +91,10 @@ function TrailDot({ chain, at, flight }: { chain: Curve[]; at: number; flight: S
   return <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: x - 2.5, top: y + 14, width: 5, height: 5, borderRadius: 3, backgroundColor: '#FFE48A' }, style]} />;
 }
 
-export type TodayMomentKind = 'hatch' | 'hive' | 'check';
+export type TodayMomentKind = 'hatch' | 'hive' | DoneKind;
+/** The all-done moments: A honey check (picked), B honey rain, C trophy stamp, D sun rays (alternatives asked 2026-11-01). */
+export type DoneKind = 'check' | 'rain' | 'stamp' | 'rays';
+export const DONE_KINDS: DoneKind[] = ['check', 'rain', 'stamp', 'rays'];
 
 /**
  * Plays one Today moment over the screen. `spot` is the streak card's Bizzy:
@@ -137,7 +140,8 @@ export function TodayMoment({
     if (linger) setTimeout(onDone, linger);
     else onDone();
   }
-  const landLine = kind === 'check' ? t('All done today!') : greeting;
+  const done = kind === 'check' || kind === 'rain' || kind === 'stamp' || kind === 'rays';
+  const landLine = done ? t('All done today!') : greeting;
 
   // Where his spot is, once the overlay has its size.
   useEffect(() => {
@@ -150,7 +154,7 @@ export function TodayMoment({
 
   useEffect(() => {
     if (!target || !size) return;
-    (kind === 'hatch' ? hatch : kind === 'hive' ? outOfHive : honeyCheck)(target.at, size).catch(() => finish(landLine));
+    (kind === 'hatch' ? hatch : kind === 'hive' ? outOfHive : kind === 'rain' ? honeyRain : kind === 'stamp' ? trophyStamp : kind === 'rays' ? sunRays : honeyCheck)(target.at, size).catch(() => finish(landLine));
   }, [target]);
 
   const ok = () => alive.current && !finished.current;
@@ -223,34 +227,69 @@ export function TodayMoment({
     finish(landLine);
   }
 
-  async function honeyCheck(spotAt: Pt, { w, h }: { w: number; h: number }) {
-    // The check mark sits over the list: short stroke down, long one up.
-    const A: Pt = [w * 0.2, h * 0.58];
-    const B: Pt = [w * 0.4, h * 0.68];
-    const C: Pt = [w * 0.82, h * 0.42];
+  async function honeyCheck(_spotAt: Pt, { w, h }: { w: number; h: number }) {
+    // The check mark draws itself over the list while Bizzy cheers in his spot on
+    // the streak card: one Bizzy only, he no longer flies down (asked 2026-11-01).
+    const A: Pt = [w * 0.2, h * 0.62];
+    const B: Pt = [w * 0.4, h * 0.72];
+    const C: Pt = [w * 0.82, h * 0.5];
     setCheck([A, B, C]);
-    flyer.place(spotAt[0], spotAt[1], target!.size / 68);
-    await flyer.fly([[spotAt, [spotAt[0] + 20, spotAt[1] + 80], [A[0] - 22, A[1] - 30], A]], 520, { scale: 1 });
-    if (!ok()) return;
-    // He draws it: the line follows him (both go by the same share of its length).
     const l1 = Math.hypot(B[0] - A[0], B[1] - A[1]);
     const l2 = Math.hypot(C[0] - B[0], C[1] - B[1]);
     const share = l1 / (l1 + l2);
-    const line = (a: Pt, b: Pt): Curve => [a, [a[0] + (b[0] - a[0]) / 3, a[1] + (b[1] - a[1]) / 3], [a[0] + ((b[0] - a[0]) * 2) / 3, a[1] + ((b[1] - a[1]) * 2) / 3], b];
-    flyer.rot.value = withSequence(withTiming(14, { duration: 120 }), withDelay(700 * share - 120, withTiming(-16, { duration: 120 })));
-    // The line is drawn to exactly where he is: the same timings and easings, by share of its length.
     drawn.value = withSequence(withTiming(share, { duration: 700 * share, easing: Easing.in(Easing.quad) }), withTiming(1, { duration: 700 * (1 - share), easing: Easing.out(Easing.quad) }));
-    await flyer.fly([line(A, B)], 700 * share, { easing: Easing.in(Easing.quad) });
-    await flyer.fly([line(B, C)], 700 * (1 - share), { easing: Easing.out(Easing.quad) });
+    await wait(720);
     if (!ok()) return;
     setSparks({ key: 3, at: C });
-    flyer.rot.value = withTiming(0, { duration: 200 });
-    // Then he takes his time flying home to the streak card (asked 2026-10-31: one Bizzy, back to his spot).
-    await flyer.fly([[C, [C[0] + 24, C[1] - 72], [spotAt[0] + 30, spotAt[1] + 40], spotAt]], 1400, { scale: target!.size / 68, easing: Easing.inOut(Easing.sin) });
-    if (!ok()) return;
-    checkFade.value = withDelay(900, withTiming(0, { duration: 500 }));
-    finish(landLine, 1450);
+    checkFade.value = withDelay(1100, withTiming(0, { duration: 500 }));
+    finish(landLine, 1650);
   }
+
+  // B: honey drops burst out of Bizzy's corner and rain down over the screen.
+  const [rain, setRain] = useState<Pt | null>(null);
+  async function honeyRain(spotAt: Pt) {
+    setRain(spotAt);
+    await wait(2300);
+    if (!ok()) return;
+    finish(landLine);
+  }
+
+  // C: a gold trophy drops onto the list like a stamp, a ring runs out, a ribbon says it.
+  const stamp = useProp();
+  const ring = useSharedValue(0);
+  const [stampAt, setStampAt] = useState<Pt | null>(null);
+  async function trophyStamp(_spotAt: Pt, { w, h }: { w: number; h: number }) {
+    const at: Pt = [w / 2, h * 0.6];
+    setStampAt(at);
+    stamp.x.value = at[0];
+    stamp.y.value = at[1];
+    stamp.scale.value = 2.6;
+    stamp.opacity.value = 0;
+    stamp.opacity.value = withTiming(1, { duration: 120 });
+    stamp.scale.value = withSequence(withTiming(0.86, { duration: 260, easing: Easing.in(Easing.quad) }), withTiming(1.06, { duration: 140 }), withTiming(1, { duration: 120 }));
+    await wait(260);
+    if (!ok()) return;
+    stamp.rot.value = withSequence(...[-6, 5, -3, 0].map((r) => withTiming(r, { duration: 70 })));
+    ring.value = withTiming(1, { duration: 700, easing: Easing.out(Easing.quad) });
+    setSparks({ key: 4, at });
+    await wait(1500);
+    if (!ok()) return;
+    stamp.opacity.value = withTiming(0, { duration: 400 });
+    stamp.scale.value = withTiming(0.7, { duration: 400 });
+    finish(landLine, 420);
+  }
+
+  // D: golden rays turn behind Bizzy on the card while he cheers, with a ring of light.
+  const [raysAt, setRaysAt] = useState<Pt | null>(null);
+  async function sunRays(spotAt: Pt) {
+    setRaysAt(spotAt);
+    setSparks({ key: 5, at: spotAt });
+    await wait(2400);
+    if (!ok()) return;
+    finish(landLine);
+  }
+
+  const ringStyle = useAnimatedStyle(() => ({ opacity: ring.value > 0 ? 1 - ring.value : 0, transform: [{ scale: 0.4 + 2.2 * ring.value }] }));
 
   const dimStyle = useAnimatedStyle(() => ({ opacity: dim.value }));
   const checkLen = check ? Math.hypot(check[1][0] - check[0][0], check[1][1] - check[0][1]) + Math.hypot(check[2][0] - check[1][0], check[2][1] - check[1][1]) : 0;
@@ -285,10 +324,80 @@ export function TodayMoment({
       )}
       {kind === 'hive' && <PropArt prop={hive} xml={SKEP} w={84} h={92} origin="top" />}
       {trail && Array.from({ length: 36 }, (_, i) => <TrailDot key={i} chain={trail} at={(i + 1) / 40} flight={flyer.p} />)}
-      {sparks && <Sparks key={sparks.key} at={sparks.at} />}
+      {rain && Array.from({ length: 34 }, (_, i) => <Drop key={i} i={i} at={rain} h={size?.h ?? 800} />)}
+      {raysAt && <Rays at={raysAt} />}
+      {stampAt && (
+        <>
+          <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: stampAt[0] - 60, top: stampAt[1] - 60, width: 120, height: 120, borderRadius: 60, borderWidth: 6, borderColor: '#FFD36B' }, ringStyle]} />
+          <PropArt prop={stamp} xml={TROPHY} w={150} h={170} />
+        </>
+      )}
+      {sparks && <Sparks key={sparks.key} at={sparks.at} n={kind === 'stamp' || kind === 'rays' ? 18 : 12} spread={kind === 'stamp' ? 110 : 60} />}
       <FlyingBizzy flyer={flyer} size={68} />
     </View>
   );
 }
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
+
+const TROPHY = `<svg viewBox="0 0 150 170" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="tg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFF1B0"/><stop offset=".5" stop-color="#FFC53D"/><stop offset="1" stop-color="#D9831A"/></linearGradient></defs><path d="M38 22 H112 V60 Q112 104 75 112 Q38 104 38 60Z" fill="url(#tg)"/><path d="M38 34 H18 Q16 70 44 78" fill="none" stroke="#FFC53D" stroke-width="9" stroke-linecap="round"/><path d="M112 34 H132 Q134 70 106 78" fill="none" stroke="#FFC53D" stroke-width="9" stroke-linecap="round"/><rect x="66" y="110" width="18" height="22" fill="#E9A229"/><rect x="44" y="130" width="62" height="14" rx="4" fill="#B8651B"/><path d="M14 146 H136 L128 166 H22Z" fill="#E8423F"/><text x="75" y="161" font-family="Arial, sans-serif" font-weight="900" font-size="13" fill="#fff" text-anchor="middle">100%</text><path d="M56 32 Q60 64 72 92" stroke="#fff" stroke-width="6" stroke-linecap="round" fill="none" opacity=".45"/><path d="M75 44 l6 12 13 2 -9 9 2 13 -12 -6 -12 6 2 -13 -9 -9 13 -2Z" fill="#FFF7D6"/></svg>`;
+
+const DROP_COLORS = ['#FFE08A', '#FFC53D', '#F2A93B', '#FFF4C7'];
+
+/** A honey drop of the rain: shoots up and out of Bizzy's corner, then falls, turning, and fades near the bottom. */
+function Drop({ i, at, h }: { i: number; at: Pt; h: number }) {
+  const go = useSharedValue(0);
+  const delay = seeded(i, 7) * 260;
+  useEffect(() => {
+    go.value = withDelay(delay, withTiming(1, { duration: 1900, easing: Easing.linear }));
+  }, []);
+  const vx = (seeded(i, 1) - 0.65) * 520;
+  const vy = -260 - seeded(i, 2) * 360;
+  const g = 1500;
+  const size = 9 + seeded(i, 3) * 9;
+  const spin = (seeded(i, 4) - 0.5) * 900;
+  const style = useAnimatedStyle(() => {
+    const tt = go.value * 1.9;
+    const y = vy * tt + 0.5 * g * tt * tt;
+    return {
+      opacity: go.value === 0 ? 0 : Math.min(1, Math.max(0, (h - (at[1] + y)) / 160)),
+      transform: [{ translateX: vx * tt }, { translateY: y }, { rotate: `${spin * tt}deg` }],
+    };
+  });
+  return (
+    <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: at[0] - size / 2, top: at[1] - size / 2, width: size, height: size * 1.25, borderTopLeftRadius: size, borderTopRightRadius: size * 0.2, borderBottomLeftRadius: size, borderBottomRightRadius: size, backgroundColor: DROP_COLORS[i % DROP_COLORS.length], transform: [{ rotate: '45deg' }] }, style]} />
+  );
+}
+
+/** Golden rays turning slowly behind a point, growing in and fading out. */
+function Rays({ at }: { at: Pt }) {
+  const go = useSharedValue(0);
+  useEffect(() => {
+    go.value = withTiming(1, { duration: 2400, easing: Easing.linear });
+  }, []);
+  const R = 150;
+  const style = useAnimatedStyle(() => ({
+    opacity: go.value < 0.15 ? go.value / 0.15 : go.value > 0.75 ? (1 - go.value) / 0.25 : 1,
+    transform: [{ rotate: `${go.value * 120}deg` }, { scale: 0.6 + 0.4 * Math.min(1, go.value * 4) }],
+  }));
+  const rays = Array.from({ length: 12 }, (_, k) => {
+    const a = (Math.PI * 2 * k) / 12;
+    const b = a + 0.13;
+    // They start outside Bizzy, so he stays in sight on the card.
+    const r0 = 44;
+    return `M${(Math.cos(a) * r0).toFixed(1)} ${(Math.sin(a) * r0).toFixed(1)} L${(Math.cos(a) * R).toFixed(1)} ${(Math.sin(a) * R).toFixed(1)} L${(Math.cos(b) * R).toFixed(1)} ${(Math.sin(b) * R).toFixed(1)} L${(Math.cos(b) * r0).toFixed(1)} ${(Math.sin(b) * r0).toFixed(1)}Z`;
+  }).join(' ');
+  return (
+    <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: at[0] - R, top: at[1] - R, width: R * 2, height: R * 2 }, style]}>
+      <Svg width={R * 2} height={R * 2} viewBox={`${-R} ${-R} ${R * 2} ${R * 2}`}>
+        <Defs>
+          <LinearGradient id="ray" x1="0" y1="0" x2="1" y2="1">
+            <Stop offset="0" stopColor="#FFF1B0" stopOpacity={0.9} />
+            <Stop offset="1" stopColor="#FFB000" stopOpacity={0.15} />
+          </LinearGradient>
+        </Defs>
+        <Path d={rays} fill="url(#ray)" />
+      </Svg>
+    </Animated.View>
+  );
+}

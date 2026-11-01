@@ -1,6 +1,6 @@
 import { useContext, useEffect, useRef } from 'react';
 import { View, type ViewStyle } from 'react-native';
-import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withSequence, withTiming, type SharedValue } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Ellipse, G, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 import type { MascotKind } from '../../themeFx';
 import { BizzyArt, BizzyFormContext } from '../Bizzy';
@@ -23,7 +23,7 @@ export function Mascot({ kind, scale, live, gainKey }: { kind: MascotKind; scale
     case 'car':
       return <Car scale={scale} />;
     case 'pencil':
-      return <Pencil scale={scale} />;
+      return <Pencil scale={scale} gainKey={gainKey} />;
     case 'lifter':
       return <Lifter scale={scale} gainKey={gainKey} />;
     case 'sun':
@@ -38,7 +38,137 @@ export function Mascot({ kind, scale, live, gainKey }: { kind: MascotKind; scale
       return <Moon scale={scale} />;
     case 'crown':
       return <Crown scale={scale} />;
+    case 'highlighter':
+      return <Highlighter scale={scale} gainKey={gainKey} />;
+    case 'plane':
+      return <Plane scale={scale} gainKey={gainKey} />;
+    case 'sneaker':
+      return <Sneaker scale={scale} gainKey={gainKey} />;
+    case 'kettlebell':
+      return <Kettlebell scale={scale} gainKey={gainKey} />;
   }
+}
+
+/** Counts up once each time XP comes in while it's on screen (not when the theme is switched to). */
+function useGain(gainKey: number, run: () => void) {
+  const reduce = useReducedMotion();
+  const seen = useRef(gainKey);
+  useEffect(() => {
+    if (gainKey === seen.current || reduce) return;
+    seen.current = gainKey;
+    run();
+  }, [gainKey]);
+}
+
+/** Notepad B (Bullet journal): a yellow highlighter leaning on the bar, colouring as it goes; it swipes twice when XP comes in. */
+function Highlighter({ scale, gainKey }: { scale: number; gainKey: number }) {
+  const on = useLoopsOn();
+  const wig = useLoop(700, on);
+  const swipe = useSharedValue(0);
+  useGain(gainKey, () => {
+    swipe.value = withSequence(withTiming(1, { duration: 120 }), withTiming(-1, { duration: 160 }), withTiming(1, { duration: 160 }), withTiming(0, { duration: 140 }));
+  });
+  const style = useAnimatedStyle(() => ({ transform: [{ translateX: 5 * swipe.value * scale }, { rotate: `${-4 * wig.value + 8 * swipe.value}deg` }] }));
+  const size = 40 * scale;
+  return (
+    <Animated.View style={[{ width: size, height: size, transformOrigin: '22% 92%' } as ViewStyle, style]}>
+      <Svg width={size} height={size} viewBox="0 0 40 40">
+        <G transform="rotate(-40 20 20)">
+          <Rect x={15} y={0} width={10} height={9} rx={2} fill="#2b2b2b" />
+          <Rect x={14} y={8} width={12} height={20} rx={2} fill="#ffd84d" stroke="#2b2b2b" strokeWidth={1.2} />
+          <Rect x={16} y={11} width={3} height={14} rx={1.5} fill="#fff6c2" />
+          <Path d="M15 28h10l-2 6h-6z" fill="#3a3a3a" />
+          <Path d="M17 34h6l-1 4h-4z" fill="#ffd84d" />
+        </G>
+      </Svg>
+    </Animated.View>
+  );
+}
+
+/** Notepad C (Sticky notes): a folded paper plane gliding over the bar; it loops once when XP comes in. */
+function Plane({ scale, gainKey }: { scale: number; gainKey: number }) {
+  const on = useLoopsOn();
+  const glide = useLoop(2400, on);
+  const loop = useSharedValue(0);
+  useGain(gainKey, () => {
+    loop.value = 0;
+    loop.value = withTiming(1, { duration: 900, easing: Easing.inOut(Easing.quad) });
+  });
+  const style = useAnimatedStyle(() => {
+    const a = loop.value * Math.PI * 2;
+    return {
+      transform: [
+        { translateX: Math.sin(a) * 10 * scale },
+        { translateY: (-3 * glide.value - (1 - Math.cos(a)) * 9) * scale },
+        { rotate: `${-6 * glide.value - loop.value * 360}deg` },
+      ],
+    };
+  });
+  const k = scale;
+  return (
+    <Animated.View style={[{ width: 40 * k, height: 26 * k }, style]}>
+      <Svg width={40 * k} height={26 * k} viewBox="0 0 40 26">
+        <Path d="M2 14 38 3 16 17z" fill="#ffffff" stroke="#3a2f1e" strokeWidth={1.2} strokeLinejoin="round" />
+        <Path d="M16 17 38 3 20 24z" fill="#e9e1cf" stroke="#3a2f1e" strokeWidth={1.2} strokeLinejoin="round" />
+        <Path d="M16 17 20 24 18 18z" fill="#cfc4ab" />
+        <Path d="M7 13 30 6" stroke="#e2574c" strokeWidth={1} strokeDasharray="2 2" />
+      </Svg>
+    </Animated.View>
+  );
+}
+
+/** Gym B (Club): a lime running shoe tapping along the bar; it sprints in place, leaving speed lines, when XP comes in. */
+function Sneaker({ scale, gainKey }: { scale: number; gainKey: number }) {
+  const on = useLoopsOn();
+  const tap = useLoop(600, on);
+  const dash = useSharedValue(0);
+  useGain(gainKey, () => {
+    dash.value = withSequence(withTiming(1, { duration: 150 }), withTiming(1, { duration: 500 }), withTiming(0, { duration: 250 }));
+  });
+  const shoe = useAnimatedStyle(() => ({ transform: [{ translateY: -2 * tap.value * scale - 3 * dash.value * scale }, { rotate: `${-8 * tap.value - 10 * dash.value}deg` }] }));
+  const lines = useAnimatedStyle(() => ({ opacity: dash.value, transform: [{ translateX: -6 * dash.value * scale }] }));
+  const k = scale;
+  return (
+    <View style={{ width: 42 * k, height: 26 * k }}>
+      <Animated.View style={[{ position: 'absolute', left: -12 * k, top: 6 * k }, lines]}>
+        <Svg width={14 * k} height={14 * k} viewBox="0 0 14 14">
+          <Path d="M2 3h10M0 7h12M3 11h9" stroke="#c6ff3d" strokeWidth={2} strokeLinecap="round" />
+        </Svg>
+      </Animated.View>
+      <Animated.View style={[{ width: 42 * k, height: 26 * k, transformOrigin: '80% 90%' } as ViewStyle, shoe]}>
+        <Svg width={42 * k} height={26 * k} viewBox="0 0 42 26">
+          <Path d="M3 18c0-6 3-12 9-12 3 0 4 3 8 4l10 3c6 1 10 3 10 6v2H3z" fill="#c6ff3d" stroke="#0b0d0c" strokeWidth={1.4} strokeLinejoin="round" />
+          <Path d="M3 19h37v4c0 1-1 2-2 2H5c-1 0-2-1-2-2z" fill="#f4f4f2" stroke="#0b0d0c" strokeWidth={1.4} />
+          <Path d="M14 9l3 4M18 10l3 4M22 11l2 3" stroke="#0b0d0c" strokeWidth={1.4} strokeLinecap="round" />
+          <Path d="M27 15c3 0 6 1 8 2" stroke="#0b0d0c" strokeWidth={1.2} fill="none" />
+        </Svg>
+      </Animated.View>
+    </View>
+  );
+}
+
+/** Gym C (Stadium): a red kettlebell swinging gently on the bar; it swings up overhead and lands with a thud when XP comes in. */
+function Kettlebell({ scale, gainKey }: { scale: number; gainKey: number }) {
+  const on = useLoopsOn();
+  const sway = useLoop(1800, on);
+  const swing = useSharedValue(0);
+  useGain(gainKey, () => {
+    swing.value = withSequence(withTiming(1, { duration: 320, easing: Easing.out(Easing.quad) }), withTiming(1, { duration: 200 }), withTiming(0, { duration: 260, easing: Easing.in(Easing.quad) }), withTiming(0.12, { duration: 80 }), withTiming(0, { duration: 80 }));
+  });
+  const style = useAnimatedStyle(() => ({ transform: [{ translateY: -20 * swing.value * scale }, { rotate: `${6 * (sway.value - 0.5) + 360 * swing.value}deg` }] }));
+  const k = scale;
+  return (
+    <Animated.View style={[{ width: 30 * k, height: 32 * k }, style]}>
+      <Svg width={30 * k} height={32 * k} viewBox="0 0 30 32">
+        <Path d="M9 13V9a6 6 0 0 1 12 0v4" fill="none" stroke="#1b2a44" strokeWidth={4} />
+        <Path d="M9 13V9a6 6 0 0 1 12 0v4" fill="none" stroke="#e8edf6" strokeWidth={2} />
+        <Circle cx={15} cy={21} r={10} fill="#ff3b3b" stroke="#1b2a44" strokeWidth={1.4} />
+        <Path d="M9 18a7 7 0 0 1 5-4" stroke="#ffb3b3" strokeWidth={2} strokeLinecap="round" fill="none" />
+        <Rect x={10} y={19} width={10} height={6} rx={1} fill="#1b2a44" />
+        <Path d="M12.5 21.5h5" stroke="#ff3b3b" strokeWidth={1.4} />
+      </Svg>
+    </Animated.View>
+  );
 }
 
 /** Honey: the player's own Bizzy flies along the bar, wings buzzing and bobbing, and cheers each time XP comes in. */
@@ -163,11 +293,15 @@ function Car({ scale }: { scale: number }) {
   );
 }
 
-/** Notepad: a pencil drawing the bar, wiggling as it writes. */
-function Pencil({ scale }: { scale: number }) {
+/** Notepad: a pencil drawing the bar, wiggling as it writes; it scribbles fast when XP comes in. */
+function Pencil({ scale, gainKey }: { scale: number; gainKey: number }) {
   const on = useLoopsOn();
   const wig = useLoop(500, on);
-  const style = useAnimatedStyle(() => ({ transform: [{ rotate: `${-6 * wig.value}deg` }, { translateY: -wig.value * scale }] }));
+  const scribble = useSharedValue(0);
+  useGain(gainKey, () => {
+    scribble.value = withSequence(...[1, -1, 1, -1, 1, 0].map((v) => withTiming(v, { duration: 70 })));
+  });
+  const style = useAnimatedStyle(() => ({ transform: [{ rotate: `${-6 * wig.value + 10 * scribble.value}deg` }, { translateY: -wig.value * scale - 2 * Math.abs(scribble.value) * scale }] }));
   const size = 40 * scale;
   return (
     <Animated.View style={[{ width: size, height: size, transformOrigin: '20% 95%' } as ViewStyle, style]}>
