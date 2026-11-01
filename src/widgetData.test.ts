@@ -1,9 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { addDays, addTask, emptyState, type GameState } from './game.ts';
+import { addDays, addTask, birthdayIn, birthdayLockedUntil, emptyState, isBirthday, restDaysOf, setBirthday, validBirthday, type GameState } from './game.ts';
 import { BIZZY_FORMS, bizzyEdge, bizzyFormOf, bizzyGripSvg, bizzyMiddle, bizzySvg, bizzyWingRoot, bizzyWingsSvg, canEvolve, cocoonSvg, nextBizzyForm, type BizzyMood } from './bizzy.ts';
 import { setLang } from './i18n.ts';
-import { bizzyMood, widgetData } from './widgetData.ts';
+import { bizzyMood, pickOfDay, widgetData, type WidgetData } from './widgetData.ts';
+import { DRAMA_ROUTES, dramaBizzySvg, widgetBizzySvg, widgetLooks } from './widgetLooks.ts';
 
 const TODAY = '2026-10-27';
 const at = (hour: number, day = TODAY) => {
@@ -20,82 +21,163 @@ function player(): GameState {
   return { ...s, completions };
 }
 
+const at2 = (hour: number, minute = 0, day = TODAY) => {
+  const [y, m, d] = day.split('-').map(Number);
+  return new Date(y, m - 1, d, hour, minute);
+};
+const moodOf = (d: WidgetData) => ('route' in d.art ? 'drama' : d.art.mood);
+/** Six daily tasks, `done` of them ticked today (at `hour`), and a streak that ran until yesterday. */
+function busy(done: number, hour = 9): GameState {
+  let s: GameState = { ...emptyState, onboarded: true };
+  for (let i = 0; i < 6; i++) s = addTask(s, `Task ${i}`, true, `t${i}`);
+  const ids = s.tasks.map((x) => x.id);
+  const past = [3, 2, 1].map((n) => ({ taskId: ids[0], date: addDays(TODAY, -n), xp: 22 }));
+  const today = ids.slice(0, done).map((taskId) => ({ taskId, date: TODAY, xp: 15, hour }));
+  return { ...s, completions: [...past, ...today] };
+}
+
 test('widget: before onboarding Bizzy waves and asks to plan the day', () => {
   setLang('en');
   const d = widgetData(emptyState, at(10));
-  assert.equal(d.mood, 'wave');
+  assert.deepEqual(d.art, { mood: 'hello', look: 'A' });
   assert.equal(d.headline, 'Hi!');
   assert.equal(d.streak, '');
   assert.equal(d.level, 1);
+  assert.equal(d.tint, 0);
 });
 
-test('widget: tasks left, streak and level in the daytime', () => {
+test('widget: the moods through a normal day (picked 2026-11-01)', () => {
   setLang('en');
-  const d = widgetData(player(), at(10));
-  assert.equal(d.headline, '2');
-  assert.equal(d.sub, 'tasks left today');
-  assert.equal(d.streak, '3 days');
-  assert.equal(d.mood, 'happy');
-  assert.ok(d.progress > 0 && d.progress < 1);
+  assert.equal(moodOf(widgetData(busy(0), at2(7))), 'morning');
+  assert.equal(widgetData(busy(0), at2(7)).headline, 'Good morning!');
+  assert.equal(widgetData(busy(0), at2(7)).sub, '6 tasks today.');
+  assert.equal(moodOf(widgetData(busy(0), at2(11))), 'hello');
+  assert.equal(moodOf(widgetData(busy(2), at2(11))), 'todo');
+  assert.equal(widgetData(busy(2), at2(11)).headline, '4');
+  assert.equal(widgetData(busy(2), at2(11)).sub, 'tasks left today');
+  assert.equal(widgetData(busy(2), at2(11)).streak, '4 days');
+  // Judgy from 13:00 with 4+ left and under a third done.
+  assert.equal(moodOf(widgetData(busy(1), at2(12, 30))), 'todo');
+  assert.equal(moodOf(widgetData(busy(1), at2(13))), 'judgy');
+  assert.equal(moodOf(widgetData(busy(2), at2(15))), 'todo');
+  assert.equal(moodOf(widgetData(busy(4), at2(17))), 'evening');
+  assert.equal(widgetData(busy(4), at2(17)).sub, '2 tasks left. Still time.');
+  assert.equal(moodOf(widgetData(busy(4), at2(18, 30))), 'drama');
 });
 
-test('widget: one task left uses the singular', () => {
+test('widget: the late drama gets worse, and the streak only matters when nothing is ticked', () => {
   setLang('en');
-  const s = player();
-  const d = widgetData({ ...s, completions: [...s.completions, { taskId: 'read', date: TODAY, xp: 15 }] }, at(10));
-  assert.equal(d.headline, '1');
-  assert.equal(d.sub, 'task left today');
-  assert.equal(d.streak, '4 days');
+  const step = (s: GameState, h: number, m = 0) => {
+    const d = widgetData(s, at2(h, m));
+    return 'route' in d.art ? d.art.step : -1;
+  };
+  // Two ticked: the streak is safe, so it's only about the open tasks.
+  const two = busy(2);
+  assert.deepEqual([step(two, 18), step(two, 18, 30), step(two, 20), step(two, 22), step(two, 23, 30)], [-1, 0, 1, 2, 3]);
+  assert.equal(widgetData(two, at2(23, 30)).sub, '4 tasks still open. I can’t watch!');
+  assert.ok(!widgetData(two, at2(23, 30)).sub.includes('streak'));
+  assert.equal(widgetData(two, at2(22)).tint, 3);
+  // Nothing ticked: one step more, and the streak is mentioned.
+  const none = busy(0);
+  assert.deepEqual([step(none, 18, 30), step(none, 20), step(none, 22)], [1, 2, 3]);
+  assert.equal(widgetData(none, at2(20)).sub, 'Your 3-day streak ends at midnight');
+  // Just one left: one step calmer.
+  assert.deepEqual([step(busy(5), 18, 30), step(busy(5), 20)], [0, 0]);
+  assert.equal(widgetData(busy(5), at2(18, 30)).sub, '1 task left. The day’s nearly over…');
 });
 
-test('widget: streak at risk in the evening makes Bizzy worried', () => {
+test('widget: all done celebrates by when you finished, then sleeps', () => {
   setLang('en');
-  const d = widgetData(player(), at(20));
-  assert.equal(d.mood, 'worried');
-  assert.equal(d.sub, 'Your 3-day streak ends at midnight');
-  // Before the reminder hour it is still a normal day.
-  assert.equal(widgetData(player(), at(19)).mood, 'happy');
+  const look = (s: GameState, h: number, m = 0) => widgetData(s, at2(h, m)).art;
+  assert.ok(['B', 'D'].includes((look(busy(6, 10), 11) as { look: string }).look));
+  assert.deepEqual(look(busy(6, 14), 15), { mood: 'done', look: 'A' });
+  assert.deepEqual(look(busy(6, 19), 20), { mood: 'done', look: 'C' });
+  assert.equal(widgetData(busy(6, 19), at2(20)).headline, 'All done!');
+  assert.equal(widgetData(busy(6, 19), at2(20)).sub, '+90 XP today. See you tomorrow.');
+  const sleepy = look(busy(6, 19), 22) as { mood: string; look: string };
+  assert.equal(sleepy.mood, 'night');
+  assert.ok(['A', 'D'].includes(sleepy.look));
+  assert.ok(['B', 'C'].includes((look(busy(6, 19), 23, 30) as { look: string }).look));
+  assert.equal(widgetData(busy(6, 19), at2(23, 30)).headline, 'Shh…');
+  // After midnight he sleeps, even with the new day's tasks open.
+  assert.equal(moodOf(widgetData(busy(0), at2(3))), 'night');
 });
 
-test('widget: late at night Bizzy is sleepy once the streak is safe', () => {
+test('widget: looks change from day to day, but stay the same all day', () => {
   setLang('en');
-  const s = player();
-  const safe = { ...s, completions: [...s.completions, { taskId: 'dishes', date: TODAY, xp: 20 }] };
-  assert.equal(widgetData(safe, at(23)).mood, 'sleepy');
-  assert.equal(widgetData(safe, at(3)).mood, 'sleepy');
-  // A streak in danger wins over sleepy.
-  assert.equal(widgetData(s, at(23)).mood, 'worried');
+  const seen = new Set<string>();
+  for (let i = 0; i < 20; i++) {
+    const day = addDays(TODAY, i);
+    const d = widgetData(busy(0), at2(7, 0, day));
+    const again = widgetData(busy(0), at2(9, 30, day));
+    assert.deepEqual(d.art, again.art);
+    seen.add((d.art as { look: string }).look);
+  }
+  assert.deepEqual([...seen].sort(), ['A', 'B', 'C']);
+  assert.equal(pickOfDay(['x', 'y'], TODAY, 'a'), pickOfDay(['x', 'y'], TODAY, 'a'));
 });
 
-test('widget: all done shows today’s XP and an excited Bizzy', () => {
+test('widget: birthday all day', () => {
   setLang('en');
-  const s = player();
-  const done = { ...s, completions: [...s.completions, { taskId: 'dishes', date: TODAY, xp: 20 }, { taskId: 'read', date: TODAY, xp: 15 }] };
-  const d = widgetData(done, at(23));
-  assert.equal(d.mood, 'excited');
-  assert.equal(d.headline, 'All done!');
-  assert.equal(d.sub, '+35 XP today. See you tomorrow.');
+  const s = setBirthday(busy(0), TODAY.slice(5), '2026-01-01');
+  for (const h of [7, 13, 21]) assert.equal(moodOf(widgetData(s, at2(h))), 'birthday');
+  assert.equal(widgetData(s, at2(13)).headline, 'Happy birthday!');
+  assert.equal(widgetData(s, at2(13)).sub, '6 tasks today. Take it easy.');
 });
 
 test('widget: a day with nothing planned', () => {
   setLang('en');
   let s: GameState = { ...emptyState, onboarded: true };
-  s = addTask(s, 'Dentist', false, 'dentist', undefined, { date: addDays(TODAY, 3) });
+  s = addTask(s, 'Clean the windows', false, 'win');
+  s = { ...s, tasks: s.tasks.map((x) => ({ ...x, createdAt: addDays(TODAY, -5) + 'T08:00:00Z' })), completions: [{ taskId: 'win', date: addDays(TODAY, -5), xp: 20 }] };
   const d = widgetData(s, at(10));
   assert.equal(d.headline, 'Free day');
-  assert.equal(d.mood, 'happy');
+  assert.equal(moodOf(d), 'hello');
+  assert.equal(moodOf(widgetData(s, at2(22, 30))), 'night');
 });
 
 test('widget: German texts', () => {
   setLang('de');
   try {
-    const d = widgetData(player(), at(10));
-    assert.equal(d.sub, 'Aufgaben heute offen');
-    assert.equal(d.streak, '3 Tage');
-    assert.equal(widgetData(player(), at(21)).sub, 'Deine 3-Tage-Serie endet um Mitternacht');
+    assert.equal(widgetData(busy(0), at2(7)).headline, 'Guten Morgen!');
+    assert.equal(widgetData(busy(2), at2(11)).sub, 'Aufgaben heute offen');
+    assert.equal(widgetData(busy(0), at2(20)).sub, 'Deine 3-Tage-Serie endet um Mitternacht');
+    assert.equal(widgetData(busy(5), at2(18, 30)).sub, 'Noch 1 Aufgabe. Der Tag ist fast vorbei…');
   } finally {
     setLang('en');
   }
+});
+
+test('widget: every look and drama step draws in every form', () => {
+  for (const f of [1, 5, 10]) {
+    for (const mood of ['morning', 'hello', 'todo', 'judgy', 'evening', 'done', 'night', 'birthday'] as const) {
+      for (const look of widgetLooks(mood)) {
+        const svg = widgetBizzySvg(mood, look, f);
+        assert.ok(svg.startsWith('<svg') && svg.endsWith('</svg>'), `${mood} ${look} ${f}`);
+      }
+    }
+    for (const route of DRAMA_ROUTES) for (let st = 0; st < 4; st++) assert.ok(dramaBizzySvg(route, st, f).endsWith('</svg>'));
+  }
+});
+
+test('birthday: a free rest day from when it was set, changeable once a year', () => {
+  let s = busy(0);
+  assert.equal(validBirthday('02-29'), true);
+  assert.equal(validBirthday('13-01'), false);
+  assert.equal(validBirthday('04-31'), false);
+  assert.equal(birthdayIn(2027, '02-29'), '2027-02-28');
+  assert.equal(birthdayIn(2028, '02-29'), '2028-02-29');
+  s = setBirthday(s, '10-20', '2026-10-25');
+  assert.equal(s.profile.birthday, '10-20');
+  // Set after the 20 October 2026: that one doesn't count, the next year's does.
+  assert.ok(!restDaysOf(s).includes('2026-10-20'));
+  assert.ok(restDaysOf(s).includes('2027-10-20'));
+  // Locked for a year.
+  assert.equal(birthdayLockedUntil(s, '2026-11-01'), addDays('2026-10-25', 365));
+  assert.equal(setBirthday(s, '05-05', '2026-11-01'), s);
+  assert.equal(setBirthday(s, '05-05', addDays('2026-10-25', 365)).profile.birthday, '05-05');
+  assert.equal(isBirthday(s, '2027-10-20'), true);
+  assert.equal(isBirthday(s, '2027-10-21'), false);
 });
 
 test('bizzy mood on the streak card: happy, worried, sleepy, proud', () => {

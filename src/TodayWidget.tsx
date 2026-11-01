@@ -1,8 +1,8 @@
 'use no memo';
 import { FlexWidget, SvgWidget, TextWidget } from 'react-native-android-widget';
-import { bizzySvg } from './bizzy.ts';
+import { dramaBizzySvg, widgetBizzySvg } from './widgetLooks.ts';
 import { t } from './i18n.ts';
-import type { WidgetData } from './widgetData.ts';
+import type { WidgetArt, WidgetData } from './widgetData.ts';
 
 // The Android home screen widget: Bizzy, tasks left, the streak and the XP bar,
 // in the Indigo look. Tapping anywhere opens the app. Widgets are drawn by the
@@ -10,6 +10,19 @@ import type { WidgetData } from './widgetData.ts';
 // Fonts are copied into the Android build by the plugin in app.json.
 
 export const WIDGET_NAME = 'Today';
+
+/** The background, warming up with each step of the late drama (picked 2026-11-01, R8a). */
+const TINTS: [`#${string}`, `#${string}`][] = [
+  ['#1F2742', '#151926'],
+  ['#2C2742', '#171926'],
+  ['#3B2640', '#1A1724'],
+  ['#4C2236', '#1E1420'],
+  ['#601C2C', '#24111A'],
+];
+
+function artSvg(art: WidgetArt, form: number): string {
+  return 'route' in art ? dramaBizzySvg(art.route, art.step, form) : widgetBizzySvg(art.mood, art.look, form);
+}
 
 const PAD = 12;
 
@@ -32,7 +45,7 @@ export function TodayWidget({ data, width, height }: { data: WidgetData; width: 
         borderRadius: 22,
         borderWidth: 1,
         borderColor: '#3A4366',
-        backgroundGradient: { from: '#1F2742', to: '#151926', orientation: 'TL_BR' },
+        backgroundGradient: { from: TINTS[data.tint][0], to: TINTS[data.tint][1], orientation: 'TL_BR' },
       }}
     >
       <FlexWidget style={{ width: 'match_parent', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -43,12 +56,12 @@ export function TodayWidget({ data, width, height }: { data: WidgetData; width: 
         <FlexWidget style={{ flex: 1, flexDirection: 'column', justifyContent: 'center' }}>
           <TextWidget
             text={data.headline}
-            maxLines={1}
+            maxLines={numeric ? 1 : 2}
             style={{ fontSize: numeric ? (small ? 34 : 42) : small ? 19 : 23, fontFamily: 'PlayfairDisplay_400Regular', color: '#EEF1FA' }}
           />
           <TextWidget text={data.sub} maxLines={small ? 3 : 4} style={{ fontSize: small ? 11 : 12, fontFamily: 'Assistant_400Regular', color: '#B6BDD2', marginTop: 2 }} />
         </FlexWidget>
-        <SvgWidget svg={bizzySvg(data.mood, false, { form: data.form })} style={{ width: bee, height: bee, marginLeft: 4 }} />
+        <SvgWidget svg={artSvg(data.art, data.form)} style={{ width: bee, height: bee, marginLeft: 4 }} />
       </FlexWidget>
       <FlexWidget style={{ width: barWidth, height: 6, borderRadius: 3, backgroundColor: '#2F3650' }}>
         {fill > 0 ? (

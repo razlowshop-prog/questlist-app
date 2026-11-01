@@ -24,6 +24,8 @@ import {
   emptyState,
   resetProgress,
   finishSetup,
+  setBirthday,
+  birthdayLockedUntil,
   isDoneToday,
   levelInfo,
   limitMessage,
@@ -472,8 +474,9 @@ function Succedo() {
     });
   }
 
-  function onSetupDone(name: string, goals: string[], picks: LibraryPick[]) {
-    const next = addPicks(finishSetup(state, name, goals), picks.filter((p) => !ownedTasks.has(p.task.id)));
+  function onSetupDone(name: string, goals: string[], picks: LibraryPick[], birthday?: string) {
+    let next = addPicks(finishSetup(state, name, goals), picks.filter((p) => !ownedTasks.has(p.task.id)));
+    if (birthday) next = setBirthday(next, birthday, today);
     askForReminders(picks);
     setState(next);
     setRedoSetup(false);
@@ -838,6 +841,9 @@ function Succedo() {
                   today={today}
                   onClaimAchievement={onClaimAchievement}
                   onRename={(name) => setState(setName(state, name))}
+                  birthday={state.profile.birthday}
+                  birthdayLockedUntil={birthdayLockedUntil(state, today)}
+                  onBirthday={(b) => setState((s) => setBirthday(s, b, today))}
                   onSettings={(changes) => setState((s) => updateSettings(s, changes))}
                   onPhoto={(next) => {
                     setPhoto(next);

@@ -1,5 +1,6 @@
 import { Cog } from 'lucide-react-native';
 import { useRef, useState } from 'react';
+import { BirthdayField } from '../components/BirthdayField';
 import { Platform, Pressable, ScrollView, Text, TextInput, View, type HostInstance } from 'react-native';
 import { ProfileBizzy } from '../components/ProfileBizzy';
 import type { activitySummary } from '../activity';
@@ -46,9 +47,15 @@ export function ProfileScreen({
   today,
   onClaimAchievement,
   onRename,
+  birthday,
+  birthdayLockedUntil,
+  onBirthday,
   onSettings,
   onPhoto,
 }: {
+  birthday?: string;
+  birthdayLockedUntil?: string;
+  onBirthday: (mmdd: string | undefined) => void;
   name: string;
   stats: ReturnType<typeof profileStats>;
   trophies: TrophyStatus[];
@@ -158,6 +165,7 @@ export function ProfileScreen({
           </Pressable>
         )}
         {title ? <Text style={s.title}>{t(title)}</Text> : null}
+        <BirthdayField value={birthday} lockedUntil={birthdayLockedUntil} onSave={onBirthday} />
         <View style={s.levelRow}>
           <View style={s.levelPill} ref={pillRef}>
             <LevelBadge level={stats.level} size={26} />
