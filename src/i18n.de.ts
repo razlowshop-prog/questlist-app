@@ -1173,4 +1173,5 @@ export const DE: Record<string, string> = {
   "day streak · {tier}#one": "Tag Serie · {tier}",
   "days streak · {tier}": "Tage Serie · {tier}",
   "day#one": "Tag",
+  "Looking for updates": "Suche nach Updates",
 };
