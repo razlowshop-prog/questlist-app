@@ -1,4 +1,7 @@
-"""Builds the Succedo mark (italic Playfair "S" in an ice-blue to violet gradient with a
+"""Superseded for the app icon, splash and favicon by scripts/make-bizzy-icons.ts
+(Bizzy with sparkles, picked 2026-10-31); running this would put the old S back.
+
+Builds the Succedo mark (italic Playfair "S" in an ice-blue to violet gradient with a
 violet glow, over a blue-to-violet bar, on a navy glow) as SVGs with the letter converted
 to paths, for the app icon, Android adaptive icon, splash and favicon (design thread,
 "home-variant-f-spec", section 4).
