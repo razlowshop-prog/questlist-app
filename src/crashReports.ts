@@ -3,8 +3,8 @@ import * as Sentry from '@sentry/react-native';
 /**
  * Crash reports (set up 2026-11-01): when the app breaks on a phone, Sentry
  * sends the error and where it happened, so it can be fixed without guessing.
- * Only with a Sentry address (EXPO_PUBLIC_SENTRY_DSN, set on expo.dev for the
- * builds); without one nothing is sent. No names, tasks or other personal data.
+ * Only with a Sentry address (EXPO_PUBLIC_SENTRY_DSN, set in eas.json for the
+ * builds; it ships inside the app, so it isn't a secret); without one nothing is sent. No names, tasks or other personal data.
  */
 const dsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
 

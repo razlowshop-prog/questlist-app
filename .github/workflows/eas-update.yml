@@ -37,3 +37,5 @@ jobs:
         env:
           # Same as the preview build (eas.json), so the test tools stay.
           EXPO_PUBLIC_DEV_TOOLS: '1'
+          # The crash report address, as in eas.json (public by design: it ships inside the app).
+          EXPO_PUBLIC_SENTRY_DSN: ${{ vars.SENTRY_DSN || 'https://3433d9a045d711c87048da20ff41e9cb@o4512356320477184.ingest.de.sentry.io/4512356330635344' }}
