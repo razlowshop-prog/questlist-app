@@ -60,7 +60,7 @@ export function nextTokenLevel(kind: TokenKind, level: number): number | undefin
 }
 
 /** The won looks that get a "new" badge until the player has seen them. Frames and titles are worn on the Profile, the rest in the bag. */
-export type LookKind = 'theme' | 'flame' | 'celebration' | 'frame' | 'title';
+export type LookKind = 'theme' | 'flame' | 'celebration' | 'frame' | 'title' | 'outfit';
 
 const PROFILE_KINDS: LookKind[] = ['frame', 'title'];
 
@@ -71,13 +71,18 @@ export const lookKey = (kind: LookKind, id: string) => `${kind}:${id}`;
  * ones). The classic flame and celebration everyone has don't count. Titles
  * are keyed by their name.
  */
-export function lookKeys(themes: string[], owned: Pick<OwnedLooks, 'flames' | 'celebrations'> & Partial<Pick<OwnedLooks, 'frames' | 'titles'>>): string[] {
+export function lookKeys(
+  themes: string[],
+  owned: Pick<OwnedLooks, 'flames' | 'celebrations'> & Partial<Pick<OwnedLooks, 'frames' | 'titles'>>,
+  outfits: Iterable<string> = [],
+): string[] {
   return [
     ...themes.map((id) => lookKey('theme', id)),
     ...owned.flames.filter((id) => id !== 'classic').map((id) => lookKey('flame', id)),
     ...owned.celebrations.filter((id) => id !== 'classic').map((id) => lookKey('celebration', id)),
     ...(owned.frames ?? []).map((id) => lookKey('frame', id)),
     ...(owned.titles ?? []).map((t) => lookKey('title', t)),
+    ...[...outfits].map((id) => lookKey('outfit', id)),
   ];
 }
 
@@ -92,6 +97,11 @@ export function isProfileLook(key: string): boolean {
  */
 export function seedProfileLooks(seen: string[] | undefined, keys: string[]): string[] {
   return markLooksSeen(seen, keys.filter(isProfileLook));
+}
+
+/** The same for outfits, from before they had "new" badges (asked 2026-11-01): the ones owned count as seen. */
+export function seedOutfitLooks(seen: string[] | undefined, keys: string[]): string[] {
+  return markLooksSeen(seen, keys.filter((k) => k.startsWith('outfit:')));
 }
 
 /** Won looks not seen yet. Before anything was stored (`seen` undefined) nothing counts as new. */
