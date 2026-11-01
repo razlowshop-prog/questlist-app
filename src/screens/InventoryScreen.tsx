@@ -103,7 +103,7 @@ export function InventoryScreen({
   const freshLooksHere = freshThemes.size + freshCelebrations.size + freshFlames.size;
   const freshOutfits = newOfKind(freshLooks, 'outfit');
   // New looks and nothing else new: open on Theme, where they are.
-  const [tab, setTab] = useState<'bag' | 'customize' | 'outfits'>(startTab ?? (freshLooksHere > 0 ? 'customize' : freshOutfits.size > 0 ? 'outfits' : 'bag'));
+  const [tab, setTab] = useState<'bag' | 'customize' | 'outfits'>(startTab ?? (freshLooksHere > 0 ? 'customize' : 'bag'));
   const counts: Record<BagItem, number> = { ticket: tickets, ...tokenCounts(state) };
   const capacity = bagCapacity(level);
   const { slots, waiting } = layoutBag(counts, capacity);
