@@ -361,7 +361,7 @@ export function TodayScreen({
                 )}
               </View>
               {tasks.length > 0 && open.length === 0 && (
-                <EmptyState bizzy="excited" glyph="Trophy" grad={RARITY.legendary} before={t('All ')} word={t('done')} after={t(' for today')} body={t('Every task is ticked off. Enjoy the rest of your day.')} />
+                <EmptyState glyph="Trophy" grad={RARITY.legendary} before={t('All ')} word={t('done')} after={t(' for today')} body={t('Every task is ticked off. Enjoy the rest of your day.')} />
               )}
             </>
           }

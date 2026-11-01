@@ -245,7 +245,8 @@ export function TodayMoment({
     if (!ok()) return;
     setSparks({ key: 3, at: C });
     flyer.rot.value = withTiming(0, { duration: 200 });
-    await flyer.fly([[C, [C[0] + 24, C[1] - 72], [spotAt[0] + 30, spotAt[1] + 40], spotAt]], 500, { scale: target!.size / 68 });
+    // Then he takes his time flying home to the streak card (asked 2026-10-31: one Bizzy, back to his spot).
+    await flyer.fly([[C, [C[0] + 24, C[1] - 72], [spotAt[0] + 30, spotAt[1] + 40], spotAt]], 1400, { scale: target!.size / 68, easing: Easing.inOut(Easing.sin) });
     if (!ok()) return;
     checkFade.value = withDelay(900, withTiming(0, { duration: 500 }));
     finish(landLine, 1450);
