@@ -11,7 +11,7 @@ import { useTourTarget } from './TourTargets';
 import { Fire } from './Fire';
 import { MultiplierPill } from './MultiplierPill';
 import { fill, GradientText, VIVID_HEAVY } from './Vivid';
-import { N, t } from '../i18n';
+import { N, t, tn } from '../i18n';
 
 const DAY_NAMES = [N('Monday'), N('Tuesday'), N('Wednesday'), N('Thursday'), N('Friday'), N('Saturday'), N('Sunday')];
 const DOT_WORDS: Record<WeekDot, string> = { done: N('done'), rest: N('rest day'), today: N('today'), missed: N('missed'), future: N('to come') };
@@ -98,7 +98,7 @@ export function StreakCard({
               <StreakNumber days={streak.days} tier={streak.tier} />
               <View style={{ flex: 1, gap: 4 }}>
                 <Text style={s.label} numberOfLines={2}>
-                  {t('day streak')}
+                  {tn(streak.days, 'day streak#one', 'day streak')}
                 </Text>
                 {/* The multiplier shares the tier's line, so a long streak still fits on small phones. */}
                 <View style={s.labelRow}>

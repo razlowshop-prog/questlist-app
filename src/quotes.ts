@@ -1,4 +1,4 @@
-import type { QuoteSide } from './game.ts';
+import type { Settings } from './game.ts';
 import { lang } from './i18n.ts';
 // Short, classic quotes for the daily motivation card (and later the opt-in email).
 export const QUOTES: [text: string, author: string][] = [
@@ -145,9 +145,9 @@ export function quoteOfTheDay(day: string): { text: string; author: string } {
 }
 
 /**
- * Which side the quote card on Today shows: every new day starts on the quote,
- * and within a day it stays on the side the player left it on.
+ * Whether the quote of the day greets the player as they open the app: once a
+ * day, on the first open, unless they turned it off in Settings.
  */
-export function quoteSideFor(saved: { side: QuoteSide; day: string } | undefined, today: string): QuoteSide {
-  return saved && saved.day === today ? saved.side : 'quote';
+export function quoteDue(settings: Pick<Settings, 'quoteDay' | 'quoteStart'>, today: string): boolean {
+  return settings.quoteStart !== false && settings.quoteDay !== today;
 }

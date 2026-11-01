@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { addDays } from './game.ts';
 import { setLang } from './i18n.ts';
-import { QUOTES, QUOTES_DE, quoteOfTheDay, quoteSideFor } from './quotes.ts';
+import { QUOTES, QUOTES_DE, quoteOfTheDay, quoteDue } from './quotes.ts';
 
 test('a different quote every day, all of them before any repeats', () => {
   for (const [language, list] of [['de', QUOTES_DE], ['en', QUOTES]] as const) {
@@ -19,11 +19,10 @@ test('a different quote every day, all of them before any repeats', () => {
   assert.equal(quoteOfTheDay('2026-10-21').text, quoteOfTheDay('2026-10-21').text);
 });
 
-test('the quote card starts each new day on the quote and keeps the side within a day', () => {
-  assert.equal(quoteSideFor(undefined, '2026-10-26'), 'quote');
-  assert.equal(quoteSideFor({ side: 'greet', day: '2026-10-26' }, '2026-10-26'), 'greet');
-  assert.equal(quoteSideFor({ side: 'quote', day: '2026-10-26' }, '2026-10-26'), 'quote');
-  // The next day, and a phone clock turned back, start on the quote again
-  assert.equal(quoteSideFor({ side: 'greet', day: '2026-10-25' }, '2026-10-26'), 'quote');
-  assert.equal(quoteSideFor({ side: 'greet', day: '2026-10-27' }, '2026-10-26'), 'quote');
+test('the quote screen shows on the first open of each day, unless turned off', () => {
+  assert.equal(quoteDue({}, '2026-11-01'), true);
+  assert.equal(quoteDue({ quoteDay: '2026-11-01' }, '2026-11-01'), false);
+  assert.equal(quoteDue({ quoteDay: '2026-10-31' }, '2026-11-01'), true);
+  assert.equal(quoteDue({ quoteStart: false }, '2026-11-01'), false);
+  assert.equal(quoteDue({ quoteStart: true, quoteDay: '2026-10-31' }, '2026-11-01'), true);
 });

@@ -63,6 +63,8 @@ import { dayTurn } from './src/flight';
 import { TourTargetProvider, useTourTargets } from './src/components/TourTargets';
 import { AppTour } from './src/components/AppTour';
 import { tourSteps } from './src/tour';
+import { quoteDue, quoteOfTheDay } from './src/quotes';
+import { QuoteSplash } from './src/components/QuoteSplash';
 import { outfitById, outfitDrawing, outfitName, toggleOutfit, wornOutfits } from './src/outfits';
 import { bizzyFormOf } from './src/bizzy';
 import { LevelDetails } from './src/components/LevelDetails';
@@ -286,6 +288,8 @@ function Succedo() {
   /** Library tasks already on the list, left out of the library and suggestions. */
   const ownedTasks = useMemo(() => ownedLibraryIds(state, today), [state.tasks, state.completions, today]);
   const week = useMemo(() => activitySummary(state, today), [state, today]);
+  // The quote of the day greets the player on the first open of each day, once setup and the tour are behind them.
+  const quoteShown = loaded && state.onboarded && state.settings.tour !== 'pending' && quoteDue(state.settings, today);
   const rewards = useMemo(() => unlockedRewards(state), [state.achievementClaims, state.levelRewards, state.wheelSpins]);
   // Everything owned: browser previews, or "Unlock everything" on the developer page.
   const allUnlocked = PREVIEW_ALL_THEMES || !!state.dev?.unlockAll;
@@ -908,10 +912,9 @@ function Succedo() {
                   combo={comboShown}
                   adding={adding}
                   onCloseAdd={() => setAdding(false)}
-                  onQuoteSide={(side) => setState((s) => updateSettings(s, { quoteSide: { side, day: today } }))}
                   hello={
                     // Once a day, from the second day on (the first is the welcome); hatch and hive take turns.
-                    loaded && state.settings.helloDay !== today && state.joinedAt && state.joinedAt < today
+                    loaded && !quoteShown && state.settings.helloDay !== today && state.joinedAt && state.joinedAt < today
                       ? { kind: dayTurn(today, 2) ? 'hive' : 'hatch', onStart: () => setState((s) => updateSettings(s, { helloDay: today })) }
                       : undefined
                   }
@@ -1117,6 +1120,7 @@ function Succedo() {
                 }}
               />
             )}
+            {quoteShown && <QuoteSplash quote={quoteOfTheDay(today)} onDone={() => setState((s) => updateSettings(s, { quoteDay: today }))} />}
           </SafeAreaView>
           </TourTargetProvider>
           </AvatarPhotoContext.Provider>

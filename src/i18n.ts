@@ -43,7 +43,15 @@ function fill(text: string, vars?: Vars): string {
 
 /** The text in the current language. `{name}` placeholders are filled from `vars`. */
 export function t(en: string, vars?: Vars): string {
-  return fill(current === 'de' ? (DE[en] ?? en) : en, vars);
+  return fill(current === 'de' ? (DE[en] ?? plain(en)) : plain(en), vars);
+}
+
+/**
+ * A key may end in "#one" when its English is the same for one and many but
+ * German isn't ("1 day streak", "1 Tag in Folge"): the mark is never shown.
+ */
+function plain(en: string): string {
+  return en.endsWith('#one') ? en.slice(0, -4) : en;
 }
 
 /** One or many: `tn(n, '{n} task', '{n} tasks')`. `n` is filled in too. */

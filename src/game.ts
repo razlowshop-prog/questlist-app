@@ -276,11 +276,11 @@ export interface Settings {
   profileLooksSeeded?: boolean;
   /** Day the last backup file was saved (backup.ts). */
   lastBackup?: string;
-  /** Which side of the quote card on Today was left showing, and on which day (quotes.ts quoteSideFor). */
-  quoteSide?: { side: QuoteSide; day: string };
+  /** The day the quote of the day last greeted the player on opening the app (quotes.ts quoteDue). */
+  quoteDay?: string;
+  /** false turns the quote screen on opening off. */
+  quoteStart?: boolean;
 }
-
-export type QuoteSide = 'quote' | 'greet';
 
 /** Evening time of the "your streak is about to end" notification. */
 export const STREAK_REMINDER_HOUR = 20;
@@ -331,6 +331,7 @@ export function resetProgress(state: GameState): GameState {
     lang: s.lang,
     lastBackup: s.lastBackup,
     reviewAsks: s.reviewAsks,
+    quoteStart: s.quoteStart,
   };
   // Leave out what was never set, so saved data stays as small as before.
   for (const k of Object.keys(kept) as (keyof Settings)[]) if (kept[k] === undefined) delete kept[k];

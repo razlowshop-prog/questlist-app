@@ -14,7 +14,7 @@ import { FLAMES, RARITY } from '../vivid';
 import { Bizzy } from './Bizzy';
 import { Fire } from './Fire';
 import { ConfettiBurst, Glyph, GradientText, VIVID_HEAVY, VividButton } from './Vivid';
-import { N, t } from '../i18n';
+import { N, t, tn } from '../i18n';
 
 export type Moment = { kind: 'perfect' } | { kind: 'streak'; days: number };
 
@@ -36,7 +36,7 @@ export function MomentCelebration({ moment, onClose }: { moment: Moment; onClose
   const cardStyle = useAnimatedStyle(() => ({ opacity: Math.min(1, pop.value * 1.5), transform: [{ scale: 0.7 + 0.3 * pop.value }] }));
 
   const perfect = moment.kind === 'perfect';
-  const title = perfect ? t('Perfect day') : t('{n}-day streak', { n: moment.days });
+  const title = perfect ? t('Perfect day') : tn(moment.days, '{n}-day streak#one', '{n}-day streak');
   const body = perfect
     ? t('Every task for today is done. +{xp} XP bonus.', { xp: PERFECT_DAY_XP })
     : moment.days >= 365

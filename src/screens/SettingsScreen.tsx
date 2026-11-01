@@ -104,6 +104,11 @@ export function SettingsScreen({
           right={<VividSwitch value={settings.streakReminders !== false} onValueChange={(v) => onSettings({ streakReminders: v })} accessibilityLabel={t('Streak reminders')} />}
         />
         <MenuRow
+          label={t('Quote of the day on opening')}
+          sub={t('Bizzy shows a quote on your first open of the day. Tap it to start.')}
+          right={<VividSwitch value={settings.quoteStart !== false} onValueChange={(v) => onSettings({ quoteStart: v })} accessibilityLabel={t('Quote of the day on opening')} />}
+        />
+        <MenuRow
           label={t('Daily motivation by email')}
           sub={t('A short motivational quote every morning. Unsubscribe any time.')}
           right={<VividSwitch value={settings.quoteEmails} onValueChange={(v) => onSettings({ quoteEmails: v })} accessibilityLabel={t('Daily motivation by email')} />}

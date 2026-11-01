@@ -59,7 +59,7 @@ export function LevelDetails({
                 <Fire tier={streak.tier} size={30} />
                 <View style={{ flex: 1 }}>
                   <Text style={s.sectionTitle}>
-                    {t('{n}-day streak', { n: streak.days })} · {streakTierName(streak.tier)}
+                    {tn(streak.days, '{n}-day streak#one', '{n}-day streak')} · {streakTierName(streak.tier)}
                   </Text>
                   <Text style={s.muted}>
                     {bonus > 0 ? t('{x}x XP on every task', { x: decimal(1 + bonus) }) : t('No XP bonus yet')}

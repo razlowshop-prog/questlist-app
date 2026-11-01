@@ -8,7 +8,7 @@ import { useReduceMotion } from '../components/FireAura';
 import { useTourTarget } from '../components/TourTargets';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Chip } from '../components/Chip';
-import { QuoteFlip } from '../components/QuoteFlip';
+import { Greeting } from '../components/Greeting';
 import { brandFill, brandFillSmall, brandInk, brandTextShadow, EmptyState, GradientText, VIVID_HEAVY, VividButton } from '../components/Vivid';
 import { RARITY } from '../vivid';
 import { LibraryRow } from '../components/LibraryRow';
@@ -33,7 +33,6 @@ import {
   totalXp,
   xpFor,
   type GameState,
-  type QuoteSide,
   type Repeat,
   type StreakStatus,
   type Task,
@@ -50,7 +49,6 @@ import { STEP_SHARE, suggestedSteps } from '../steps';
 import { estimateMinutes, tonightHour } from '../estimate';
 import { nonsenseReason } from '../sense';
 import { buzz } from '../haptics';
-import { quoteOfTheDay, quoteSideFor } from '../quotes';
 import { card, eyebrow, FONTS, themed, useStyles, useTheme, headingCase } from '../theme';
 import { N, t, tn } from '../i18n';
 
@@ -80,7 +78,6 @@ export function TodayScreen({
   onFocus,
   adding,
   onCloseAdd,
-  onQuoteSide,
   hello,
 }: {
   state: GameState;
@@ -117,8 +114,6 @@ export function TodayScreen({
   /** The add-task sheet is open (the + in the middle of the tab bar opens it). */
   adding: boolean;
   onCloseAdd: () => void;
-  /** The quote card at the top was flipped. */
-  onQuoteSide: (side: QuoteSide) => void;
   /** The first open of the day: Bizzy's morning hello to play (it marks the day as greeted when it starts). */
   hello?: { kind: 'hatch' | 'hive'; onStart: () => void };
 }) {
@@ -138,7 +133,6 @@ export function TodayScreen({
   /** Steps the user edited; undefined = the suggested ones. */
   const [stepDraft, setStepDraft] = useState<string[] | undefined>();
   const [newStep, setNewStep] = useState('');
-  const quote = quoteOfTheDay(today);
   const typed = title.trim();
   const suggestions = useMemo(
     () => (typed.length >= 2 ? searchLibrary(typed, 12).filter((l) => libraryTitle(l).toLowerCase() !== typed.toLowerCase() && !owned.has(l.id)).slice(0, 4) : []),
@@ -348,13 +342,7 @@ export function TodayScreen({
           keyboardShouldPersistTaps="handled"
           ListHeaderComponent={
             <>
-              <QuoteFlip
-                quote={quote}
-                name={shownName(state.profile.name)}
-                summary={tasks.length ? tn(tasks.length, '{done} of {n} task done', '{done} of {n} tasks done', { done: doneCount }) + (streak.days > 0 ? ` · ${t('{n}-day streak', { n: streak.days })}` : '') : undefined}
-                side={quoteSideFor(state.settings.quoteSide, today)}
-                onSide={onQuoteSide}
-              />
+              <Greeting name={shownName(state.profile.name)} />
               {/* Where the combo pill pops up: the header starts below the list's top padding. */}
               <View onLayout={(e) => (comboY.value = HEADER_TOP + e.nativeEvent.layout.y)} />
 
