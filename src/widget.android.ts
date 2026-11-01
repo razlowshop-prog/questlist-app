@@ -16,10 +16,10 @@ type WidgetLib = typeof import('react-native-android-widget');
 type Drawing = typeof import('./TodayWidget');
 
 /**
- * Off while the app is tested without the widget's native part (see
- * react-native.config.js): the app closed instantly on open since it was added.
+ * Switch for the whole widget. Back on 2026-11-01 so the startup crash seen
+ * with the widget (builds from #55 on) gets reported by Sentry's native start.
  */
-const WIDGET_ON = false;
+const WIDGET_ON = true;
 
 /** Whether this build has a home screen widget (the tour only shows how to add it then). */
 export const HAS_WIDGET = WIDGET_ON;
