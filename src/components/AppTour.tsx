@@ -13,7 +13,7 @@ import { FlyingBizzy, measureIn, useFlyer } from './fx/Flyer';
 import { useReduceMotion } from './FireAura';
 import { TierLadder } from './LevelDetails';
 import { VividButton } from './Vivid';
-import { WidgetHowTo } from './WidgetHowTo';
+import { AddWidgetButton, WidgetHowTo } from './WidgetHowTo';
 import type { TourTargets } from './TourTargets';
 
 type Box = { x: number; y: number; w: number; h: number };
@@ -223,7 +223,12 @@ export function AppTour({
             </Text>
             <Text style={s.body}>{t(step.body)}</Text>
             {step.extra === 'tiers' && <TierLadder streak={streak} />}
-            {step.extra === 'widget' && <WidgetHowTo />}
+            {step.extra === 'widget' && (
+              <>
+                <AddWidgetButton />
+                <WidgetHowTo />
+              </>
+            )}
             <View style={s.buttons}>
               {at > 0 ? <VividButton label={t('Back')} kind="secondary" compact onPress={() => setAt(at - 1)} /> : <View />}
               <VividButton label={last ? t('Let’s go!') : waiting ? (step.wait === 'remove' ? t('Remove it first') : t('Tick it off first')) : t('Next')} disabled={waiting} compact onPress={() => (last ? onDone() : setAt(at + 1))} />

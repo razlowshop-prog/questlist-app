@@ -9,3 +9,8 @@ export const HAS_WIDGET = false;
 export function registerWidget(): void {}
 
 export async function updateWidget(_state: GameState): Promise<void> {}
+
+/** Android only: asks the phone to add the widget to the home screen. */
+export async function pinWidget(): Promise<boolean> {
+  return false;
+}

@@ -1164,4 +1164,9 @@ export const DE: Record<string, string> = {
   "Month": "Monat",
   "Day": "Tag",
   "Once saved, it can only be changed once a year.": "Einmal gespeichert, lässt er sich nur einmal im Jahr ändern.",
+  "Add to home screen": "Zum Startbildschirm hinzufügen",
+  "Tap Add in the box your phone shows.": "Tippe im Fenster deines Handys auf „Hinzufügen“.",
+  "Your phone can’t add it from here. Hold an empty spot on your home screen, tap Widgets and pick Succedo.": "Dein Handy kann es nicht von hier hinzufügen. Halte eine freie Stelle auf dem Startbildschirm gedrückt, tippe auf Widgets und wähle Succedo.",
+  "Home screen widget": "Widget",
+  "Bizzy, your tasks left and your streak, right on your home screen.": "Bizzy, deine offenen Aufgaben und deine Serie direkt auf dem Startbildschirm.",
 };

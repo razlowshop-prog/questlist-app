@@ -361,7 +361,7 @@ export function TodayScreen({
               {/* Where the combo pill pops up: the header starts below the list's top padding. */}
               <View onLayout={(e) => (comboY.value = HEADER_TOP + e.nativeEvent.layout.y)} />
 
-              <StreakCard streak={streak} week={weekDots(state, today)} multiplier={multiplier} bizzy={{ mood, cheer, form: bizzyFormOf(state.bizzyForm).n, level: levelInfo(totalXp(state)).level, onEvolve, talk, taps: state.bizzyTaps ?? 0, onTap: onTapBizzy, spotRef: spot, away: !!moment && !landed, says }} onPress={onOpenStreak} />
+              <StreakCard streak={streak} week={weekDots(state, today)} multiplier={multiplier} bizzy={{ mood, cheer, form: bizzyFormOf(state.bizzyForm).n, level: levelInfo(totalXp(state)).level, onEvolve, talk, taps: state.bizzyTaps ?? 0, onTap: onTapBizzy, spotRef: spot, away: !!moment && moment !== 'check' && !landed, says }} onPress={onOpenStreak} />
               {tokenStrip}
               {recap}
               {focusBar}

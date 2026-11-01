@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming, type SharedValue } from 'react-native-reanimated';
 import { keyframes } from './fx/hooks';
@@ -6,6 +6,8 @@ import { N, t } from '../i18n';
 import { themed, useStyles } from '../theme';
 import { Bizzy } from './Bizzy';
 import { useReduceMotion } from './FireAura';
+import { VividButton } from './Vivid';
+import { pinWidget } from '../widget';
 
 const LOOP_MS = 7000;
 const W = 150;
@@ -82,6 +84,28 @@ export function WidgetHowTo() {
   );
 }
 
+/**
+ * "Add to home screen": Android shows its own box with the widget and an Add
+ * button (asked 2026-11-01). Where the phone can't, it says how by hand.
+ */
+export function AddWidgetButton() {
+  const s = useStyles(makeStyles);
+  const [note, setNote] = useState<string>();
+  return (
+    <View style={s.add}>
+      <VividButton
+        compact
+        label={t('Add to home screen')}
+        onPress={async () => {
+          const ok = await pinWidget();
+          setNote(ok ? t('Tap Add in the box your phone shows.') : t('Your phone can’t add it from here. Hold an empty spot on your home screen, tap Widgets and pick Succedo.'));
+        }}
+      />
+      {note && <Text style={s.addNote}>{note}</Text>}
+    </View>
+  );
+}
+
 const CAPTIONS = [N('1. Hold an empty spot'), N('2. Tap Widgets'), N('3. Find Succedo'), N('4. Drag me onto your screen')];
 
 function Captions({ p }: { p: SharedValue<number> }) {
@@ -119,5 +143,7 @@ const makeStyles = themed((c) => ({
   widgetSmall: { color: '#AEB6CF', fontSize: 9 },
   finger: { position: 'absolute', left: 0, top: 0, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.55)', borderWidth: 2, borderColor: '#FFFFFF' },
   captions: { flex: 1, gap: 6 },
+  add: { gap: 6, alignItems: 'flex-start' },
+  addNote: { color: c.muted, fontSize: 13, lineHeight: 18 },
   caption: { color: c.text, fontSize: 13, lineHeight: 17, fontWeight: '600' },
 }));

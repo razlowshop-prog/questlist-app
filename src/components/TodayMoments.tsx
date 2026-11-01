@@ -9,7 +9,7 @@ import { seeded } from './fx/hooks';
 
 // The two Today moments picked on 2026-10-29: the morning hello (A "honeycomb
 // hatch" and B "out of the hive", taking turns day by day) and all done (A
-// "honey check mark"). Both play over the Today screen, end with Bizzy back in
+// "honey check mark", drawn while Bizzy stays on the streak card). They play over the Today screen, end with Bizzy back in
 // his spot on the streak card, and a tap skips them.
 
 function hexPath(r: number): string {
@@ -223,33 +223,22 @@ export function TodayMoment({
     finish(landLine);
   }
 
-  async function honeyCheck(spotAt: Pt, { w, h }: { w: number; h: number }) {
-    // The check mark sits over the list: short stroke down, long one up.
-    const A: Pt = [w * 0.2, h * 0.58];
-    const B: Pt = [w * 0.4, h * 0.68];
-    const C: Pt = [w * 0.82, h * 0.42];
+  async function honeyCheck(_spotAt: Pt, { w, h }: { w: number; h: number }) {
+    // The check mark draws itself over the list while Bizzy cheers in his spot on
+    // the streak card: one Bizzy only, he no longer flies down (asked 2026-11-01).
+    const A: Pt = [w * 0.2, h * 0.62];
+    const B: Pt = [w * 0.4, h * 0.72];
+    const C: Pt = [w * 0.82, h * 0.5];
     setCheck([A, B, C]);
-    flyer.place(spotAt[0], spotAt[1], target!.size / 68);
-    await flyer.fly([[spotAt, [spotAt[0] + 20, spotAt[1] + 80], [A[0] - 22, A[1] - 30], A]], 520, { scale: 1 });
-    if (!ok()) return;
-    // He draws it: the line follows him (both go by the same share of its length).
     const l1 = Math.hypot(B[0] - A[0], B[1] - A[1]);
     const l2 = Math.hypot(C[0] - B[0], C[1] - B[1]);
     const share = l1 / (l1 + l2);
-    const line = (a: Pt, b: Pt): Curve => [a, [a[0] + (b[0] - a[0]) / 3, a[1] + (b[1] - a[1]) / 3], [a[0] + ((b[0] - a[0]) * 2) / 3, a[1] + ((b[1] - a[1]) * 2) / 3], b];
-    flyer.rot.value = withSequence(withTiming(14, { duration: 120 }), withDelay(700 * share - 120, withTiming(-16, { duration: 120 })));
-    // The line is drawn to exactly where he is: the same timings and easings, by share of its length.
     drawn.value = withSequence(withTiming(share, { duration: 700 * share, easing: Easing.in(Easing.quad) }), withTiming(1, { duration: 700 * (1 - share), easing: Easing.out(Easing.quad) }));
-    await flyer.fly([line(A, B)], 700 * share, { easing: Easing.in(Easing.quad) });
-    await flyer.fly([line(B, C)], 700 * (1 - share), { easing: Easing.out(Easing.quad) });
+    await wait(720);
     if (!ok()) return;
     setSparks({ key: 3, at: C });
-    flyer.rot.value = withTiming(0, { duration: 200 });
-    // Then he takes his time flying home to the streak card (asked 2026-10-31: one Bizzy, back to his spot).
-    await flyer.fly([[C, [C[0] + 24, C[1] - 72], [spotAt[0] + 30, spotAt[1] + 40], spotAt]], 1400, { scale: target!.size / 68, easing: Easing.inOut(Easing.sin) });
-    if (!ok()) return;
-    checkFade.value = withDelay(900, withTiming(0, { duration: 500 }));
-    finish(landLine, 1450);
+    checkFade.value = withDelay(1100, withTiming(0, { duration: 500 }));
+    finish(landLine, 1650);
   }
 
   const dimStyle = useAnimatedStyle(() => ({ opacity: dim.value }));
