@@ -39,3 +39,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Written by the Sentry plugin during prebuild; holds the crash report address.
+sentry.options.json

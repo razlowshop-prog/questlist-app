@@ -2,11 +2,13 @@ import { registerRootComponent } from 'expo';
 import { createElement, type ComponentType } from 'react';
 
 import { catchFatalErrors, CrashScreen } from './src/components/CrashScreen';
+import { startCrashReports } from './src/crashReports';
 import { LaunchGate } from './src/components/LaunchReport';
 import { registerWidget } from './src/widget';
 
 // A crash shows what went wrong instead of closing the app. Set up before the
 // app's code is loaded, so even an error while loading it shows on screen.
+startCrashReports();
 catchFatalErrors();
 let App: ComponentType;
 try {

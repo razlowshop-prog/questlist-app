@@ -2,6 +2,7 @@ import { Component, useEffect, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { t } from '../i18n';
 import { launchCheck } from '../launchCheck';
+import { reportCrash } from '../crashReports';
 
 /**
  * When something breaks, the app shows what went wrong instead of closing,
@@ -22,7 +23,10 @@ export function catchFatalErrors(): void {
   if (!utils) return;
   const usual = utils.getGlobalHandler();
   utils.setGlobalHandler((error, fatal) => {
-    if (fatal && listeners.size) listeners.forEach((l) => l(error));
+    if (fatal && listeners.size) {
+      reportCrash(error);
+      listeners.forEach((l) => l(error));
+    }
     else usual(error, fatal);
   });
 }
@@ -45,6 +49,7 @@ export class CrashGuard extends Component<{ children: ReactNode }, { error: unkn
 
   componentDidCatch(error: unknown, info: { componentStack?: string | null }) {
     console.warn('Crash screen', error, info.componentStack);
+    reportCrash(error);
   }
 
   render() {

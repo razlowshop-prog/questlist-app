@@ -10,12 +10,20 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_DEV_TOOLS": "1"
-      }
+        "EXPO_PUBLIC_DEV_TOOLS": "1",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://3433d9a045d711c87048da20ff41e9cb@o4512356320477184.ingest.de.sentry.io/4512356330635344"
+      },
+      "channel": "preview",
+      "environment": "preview"
     },
     "production": {
       "android": {
         "buildType": "app-bundle"
+      },
+      "channel": "production",
+      "environment": "production",
+      "env": {
+        "EXPO_PUBLIC_SENTRY_DSN": "https://3433d9a045d711c87048da20ff41e9cb@o4512356320477184.ingest.de.sentry.io/4512356330635344"
       }
     }
   },
