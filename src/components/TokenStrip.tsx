@@ -2,9 +2,8 @@ import { TrendingUp } from 'lucide-react-native';
 import { Pressable, Text, View } from 'react-native';
 import { COMEBACK_BONUS, comebackDaysLeft, streakTierName, type GameState } from '../game';
 import { card, themed, useStyles, useTheme } from '../theme';
-import { doubleXpActive, restOffer } from '../tokens';
+import { restOffer } from '../tokens';
 import { TOKEN_ICONS } from './RewardPicture';
-import { brandFillSmall, brandInk } from './Vivid';
 import { t, tn } from '../i18n';
 
 /**
@@ -17,9 +16,9 @@ export function TokenStrip({ state, today, onRest }: { state: GameState; today: 
   const s = useStyles(makeStyles);
   const c = useTheme();
   const offer = restOffer(state, today);
-  const double = doubleXpActive(state, today);
+  // An active 2x XP token shows once, as the ⚡ on the streak card's multiplier (asked 2026-10-31).
   const comeback = comebackDaysLeft(state, today);
-  if (!offer?.missed && !double && !comeback) return null;
+  if (!offer?.missed && !comeback) return null;
 
   return (
     <View style={s.wrap}>
@@ -34,14 +33,8 @@ export function TokenStrip({ state, today, onRest }: { state: GameState; today: 
           <Text style={s.offerAction}>{t('Use')}</Text>
         </Pressable>
       )}
-      {(double || comeback > 0) && (
+      {comeback > 0 && (
         <View style={s.row}>
-          {double && (
-            <View style={[s.pill, s.pillActive]}>
-              <TOKEN_ICONS.double size={14} color={brandInk(c)} strokeWidth={2} aria-hidden />
-              <Text style={[s.pillText, { color: brandInk(c) }]}>{t('2x XP today')}</Text>
-            </View>
-          )}
           {comeback > 0 && (
             <View style={s.pill}>
               <TrendingUp size={14} color={c.accent} strokeWidth={1.75} aria-hidden />
@@ -76,7 +69,6 @@ const makeStyles = themed((c) => ({
     borderColor: c.border,
     backgroundColor: c.surface,
   },
-  pillActive: { ...brandFillSmall(c), borderColor: 'transparent' },
   pillText: { color: c.text, fontSize: 13, fontWeight: '600' },
   pillCount: { color: c.muted, fontSize: 13, fontVariant: ['tabular-nums'] },
 }));

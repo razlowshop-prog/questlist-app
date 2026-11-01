@@ -817,7 +817,6 @@ export const DE: Record<string, string> = {
   "You missed yesterday. Use a rest day to keep your {n}-day streak.": "Du hast gestern verpasst. Nutz einen Ruhetag, um deine {n}-Tage-Serie zu halten.",
   "You missed yesterday. Use a rest day to keep your {tier} fire.": "Du hast gestern verpasst. Nutz einen Ruhetag, um dein Feuer „{tier}“ zu halten.",
   "Use": "Nutzen",
-  "2x XP today": "Heute 2× XP",
   "Comeback boost: +{pct}% XP": "Comeback-Boost: +{pct} % XP",
   "{app}, go to Today": "{app}, zu Heute",
   "Inventory, {n} new": "Tasche, {n} neu",
